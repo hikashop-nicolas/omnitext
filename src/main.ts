@@ -197,7 +197,7 @@ async function mountDoc(text: string, opts: MountOpts): Promise<void> {
   // Choose the editor: explicit, else a saved per-format preference, else resolution.
   const choices = engine.editorChoices(descriptor);
   const wantEditorId = opts.editorId ?? (formatId ? prefs[formatId] : undefined);
-  const chosen =
+  let chosen =
     choices.find((c) => c.editor.manifest.id === wantEditorId) ?? engine.resolve(descriptor);
 
   // Load the (lazy) implementations.
@@ -208,7 +208,21 @@ async function mountDoc(text: string, opts: MountOpts): Promise<void> {
     console.error("format load failed", e);
     engine.notificationSink.error(`Could not load the ${formatId} format.`);
   }
-  const editorModule = await chosen.editor.load();
+  // A chunk can fail to load (e.g. a stale page after a redeploy). Degrade to the text
+  // editor instead of wedging, and tell the user.
+  let editorModule;
+  try {
+    editorModule = await chosen.editor.load();
+  } catch (e) {
+    console.error("editor load failed", e);
+    const fallback = engine.editors.byId("codemirror");
+    if (!fallback || chosen.editor.manifest.id === "codemirror") throw e;
+    engine.notificationSink.warn(
+      `Could not load the ${editorLabel(chosen.editor.manifest.id)} editor (try reloading). Using Text.`,
+    );
+    chosen = { editor: fallback, view: "text", reason: "fallback" };
+    editorModule = await fallback.load();
+  }
   const instance = editorModule.create(engine.host("app"));
 
   session?.editor?.dispose();
