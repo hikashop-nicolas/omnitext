@@ -1,0 +1,186 @@
+import type { Disposable, HostAPI, ToolModule } from "../core/types";
+import { VersionStore, type Version } from "./version-store";
+
+// Version history + diff tool. Snapshots the active document (on save, on a debounce
+// after edits, and on demand), and offers a panel to browse versions, diff any version
+// against the current text, and restore one. Diffs use jsdiff, loaded lazily.
+
+const STYLE_ID = "omnitext-history-style";
+const AUTO_SNAPSHOT_MS = 45_000;
+
+function ensureStyles(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const s = document.createElement("style");
+  s.id = STYLE_ID;
+  s.textContent = `
+    .ot-hist { font: 13px/1.5 system-ui, -apple-system, sans-serif; }
+    .ot-hist-bar { margin-bottom: 10px; }
+    .ot-hist-list { display: flex; flex-direction: column; gap: 6px; }
+    .ot-hist-empty { color: var(--muted); }
+    .ot-hist-row { border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+    .ot-hist-meta { display: flex; align-items: center; gap: 8px; }
+    .ot-hist-time { font-weight: 600; }
+    .ot-hist-label { color: var(--muted); font-size: 11px; }
+    .ot-hist-size { color: var(--muted); font-size: 11px; margin-left: auto; }
+    .ot-hist-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .ot-mini {
+      font: inherit; font-size: 12px; padding: 2px 9px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;
+    }
+    .ot-mini:hover { border-color: var(--accent); }
+    .ot-mini.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+    .ot-diff {
+      margin-top: 8px; max-height: 320px; overflow: auto; border-top: 1px solid var(--border);
+      padding-top: 6px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .ot-diff-line { white-space: pre-wrap; }
+    .ot-diff-line.add { color: #3fb950; }
+    .ot-diff-line.del { color: #e5484d; }
+    .ot-diff-line.ctx { color: var(--muted); }
+  `;
+  document.head.appendChild(s);
+}
+
+function el(tag: string, className?: string, text?: string): HTMLElement {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function button(label: string, onClick: () => void, className = "ot-mini"): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.className = className;
+  b.textContent = label;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
+  const doc = host.workspace.getActiveDocument();
+  if (!doc || doc.text.trim() === "") return;
+  const existing = await store.listByKey(doc.key);
+  if (existing[0]?.text === doc.text) return; // skip if unchanged since last snapshot
+  await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: doc.text });
+}
+
+async function renderDiff(area: HTMLElement, fromText: string, toText: string): Promise<void> {
+  const { diffLines } = await import("diff");
+  const parts = diffLines(fromText, toText);
+  area.textContent = "";
+  if (!parts.some((p) => p.added || p.removed)) {
+    area.append(el("div", "ot-diff-line ctx", "No differences from the current document."));
+    return;
+  }
+  for (const part of parts) {
+    const cls = part.added ? "add" : part.removed ? "del" : "ctx";
+    const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
+    for (const line of part.value.replace(/\n$/, "").split("\n")) {
+      area.append(el("div", `ot-diff-line ${cls}`, prefix + line));
+    }
+  }
+}
+
+function renderList(
+  list: HTMLElement,
+  versions: Version[],
+  host: HostAPI,
+  refresh: () => void,
+): void {
+  list.textContent = "";
+  if (versions.length === 0) {
+    list.append(
+      el("div", "ot-hist-empty", "No versions yet. Snapshots are taken on Save, periodically while you edit, and when you click Snapshot now."),
+    );
+    return;
+  }
+  for (const v of versions) {
+    const row = el("div", "ot-hist-row");
+    const meta = el("div", "ot-hist-meta");
+    meta.append(
+      el("span", "ot-hist-time", new Date(v.ts).toLocaleString()),
+      el("span", "ot-hist-label", v.label),
+      el("span", "ot-hist-size", `${v.text.length} chars`),
+    );
+    row.append(meta);
+
+    const actions = el("div", "ot-hist-actions");
+    const diffArea = el("div", "ot-diff");
+    diffArea.hidden = true;
+    const diffBtn = button("Diff vs current", () => {
+      diffArea.hidden = !diffArea.hidden;
+      if (!diffArea.hidden) {
+        const cur = host.workspace.getActiveDocument()?.text ?? "";
+        void renderDiff(diffArea, v.text, cur);
+      }
+    });
+    const restoreBtn = button(
+      "Restore",
+      () => {
+        host.workspace.setActiveText(v.text);
+        host.notifications.info(`Restored the version from ${new Date(v.ts).toLocaleString()}.`);
+        refresh();
+      },
+      "ot-mini primary",
+    );
+    actions.append(diffBtn, restoreBtn);
+    row.append(actions, diffArea);
+    list.append(row);
+  }
+}
+
+function openPanel(host: HostAPI, store: VersionStore): void {
+  ensureStyles();
+  host.ui.openPanel({
+    title: "Version history",
+    render: (container) => {
+      const doc = host.workspace.getActiveDocument();
+      if (!doc) {
+        container.append(el("div", "ot-hist-empty", "Open a document first."));
+        return;
+      }
+      const rootEl = el("div", "ot-hist");
+      const bar = el("div", "ot-hist-bar");
+      const list = el("div", "ot-hist-list");
+      const refresh = (): void => {
+        list.textContent = "Loading…";
+        void store.listByKey(doc.key).then((versions) => renderList(list, versions, host, refresh));
+      };
+      bar.append(
+        button("Snapshot now", () => {
+          void snapshot(host, store, "Manual").then(refresh);
+        }),
+      );
+      rootEl.append(bar, list);
+      container.append(rootEl);
+      refresh();
+    },
+  });
+}
+
+export const historyTool: ToolModule = {
+  manifest: { kind: "tool", id: "history", capabilities: ["history", "diff"] },
+  activate(host: HostAPI): Disposable {
+    const store = new VersionStore();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const disposables = [
+      host.events.on("documentSaved", () => void snapshot(host, store, "Saved")),
+      host.events.on("contentChanged", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => void snapshot(host, store, "Auto"), AUTO_SNAPSHOT_MS);
+      }),
+      host.commands.register({
+        id: "history.open",
+        title: "History: Open version history",
+        run: () => openPanel(host, store),
+      }),
+      host.ui.addToolbarButton({ id: "history", title: "History", onClick: () => openPanel(host, store) }),
+    ];
+    return {
+      dispose() {
+        clearTimeout(timer);
+        for (const d of disposables) d.dispose();
+      },
+    };
+  },
+};

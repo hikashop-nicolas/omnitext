@@ -25,12 +25,15 @@ import { tsvFormat } from "./formats/tsv";
 import { typescriptFormat } from "./formats/typescript";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
+import { historyTool } from "./tools/history";
 import type {
   EditorInstance,
   EditorResolution,
   FormatDescriptor,
   FormatModule,
   TextEncoding,
+  UIContributions,
+  Workspace,
 } from "./core/types";
 
 declare global {
@@ -139,6 +142,10 @@ const statusTextEl = $("status-text");
 const formatSel = $<HTMLSelectElement>("format");
 const editorSel = $<HTMLSelectElement>("editor-select");
 const fileInput = $<HTMLInputElement>("file-input");
+const toolsEl = $("tools");
+const panelEl = $("panel");
+const panelTitleEl = $("panel-title");
+const panelBodyEl = $("panel-body");
 
 function populateFormatSelect(current: string | null): void {
   formatSel.innerHTML = "";
@@ -249,6 +256,7 @@ async function mountDoc(text: string, opts: MountOpts): Promise<void> {
       session.dirty = session.editor!.getText() !== session.lastSavedText;
       updateUI();
       scheduleAutosave();
+      engine.events.emit("contentChanged", { sessionId: session.id });
     },
   });
   instance.focus();
@@ -417,6 +425,79 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+
+// --- workspace + UI providers for tools, then register tools -----------------
+
+const workspace: Workspace = {
+  getActiveDocument() {
+    if (!session?.editor) return null;
+    return {
+      sessionId: session.id,
+      key: session.uri ?? session.id,
+      uri: session.uri,
+      filename: session.filename,
+      formatId: session.formatId,
+      text: session.editor.getText(),
+    };
+  },
+  setActiveText(text) {
+    if (!session?.editor) return;
+    const prevSaved = session.lastSavedText; // keep the on-disk baseline so restore is dirty
+    void mountDoc(text, {
+      filename: session.filename,
+      encoding: session.encoding,
+      uri: session.uri,
+      fileHandle: session.fileHandle,
+      formatId: session.formatId,
+      editorId: session.editorId,
+    }).then(() => {
+      if (!session?.editor) return;
+      session.lastSavedText = prevSaved;
+      session.dirty = session.editor.getText() !== prevSaved;
+      updateUI();
+      scheduleAutosave();
+    });
+  },
+};
+
+let panelCleanup: (() => void) | null = null;
+const ui: UIContributions = {
+  addToolbarButton(btn) {
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.id = `toolbtn-${btn.id}`;
+    b.textContent = btn.title;
+    b.addEventListener("click", btn.onClick);
+    toolsEl.appendChild(b);
+    return { dispose: () => b.remove() };
+  },
+  openPanel(panel) {
+    ui.closePanels();
+    panelTitleEl.textContent = panel.title;
+    panelBodyEl.textContent = "";
+    const cleanup = panel.render(panelBodyEl);
+    if (typeof cleanup === "function") panelCleanup = cleanup;
+    panelEl.hidden = false;
+    return { close: () => ui.closePanels() };
+  },
+  closePanels() {
+    if (panelCleanup) {
+      try {
+        panelCleanup();
+      } catch {
+        /* ignore */
+      }
+      panelCleanup = null;
+    }
+    panelBodyEl.textContent = "";
+    panelEl.hidden = true;
+  },
+};
+
+engine.workspace = workspace;
+engine.ui = ui;
+$("panel-close").addEventListener("click", () => ui.closePanels());
+engine.registerTool(historyTool);
 
 // --- startup: crash recovery, else a blank doc -------------------------------
 

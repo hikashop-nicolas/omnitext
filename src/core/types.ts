@@ -269,6 +269,49 @@ export interface Notifications {
 }
 
 // ---------------------------------------------------------------------------
+// Workspace + UI contributions (what tools use to reach the document and add UI)
+// ---------------------------------------------------------------------------
+
+export interface ActiveDocument {
+  sessionId: string;
+  /** Stable per-file key (uri when known, else the session id). */
+  key: string;
+  uri: string | null;
+  filename: string | null;
+  formatId: string | null;
+  text: string;
+}
+
+export interface Workspace {
+  getActiveDocument(): ActiveDocument | null;
+  /** Replace the active document's content (e.g. restore a version). */
+  setActiveText(text: string): void;
+}
+
+export interface ToolbarButton {
+  id: string;
+  title: string;
+  onClick(): void;
+}
+
+export interface Panel {
+  title: string;
+  /** Fill the panel body; may return a cleanup function. */
+  render(container: HTMLElement): void | (() => void);
+}
+
+export interface PanelHandle {
+  close(): void;
+}
+
+export interface UIContributions {
+  addToolbarButton(button: ToolbarButton): Disposable;
+  /** Open a side panel (closes any currently-open one). */
+  openPanel(panel: Panel): PanelHandle;
+  closePanels(): void;
+}
+
+// ---------------------------------------------------------------------------
 // Host API: the single capability object handed to every module
 // ---------------------------------------------------------------------------
 
@@ -280,6 +323,8 @@ export interface HostAPI {
   readonly editors: EditorRegistryReadonly;
   readonly tools: ToolRegistryReadonly;
   readonly notifications: Notifications;
+  readonly workspace: Workspace;
+  readonly ui: UIContributions;
 }
 
 /** Resolution result: which editor renders a document and through which view. */

@@ -15,6 +15,8 @@ import type {
   HostAPI,
   Notifications,
   ToolModule,
+  UIContributions,
+  Workspace,
 } from "./types";
 
 export interface EngineConfig {
@@ -40,6 +42,14 @@ export class OmnitextEngine {
     info: (m) => console.info("[omnitext]", m),
     warn: (m) => console.warn("[omnitext]", m),
     error: (m) => console.error("[omnitext]", m),
+  };
+
+  /** App-supplied workspace + UI providers; default no-ops until the app sets them. */
+  workspace: Workspace = { getActiveDocument: () => null, setActiveText: () => {} };
+  ui: UIContributions = {
+    addToolbarButton: () => ({ dispose: () => {} }),
+    openPanel: () => ({ close: () => {} }),
+    closePanels: () => {},
   };
 
   constructor(private readonly config: EngineConfig) {}
@@ -91,6 +101,8 @@ export class OmnitextEngine {
       editors: this.editors,
       tools: this.tools,
       notifications: this.notificationSink,
+      workspace: this.workspace,
+      ui: this.ui,
     };
   }
 }
