@@ -2,11 +2,30 @@ import { basicSetup } from "codemirror";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type Diagnostic as CmDiagnostic, linter, lintGutter } from "@codemirror/lint";
+import { oneDark } from "@codemirror/theme-one-dark";
 import type {
   EditorInstance,
   EditorModule,
   EditorMountContext,
 } from "../core/types";
+
+// Comfortable typography and spacing, applied in both themes.
+const baseTheme = EditorView.theme({
+  "&": { height: "100%", fontSize: "13.5px" },
+  ".cm-scroller": {
+    fontFamily:
+      "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
+    lineHeight: "1.65",
+  },
+  ".cm-content": { padding: "12px 0" },
+  ".cm-gutters": { border: "none", background: "transparent" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 12px 0 14px" },
+});
+
+const prefersDark = (): boolean =>
+  typeof window !== "undefined" &&
+  !!window.matchMedia &&
+  window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 // The universal text editor. It consumes the "text" view, so it is the fallback for
 // any format. It pulls optional syntax highlighting from the active format's
@@ -18,11 +37,13 @@ class CodeMirrorInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     const extensions: Extension[] = [
       basicSetup,
+      baseTheme,
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
         if (u.docChanged) ctx.onChange();
       }),
     ];
+    if (prefersDark()) extensions.push(oneDark);
     const langExt = ctx.format?.language?.();
     if (langExt) extensions.push(langExt as Extension);
 

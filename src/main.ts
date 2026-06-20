@@ -55,7 +55,7 @@ const editorEl = $("editor");
 const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const reasonEl = $("reason");
-const statusEl = $("status");
+const statusTextEl = $("status-text");
 const formatSel = $<HTMLSelectElement>("format");
 const fileInput = $<HTMLInputElement>("file-input");
 
@@ -74,7 +74,7 @@ function updateUI(): void {
 }
 
 function setStatus(msg: string): void {
-  statusEl.textContent = msg;
+  statusTextEl.textContent = msg;
 }
 
 // --- core flows ------------------------------------------------------------

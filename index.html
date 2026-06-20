@@ -5,49 +5,200 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Omnitext</title>
     <style>
-      :root { color-scheme: light dark; --bar: #f3f3f3; --border: #d7d7d7; --muted: #6a6a6a; }
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --chrome: #fbfbfd;
+        --surface: #f1f2f4;
+        --surface-hover: #e8eaed;
+        --border: #e4e6eb;
+        --text: #1c1e21;
+        --muted: #6b7280;
+        --accent: #4f46e5;
+        --accent-fg: #ffffff;
+        --canvas: #ffffff;
+        --amber: #b45309;
+        --ok: #16a34a;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
       @media (prefers-color-scheme: dark) {
-        :root { --bar: #232323; --border: #3a3a3a; --muted: #9a9a9a; }
+        :root {
+          --bg: #0d1117;
+          --chrome: #161b22;
+          --surface: #21262d;
+          --surface-hover: #2b323b;
+          --border: #2d333b;
+          --text: #e6edf3;
+          --muted: #8b949e;
+          --accent: #6e7bff;
+          --accent-fg: #0b0e14;
+          --canvas: #282c34;
+          --amber: #e3a008;
+          --ok: #3fb950;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
       }
+
       * { box-sizing: border-box; }
-      html, body { height: 100%; margin: 0; font: 13px/1.4 system-ui, sans-serif; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        -webkit-font-smoothing: antialiased;
+      }
       #app { display: flex; flex-direction: column; height: 100%; }
+
+      /* Toolbar */
       #toolbar {
-        display: flex; align-items: center; gap: 8px; padding: 6px 10px;
-        background: var(--bar); border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 8px 14px;
+        background: var(--chrome);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        position: relative;
+        z-index: 2;
       }
-      #toolbar .spacer { flex: 1; }
-      #toolbar button, #toolbar select {
-        font: inherit; padding: 3px 9px; border: 1px solid var(--border);
-        border-radius: 5px; background: transparent; cursor: pointer;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: -0.015em;
+        user-select: none;
       }
-      #filename { font-weight: 600; }
-      #dirty { color: #d08600; }
-      .muted { color: var(--muted); }
-      #editor { flex: 1; overflow: auto; }
-      #editor .cm-editor { height: 100%; }
+      .brand-mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, var(--accent), #22d3ee);
+        box-shadow: 0 1px 4px rgba(79, 70, 229, 0.4);
+      }
+      .sep { width: 1px; height: 22px; background: var(--border); }
+      .group { display: flex; align-items: center; gap: 6px; }
+      .spacer { flex: 1; }
+
+      .btn {
+        font: inherit;
+        font-size: 13px;
+        padding: 5px 12px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--text);
+        cursor: pointer;
+        transition: background 0.12s, border-color 0.12s, transform 0.04s;
+      }
+      .btn:hover { background: var(--surface-hover); }
+      .btn:active { transform: translateY(1px); }
+      .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .btn-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-fg);
+        font-weight: 600;
+      }
+      .btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+
+      .doc { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      #filename {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 280px;
+      }
+      .dirty { color: var(--amber); font-size: 12px; white-space: nowrap; }
+
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .field select {
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 26px 4px 9px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--text);
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 9px center;
+      }
+      .field select:hover { background-color: var(--surface-hover); }
+
+      .pill {
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 2px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      /* Editor */
+      #editor { flex: 1; min-height: 0; overflow: hidden; background: var(--canvas); }
+      .cm-editor { height: 100%; }
+      .cm-editor.cm-focused { outline: none; }
+
+      /* Status bar */
       #status {
-        padding: 4px 10px; border-top: 1px solid var(--border);
-        background: var(--bar); color: var(--muted); font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 14px;
+        background: var(--chrome);
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 11.5px;
+      }
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+        flex: none;
+      }
+
+      @media (max-width: 560px) {
+        .pill { display: none; }
+        #filename { max-width: 110px; }
       }
     </style>
   </head>
   <body>
     <div id="app">
-      <div id="toolbar">
-        <button id="btn-new">New</button>
-        <button id="btn-open">Open</button>
-        <button id="btn-save">Save</button>
-        <span id="filename" class="muted">untitled</span>
-        <span id="dirty"></span>
+      <header id="toolbar">
+        <div class="brand"><span class="brand-mark"></span><span>Omnitext</span></div>
+        <span class="sep"></span>
+        <div class="group">
+          <button id="btn-new" class="btn">New</button>
+          <button id="btn-open" class="btn">Open</button>
+          <button id="btn-save" class="btn btn-primary">Save</button>
+        </div>
+        <div class="doc">
+          <span id="filename">untitled</span>
+          <span id="dirty" class="dirty"></span>
+        </div>
         <span class="spacer"></span>
-        <label class="muted">Format
-          <select id="format"></select>
-        </label>
-        <span id="reason" class="muted"></span>
-      </div>
-      <div id="editor"></div>
-      <div id="status">Local-first. The in-browser copy is a cache; use Save to write a durable file to disk.</div>
+        <label class="field">Format <select id="format"></select></label>
+        <span id="reason" class="pill"></span>
+      </header>
+      <main id="editor"></main>
+      <footer id="status">
+        <span class="status-dot"></span>
+        <span id="status-text">Local-first. The in-browser copy is a cache; use Save to write a durable file to disk.</span>
+      </footer>
     </div>
     <input id="file-input" type="file" hidden />
     <script type="module" src="/src/main.ts"></script>
