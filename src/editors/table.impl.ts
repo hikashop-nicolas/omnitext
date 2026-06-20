@@ -43,6 +43,7 @@ function ensureStyles(): void {
 class TableInstance implements EditorInstance {
   private format: FormatModule | null = null;
   private model: unknown = null;
+  private binary = false;
   private notifyChange: () => void = () => {};
   private wrap: HTMLElement | null = null;
   private sel: { row: number; col: number } | null = null;
@@ -50,13 +51,14 @@ class TableInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
     this.format = ctx.format;
+    this.binary = ctx.binary;
     this.notifyChange = ctx.onChange;
 
     if (!this.format?.toView || !this.format.applyViewEdit) {
       container.textContent = "The table editor needs a format with a table view.";
       return;
     }
-    this.model = this.format.parse(ctx.text).model;
+    this.model = ctx.model; // host pre-parsed (from text or bytes)
     const view = this.format.toView(this.model, "table") as TableView;
 
     const wrap = document.createElement("div");
@@ -97,7 +99,13 @@ class TableInstance implements EditorInstance {
   }
 
   getText(): string {
-    return this.format ? this.format.serialize(this.model) : "";
+    return this.format && !this.binary ? this.format.serialize(this.model) : "";
+  }
+
+  getBytes(): Uint8Array | undefined {
+    return this.binary && this.format?.serializeBinary
+      ? this.format.serializeBinary(this.model)
+      : undefined;
   }
 
   selection(): unknown {

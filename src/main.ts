@@ -23,6 +23,8 @@ import { shellFormat } from "./formats/shell";
 import { tomlFormat } from "./formats/toml";
 import { tsvFormat } from "./formats/tsv";
 import { typescriptFormat } from "./formats/typescript";
+import { xlsFormat } from "./formats/xls";
+import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import { historyTool } from "./tools/history";
@@ -62,6 +64,8 @@ const FORMATS: FormatDescriptor[] = [
   markdownFormat,
   csvFormat,
   tsvFormat,
+  xlsxFormat,
+  xlsFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,
@@ -122,6 +126,7 @@ interface Session {
   fileHandle: FsHandle | null;
   lastSavedText: string;
   dirty: boolean;
+  binary: boolean;
 }
 
 let session: Session | null = null;
@@ -179,6 +184,9 @@ function setStatus(msg: string): void {
 // --- core flow ---------------------------------------------------------------
 
 interface MountOpts {
+  text?: string;
+  bytes?: Uint8Array | null;
+  binary?: boolean;
   filename: string | null;
   encoding: TextEncoding;
   uri?: string | null;
@@ -188,12 +196,16 @@ interface MountOpts {
   recovered?: boolean;
 }
 
-async function mountDoc(text: string, opts: MountOpts): Promise<void> {
-  // Resolve the format descriptor (explicit id, else detection).
+async function mountDoc(opts: MountOpts): Promise<void> {
+  const binary = !!opts.binary;
+  const text = opts.text ?? "";
+  const bytes = opts.bytes ?? null;
+
+  // Resolve the format descriptor (explicit id, else detection on the text).
   let descriptor: FormatDescriptor | null = null;
   if (opts.formatId) {
     descriptor = engine.formats.byId(opts.formatId) ?? null;
-  } else {
+  } else if (!binary) {
     const filename = opts.filename ?? undefined;
     const sample = text.slice(0, 8192);
     const hit = engine.detect(filename !== undefined ? { filename, sample } : { sample });
@@ -215,6 +227,20 @@ async function mountDoc(text: string, opts: MountOpts): Promise<void> {
     console.error("format load failed", e);
     engine.notificationSink.error(`Could not load the ${formatId} format.`);
   }
+
+  // Pre-parse content into the format's model (from text or bytes) for the editor.
+  let model: unknown = text;
+  if (formatModule) {
+    try {
+      model = binary
+        ? (formatModule.parseBinary?.(bytes ?? new Uint8Array())?.model ?? null)
+        : formatModule.parse(text).model;
+    } catch (e) {
+      console.error("parse failed", e);
+      engine.notificationSink.error(`Could not read this ${formatId ?? "document"}.`);
+    }
+  }
+
   // A chunk can fail to load (e.g. a stale page after a redeploy). Degrade to the text
   // editor instead of wedging, and tell the user.
   let editorModule;
@@ -242,20 +268,26 @@ async function mountDoc(text: string, opts: MountOpts): Promise<void> {
     editor: instance,
     editorId: chosen.editor.manifest.id,
     fileHandle: opts.fileHandle ?? null,
-    lastSavedText: text,
+    lastSavedText: binary ? "" : text,
     dirty: false,
+    binary,
   };
 
   editorEl.innerHTML = "";
   instance.mount(editorEl, {
     text,
+    bytes,
+    binary,
+    model,
     format: formatModule,
     view: chosen.view,
     onChange: () => {
       if (!session) return;
-      session.dirty = session.editor!.getText() !== session.lastSavedText;
+      session.dirty = session.binary
+        ? true
+        : session.editor!.getText() !== session.lastSavedText;
       updateUI();
-      scheduleAutosave();
+      if (!session.binary) scheduleAutosave();
       engine.events.emit("contentChanged", { sessionId: session.id });
     },
   });
@@ -296,20 +328,46 @@ function scheduleAutosave(): void {
 
 // --- open / save -------------------------------------------------------------
 
+/** A registered binary format matching the filename's extension, else null. */
+function binaryFormatFor(filename: string): FormatDescriptor | null {
+  const dot = filename.lastIndexOf(".");
+  if (dot < 0) return null;
+  const d = engine.formats.byExtension(filename.slice(dot))[0];
+  return d?.manifest.binary ? d : null;
+}
+
+async function openBuffer(buffer: ArrayBuffer, filename: string, scheme: string, handle: FsHandle | null): Promise<void> {
+  const bin = binaryFormatFor(filename);
+  if (bin) {
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: bin.manifest.id,
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+    });
+    return;
+  }
+  const decoded = decodeBytes(buffer);
+  await mountDoc({
+    text: decoded.text,
+    filename,
+    encoding: decoded.encoding,
+    uri: `${scheme}://${filename}`,
+    fileHandle: handle,
+  });
+  if (decoded.lossyOnSave) setStatus("Note: this file's encoding will be saved as UTF-8.");
+}
+
 async function openFile(): Promise<void> {
   if (window.showOpenFilePicker) {
     try {
       const [handle] = await window.showOpenFilePicker();
       if (!handle) return;
       const file = await handle.getFile();
-      const decoded = decodeBytes(await file.arrayBuffer());
-      await mountDoc(decoded.text, {
-        filename: file.name,
-        encoding: decoded.encoding,
-        uri: `fs://${file.name}`,
-        fileHandle: handle,
-      });
-      if (decoded.lossyOnSave) setStatus("Note: this file's encoding will be saved as UTF-8.");
+      await openBuffer(await file.arrayBuffer(), file.name, "fs", handle);
     } catch (e) {
       if ((e as DOMException)?.name !== "AbortError") console.error(e);
     }
@@ -321,26 +379,33 @@ async function openFile(): Promise<void> {
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
-  const decoded = decodeBytes(await file.arrayBuffer());
-  await mountDoc(decoded.text, {
-    filename: file.name,
-    encoding: decoded.encoding,
-    uri: `upload://${file.name}`,
-  });
+  await openBuffer(await file.arrayBuffer(), file.name, "upload", null);
   fileInput.value = "";
 });
 
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
-  const text = session.editor.getText();
-  const ctx = await engine.events.runHook("beforeSave", {
-    sessionId: session.id,
-    text,
-    cancel: false,
-  });
-  if (ctx.cancel) return;
 
-  const bytes = encodeText(text, session.encoding);
+  let bytes: Uint8Array;
+  let savedText = "";
+  if (session.binary) {
+    const b = session.editor.getBytes?.();
+    if (!b) {
+      engine.notificationSink.error("This document can't be saved.");
+      return;
+    }
+    bytes = b;
+  } else {
+    savedText = session.editor.getText();
+    const ctx = await engine.events.runHook("beforeSave", {
+      sessionId: session.id,
+      text: savedText,
+      cancel: false,
+    });
+    if (ctx.cancel) return;
+    bytes = encodeText(savedText, session.encoding);
+  }
+
   const handle = session.fileHandle;
   if (handle?.createWritable) {
     const w = await handle.createWritable();
@@ -350,7 +415,7 @@ async function saveFile(): Promise<void> {
     downloadBytes(bytes, session.filename ?? "untitled.txt");
   }
 
-  session.lastSavedText = text;
+  if (!session.binary) session.lastSavedText = savedText;
   session.dirty = false;
   updateUI();
   engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
@@ -372,7 +437,8 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
 function changeFormat(formatId: string): void {
   if (!session?.editor) return;
   const text = session.editor.getText();
-  void mountDoc(text, {
+  void mountDoc({
+    text,
     filename: session.filename,
     encoding: session.encoding,
     uri: session.uri,
@@ -399,7 +465,8 @@ async function changeEditor(editorId: string): Promise<void> {
     prefs[session.formatId] = editorId;
     savePrefs();
   }
-  await mountDoc(text, {
+  await mountDoc({
+    text,
     filename: session.filename,
     encoding: session.encoding,
     uri: session.uri,
@@ -412,7 +479,7 @@ async function changeEditor(editorId: string): Promise<void> {
 // --- wire up -----------------------------------------------------------------
 
 $("btn-new").addEventListener("click", () =>
-  void mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } }),
+  void mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } }),
 );
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
@@ -443,7 +510,8 @@ const workspace: Workspace = {
   setActiveText(text) {
     if (!session?.editor) return;
     const prevSaved = session.lastSavedText; // keep the on-disk baseline so restore is dirty
-    void mountDoc(text, {
+    void mountDoc({
+      text,
       filename: session.filename,
       encoding: session.encoding,
       uri: session.uri,
@@ -511,7 +579,8 @@ async function start(): Promise<void> {
   }
   if (last?.text) {
     session = { id: last.id } as Session;
-    await mountDoc(last.text, {
+    await mountDoc({
+      text: last.text,
       filename: last.filename,
       encoding: last.encoding,
       uri: last.uri,
@@ -519,7 +588,7 @@ async function start(): Promise<void> {
       recovered: true,
     });
   } else {
-    await mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } });
+    await mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } });
   }
 }
 

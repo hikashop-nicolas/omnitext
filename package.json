@@ -49,6 +49,7 @@
     "json5": "^2.2.3",
     "marked": "^18.0.5",
     "quill": "^2.0.3",
-    "toml": "^4.1.1"
+    "toml": "^4.1.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

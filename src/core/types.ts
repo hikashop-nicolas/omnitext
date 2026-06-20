@@ -91,6 +91,8 @@ export interface FormatManifest {
    * user can still switch, and their per-format choice takes precedence.
    */
   defaultEditor?: string;
+  /** Content is binary (bytes), not text: use parseBinary/serializeBinary. */
+  binary?: boolean;
 }
 
 /**
@@ -108,6 +110,10 @@ export interface FormatModule {
   toView?(model: unknown, view: ViewKind): unknown;
   /** Reconcile a generic view edit back into the model, returning a new model. */
   applyViewEdit?(model: unknown, edit: ViewEdit): unknown;
+  /** Binary formats: bytes -> opaque model. */
+  parseBinary?(bytes: Uint8Array): ParseResult;
+  /** Binary formats: opaque model -> bytes. */
+  serializeBinary?(model: unknown): Uint8Array;
   /**
    * Optional CodeMirror language extension(s) for the text editor. Typed as unknown
    * so the core never imports CodeMirror; only the editor module casts and uses it.
@@ -135,8 +141,14 @@ export interface EditorManifest {
 }
 
 export interface EditorMountContext {
-  /** Canonical text of the document (the source of truth). */
+  /** Canonical text (empty string for binary documents). */
   text: string;
+  /** Raw bytes for binary documents, else null. */
+  bytes: Uint8Array | null;
+  /** Whether this is a binary document. */
+  binary: boolean;
+  /** The format's parsed model (from text or bytes), pre-computed by the host. */
+  model: unknown;
   /** The active format, for highlighting/validation and view adapters. May be null. */
   format: FormatModule | null;
   /** The view kind the resolver picked for this editor. */
@@ -149,6 +161,8 @@ export interface EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void;
   /** Current content as canonical text (used for save and editor switching). */
   getText(): string;
+  /** Current content as bytes (binary editors); undefined when not applicable. */
+  getBytes?(): Uint8Array | undefined;
   /** Future collaboration hook: apply a remote change from a CRDT binding. */
   applyRemote?(change: unknown): void;
   /** Opaque, editor-owned selection token; only this editor interprets it. */

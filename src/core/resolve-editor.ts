@@ -42,8 +42,11 @@ export function editorCandidates(
     }
   }
 
-  const fallback = editors.byId(fallbackEditorId);
-  if (fallback) add({ editor: fallback, view: "text", reason: "fallback" });
+  // The universal text fallback only applies to text documents.
+  if (!format?.manifest.binary) {
+    const fallback = editors.byId(fallbackEditorId);
+    if (fallback) add({ editor: fallback, view: "text", reason: "fallback" });
+  }
 
   // Promote the format's preferred default editor to the front (the "nicest" surface).
   const def = format?.manifest.defaultEditor;
