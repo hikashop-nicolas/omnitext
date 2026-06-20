@@ -45,6 +45,13 @@ export function editorCandidates(
   const fallback = editors.byId(fallbackEditorId);
   if (fallback) add({ editor: fallback, view: "text", reason: "fallback" });
 
+  // Promote the format's preferred default editor to the front (the "nicest" surface).
+  const def = format?.manifest.defaultEditor;
+  if (def) {
+    const i = out.findIndex((c) => c.editor.manifest.id === def);
+    if (i > 0) out.unshift(out.splice(i, 1)[0]!);
+  }
+
   return out;
 }
 

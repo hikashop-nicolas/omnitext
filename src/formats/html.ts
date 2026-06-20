@@ -7,7 +7,8 @@ export const htmlFormat: FormatDescriptor = {
     extensions: [".html", ".htm"],
     mimeTypes: ["text/html"],
     nativeEditor: "codemirror",
-    viewAdapters: ["preview"],
+    viewAdapters: ["richtext", "preview"],
+    defaultEditor: "quill",
   },
   detect({ sample }) {
     return /^\s*<(!doctype|html|head|body|div|p|span|a|h[1-6]|ul|table)\b/i.test(sample)

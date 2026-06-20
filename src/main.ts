@@ -2,7 +2,9 @@ import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
+import { milkdownEditor } from "./editors/milkdown";
 import { previewEditor } from "./editors/preview";
+import { quillEditor } from "./editors/quill";
 import { tableEditor } from "./editors/table";
 import { treeEditor } from "./editors/tree";
 import { cssFormat } from "./formats/css";
@@ -49,6 +51,8 @@ engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
 engine.registerEditor(previewEditor);
 engine.registerEditor(treeEditor);
+engine.registerEditor(milkdownEditor);
+engine.registerEditor(quillEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -79,6 +83,8 @@ const EDITOR_LABELS: Record<string, string> = {
   table: "Table",
   preview: "Preview",
   tree: "Tree",
+  milkdown: "Rich",
+  quill: "WYSIWYG",
 };
 const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
 

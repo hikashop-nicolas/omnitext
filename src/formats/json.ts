@@ -10,6 +10,7 @@ export const jsonFormat: FormatDescriptor = {
     mimeTypes: ["application/json"],
     nativeEditor: "codemirror",
     viewAdapters: ["tree"],
+    defaultEditor: "tree",
   },
   detect({ sample }) {
     const s = sample.trimStart();

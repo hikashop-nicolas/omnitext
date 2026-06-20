@@ -85,6 +85,12 @@ export interface FormatManifest {
   nativeEditor?: string;
   /** Generic views this format can project to and reconcile from (lossy convenience). */
   viewAdapters?: ViewKind[];
+  /**
+   * Editor id to open this format with by default (the "nicest" surface), overriding
+   * the native-first order. Must be reachable via nativeEditor or a viewAdapter. The
+   * user can still switch, and their per-format choice takes precedence.
+   */
+  defaultEditor?: string;
 }
 
 /**

@@ -8,6 +8,7 @@ export const yamlFormat: FormatDescriptor = {
     mimeTypes: ["application/yaml", "text/yaml"],
     nativeEditor: "codemirror",
     viewAdapters: ["tree"],
+    defaultEditor: "tree",
   },
   detect({ sample }) {
     if (sample.startsWith("---") || /^[\w-]+:\s/m.test(sample)) return 0.25;

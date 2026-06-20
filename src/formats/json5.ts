@@ -8,6 +8,7 @@ export const json5Format: FormatDescriptor = {
     mimeTypes: ["application/json5"],
     nativeEditor: "codemirror",
     viewAdapters: ["tree"],
+    defaultEditor: "tree",
   },
   detect({ sample }) {
     const s = sample.trimStart();
