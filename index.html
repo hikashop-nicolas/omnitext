@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omnitext</title>
+    <style>
+      :root { color-scheme: light dark; --bar: #f3f3f3; --border: #d7d7d7; --muted: #6a6a6a; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bar: #232323; --border: #3a3a3a; --muted: #9a9a9a; }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; font: 13px/1.4 system-ui, sans-serif; }
+      #app { display: flex; flex-direction: column; height: 100%; }
+      #toolbar {
+        display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+        background: var(--bar); border-bottom: 1px solid var(--border);
+      }
+      #toolbar .spacer { flex: 1; }
+      #toolbar button, #toolbar select {
+        font: inherit; padding: 3px 9px; border: 1px solid var(--border);
+        border-radius: 5px; background: transparent; cursor: pointer;
+      }
+      #filename { font-weight: 600; }
+      #dirty { color: #d08600; }
+      .muted { color: var(--muted); }
+      #editor { flex: 1; overflow: auto; }
+      #editor .cm-editor { height: 100%; }
+      #status {
+        padding: 4px 10px; border-top: 1px solid var(--border);
+        background: var(--bar); color: var(--muted); font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="toolbar">
+        <button id="btn-new">New</button>
+        <button id="btn-open">Open</button>
+        <button id="btn-save">Save</button>
+        <span id="filename" class="muted">untitled</span>
+        <span id="dirty"></span>
+        <span class="spacer"></span>
+        <label class="muted">Format
+          <select id="format"></select>
+        </label>
+        <span id="reason" class="muted"></span>
+      </div>
+      <div id="editor"></div>
+      <div id="status">Local-first. The in-browser copy is a cache; use Save to write a durable file to disk.</div>
+    </div>
+    <input id="file-input" type="file" hidden />
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
