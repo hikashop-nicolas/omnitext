@@ -9,6 +9,7 @@ export const jsonFormat: FormatDescriptor = {
     extensions: [".json"],
     mimeTypes: ["application/json"],
     nativeEditor: "codemirror",
+    viewAdapters: ["tree"],
   },
   detect({ sample }) {
     const s = sample.trimStart();

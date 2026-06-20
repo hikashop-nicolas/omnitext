@@ -47,6 +47,21 @@ export interface TableView {
 export type ViewEdit =
   | { type: "cell"; row: number; col: number; value: string };
 
+/** The view a read-only preview editor consumes. */
+export interface PreviewView {
+  /** Ready-to-display HTML. If sandbox is false, the format must have sanitized it. */
+  html: string;
+  /** Render in a sandboxed iframe (untrusted HTML) instead of inline. */
+  sandbox: boolean;
+}
+
+/** The view a tree editor consumes for structured (JSON-like) editing. */
+export interface TreeView {
+  value: unknown;
+  /** Serialize an edited value back to canonical text (reformats the document). */
+  stringify: (value: unknown) => string;
+}
+
 /** Identifies the editing surface a format projects to. Open set (string). */
 export type ViewKind = "text" | "table" | "tree" | (string & {});
 

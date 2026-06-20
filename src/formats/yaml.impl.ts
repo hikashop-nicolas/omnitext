@@ -1,6 +1,12 @@
 import { yaml } from "@codemirror/lang-yaml";
-import { load, YAMLException } from "js-yaml";
-import type { Diagnostic, FormatModule, ParseResult } from "../core/types";
+import { dump, load, YAMLException } from "js-yaml";
+import type {
+  Diagnostic,
+  FormatModule,
+  ParseResult,
+  TreeView,
+  ViewKind,
+} from "../core/types";
 
 function validate(text: string): Diagnostic[] {
   if (text.trim() === "") return [];
@@ -32,6 +38,14 @@ export const yamlImpl: FormatModule = {
   },
   validate(_model, text) {
     return validate(text);
+  },
+  toView(model, view: ViewKind): unknown {
+    if (view !== "tree") throw new Error(`yaml cannot project to view "${view}"`);
+    const out: TreeView = {
+      value: load(String(model)) ?? null,
+      stringify: (v) => dump(v),
+    };
+    return out;
   },
   language() {
     return yaml();

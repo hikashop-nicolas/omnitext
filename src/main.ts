@@ -2,13 +2,25 @@ import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
+import { previewEditor } from "./editors/preview";
 import { tableEditor } from "./editors/table";
+import { treeEditor } from "./editors/tree";
+import { cssFormat } from "./formats/css";
 import { csvFormat } from "./formats/csv/index";
+import { dotenvFormat } from "./formats/dotenv";
+import { htmlFormat } from "./formats/html";
 import { iniFormat } from "./formats/ini";
+import { javascriptFormat } from "./formats/javascript";
 import { jsonFormat } from "./formats/json";
 import { json5Format } from "./formats/json5";
 import { markdownFormat } from "./formats/markdown";
+import { propertiesFormat } from "./formats/properties";
+import { pythonFormat } from "./formats/python";
+import { sqlFormat } from "./formats/sql";
+import { shellFormat } from "./formats/shell";
 import { tomlFormat } from "./formats/toml";
+import { tsvFormat } from "./formats/tsv";
+import { typescriptFormat } from "./formats/typescript";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import type {
@@ -35,22 +47,39 @@ interface FsHandle {
 const engine = new OmnitextEngine({ fallbackEditorId: "codemirror" });
 engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
+engine.registerEditor(previewEditor);
+engine.registerEditor(treeEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
   markdownFormat,
   csvFormat,
+  tsvFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,
   iniFormat,
+  htmlFormat,
+  cssFormat,
+  javascriptFormat,
+  typescriptFormat,
+  pythonFormat,
+  sqlFormat,
+  shellFormat,
+  dotenvFormat,
+  propertiesFormat,
 ];
 for (const f of FORMATS) engine.registerFormat(f);
 
 const store = new SessionStore();
 
 // Friendly labels for editor ids shown in the switcher and status pill.
-const EDITOR_LABELS: Record<string, string> = { codemirror: "Text", table: "Table" };
+const EDITOR_LABELS: Record<string, string> = {
+  codemirror: "Text",
+  table: "Table",
+  preview: "Preview",
+  tree: "Tree",
+};
 const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
 
 // Per-format editor preference, persisted so a choice (e.g. "edit CSV as a table") sticks.

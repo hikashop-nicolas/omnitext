@@ -1,6 +1,12 @@
 import { json } from "@codemirror/lang-json";
 import JSON5 from "json5";
-import type { Diagnostic, FormatModule, ParseResult } from "../core/types";
+import type {
+  Diagnostic,
+  FormatModule,
+  ParseResult,
+  TreeView,
+  ViewKind,
+} from "../core/types";
 import { lineColToOffset } from "./_util";
 
 function validate(text: string): Diagnostic[] {
@@ -33,6 +39,14 @@ export const json5Impl: FormatModule = {
   },
   validate(_model, text) {
     return validate(text);
+  },
+  toView(model, view: ViewKind): unknown {
+    if (view !== "tree") throw new Error(`json5 cannot project to view "${view}"`);
+    const out: TreeView = {
+      value: JSON5.parse(String(model)),
+      stringify: (v) => JSON5.stringify(v, null, 2),
+    };
+    return out;
   },
   language() {
     return json();

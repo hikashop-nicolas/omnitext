@@ -1,5 +1,11 @@
 import { json } from "@codemirror/lang-json";
-import type { Diagnostic, FormatModule, ParseResult } from "../core/types";
+import type {
+  Diagnostic,
+  FormatModule,
+  ParseResult,
+  TreeView,
+  ViewKind,
+} from "../core/types";
 
 // JSON behavior (lazy-loaded). Text-model: the canonical text is the model, so
 // editing is byte-exact. We add syntax-error diagnostics and CodeMirror highlighting.
@@ -33,6 +39,14 @@ export const jsonImpl: FormatModule = {
   },
   validate(_model, text) {
     return validate(text);
+  },
+  toView(model, view: ViewKind): unknown {
+    if (view !== "tree") throw new Error(`json cannot project to view "${view}"`);
+    const out: TreeView = {
+      value: JSON.parse(String(model)),
+      stringify: (v) => JSON.stringify(v, null, 2),
+    };
+    return out;
   },
   language() {
     return json();

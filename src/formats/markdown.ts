@@ -7,6 +7,7 @@ export const markdownFormat: FormatDescriptor = {
     extensions: [".md", ".markdown"],
     mimeTypes: ["text/markdown"],
     nativeEditor: "codemirror",
+    viewAdapters: ["preview"],
   },
   detect({ sample }) {
     // Weak heuristic; the extension match in the registry dominates. Returns 0 when
