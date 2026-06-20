@@ -1,7 +1,18 @@
 import { Crepe } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/common/style.css";
-import "@milkdown/crepe/theme/frame.css";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+
+// The frame theme ships separate light/dark stylesheets; load the one matching the OS
+// scheme so the editor doesn't render white-on-dark. Dynamic imports keep both lazy.
+const prefersDark = (): boolean =>
+  typeof window !== "undefined" &&
+  !!window.matchMedia &&
+  window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+function loadTheme(): void {
+  if (prefersDark()) void import("@milkdown/crepe/theme/frame-dark.css");
+  else void import("@milkdown/crepe/theme/frame.css");
+}
 
 // Markdown WYSIWYG editor (lazy-loaded), built on Milkdown's Crepe (batteries-included
 // editor with toolbar + theme). It reformats Markdown on edit, so getText returns the
@@ -31,6 +42,7 @@ class MilkdownInstance implements EditorInstance {
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
+    loadTheme();
     this.originalText = ctx.text;
     const root = document.createElement("div");
     root.className = "ot-milkdown";
