@@ -4,8 +4,13 @@ import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { tableEditor } from "./editors/table";
 import { csvFormat } from "./formats/csv/index";
+import { iniFormat } from "./formats/ini";
 import { jsonFormat } from "./formats/json";
+import { json5Format } from "./formats/json5";
 import { markdownFormat } from "./formats/markdown";
+import { tomlFormat } from "./formats/toml";
+import { xmlFormat } from "./formats/xml";
+import { yamlFormat } from "./formats/yaml";
 import type {
   EditorInstance,
   EditorResolution,
@@ -30,7 +35,16 @@ interface FsHandle {
 const engine = new OmnitextEngine({ fallbackEditorId: "codemirror" });
 engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
-const FORMATS: FormatDescriptor[] = [jsonFormat, markdownFormat, csvFormat];
+const FORMATS: FormatDescriptor[] = [
+  jsonFormat,
+  json5Format,
+  markdownFormat,
+  csvFormat,
+  yamlFormat,
+  xmlFormat,
+  tomlFormat,
+  iniFormat,
+];
 for (const f of FORMATS) engine.registerFormat(f);
 
 const store = new SessionStore();
