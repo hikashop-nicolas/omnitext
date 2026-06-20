@@ -34,13 +34,16 @@ function ensureStyles(): void {
       height: 100%;
       --crepe-color-background: var(--canvas);
       --crepe-color-on-background: var(--text);
-      --crepe-color-surface: var(--canvas);
+      --crepe-color-surface: var(--chrome);
       --crepe-color-surface-low: var(--surface);
       --crepe-color-on-surface: var(--text);
       --crepe-color-on-surface-variant: var(--muted);
-      --crepe-color-outline: var(--border);
+      /* Crepe colors toolbar/handle/menu icons with --crepe-color-outline, so it must
+         be visible, not the subtle border tone. */
+      --crepe-color-outline: var(--muted);
       --crepe-color-primary: var(--accent);
       --crepe-color-secondary: var(--surface);
+      --crepe-color-on-secondary: var(--text);
       --crepe-color-hover: var(--surface-hover);
       --crepe-color-selected: var(--surface);
       --crepe-color-inline-code: var(--text);
