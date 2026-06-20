@@ -3,9 +3,9 @@ import type {
   CommandRegistry,
   DetectInput,
   Disposable,
-  EditorModule,
+  EditorDescriptor,
   EditorRegistryReadonly,
-  FormatModule,
+  FormatDescriptor,
   FormatRegistryReadonly,
   ToolModule,
   ToolRegistryReadonly,
@@ -18,20 +18,20 @@ function normalizeExt(ext: string): string {
 }
 
 export class FormatRegistry implements FormatRegistryReadonly {
-  private readonly byIdMap = new Map<string, FormatModule>();
+  private readonly byIdMap = new Map<string, FormatDescriptor>();
 
-  register(format: FormatModule): Disposable {
+  register(format: FormatDescriptor): Disposable {
     const id = format.manifest.id;
     if (this.byIdMap.has(id)) throw new Error(`format "${id}" already registered`);
     this.byIdMap.set(id, format);
     return { dispose: () => this.byIdMap.delete(id) };
   }
 
-  byId(id: string): FormatModule | undefined {
+  byId(id: string): FormatDescriptor | undefined {
     return this.byIdMap.get(id);
   }
 
-  byExtension(ext: string): FormatModule[] {
+  byExtension(ext: string): FormatDescriptor[] {
     const want = normalizeExt(ext);
     return this.list().filter((f) =>
       f.manifest.extensions.some((e) => normalizeExt(e) === want),
@@ -39,50 +39,50 @@ export class FormatRegistry implements FormatRegistryReadonly {
   }
 
   /** Extension match is a strong prior; content sniff (detect) breaks ties. */
-  detect(input: DetectInput): { format: FormatModule; confidence: number } | null {
-    let best: { format: FormatModule; confidence: number } | null = null;
-    for (const format of this.byIdMap.values()) {
-      let confidence = format.detect(input);
+  detect(input: DetectInput): { descriptor: FormatDescriptor; confidence: number } | null {
+    let best: { descriptor: FormatDescriptor; confidence: number } | null = null;
+    for (const descriptor of this.byIdMap.values()) {
+      let confidence = descriptor.detect(input);
       if (input.filename) {
         const dot = input.filename.lastIndexOf(".");
         if (dot >= 0) {
           const ext = normalizeExt(input.filename.slice(dot));
-          if (format.manifest.extensions.some((e) => normalizeExt(e) === ext)) {
+          if (descriptor.manifest.extensions.some((e) => normalizeExt(e) === ext)) {
             confidence = Math.max(confidence, 0.95);
           }
         }
       }
       if (confidence > 0 && (!best || confidence > best.confidence)) {
-        best = { format, confidence };
+        best = { descriptor, confidence };
       }
     }
     return best;
   }
 
-  list(): FormatModule[] {
+  list(): FormatDescriptor[] {
     return [...this.byIdMap.values()];
   }
 }
 
 export class EditorRegistry implements EditorRegistryReadonly {
-  private readonly byIdMap = new Map<string, EditorModule>();
+  private readonly byIdMap = new Map<string, EditorDescriptor>();
 
-  register(editor: EditorModule): Disposable {
+  register(editor: EditorDescriptor): Disposable {
     const id = editor.manifest.id;
     if (this.byIdMap.has(id)) throw new Error(`editor "${id}" already registered`);
     this.byIdMap.set(id, editor);
     return { dispose: () => this.byIdMap.delete(id) };
   }
 
-  byId(id: string): EditorModule | undefined {
+  byId(id: string): EditorDescriptor | undefined {
     return this.byIdMap.get(id);
   }
 
-  consumersOf(view: ViewKind): EditorModule[] {
+  consumersOf(view: ViewKind): EditorDescriptor[] {
     return this.list().filter((e) => e.manifest.consumesViews.includes(view));
   }
 
-  list(): EditorModule[] {
+  list(): EditorDescriptor[] {
     return [...this.byIdMap.values()];
   }
 }

@@ -1,7 +1,7 @@
 import type {
   EditorRegistryReadonly,
   EditorResolution,
-  FormatModule,
+  FormatDescriptor,
 } from "./types";
 
 export interface ResolveOptions {
@@ -12,43 +12,62 @@ export interface ResolveOptions {
 }
 
 /**
- * Pick the editor for a document, best fidelity first:
- *   1. user override for this format,
- *   2. the format's native editor,
- *   3. a generic editor that consumes one of the format's view adapters,
- *   4. the configured text fallback editor.
- * The fallback always works because text is the canonical representation.
+ * Enumerate the editors that can render a document, best fidelity first:
+ *   1. the format's native editor,
+ *   2. generic editors that consume one of the format's view adapters,
+ *   3. the configured text fallback (always works, since text is canonical).
+ * Deduplicated by editor id, preserving the best reason for each.
  */
-export function resolveEditor(
-  format: FormatModule | null,
+export function editorCandidates(
+  format: FormatDescriptor | null,
   editors: EditorRegistryReadonly,
-  opts: ResolveOptions,
-): EditorResolution {
-  if (format) {
-    const override = opts.preferredByFormat?.[format.manifest.id];
-    if (override) {
-      const ed = editors.byId(override);
-      if (ed) {
-        const view = ed.manifest.consumesViews[0] ?? "text";
-        return { editor: ed, view, reason: "view" };
-      }
-    }
+  fallbackEditorId: string,
+): EditorResolution[] {
+  const out: EditorResolution[] = [];
+  const seen = new Set<string>();
+  const add = (res: EditorResolution) => {
+    if (seen.has(res.editor.manifest.id)) return;
+    seen.add(res.editor.manifest.id);
+    out.push(res);
+  };
 
+  if (format) {
     const native = format.manifest.nativeEditor;
     if (native) {
       const ed = editors.byId(native);
-      if (ed) return { editor: ed, view: ed.manifest.consumesViews[0] ?? "text", reason: "native" };
+      if (ed) add({ editor: ed, view: ed.manifest.consumesViews[0] ?? "text", reason: "native" });
     }
-
     for (const view of format.manifest.viewAdapters ?? []) {
-      const [ed] = editors.consumersOf(view);
-      if (ed) return { editor: ed, view, reason: "view" };
+      for (const ed of editors.consumersOf(view)) add({ editor: ed, view, reason: "view" });
     }
   }
 
-  const fallback = editors.byId(opts.fallbackEditorId);
-  if (!fallback) {
+  const fallback = editors.byId(fallbackEditorId);
+  if (fallback) add({ editor: fallback, view: "text", reason: "fallback" });
+
+  return out;
+}
+
+/**
+ * Pick the single editor for a document: a per-format user override if set, else the
+ * first candidate (native > view > fallback).
+ */
+export function resolveEditor(
+  format: FormatDescriptor | null,
+  editors: EditorRegistryReadonly,
+  opts: ResolveOptions,
+): EditorResolution {
+  const candidates = editorCandidates(format, editors, opts.fallbackEditorId);
+
+  if (format) {
+    const overrideId = opts.preferredByFormat?.[format.manifest.id];
+    const override = candidates.find((c) => c.editor.manifest.id === overrideId);
+    if (override) return override;
+  }
+
+  const first = candidates[0];
+  if (!first) {
     throw new Error(`fallback editor "${opts.fallbackEditorId}" is not registered`);
   }
-  return { editor: fallback, view: "text", reason: "fallback" };
+  return first;
 }

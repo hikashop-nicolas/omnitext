@@ -5,13 +5,13 @@ import {
   FormatRegistry,
   ToolRegistry,
 } from "./registries";
-import { resolveEditor, type ResolveOptions } from "./resolve-editor";
+import { editorCandidates, resolveEditor, type ResolveOptions } from "./resolve-editor";
 import type {
   DetectInput,
   Disposable,
-  EditorModule,
+  EditorDescriptor,
   EditorResolution,
-  FormatModule,
+  FormatDescriptor,
   HostAPI,
   Notifications,
   ToolModule,
@@ -44,11 +44,11 @@ export class OmnitextEngine {
 
   constructor(private readonly config: EngineConfig) {}
 
-  registerFormat(format: FormatModule): Disposable {
+  registerFormat(format: FormatDescriptor): Disposable {
     return this.formats.register(format);
   }
 
-  registerEditor(editor: EditorModule): Disposable {
+  registerEditor(editor: EditorDescriptor): Disposable {
     return this.editors.register(editor);
   }
 
@@ -64,16 +64,21 @@ export class OmnitextEngine {
     };
   }
 
-  detect(input: DetectInput): { format: FormatModule; confidence: number } | null {
+  detect(input: DetectInput): { descriptor: FormatDescriptor; confidence: number } | null {
     return this.formats.detect(input);
   }
 
-  resolve(format: FormatModule | null): EditorResolution {
+  resolve(format: FormatDescriptor | null): EditorResolution {
     const opts: ResolveOptions = {
       fallbackEditorId: this.config.fallbackEditorId,
       preferredByFormat: this.config.preferredByFormat,
     };
     return resolveEditor(format, this.editors, opts);
+  }
+
+  /** All editors that can render this document (for the editor switcher UI). */
+  editorChoices(format: FormatDescriptor | null): EditorResolution[] {
+    return editorCandidates(format, this.editors, this.config.fallbackEditorId);
   }
 
   /** Build the scoped capability object handed to a module. */

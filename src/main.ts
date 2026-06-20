@@ -2,10 +2,17 @@ import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
+import { tableEditor } from "./editors/table";
 import { csvFormat } from "./formats/csv/index";
 import { jsonFormat } from "./formats/json";
 import { markdownFormat } from "./formats/markdown";
-import type { EditorInstance, FormatModule, TextEncoding } from "./core/types";
+import type {
+  EditorInstance,
+  EditorResolution,
+  FormatDescriptor,
+  FormatModule,
+  TextEncoding,
+} from "./core/types";
 
 declare global {
   interface Window {
@@ -18,16 +25,39 @@ interface FsHandle {
   createWritable(): Promise<{ write(data: Uint8Array): Promise<void>; close(): Promise<void> }>;
 }
 
-// --- engine + module registration -----------------------------------------
+// --- engine + module registration (descriptors only; impls load on demand) ----
 
 const engine = new OmnitextEngine({ fallbackEditorId: "codemirror" });
 engine.registerEditor(codemirrorEditor);
-const FORMATS: FormatModule[] = [jsonFormat, markdownFormat, csvFormat];
+engine.registerEditor(tableEditor);
+const FORMATS: FormatDescriptor[] = [jsonFormat, markdownFormat, csvFormat];
 for (const f of FORMATS) engine.registerFormat(f);
 
 const store = new SessionStore();
 
-// --- session state ---------------------------------------------------------
+// Friendly labels for editor ids shown in the switcher and status pill.
+const EDITOR_LABELS: Record<string, string> = { codemirror: "Text", table: "Table" };
+const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
+
+// Per-format editor preference, persisted so a choice (e.g. "edit CSV as a table") sticks.
+const PREF_KEY = "omnitext:prefEditor";
+const prefs: Record<string, string> = loadPrefs();
+function loadPrefs(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+function savePrefs(): void {
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
+}
+
+// --- session state -----------------------------------------------------------
 
 interface Session {
   id: string;
@@ -36,6 +66,7 @@ interface Session {
   formatId: string | null;
   encoding: TextEncoding;
   editor: EditorInstance | null;
+  editorId: string | null;
   fileHandle: FsHandle | null;
   lastSavedText: string;
   dirty: boolean;
@@ -44,7 +75,7 @@ interface Session {
 let session: Session | null = null;
 let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 
-// --- DOM -------------------------------------------------------------------
+// --- DOM ---------------------------------------------------------------------
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -57,61 +88,89 @@ const dirtyEl = $("dirty");
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
 const formatSel = $<HTMLSelectElement>("format");
+const editorSel = $<HTMLSelectElement>("editor-select");
 const fileInput = $<HTMLInputElement>("file-input");
 
 function populateFormatSelect(current: string | null): void {
   formatSel.innerHTML = "";
-  const auto = new Option("auto", "");
-  formatSel.add(auto);
-  for (const f of FORMATS) formatSel.add(new Option(f.manifest.id, f.manifest.id));
+  formatSel.add(new Option("auto", ""));
+  for (const f of FORMATS) {
+    formatSel.add(new Option(f.manifest.id, f.manifest.id));
+  }
   formatSel.value = current ?? "";
+}
+
+function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
+  editorSel.innerHTML = "";
+  for (const c of choices) {
+    editorSel.add(new Option(editorLabel(c.editor.manifest.id), c.editor.manifest.id));
+  }
+  editorSel.value = currentId;
+  editorSel.disabled = choices.length <= 1;
 }
 
 function updateUI(): void {
   filenameEl.textContent = session?.filename ?? "untitled";
   dirtyEl.textContent = session?.dirty ? "(modified)" : "";
   formatSel.value = session?.formatId ?? "";
+  if (session?.editorId) editorSel.value = session.editorId;
 }
 
 function setStatus(msg: string): void {
   statusTextEl.textContent = msg;
 }
 
-// --- core flows ------------------------------------------------------------
+// --- core flow ---------------------------------------------------------------
 
-function mountDoc(
-  text: string,
-  opts: {
-    filename: string | null;
-    encoding: TextEncoding;
-    uri?: string | null;
-    fileHandle?: FsHandle | null;
-    formatId?: string | null;
-    recovered?: boolean;
-  },
-): void {
-  session?.editor?.dispose();
+interface MountOpts {
+  filename: string | null;
+  encoding: TextEncoding;
+  uri?: string | null;
+  fileHandle?: FsHandle | null;
+  formatId?: string | null;
+  editorId?: string | null;
+  recovered?: boolean;
+}
 
-  const sample = text.slice(0, 8192);
-  let format: FormatModule | null = null;
+async function mountDoc(text: string, opts: MountOpts): Promise<void> {
+  // Resolve the format descriptor (explicit id, else detection).
+  let descriptor: FormatDescriptor | null = null;
   if (opts.formatId) {
-    format = engine.formats.byId(opts.formatId) ?? null;
+    descriptor = engine.formats.byId(opts.formatId) ?? null;
   } else {
     const filename = opts.filename ?? undefined;
-    const detected = engine.detect(filename !== undefined ? { filename, sample } : { sample });
-    format = detected?.format ?? null;
+    const sample = text.slice(0, 8192);
+    const hit = engine.detect(filename !== undefined ? { filename, sample } : { sample });
+    descriptor = hit?.descriptor ?? null;
   }
+  const formatId = descriptor?.manifest.id ?? null;
 
-  const resolution = engine.resolve(format);
-  const instance = resolution.editor.create(engine.host("app"));
+  // Choose the editor: explicit, else a saved per-format preference, else resolution.
+  const choices = engine.editorChoices(descriptor);
+  const wantEditorId = opts.editorId ?? (formatId ? prefs[formatId] : undefined);
+  const chosen =
+    choices.find((c) => c.editor.manifest.id === wantEditorId) ?? engine.resolve(descriptor);
 
+  // Load the (lazy) implementations.
+  let formatModule: FormatModule | null = null;
+  try {
+    if (descriptor) formatModule = await descriptor.load();
+  } catch (e) {
+    console.error("format load failed", e);
+    engine.notificationSink.error(`Could not load the ${formatId} format.`);
+  }
+  const editorModule = await chosen.editor.load();
+  const instance = editorModule.create(engine.host("app"));
+
+  session?.editor?.dispose();
   session = {
     id: session?.id ?? crypto.randomUUID(),
     uri: opts.uri ?? null,
     filename: opts.filename,
-    formatId: format?.manifest.id ?? null,
+    formatId,
     encoding: opts.encoding,
     editor: instance,
+    editorId: chosen.editor.manifest.id,
     fileHandle: opts.fileHandle ?? null,
     lastSavedText: text,
     dirty: false,
@@ -120,8 +179,8 @@ function mountDoc(
   editorEl.innerHTML = "";
   instance.mount(editorEl, {
     text,
-    format,
-    view: resolution.view,
+    format: formatModule,
+    view: chosen.view,
     onChange: () => {
       if (!session) return;
       session.dirty = session.editor!.getText() !== session.lastSavedText;
@@ -131,14 +190,11 @@ function mountDoc(
   });
   instance.focus();
 
-  reasonEl.textContent = `${resolution.editor.manifest.id} (${resolution.reason})`;
-  populateFormatSelect(session.formatId);
+  reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${chosen.reason}`;
+  populateFormatSelect(formatId);
+  populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
-  engine.events.emit("documentOpened", {
-    sessionId: session.id,
-    uri: session.uri,
-    formatId: session.formatId,
-  });
+  engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
   setStatus(
     opts.recovered
       ? "Recovered unsaved work from this browser. Use Save to write it to disk."
@@ -167,6 +223,8 @@ function scheduleAutosave(): void {
   }, 400);
 }
 
+// --- open / save -------------------------------------------------------------
+
 async function openFile(): Promise<void> {
   if (window.showOpenFilePicker) {
     try {
@@ -174,7 +232,7 @@ async function openFile(): Promise<void> {
       if (!handle) return;
       const file = await handle.getFile();
       const decoded = decodeBytes(await file.arrayBuffer());
-      mountDoc(decoded.text, {
+      await mountDoc(decoded.text, {
         filename: file.name,
         encoding: decoded.encoding,
         uri: `fs://${file.name}`,
@@ -193,7 +251,7 @@ fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
   const decoded = decodeBytes(await file.arrayBuffer());
-  mountDoc(decoded.text, {
+  await mountDoc(decoded.text, {
     filename: file.name,
     encoding: decoded.encoding,
     uri: `upload://${file.name}`,
@@ -224,10 +282,7 @@ async function saveFile(): Promise<void> {
   session.lastSavedText = text;
   session.dirty = false;
   updateUI();
-  engine.events.emit("documentSaved", {
-    sessionId: session.id,
-    uri: session.uri ?? "download",
-  });
+  engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
   setStatus("Saved.");
 }
 
@@ -241,10 +296,12 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
   URL.revokeObjectURL(url);
 }
 
+// --- format / editor switching (text is the canonical hand-off) --------------
+
 function changeFormat(formatId: string): void {
   if (!session?.editor) return;
-  const text = session.editor.getText(); // serialize-as-save-point (text is canonical)
-  mountDoc(text, {
+  const text = session.editor.getText();
+  void mountDoc(text, {
     filename: session.filename,
     encoding: session.encoding,
     uri: session.uri,
@@ -253,14 +310,43 @@ function changeFormat(formatId: string): void {
   });
 }
 
-// --- wire up ---------------------------------------------------------------
+async function changeEditor(editorId: string): Promise<void> {
+  if (!session?.editor || editorId === session.editorId) return;
+  // Switch protocol: serialize current model to canonical text, then remount. The
+  // hook lets future tools veto or warn on a lossy hand-off.
+  const text = session.editor.getText();
+  const ctx = await engine.events.runHook("willChangeEditor", {
+    sessionId: session.id,
+    toEditor: editorId,
+    cancel: false,
+  });
+  if (ctx.cancel) {
+    if (session.editorId) editorSel.value = session.editorId;
+    return;
+  }
+  if (session.formatId) {
+    prefs[session.formatId] = editorId;
+    savePrefs();
+  }
+  await mountDoc(text, {
+    filename: session.filename,
+    encoding: session.encoding,
+    uri: session.uri,
+    fileHandle: session.fileHandle,
+    formatId: session.formatId,
+    editorId,
+  });
+}
+
+// --- wire up -----------------------------------------------------------------
 
 $("btn-new").addEventListener("click", () =>
-  mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } }),
+  void mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } }),
 );
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
 formatSel.addEventListener("change", () => changeFormat(formatSel.value));
+editorSel.addEventListener("change", () => void changeEditor(editorSel.value));
 
 window.addEventListener("beforeunload", (e) => {
   if (session?.dirty) {
@@ -269,7 +355,7 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 
-// --- startup: crash recovery, else a blank doc -----------------------------
+// --- startup: crash recovery, else a blank doc -------------------------------
 
 async function start(): Promise<void> {
   void SessionStore.requestPersistent();
@@ -279,9 +365,9 @@ async function start(): Promise<void> {
   } catch (e) {
     console.error("recovery load failed", e);
   }
-  if (last && last.text) {
+  if (last?.text) {
     session = { id: last.id } as Session;
-    mountDoc(last.text, {
+    await mountDoc(last.text, {
       filename: last.filename,
       encoding: last.encoding,
       uri: last.uri,
@@ -289,7 +375,7 @@ async function start(): Promise<void> {
       recovered: true,
     });
   } else {
-    mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } });
+    await mountDoc("", { filename: null, encoding: { label: "utf-8", bom: false } });
   }
 }
 

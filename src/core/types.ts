@@ -72,10 +72,12 @@ export interface FormatManifest {
   viewAdapters?: ViewKind[];
 }
 
+/**
+ * Format behavior, loaded lazily (it may pull in a heavy parser / CodeMirror
+ * language). Metadata and detection live on FormatDescriptor so the registry can
+ * detect and resolve without importing the implementation.
+ */
 export interface FormatModule {
-  manifest: FormatManifest;
-  /** 0..1 confidence that this format applies. Extension match should score high. */
-  detect(input: DetectInput): number;
   /** Canonical text to an opaque model. For text-model formats, model === text. */
   parse(text: string): ParseResult;
   /** Opaque model back to canonical text. Must be byte-exact for untouched regions. */
@@ -90,6 +92,14 @@ export interface FormatModule {
    * so the core never imports CodeMirror; only the editor module casts and uses it.
    */
   language?(): unknown;
+}
+
+/** Cheap, eagerly-registered handle to a format. The implementation loads on demand. */
+export interface FormatDescriptor {
+  manifest: FormatManifest;
+  /** 0..1 confidence from a lightweight content sniff (no heavy parser import). */
+  detect(input: DetectInput): number;
+  load(): Promise<FormatModule>;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,9 +138,15 @@ export interface EditorInstance {
   dispose(): void;
 }
 
+/** Editor behavior, loaded lazily (it may pull in CodeMirror or a grid library). */
 export interface EditorModule {
-  manifest: EditorManifest;
   create(host: HostAPI): EditorInstance;
+}
+
+/** Cheap, eagerly-registered handle to an editor. The implementation loads on demand. */
+export interface EditorDescriptor {
+  manifest: EditorManifest;
+  load(): Promise<EditorModule>;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,16 +218,16 @@ export interface EventBus {
 // ---------------------------------------------------------------------------
 
 export interface FormatRegistryReadonly {
-  byId(id: string): FormatModule | undefined;
-  byExtension(ext: string): FormatModule[];
-  detect(input: DetectInput): { format: FormatModule; confidence: number } | null;
-  list(): FormatModule[];
+  byId(id: string): FormatDescriptor | undefined;
+  byExtension(ext: string): FormatDescriptor[];
+  detect(input: DetectInput): { descriptor: FormatDescriptor; confidence: number } | null;
+  list(): FormatDescriptor[];
 }
 
 export interface EditorRegistryReadonly {
-  byId(id: string): EditorModule | undefined;
-  consumersOf(view: ViewKind): EditorModule[];
-  list(): EditorModule[];
+  byId(id: string): EditorDescriptor | undefined;
+  consumersOf(view: ViewKind): EditorDescriptor[];
+  list(): EditorDescriptor[];
 }
 
 export interface ToolRegistryReadonly {
@@ -247,7 +263,7 @@ export interface HostAPI {
 
 /** Resolution result: which editor renders a document and through which view. */
 export interface EditorResolution {
-  editor: EditorModule;
+  editor: EditorDescriptor;
   view: ViewKind;
   /** "native" | "view" | "fallback", for diagnostics and UI. */
   reason: "native" | "view" | "fallback";
