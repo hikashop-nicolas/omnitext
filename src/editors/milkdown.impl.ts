@@ -26,9 +26,27 @@ function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
   const s = document.createElement("style");
   s.id = STYLE_ID;
+  // Re-map Crepe's color tokens to the app palette (which already adapts to light/dark),
+  // so the editor has crisp contrast and matches the rest of the UI in both themes.
   s.textContent = `
     .ot-milkdown { height: 100%; overflow: auto; background: var(--canvas); }
-    .ot-milkdown .milkdown { height: 100%; }
+    .ot-milkdown .milkdown {
+      height: 100%;
+      --crepe-color-background: var(--canvas);
+      --crepe-color-on-background: var(--text);
+      --crepe-color-surface: var(--canvas);
+      --crepe-color-surface-low: var(--surface);
+      --crepe-color-on-surface: var(--text);
+      --crepe-color-on-surface-variant: var(--muted);
+      --crepe-color-outline: var(--border);
+      --crepe-color-primary: var(--accent);
+      --crepe-color-secondary: var(--surface);
+      --crepe-color-hover: var(--surface-hover);
+      --crepe-color-selected: var(--surface);
+      --crepe-color-inline-code: var(--text);
+      --crepe-color-inline-area: var(--surface);
+    }
+    .ot-milkdown .milkdown .ProseMirror { color: var(--text); }
   `;
   document.head.appendChild(s);
 }
