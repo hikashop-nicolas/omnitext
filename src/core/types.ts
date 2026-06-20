@@ -161,8 +161,8 @@ export interface EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void;
   /** Current content as canonical text (used for save and editor switching). */
   getText(): string;
-  /** Current content as bytes (binary editors); undefined when not applicable. */
-  getBytes?(): Uint8Array | undefined;
+  /** Current content as bytes (binary editors); may be async; undefined if N/A. */
+  getBytes?(): Uint8Array | Promise<Uint8Array> | undefined;
   /** Future collaboration hook: apply a remote change from a CRDT binding. */
   applyRemote?(change: unknown): void;
   /** Opaque, editor-owned selection token; only this editor interprets it. */

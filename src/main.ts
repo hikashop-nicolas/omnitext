@@ -3,6 +3,7 @@ import { decodeBytes, encodeText } from "./core/encoding";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
+import { pdfEditor } from "./editors/pdf";
 import { previewEditor } from "./editors/preview";
 import { quillEditor } from "./editors/quill";
 import { tableEditor } from "./editors/table";
@@ -23,6 +24,7 @@ import { shellFormat } from "./formats/shell";
 import { tomlFormat } from "./formats/toml";
 import { tsvFormat } from "./formats/tsv";
 import { typescriptFormat } from "./formats/typescript";
+import { pdfFormat } from "./formats/pdf";
 import { xlsFormat } from "./formats/xls";
 import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
@@ -58,6 +60,7 @@ engine.registerEditor(previewEditor);
 engine.registerEditor(treeEditor);
 engine.registerEditor(milkdownEditor);
 engine.registerEditor(quillEditor);
+engine.registerEditor(pdfEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -66,6 +69,7 @@ const FORMATS: FormatDescriptor[] = [
   tsvFormat,
   xlsxFormat,
   xlsFormat,
+  pdfFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,
@@ -92,6 +96,7 @@ const EDITOR_LABELS: Record<string, string> = {
   tree: "Tree",
   milkdown: "Rich",
   quill: "WYSIWYG",
+  pdf: "PDF",
 };
 const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
 
@@ -389,7 +394,7 @@ async function saveFile(): Promise<void> {
   let bytes: Uint8Array;
   let savedText = "";
   if (session.binary) {
-    const b = session.editor.getBytes?.();
+    const b = await session.editor.getBytes?.();
     if (!b) {
       engine.notificationSink.error("This document can't be saved.");
       return;

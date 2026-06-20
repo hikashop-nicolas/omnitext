@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 // repo-subpath without rewriting asset URLs.
 export default defineConfig({
   base: "./",
+  // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
+  resolve: { dedupe: ["pdfjs-dist", "pdf-lib"] },
   build: {
     target: "es2022",
     sourcemap: true,
