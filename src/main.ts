@@ -3,6 +3,7 @@ import { decodeBytes, encodeText } from "./core/encoding";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
+import { docxEditor } from "./editors/docx";
 import { odtEditor } from "./editors/odt";
 import { pdfEditor } from "./editors/pdf";
 import { previewEditor } from "./editors/preview";
@@ -17,6 +18,7 @@ import { iniFormat } from "./formats/ini";
 import { javascriptFormat } from "./formats/javascript";
 import { jsonFormat } from "./formats/json";
 import { json5Format } from "./formats/json5";
+import { docxFormat } from "./formats/docx";
 import { markdownFormat } from "./formats/markdown";
 import { odtFormat } from "./formats/odt";
 import { propertiesFormat } from "./formats/properties";
@@ -64,6 +66,7 @@ engine.registerEditor(milkdownEditor);
 engine.registerEditor(quillEditor);
 engine.registerEditor(pdfEditor);
 engine.registerEditor(odtEditor);
+engine.registerEditor(docxEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -74,6 +77,7 @@ const FORMATS: FormatDescriptor[] = [
   xlsFormat,
   pdfFormat,
   odtFormat,
+  docxFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,

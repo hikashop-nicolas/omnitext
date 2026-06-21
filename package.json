@@ -42,6 +42,7 @@
     "ajv": "^8.20.0",
     "codemirror": "^6.0.2",
     "diff": "^9.0.0",
+    "docxedit": "github:hikashop-nicolas/docxedit",
     "dompurify": "^3.4.11",
     "fast-xml-parser": "^5.9.3",
     "ini": "^6.0.0",
