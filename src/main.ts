@@ -109,6 +109,9 @@ const EDITOR_LABELS: Record<string, string> = {
   milkdown: "Rich",
   quill: "WYSIWYG",
   pdf: "PDF",
+  sheet: "Sheet",
+  odt: "ODT",
+  docx: "DOCX",
 };
 const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
 
@@ -161,21 +164,22 @@ const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
-const formatSel = $<HTMLSelectElement>("format");
+const formatLabelEl = $("format-label");
 const editorSel = $<HTMLSelectElement>("editor-select");
 const fileInput = $<HTMLInputElement>("file-input");
 const toolsEl = $("tools");
 const panelEl = $("panel");
 const panelTitleEl = $("panel-title");
 const panelBodyEl = $("panel-body");
+const newDlgEl = $("newdlg");
+const newFormatSel = $<HTMLSelectElement>("new-format");
 
-function populateFormatSelect(current: string | null): void {
-  formatSel.innerHTML = "";
-  formatSel.add(new Option("auto", ""));
-  for (const f of FORMATS) {
-    formatSel.add(new Option(f.manifest.id, f.manifest.id));
-  }
-  formatSel.value = current ?? "";
+// Format is a read-only label for the active document: it is determined by the file's
+// content/extension on open, or chosen up front in the New dialog. Switching the format
+// of an open document is meaningless for binary files (xlsx/pdf/docx/odt) and would
+// discard their bytes, so it is not offered inline.
+function setFormatLabel(current: string | null): void {
+  formatLabelEl.textContent = current ?? "plain text";
 }
 
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
@@ -190,7 +194,7 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
 function updateUI(): void {
   filenameEl.textContent = session?.filename ?? "untitled";
   dirtyEl.textContent = session?.dirty ? "(modified)" : "";
-  formatSel.value = session?.formatId ?? "";
+  setFormatLabel(session?.formatId ?? null);
   if (session?.editorId) editorSel.value = session.editorId;
 }
 
@@ -311,7 +315,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   instance.focus();
 
   reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${chosen.reason}`;
-  populateFormatSelect(formatId);
+  setFormatLabel(formatId);
   populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
   engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
@@ -449,20 +453,44 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
   URL.revokeObjectURL(url);
 }
 
-// --- format / editor switching (text is the canonical hand-off) --------------
+// --- new document (format chosen up front) -----------------------------------
 
-function changeFormat(formatId: string): void {
-  if (!session?.editor) return;
-  const text = session.editor.getText();
+function populateNewFormatSelect(): void {
+  newFormatSel.innerHTML = "";
+  newFormatSel.add(new Option("Plain text", ""));
+  // Only text-based formats can be created blank; binary formats need real file bytes.
+  for (const f of FORMATS) {
+    if (f.manifest.binary) continue;
+    newFormatSel.add(new Option(f.manifest.id, f.manifest.id));
+  }
+  newFormatSel.value = "";
+}
+
+function openNewDialog(): void {
+  populateNewFormatSelect();
+  newDlgEl.hidden = false;
+  newFormatSel.focus();
+}
+
+function closeNewDialog(): void {
+  newDlgEl.hidden = true;
+}
+
+function createNewDocument(): void {
+  const formatId = newFormatSel.value || null;
+  closeNewDialog();
+  // Start blank documents in the text editor: structured surfaces (tree/table) error on
+  // empty content. The View switcher lets the user move to them once they have content.
   void mountDoc({
-    text,
-    filename: session.filename,
-    encoding: session.encoding,
-    uri: session.uri,
-    fileHandle: session.fileHandle,
-    formatId: formatId || null,
+    text: "",
+    filename: null,
+    encoding: { label: "utf-8", bom: false },
+    formatId,
+    editorId: "codemirror",
   });
 }
+
+// --- editor switching (text is the canonical hand-off) -----------------------
 
 async function changeEditor(editorId: string): Promise<void> {
   if (!session?.editor || editorId === session.editorId) return;
@@ -495,12 +523,20 @@ async function changeEditor(editorId: string): Promise<void> {
 
 // --- wire up -----------------------------------------------------------------
 
-$("btn-new").addEventListener("click", () =>
-  void mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } }),
-);
+$("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
-formatSel.addEventListener("change", () => changeFormat(formatSel.value));
+$("new-cancel").addEventListener("click", closeNewDialog);
+$("new-create").addEventListener("click", createNewDocument);
+newDlgEl.addEventListener("click", (e) => {
+  if (e.target === newDlgEl) closeNewDialog(); // click the backdrop to dismiss
+});
+newFormatSel.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") createNewDocument();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
+});
 editorSel.addEventListener("change", () => void changeEditor(editorSel.value));
 
 window.addEventListener("beforeunload", (e) => {
