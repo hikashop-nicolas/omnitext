@@ -54,6 +54,7 @@
     "pdfedit": "github:hikashop-nicolas/pdfedit",
     "pdfjs-dist": "^6.0.227",
     "quill": "^2.0.3",
+    "sheetedit": "github:hikashop-nicolas/sheetedit",
     "toml": "^4.1.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },

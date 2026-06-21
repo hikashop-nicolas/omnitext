@@ -8,6 +8,7 @@ import { odtEditor } from "./editors/odt";
 import { pdfEditor } from "./editors/pdf";
 import { previewEditor } from "./editors/preview";
 import { quillEditor } from "./editors/quill";
+import { sheetEditor } from "./editors/sheet";
 import { tableEditor } from "./editors/table";
 import { treeEditor } from "./editors/tree";
 import { cssFormat } from "./formats/css";
@@ -20,6 +21,7 @@ import { jsonFormat } from "./formats/json";
 import { json5Format } from "./formats/json5";
 import { docxFormat } from "./formats/docx";
 import { markdownFormat } from "./formats/markdown";
+import { odsFormat } from "./formats/ods";
 import { odtFormat } from "./formats/odt";
 import { propertiesFormat } from "./formats/properties";
 import { pythonFormat } from "./formats/python";
@@ -67,6 +69,7 @@ engine.registerEditor(quillEditor);
 engine.registerEditor(pdfEditor);
 engine.registerEditor(odtEditor);
 engine.registerEditor(docxEditor);
+engine.registerEditor(sheetEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -78,6 +81,7 @@ const FORMATS: FormatDescriptor[] = [
   pdfFormat,
   odtFormat,
   docxFormat,
+  odsFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,

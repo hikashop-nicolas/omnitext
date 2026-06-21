@@ -1,11 +1,11 @@
 import type { FormatDescriptor } from "../core/types";
 
-export const xlsxFormat: FormatDescriptor = {
+export const odsFormat: FormatDescriptor = {
   manifest: {
     kind: "format",
-    id: "xlsx",
-    extensions: [".xlsx"],
-    mimeTypes: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    id: "ods",
+    extensions: [".ods"],
+    mimeTypes: ["application/vnd.oasis.opendocument.spreadsheet"],
     binary: true,
     viewAdapters: ["sheet"],
     defaultEditor: "sheet",
