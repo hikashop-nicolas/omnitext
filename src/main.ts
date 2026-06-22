@@ -1,5 +1,6 @@
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
+import { isNative, saveBytesNative } from "./core/platform";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
@@ -193,7 +194,9 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
 
 function updateUI(): void {
   filenameEl.textContent = session?.filename ?? "untitled";
-  dirtyEl.textContent = session?.dirty ? "(modified)" : "";
+  const modified = !!session?.dirty;
+  dirtyEl.classList.toggle("is-modified", modified);
+  dirtyEl.title = modified ? "Unsaved changes" : "All changes saved";
   setFormatLabel(session?.formatId ?? null);
   if (session?.editorId) editorSel.value = session.editorId;
 }
@@ -319,10 +322,11 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
   engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
+  const where = isNative() ? "on this device" : "in this browser";
   setStatus(
     opts.recovered
-      ? "Recovered unsaved work from this browser. Use Save to write it to disk."
-      : "Ready. The in-browser copy is a cache; use Save for a durable file.",
+      ? "Recovered unsaved work from a previous session. Use Save to write out the file."
+      : `Ready. Your edits are kept ${where}; use Save to write out the file.`,
   );
 }
 
@@ -427,13 +431,25 @@ async function saveFile(): Promise<void> {
     bytes = encodeText(savedText, session.encoding);
   }
 
+  const name = session.filename ?? "untitled.txt";
   const handle = session.fileHandle;
-  if (handle?.createWritable) {
-    const w = await handle.createWritable();
-    await w.write(bytes);
-    await w.close();
-  } else {
-    downloadBytes(bytes, session.filename ?? "untitled.txt");
+  try {
+    if (isNative()) {
+      // The app's WebView exposes the File System Access API, but writing back to a
+      // picked document's content URI is denied by Android, so always route Save
+      // through the native share/save sheet instead of the (broken) handle path.
+      await saveBytesNative(bytes, name);
+    } else if (handle?.createWritable) {
+      const w = await handle.createWritable();
+      await w.write(bytes);
+      await w.close();
+    } else {
+      downloadBytes(bytes, name);
+    }
+  } catch (e) {
+    console.error("save failed", e);
+    engine.notificationSink.error("Could not save the file.");
+    return;
   }
 
   if (!session.binary) session.lastSavedText = savedText;
@@ -538,6 +554,26 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
 });
 editorSel.addEventListener("change", () => void changeEditor(editorSel.value));
+
+// Tapping the save-state dot shows its meaning as a brief tooltip (touch has no hover).
+let dirtyTip: HTMLElement | null = null;
+let dirtyTipTimer: ReturnType<typeof setTimeout> | undefined;
+dirtyEl.addEventListener("click", () => {
+  if (!dirtyTip) {
+    dirtyTip = document.createElement("div");
+    dirtyTip.className = "ot-tip";
+    document.body.appendChild(dirtyTip);
+  }
+  dirtyTip.textContent = dirtyEl.title;
+  const r = dirtyEl.getBoundingClientRect();
+  dirtyTip.style.left = `${r.left}px`;
+  dirtyTip.style.top = `${r.bottom + 6}px`;
+  dirtyTip.hidden = false;
+  clearTimeout(dirtyTipTimer);
+  dirtyTipTimer = setTimeout(() => {
+    if (dirtyTip) dirtyTip.hidden = true;
+  }, 2200);
+});
 
 window.addEventListener("beforeunload", (e) => {
   if (session?.dirty) {

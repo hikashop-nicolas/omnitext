@@ -47,7 +47,7 @@
         background: var(--bg);
         -webkit-font-smoothing: antialiased;
       }
-      #app { display: flex; flex-direction: column; height: 100%; position: relative; }
+      #app { display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden; }
 
       /* Toolbar */
       #toolbar {
@@ -111,7 +111,20 @@
         text-overflow: ellipsis;
         max-width: 280px;
       }
-      .dirty { color: var(--amber); font-size: 12px; white-space: nowrap; }
+      /* Save-state dot: green when saved, orange when there are unsaved changes.
+         Tappable to show a tooltip (the old "(modified)" text was hard to see on phones). */
+      .dirty {
+        width: 11px; height: 11px; flex: none; padding: 0; border: 0; border-radius: 50%;
+        background: var(--ok); cursor: pointer; box-shadow: 0 0 0 2px var(--chrome);
+      }
+      .dirty.is-modified { background: var(--amber); }
+      .dirty:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .ot-tip {
+        position: fixed; z-index: 20; pointer-events: none; white-space: nowrap;
+        background: var(--text); color: var(--bg); font-size: 12px;
+        padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .ot-tip[hidden] { display: none; }
 
       .field {
         display: flex;
@@ -236,6 +249,8 @@
 
       @media (max-width: 560px) {
         .pill { display: none; }
+        /* Hide the Format / View group on phones: it overflows the toolbar off-screen. */
+        .field { display: none; }
         #filename { max-width: 110px; }
       }
     </style>
@@ -253,7 +268,7 @@
         <span id="tools" class="group"></span>
         <div class="doc">
           <span id="filename">untitled</span>
-          <span id="dirty" class="dirty"></span>
+          <button id="dirty" class="dirty" type="button" aria-label="Save status"></button>
         </div>
         <span class="spacer"></span>
         <span class="field">Format <span id="format-label" class="pill"></span></span>
@@ -270,7 +285,7 @@
       </aside>
       <footer id="status">
         <span class="status-dot"></span>
-        <span id="status-text">Local-first. The in-browser copy is a cache; use Save to write a durable file to disk.</span>
+        <span id="status-text">Ready. Your edits are kept on this device; use Save to write out the file.</span>
       </footer>
       <div id="newdlg" class="modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newdlg-title">
