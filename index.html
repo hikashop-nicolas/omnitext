@@ -276,31 +276,31 @@
         </div>
         <span class="sep"></span>
         <div class="group">
-          <button id="btn-new" class="btn icon" title="New" aria-label="New">
+          <button id="btn-new" class="btn icon" data-i18n-title="app.new" data-i18n-aria="app.new" title="New" aria-label="New">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14h6"/></svg>
           </button>
-          <button id="btn-open" class="btn icon" title="Open" aria-label="Open">
+          <button id="btn-open" class="btn icon" data-i18n-title="app.open" data-i18n-aria="app.open" title="Open" aria-label="Open">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
           </button>
-          <button id="btn-save" class="btn btn-primary icon" title="Save" aria-label="Save">
+          <button id="btn-save" class="btn btn-primary icon" data-i18n-title="app.save" data-i18n-aria="app.save" title="Save" aria-label="Save">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.8a2 2 0 0 0-.6-1.4l-3.8-3.8a2 2 0 0 0-1.4-.6Z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
           </button>
         </div>
         <span id="tools" class="group"></span>
         <div class="doc">
-          <span id="filename">untitled</span>
-          <button id="dirty" class="dirty" type="button" aria-label="Save status"></button>
+          <span id="filename" data-i18n="app.untitled">untitled</span>
+          <button id="dirty" class="dirty" type="button" data-i18n-aria="app.saveStatus" aria-label="Save status"></button>
         </div>
         <span class="spacer"></span>
-        <span class="field">Format <span id="format-label" class="pill"></span></span>
-        <label class="field">View <select id="editor-select"></select></label>
+        <span class="field"><span data-i18n="app.format">Format</span> <span id="format-label" class="pill"></span></span>
+        <label class="field"><span data-i18n="app.view">View</span> <select id="editor-select"></select></label>
         <span id="reason" class="pill"></span>
       </header>
       <main id="editor"></main>
       <aside id="panel" class="panel" hidden>
         <div class="panel-header">
           <span id="panel-title" class="panel-title"></span>
-          <button id="panel-close" title="Close">×</button>
+          <button id="panel-close" data-i18n-title="app.close" title="Close">×</button>
         </div>
         <div id="panel-body" class="panel-body"></div>
       </aside>
@@ -310,11 +310,11 @@
       </footer>
       <div id="newdlg" class="modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newdlg-title">
-          <h2 id="newdlg-title" class="modal-title">New document</h2>
-          <label class="modal-field">Format <select id="new-format"></select></label>
+          <h2 id="newdlg-title" class="modal-title" data-i18n="app.newDocument">New document</h2>
+          <label class="modal-field"><span data-i18n="app.format">Format</span> <select id="new-format"></select></label>
           <div class="modal-actions">
-            <button id="new-cancel" class="btn" type="button">Cancel</button>
-            <button id="new-create" class="btn btn-primary" type="button">Create</button>
+            <button id="new-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
+            <button id="new-create" class="btn btn-primary" type="button" data-i18n="app.create">Create</button>
           </div>
         </div>
       </div>

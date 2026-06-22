@@ -1,5 +1,13 @@
 import type { Disposable, HostAPI, ToolModule } from "../core/types";
 import { VersionStore, type Version } from "./version-store";
+import { getLocale, t } from "../i18n";
+
+// Snapshot labels are stored as stable English keys; translate them only for display.
+const labelText = (label: string): string => {
+  const key = `history.label.${label.toLowerCase()}`;
+  const s = t(key);
+  return s === key ? label : s;
+};
 
 // Version history + diff tool. Snapshots the active document (on save, on a debounce
 // after edits, and on demand), and offers a panel to browse versions, diff any version
@@ -111,7 +119,7 @@ async function renderDiff(area: HTMLElement, fromText: string, toText: string): 
   const parts = diffLines(fromText, toText);
   area.textContent = "";
   if (!parts.some((p) => p.added || p.removed)) {
-    area.append(el("div", "ot-diff-line ctx", "No differences from the current document."));
+    area.append(el("div", "ot-diff-line ctx", t("history.noDifferences")));
     return;
   }
   for (const part of parts) {
@@ -131,22 +139,21 @@ function renderList(
 ): void {
   list.textContent = "";
   if (versions.length === 0) {
-    list.append(
-      el("div", "ot-hist-empty", "No versions yet. Snapshots are taken on Save, periodically while you edit, and when you click Snapshot now."),
-    );
+    list.append(el("div", "ot-hist-empty", t("history.empty")));
     return;
   }
   for (const v of versions) {
     const row = el("div", "ot-hist-row");
     const meta = el("div", "ot-hist-meta");
+    const cnt = stateChangeCount(v.state);
     const size = v.state
-      ? `${stateChangeCount(v.state)} change${stateChangeCount(v.state) === 1 ? "" : "s"}`
+      ? t("history.changes", { n: cnt, count: cnt })
       : v.binary
-        ? `${(v.bytes?.length ?? 0).toLocaleString()} bytes`
-        : `${v.text.length} chars`;
+        ? t("history.bytes", { n: (v.bytes?.length ?? 0).toLocaleString(getLocale()) })
+        : t("history.chars", { n: v.text.length });
     meta.append(
-      el("span", "ot-hist-time", new Date(v.ts).toLocaleString()),
-      el("span", "ot-hist-label", v.label),
+      el("span", "ot-hist-time", new Date(v.ts).toLocaleString(getLocale())),
+      el("span", "ot-hist-label", labelText(v.label)),
       el("span", "ot-hist-size", size),
     );
     row.append(meta);
@@ -156,7 +163,7 @@ function renderList(
     diffArea.hidden = true;
     // Binary documents have no text to diff; offer Restore only.
     if (!v.binary) {
-      const diffBtn = button("Diff vs current", () => {
+      const diffBtn = button(t("history.diffVsCurrent"), () => {
         diffArea.hidden = !diffArea.hidden;
         if (!diffArea.hidden) {
           const cur = host.workspace.getActiveDocument()?.text ?? "";
@@ -166,12 +173,12 @@ function renderList(
       actions.append(diffBtn);
     }
     const restoreBtn = button(
-      "Restore",
+      t("history.restore"),
       () => {
         if (v.state) host.workspace.setActiveState(v.state);
         else if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
         else host.workspace.setActiveText(v.text);
-        host.notifications.info(`Restored the version from ${new Date(v.ts).toLocaleString()}.`);
+        host.notifications.info(t("history.restored", { time: new Date(v.ts).toLocaleString(getLocale()) }));
         refresh();
       },
       "ot-mini primary",
@@ -185,22 +192,22 @@ function renderList(
 function openPanel(host: HostAPI, store: VersionStore): void {
   ensureStyles();
   host.ui.openPanel({
-    title: "Version history",
+    title: t("history.title"),
     render: (container) => {
       const doc = host.workspace.getActiveDocument();
       if (!doc) {
-        container.append(el("div", "ot-hist-empty", "Open a document first."));
+        container.append(el("div", "ot-hist-empty", t("history.openDocFirst")));
         return;
       }
       const rootEl = el("div", "ot-hist");
       const bar = el("div", "ot-hist-bar");
       const list = el("div", "ot-hist-list");
       const refresh = (): void => {
-        list.textContent = "Loading…";
+        list.textContent = t("history.loading");
         void store.listByKey(doc.key).then((versions) => renderList(list, versions, host, refresh));
       };
       bar.append(
-        button("Snapshot now", () => {
+        button(t("history.snapshotNow"), () => {
           void snapshot(host, store, "Manual").then(refresh);
         }),
       );
@@ -231,7 +238,7 @@ export const historyTool: ToolModule = {
       }),
       host.ui.addToolbarButton({
         id: "history",
-        title: "History",
+        title: t("app.history"),
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>`,
         onClick: () => openPanel(host, store),
       }),

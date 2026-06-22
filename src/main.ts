@@ -37,6 +37,7 @@ import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import { historyTool } from "./tools/history";
+import { applyDom, initI18n, t } from "./i18n";
 import type {
   EditorInstance,
   EditorResolution,
@@ -101,20 +102,13 @@ for (const f of FORMATS) engine.registerFormat(f);
 
 const store = new SessionStore();
 
-// Friendly labels for editor ids shown in the switcher and status pill.
-const EDITOR_LABELS: Record<string, string> = {
-  codemirror: "Text",
-  table: "Table",
-  preview: "Preview",
-  tree: "Tree",
-  milkdown: "Rich",
-  quill: "WYSIWYG",
-  pdf: "PDF",
-  sheet: "Sheet",
-  odt: "ODT",
-  docx: "DOCX",
+// Friendly labels for editor ids (shown in the switcher and status pill); from i18n,
+// falling back to the raw id when a label is missing.
+const editorLabel = (id: string): string => {
+  const key = `app.editors.${id}`;
+  const label = t(key);
+  return label === key ? id : label;
 };
-const editorLabel = (id: string): string => EDITOR_LABELS[id] ?? id;
 
 // Per-format editor preference, persisted so a choice (e.g. "edit CSV as a table") sticks.
 const PREF_KEY = "omnitext:prefEditor";
@@ -180,7 +174,7 @@ const newFormatSel = $<HTMLSelectElement>("new-format");
 // of an open document is meaningless for binary files (xlsx/pdf/docx/odt) and would
 // discard their bytes, so it is not offered inline.
 function setFormatLabel(current: string | null): void {
-  formatLabelEl.textContent = current ?? "plain text";
+  formatLabelEl.textContent = current ?? t("app.plainText");
 }
 
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
@@ -193,10 +187,10 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
 }
 
 function updateUI(): void {
-  filenameEl.textContent = session?.filename ?? "untitled";
+  filenameEl.textContent = session?.filename ?? t("app.untitled");
   const modified = !!session?.dirty;
   dirtyEl.classList.toggle("is-modified", modified);
-  dirtyEl.title = modified ? "Unsaved changes" : "All changes saved";
+  dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
   setFormatLabel(session?.formatId ?? null);
   if (session?.editorId) editorSel.value = session.editorId;
 }
@@ -249,7 +243,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     if (descriptor) formatModule = await descriptor.load();
   } catch (e) {
     console.error("format load failed", e);
-    engine.notificationSink.error(`Could not load the ${formatId} format.`);
+    engine.notificationSink.error(t("notify.formatLoadFailed", { format: formatId ?? "" }));
   }
 
   // Pre-parse content into the format's model (from text or bytes) for the editor.
@@ -261,7 +255,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
         : formatModule.parse(text).model;
     } catch (e) {
       console.error("parse failed", e);
-      engine.notificationSink.error(`Could not read this ${formatId ?? "document"}.`);
+      engine.notificationSink.error(t("notify.readFailed", { what: formatId ?? t("notify.documentWord") }));
     }
   }
 
@@ -275,7 +269,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     const fallback = engine.editors.byId("codemirror");
     if (!fallback || chosen.editor.manifest.id === "codemirror") throw e;
     engine.notificationSink.warn(
-      `Could not load the ${editorLabel(chosen.editor.manifest.id)} editor (try reloading). Using Text.`,
+      t("notify.editorLoadFailed", { editor: editorLabel(chosen.editor.manifest.id) }),
     );
     chosen = { editor: fallback, view: "text", reason: "fallback" };
     editorModule = await fallback.load();
@@ -317,17 +311,15 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   });
   instance.focus();
 
-  reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${chosen.reason}`;
+  const reasonKey = `app.reason.${chosen.reason}`;
+  const reasonText = t(reasonKey) === reasonKey ? chosen.reason : t(reasonKey);
+  reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${reasonText}`;
   setFormatLabel(formatId);
   populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
   engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
-  const where = isNative() ? "on this device" : "in this browser";
-  setStatus(
-    opts.recovered
-      ? "Recovered unsaved work from a previous session. Use Save to write out the file."
-      : `Ready. Your edits are kept ${where}; use Save to write out the file.`,
-  );
+  const where = isNative() ? t("status.onThisDevice") : t("status.inThisBrowser");
+  setStatus(opts.recovered ? t("status.recovered") : t("status.ready", { where }));
 }
 
 function snapshot(): DocSnapshot | null {
@@ -383,7 +375,7 @@ async function openBuffer(buffer: ArrayBuffer, filename: string, scheme: string,
     uri: `${scheme}://${filename}`,
     fileHandle: handle,
   });
-  if (decoded.lossyOnSave) setStatus("Note: this file's encoding will be saved as UTF-8.");
+  if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
 }
 
 async function openFile(): Promise<void> {
@@ -416,7 +408,7 @@ async function saveFile(): Promise<void> {
   if (session.binary) {
     const b = await session.editor.getBytes?.();
     if (!b) {
-      engine.notificationSink.error("This document can't be saved.");
+      engine.notificationSink.error(t("notify.cannotSave"));
       return;
     }
     bytes = b;
@@ -448,7 +440,7 @@ async function saveFile(): Promise<void> {
     }
   } catch (e) {
     console.error("save failed", e);
-    engine.notificationSink.error("Could not save the file.");
+    engine.notificationSink.error(t("notify.saveFailed"));
     return;
   }
 
@@ -456,7 +448,7 @@ async function saveFile(): Promise<void> {
   session.dirty = false;
   updateUI();
   engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
-  setStatus("Saved.");
+  setStatus(t("status.saved"));
 }
 
 function downloadBytes(bytes: Uint8Array, name: string): void {
@@ -473,7 +465,7 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
 
 function populateNewFormatSelect(): void {
   newFormatSel.innerHTML = "";
-  newFormatSel.add(new Option("Plain text", ""));
+  newFormatSel.add(new Option(t("app.plainTextOption"), ""));
   // Only text-based formats can be created blank; binary formats need real file bytes.
   for (const f of FORMATS) {
     if (f.manifest.binary) continue;
@@ -696,11 +688,13 @@ const ui: UIContributions = {
 engine.workspace = workspace;
 engine.ui = ui;
 $("panel-close").addEventListener("click", () => ui.closePanels());
-engine.registerTool(historyTool);
 
 // --- startup: crash recovery, else a blank doc -------------------------------
 
 async function start(): Promise<void> {
+  await initI18n();
+  applyDom(); // resolve the static [data-i18n] attributes in index.html
+  engine.registerTool(historyTool); // registered after i18n so its button title is translated
   void SessionStore.requestPersistent();
   let last: DocSnapshot | undefined;
   try {

@@ -1,0 +1,71 @@
+// English: the canonical key set and the fallback for every other locale.
+import type { Dict } from "./index";
+
+const en: Dict = {
+  app: {
+    new: "New",
+    open: "Open",
+    save: "Save",
+    saveStatus: "Save status",
+    unsavedChanges: "Unsaved changes",
+    allSaved: "All changes saved",
+    untitled: "untitled",
+    format: "Format",
+    view: "View",
+    plainText: "plain text",
+    close: "Close",
+    history: "History",
+    newDocument: "New document",
+    plainTextOption: "Plain text",
+    cancel: "Cancel",
+    create: "Create",
+    // Editor labels, keyed by editor id (shown in the View switcher and status pill).
+    editors: {
+      codemirror: "Text",
+      table: "Table",
+      preview: "Preview",
+      tree: "Tree",
+      milkdown: "Rich",
+      quill: "WYSIWYG",
+      pdf: "PDF",
+      sheet: "Sheet",
+      odt: "ODT",
+      docx: "DOCX",
+    },
+    // Why a given editor was chosen (shown in the small status pill).
+    reason: { native: "native", view: "view", fallback: "fallback" },
+  },
+  status: {
+    ready: "Ready. Your edits are kept {where}; use Save to write out the file.",
+    onThisDevice: "on this device",
+    inThisBrowser: "in this browser",
+    recovered: "Recovered unsaved work from a previous session. Use Save to write out the file.",
+    saved: "Saved.",
+    encodingUtf8: "Note: this file's encoding will be saved as UTF-8.",
+  },
+  notify: {
+    formatLoadFailed: "Could not load the {format} format.",
+    readFailed: "Could not read this {what}.",
+    editorLoadFailed: "Could not load the {editor} editor (try reloading). Using Text.",
+    cannotSave: "This document can't be saved.",
+    saveFailed: "Could not save the file.",
+    documentWord: "document",
+  },
+  history: {
+    title: "Version history",
+    openDocFirst: "Open a document first.",
+    loading: "Loading…",
+    snapshotNow: "Snapshot now",
+    empty: "No versions yet. Snapshots are taken on Save, periodically while you edit, and when you click Snapshot now.",
+    diffVsCurrent: "Diff vs current",
+    restore: "Restore",
+    noDifferences: "No differences from the current document.",
+    restored: "Restored the version from {time}.",
+    bytes: "{n} bytes",
+    chars: "{n} chars",
+    changes: { one: "{n} change", other: "{n} changes" },
+    label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto" },
+  },
+};
+
+export default en;
