@@ -565,6 +565,18 @@ const workspace: Workspace = {
     if (!session?.editor || !session.binary) return null;
     return (await session.editor.getBytes?.()) ?? null;
   },
+  getActiveState() {
+    if (!session?.editor) return null;
+    return session.editor.getState?.() ?? null;
+  },
+  setActiveState(state) {
+    if (!session?.editor?.setState || !state) return;
+    // Restore happens in place (the editor re-renders the pristine doc and replays the edits);
+    // mark dirty since the restored state differs from what is on disk.
+    session.editor.setState(state);
+    session.dirty = true;
+    updateUI();
+  },
   setActiveBytes(bytes) {
     if (!session?.editor || !session.binary) return;
     // Remount the binary editor from the restored bytes; mark dirty since the restored

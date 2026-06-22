@@ -50,6 +50,8 @@ export class OmnitextEngine {
     setActiveText: () => {},
     getActiveBytes: () => Promise.resolve(null),
     setActiveBytes: () => {},
+    getActiveState: () => null,
+    setActiveState: () => {},
   };
   ui: UIContributions = {
     addToolbarButton: () => ({ dispose: () => {} }),

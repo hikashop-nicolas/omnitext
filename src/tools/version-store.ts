@@ -10,10 +10,14 @@ export interface Version {
   label: string;
   /** Canonical text for text documents; empty for binary ones. */
   text: string;
-  /** True when this snapshot holds binary bytes rather than text. */
+  /** True when this snapshot holds binary bytes/state rather than text. */
   binary?: boolean;
-  /** Raw bytes for binary documents (PDF/DOCX/ODT/XLSX/ODS); stored via structured clone. */
+  /** Raw bytes for binary documents whose export is cleanly re-importable (XLSX/ODS/DOCX/ODT). */
   bytes?: Uint8Array;
+  /** A lossless editing-session snapshot for editors that provide one (PDF). */
+  state?: unknown;
+  /** Signature of `state`, for skipping unchanged snapshots without deep-comparing it. */
+  stateSig?: string;
 }
 
 const DB_NAME = "omnitext-history";

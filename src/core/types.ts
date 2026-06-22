@@ -163,6 +163,11 @@ export interface EditorInstance {
   getText(): string;
   /** Current content as bytes (binary editors); may be async; undefined if N/A. */
   getBytes?(): Uint8Array | Promise<Uint8Array> | undefined;
+  /** A serialisable editing-session snapshot for lossless history (editors whose export is
+   *  not cleanly re-importable, e.g. PDF). Returns null/undefined if not supported. */
+  getState?(): unknown;
+  /** Restore a snapshot from getState (re-render + replay edits, in place). */
+  setState?(state: unknown): void;
   /** Future collaboration hook: apply a remote change from a CRDT binding. */
   applyRemote?(change: unknown): void;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
@@ -307,6 +312,10 @@ export interface Workspace {
   getActiveBytes(): Promise<Uint8Array | null>;
   /** Replace a binary document's content with raw bytes (e.g. restore a version). */
   setActiveBytes(bytes: Uint8Array): void;
+  /** A lossless editing-session snapshot when the editor supports it (e.g. PDF), else null. */
+  getActiveState(): unknown;
+  /** Restore an editing-session snapshot from getActiveState. */
+  setActiveState(state: unknown): void;
 }
 
 export interface ToolbarButton {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HostAPI, Workspace } from "../core/types";
-import { bytesEqual, snapshot } from "./history";
+import { bytesEqual, snapshot, stateSig } from "./history";
 import type { Version, VersionStore } from "./version-store";
 
 // A minimal in-memory stand-in for VersionStore (the real one is IndexedDB-backed,
@@ -22,7 +22,8 @@ function fakeStore(seed: Version[] = []): VersionStore & { rows: Version[] } {
 }
 
 function fakeHost(workspace: Partial<Workspace>): HostAPI {
-  return { workspace: workspace as Workspace } as unknown as HostAPI;
+  // Default getActiveState to null so the bytes/text paths run unless a test opts in.
+  return { workspace: { getActiveState: () => null, ...workspace } as Workspace } as unknown as HostAPI;
 }
 
 describe("history bytesEqual", () => {
@@ -97,6 +98,47 @@ describe("history snapshot for binary documents", () => {
     });
     await snapshot(host, store, "Auto");
     expect(store.rows).toHaveLength(0);
+  });
+});
+
+describe("history snapshot for editors with a session state (PDF)", () => {
+  it("stores the session state and dedupes by signature", async () => {
+    const store = fakeStore();
+    let st: { original: Uint8Array; edits: { html: string }[]; boxes: unknown[]; images: unknown[] } = {
+      original: new Uint8Array([1, 2, 3]),
+      edits: [{ html: "hello" }],
+      boxes: [],
+      images: [],
+    };
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1",
+        key: "k",
+        uri: null,
+        filename: "a.pdf",
+        formatId: "pdf",
+        text: "",
+        binary: true,
+      }),
+      getActiveState: () => st,
+      getActiveBytes: () => Promise.resolve(null),
+    });
+    await snapshot(host, store, "Saved");
+    await snapshot(host, store, "Saved"); // identical state: skipped
+    expect(store.rows).toHaveLength(1);
+    expect(store.rows[0].state).toBe(st);
+    expect(store.rows[0].stateSig).toBe(stateSig(st));
+    st = { original: new Uint8Array([1, 2, 3]), edits: [{ html: "hello world" }], boxes: [], images: [] };
+    await snapshot(host, store, "Saved"); // changed edit
+    expect(store.rows).toHaveLength(2);
+  });
+
+  it("signature ignores large byte buffers but reflects edit changes", () => {
+    const a = { original: new Uint8Array([1, 2]), edits: [{ html: "x" }], boxes: [], images: [] };
+    const b = { original: new Uint8Array([9, 9]), edits: [{ html: "x" }], boxes: [], images: [] };
+    const c = { original: new Uint8Array([1, 2]), edits: [{ html: "y" }], boxes: [], images: [] };
+    expect(stateSig(a)).toBe(stateSig(b)); // different bytes, same edits -> same signature
+    expect(stateSig(a)).not.toBe(stateSig(c)); // different edit -> different signature
   });
 });
 

@@ -63,11 +63,36 @@ export function bytesEqual(a: Uint8Array | undefined, b: Uint8Array | undefined)
   return true;
 }
 
+// A cheap signature of an editing-session snapshot (PDF), ignoring large byte buffers so two
+// unchanged snapshots compare equal without deep-comparing embedded fonts/images.
+export function stateSig(state: unknown): string {
+  try {
+    return JSON.stringify(state, (_k, v) => (v instanceof Uint8Array ? `u8:${v.length}` : v));
+  } catch {
+    return "";
+  }
+}
+
+function stateChangeCount(state: unknown): number {
+  const s = state as { edits?: unknown[]; boxes?: unknown[]; images?: unknown[] } | null;
+  return (s?.edits?.length ?? 0) + (s?.boxes?.length ?? 0) + (s?.images?.length ?? 0);
+}
+
 export async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
   const doc = host.workspace.getActiveDocument();
   if (!doc) return;
   if (doc.binary) {
-    // Binary documents (PDF/DOCX/ODT/XLSX/ODS) have no canonical text; snapshot the bytes.
+    // Editors that expose a lossless session snapshot (PDF) store that, so restore re-renders
+    // the pristine document and replays edits rather than re-opening the lossy export.
+    const state = host.workspace.getActiveState();
+    if (state) {
+      const sig = stateSig(state);
+      const existing = await store.listByKey(doc.key);
+      if (existing[0]?.stateSig === sig) return; // unchanged since last snapshot
+      await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: "", binary: true, state, stateSig: sig });
+      return;
+    }
+    // Other binary editors (XLSX/ODS/DOCX/ODT) edit in place; their bytes re-import cleanly.
     const bytes = await host.workspace.getActiveBytes();
     if (!bytes || bytes.length === 0) return;
     const existing = await store.listByKey(doc.key);
@@ -114,9 +139,11 @@ function renderList(
   for (const v of versions) {
     const row = el("div", "ot-hist-row");
     const meta = el("div", "ot-hist-meta");
-    const size = v.binary
-      ? `${(v.bytes?.length ?? 0).toLocaleString()} bytes`
-      : `${v.text.length} chars`;
+    const size = v.state
+      ? `${stateChangeCount(v.state)} change${stateChangeCount(v.state) === 1 ? "" : "s"}`
+      : v.binary
+        ? `${(v.bytes?.length ?? 0).toLocaleString()} bytes`
+        : `${v.text.length} chars`;
     meta.append(
       el("span", "ot-hist-time", new Date(v.ts).toLocaleString()),
       el("span", "ot-hist-label", v.label),
@@ -141,7 +168,8 @@ function renderList(
     const restoreBtn = button(
       "Restore",
       () => {
-        if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
+        if (v.state) host.workspace.setActiveState(v.state);
+        else if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
         else host.workspace.setActiveText(v.text);
         host.notifications.info(`Restored the version from ${new Date(v.ts).toLocaleString()}.`);
         refresh();
