@@ -8,7 +8,12 @@ export interface Version {
   ts: number;
   formatId: string | null;
   label: string;
+  /** Canonical text for text documents; empty for binary ones. */
   text: string;
+  /** True when this snapshot holds binary bytes rather than text. */
+  binary?: boolean;
+  /** Raw bytes for binary documents (PDF/DOCX/ODT/XLSX/ODS); stored via structured clone. */
+  bytes?: Uint8Array;
 }
 
 const DB_NAME = "omnitext-history";

@@ -45,7 +45,12 @@ export class OmnitextEngine {
   };
 
   /** App-supplied workspace + UI providers; default no-ops until the app sets them. */
-  workspace: Workspace = { getActiveDocument: () => null, setActiveText: () => {} };
+  workspace: Workspace = {
+    getActiveDocument: () => null,
+    setActiveText: () => {},
+    getActiveBytes: () => Promise.resolve(null),
+    setActiveBytes: () => {},
+  };
   ui: UIContributions = {
     addToolbarButton: () => ({ dispose: () => {} }),
     openPanel: () => ({ close: () => {} }),

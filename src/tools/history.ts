@@ -56,9 +56,26 @@ function button(label: string, onClick: () => void, className = "ot-mini"): HTML
   return b;
 }
 
-async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
+// Exported for unit testing (the snapshot decision logic and byte comparison).
+export function bytesEqual(a: Uint8Array | undefined, b: Uint8Array | undefined): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+export async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
   const doc = host.workspace.getActiveDocument();
-  if (!doc || doc.text.trim() === "") return;
+  if (!doc) return;
+  if (doc.binary) {
+    // Binary documents (PDF/DOCX/ODT/XLSX/ODS) have no canonical text; snapshot the bytes.
+    const bytes = await host.workspace.getActiveBytes();
+    if (!bytes || bytes.length === 0) return;
+    const existing = await store.listByKey(doc.key);
+    if (bytesEqual(existing[0]?.bytes, bytes)) return; // unchanged since last snapshot
+    await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: "", binary: true, bytes });
+    return;
+  }
+  if (doc.text.trim() === "") return;
   const existing = await store.listByKey(doc.key);
   if (existing[0]?.text === doc.text) return; // skip if unchanged since last snapshot
   await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: doc.text });
@@ -97,33 +114,41 @@ function renderList(
   for (const v of versions) {
     const row = el("div", "ot-hist-row");
     const meta = el("div", "ot-hist-meta");
+    const size = v.binary
+      ? `${(v.bytes?.length ?? 0).toLocaleString()} bytes`
+      : `${v.text.length} chars`;
     meta.append(
       el("span", "ot-hist-time", new Date(v.ts).toLocaleString()),
       el("span", "ot-hist-label", v.label),
-      el("span", "ot-hist-size", `${v.text.length} chars`),
+      el("span", "ot-hist-size", size),
     );
     row.append(meta);
 
     const actions = el("div", "ot-hist-actions");
     const diffArea = el("div", "ot-diff");
     diffArea.hidden = true;
-    const diffBtn = button("Diff vs current", () => {
-      diffArea.hidden = !diffArea.hidden;
-      if (!diffArea.hidden) {
-        const cur = host.workspace.getActiveDocument()?.text ?? "";
-        void renderDiff(diffArea, v.text, cur);
-      }
-    });
+    // Binary documents have no text to diff; offer Restore only.
+    if (!v.binary) {
+      const diffBtn = button("Diff vs current", () => {
+        diffArea.hidden = !diffArea.hidden;
+        if (!diffArea.hidden) {
+          const cur = host.workspace.getActiveDocument()?.text ?? "";
+          void renderDiff(diffArea, v.text, cur);
+        }
+      });
+      actions.append(diffBtn);
+    }
     const restoreBtn = button(
       "Restore",
       () => {
-        host.workspace.setActiveText(v.text);
+        if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
+        else host.workspace.setActiveText(v.text);
         host.notifications.info(`Restored the version from ${new Date(v.ts).toLocaleString()}.`);
         refresh();
       },
       "ot-mini primary",
     );
-    actions.append(diffBtn, restoreBtn);
+    actions.append(restoreBtn);
     row.append(actions, diffArea);
     list.append(row);
   }

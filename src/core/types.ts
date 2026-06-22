@@ -293,13 +293,20 @@ export interface ActiveDocument {
   uri: string | null;
   filename: string | null;
   formatId: string | null;
+  /** Canonical text; empty string for binary documents (their content is bytes). */
   text: string;
+  /** True for binary documents (PDF/DOCX/ODT/XLSX/ODS): use the bytes API instead of text. */
+  binary: boolean;
 }
 
 export interface Workspace {
   getActiveDocument(): ActiveDocument | null;
   /** Replace the active document's content (e.g. restore a version). */
   setActiveText(text: string): void;
+  /** Current bytes for a binary document, else null (re-runs the editor's export). */
+  getActiveBytes(): Promise<Uint8Array | null>;
+  /** Replace a binary document's content with raw bytes (e.g. restore a version). */
+  setActiveBytes(bytes: Uint8Array): void;
 }
 
 export interface ToolbarButton {

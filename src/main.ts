@@ -557,8 +557,32 @@ const workspace: Workspace = {
       uri: session.uri,
       filename: session.filename,
       formatId: session.formatId,
-      text: session.editor.getText(),
+      text: session.binary ? "" : session.editor.getText(),
+      binary: session.binary,
     };
+  },
+  async getActiveBytes() {
+    if (!session?.editor || !session.binary) return null;
+    return (await session.editor.getBytes?.()) ?? null;
+  },
+  setActiveBytes(bytes) {
+    if (!session?.editor || !session.binary) return;
+    // Remount the binary editor from the restored bytes; mark dirty since the restored
+    // content differs from what is on disk.
+    void mountDoc({
+      bytes,
+      binary: true,
+      filename: session.filename,
+      encoding: session.encoding,
+      uri: session.uri,
+      fileHandle: session.fileHandle,
+      formatId: session.formatId,
+      editorId: session.editorId,
+    }).then(() => {
+      if (!session?.editor) return;
+      session.dirty = true;
+      updateUI();
+    });
   },
   setActiveText(text) {
     if (!session?.editor) return;
