@@ -9,6 +9,12 @@ dedicated in-browser editors.
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
 
+**[⬇ Android APK](https://github.com/hikashop-nicolas/omnitext/releases/download/android-latest/omnitext-debug.apk)**
+— Omnitext also runs as an Android app (Capacitor), bundling the same editor offline. The
+link is a debug build rebuilt automatically from `main`; sideload it (Android will warn about
+an unknown source, and updating may need a reinstall since debug builds aren't signed with a
+stable key). A signed Google Play release is planned.
+
 ## What it does
 
 Open a file (local disk via the File System Access API, or upload), edit it in the most

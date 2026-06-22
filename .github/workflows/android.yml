@@ -1,0 +1,64 @@
+name: Build Android APK
+
+# Builds the Android app from the same web bundle and publishes a downloadable
+# debug APK to a rolling "android-latest" release, so the README can link to it.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to publish the APK as a release asset
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build # the same web build GitHub Pages uses
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../omnitext-debug.apk
+
+      - name: Publish rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Latest Android APK
+          prerelease: true
+          files: omnitext-debug.apk
+          body: |
+            Debug APK built automatically from the latest `main`.
+            Sideload it to try Omnitext on Android.
+
+            This is an unsigned debug build (not from Google Play). Android may warn
+            about installing from an unknown source, and to update you may need to
+            uninstall the previous build first (debug builds aren't signed with a
+            stable key).
