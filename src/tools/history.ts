@@ -217,6 +217,8 @@ export const historyTool: ToolModule = {
     const store = new VersionStore();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const disposables = [
+      // Baseline: snapshot the pristine document on open so the original is always restorable.
+      host.events.on("documentOpened", () => void snapshot(host, store, "Opened")),
       host.events.on("documentSaved", () => void snapshot(host, store, "Saved")),
       host.events.on("contentChanged", () => {
         clearTimeout(timer);
