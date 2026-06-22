@@ -40,12 +40,29 @@ jobs:
       - name: Sync web assets into the Android project
         run: npx cap sync android
 
-      - name: Build debug APK
+      # Build a signed release APK when the keystore secrets are set; otherwise fall
+      # back to a debug APK so the download link keeps working before signing is set up.
+      - name: Build APK
+        id: apk
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../omnitext-debug.apk
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../omnitext.apk
+            echo "kind=signed release" >> "$GITHUB_OUTPUT"
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../omnitext.apk
+            echo "kind=debug (no signing secrets set)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish rolling release
         uses: softprops/action-gh-release@v2
@@ -53,12 +70,8 @@ jobs:
           tag_name: android-latest
           name: Latest Android APK
           prerelease: true
-          files: omnitext-debug.apk
+          files: omnitext.apk
           body: |
-            Debug APK built automatically from the latest `main`.
-            Sideload it to try Omnitext on Android.
-
-            This is an unsigned debug build (not from Google Play). Android may warn
-            about installing from an unknown source, and to update you may need to
-            uninstall the previous build first (debug builds aren't signed with a
-            stable key).
+            Android APK built automatically from the latest `main` (${{ steps.apk.outputs.kind }}).
+            Sideload it to try Omnitext on Android; Android may warn about installing from an
+            unknown source. Not distributed through Google Play.
