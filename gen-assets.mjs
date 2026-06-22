@@ -2,10 +2,11 @@
 // Source icons go in assets/ (consumed by @capacitor/assets); store-only graphics go
 // in store-assets/. Run: node gen-assets.mjs
 import sharp from "sharp";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 mkdirSync("assets", { recursive: true });
 mkdirSync("store-assets", { recursive: true });
+mkdirSync("public", { recursive: true });
 
 const GRAD = (id) =>
   `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">
@@ -67,4 +68,18 @@ await png(svgSplash(false)).toFile("assets/splash.png");
 await png(svgSplash(true)).toFile("assets/splash-dark.png");
 await png(svgIcon(1024, true)).resize(512, 512).toFile("store-assets/icon-512.png");
 await png(svgFeature()).toFile("store-assets/feature-graphic.png");
+
+// Favicon / touch icon: a compact mark with a larger glyph that stays legible small.
+const compact = (rounded) => `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <defs>${GRAD("cg")}</defs>
+  <rect width="24" height="24" rx="${rounded ? 6 : 0}" fill="url(#cg)"/>
+  <rect x="8" y="6" width="8" height="12" rx="1.6" fill="#fff"/>
+  <rect x="9.7" y="8.6" width="4.6" height="1.5" rx="0.75" fill="#4f46e5"/>
+  <rect x="9.7" y="11.2" width="4.6" height="1.5" rx="0.75" fill="#6366f1"/>
+  <rect x="9.7" y="13.8" width="2.8" height="1.5" rx="0.75" fill="#22d3ee"/>
+</svg>`;
+writeFileSync("public/favicon.svg", compact(true).trim() + "\n");
+await png(compact(true)).resize(32, 32).toFile("public/favicon-32.png");
+await png(compact(false)).resize(180, 180).toFile("public/apple-touch-icon.png");
 console.log("assets generated");

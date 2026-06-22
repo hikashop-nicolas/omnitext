@@ -657,9 +657,15 @@ let panelCleanup: (() => void) | null = null;
 const ui: UIContributions = {
   addToolbarButton(btn) {
     const b = document.createElement("button");
-    b.className = "btn";
+    b.className = btn.icon ? "btn icon" : "btn";
     b.id = `toolbtn-${btn.id}`;
-    b.textContent = btn.title;
+    if (btn.icon) {
+      b.innerHTML = btn.icon;
+      b.title = btn.title;
+      b.setAttribute("aria-label", btn.title);
+    } else {
+      b.textContent = btn.title;
+    }
     b.addEventListener("click", btn.onClick);
     toolsEl.appendChild(b);
     return { dispose: () => b.remove() };

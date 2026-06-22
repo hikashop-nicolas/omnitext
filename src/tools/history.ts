@@ -229,7 +229,12 @@ export const historyTool: ToolModule = {
         title: "History: Open version history",
         run: () => openPanel(host, store),
       }),
-      host.ui.addToolbarButton({ id: "history", title: "History", onClick: () => openPanel(host, store) }),
+      host.ui.addToolbarButton({
+        id: "history",
+        title: "History",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>`,
+        onClick: () => openPanel(host, store),
+      }),
     ];
     return {
       dispose() {

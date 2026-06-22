@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <title>Omnitext</title>
     <style>
       :root {
@@ -71,11 +74,10 @@
         user-select: none;
       }
       .brand-mark {
-        width: 18px;
-        height: 18px;
-        border-radius: 5px;
-        background: linear-gradient(135deg, var(--accent), #22d3ee);
-        box-shadow: 0 1px 4px rgba(79, 70, 229, 0.4);
+        width: 20px;
+        height: 20px;
+        display: block;
+        filter: drop-shadow(0 1px 3px rgba(79, 70, 229, 0.4));
       }
       .sep { width: 1px; height: 22px; background: var(--border); }
       .group { display: flex; align-items: center; gap: 6px; }
@@ -102,6 +104,9 @@
         font-weight: 600;
       }
       .btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+      /* Icon-only buttons: fixed size regardless of language (label is in title/aria-label). */
+      .btn svg { display: block; width: 17px; height: 17px; }
+      .btn.icon { padding: 6px 9px; }
 
       .doc { display: flex; align-items: center; gap: 8px; min-width: 0; }
       #filename {
@@ -258,12 +263,28 @@
   <body>
     <div id="app">
       <header id="toolbar">
-        <div class="brand"><span class="brand-mark"></span><span>Omnitext</span></div>
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <defs><linearGradient id="om-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f46e5" /><stop offset="1" stop-color="#22d3ee" /></linearGradient></defs>
+            <rect width="24" height="24" rx="6" fill="url(#om-grad)" />
+            <rect x="8" y="6" width="8" height="12" rx="1.6" fill="#fff" />
+            <rect x="9.7" y="8.6" width="4.6" height="1.5" rx="0.75" fill="#4f46e5" />
+            <rect x="9.7" y="11.2" width="4.6" height="1.5" rx="0.75" fill="#6366f1" />
+            <rect x="9.7" y="13.8" width="2.8" height="1.5" rx="0.75" fill="#22d3ee" />
+          </svg>
+          <span>Omnitext</span>
+        </div>
         <span class="sep"></span>
         <div class="group">
-          <button id="btn-new" class="btn">New</button>
-          <button id="btn-open" class="btn">Open</button>
-          <button id="btn-save" class="btn btn-primary">Save</button>
+          <button id="btn-new" class="btn icon" title="New" aria-label="New">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14h6"/></svg>
+          </button>
+          <button id="btn-open" class="btn icon" title="Open" aria-label="Open">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          </button>
+          <button id="btn-save" class="btn btn-primary icon" title="Save" aria-label="Save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.8a2 2 0 0 0-.6-1.4l-3.8-3.8a2 2 0 0 0-1.4-.6Z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+          </button>
         </div>
         <span id="tools" class="group"></span>
         <div class="doc">

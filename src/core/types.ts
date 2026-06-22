@@ -321,6 +321,8 @@ export interface Workspace {
 export interface ToolbarButton {
   id: string;
   title: string;
+  /** Optional inline SVG markup; when set the button is icon-only (title becomes the label). */
+  icon?: string;
   onClick(): void;
 }
 
