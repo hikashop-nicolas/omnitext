@@ -7,7 +7,9 @@ android {
         applicationId "app.omnitext"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // versionCode comes from CI (the run number) so each Play upload is unique and
+        // strictly increasing; defaults to 1 for local builds.
+        versionCode (System.getenv("APP_VERSION_CODE") ?: "1").toInteger()
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

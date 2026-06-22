@@ -42,21 +42,23 @@ jobs:
 
       # Build a signed release APK when the keystore secrets are set; otherwise fall
       # back to a debug APK so the download link keeps working before signing is set up.
-      - name: Build APK
+      - name: Build APK (sideload) and, when signed, the AAB (Play)
         id: apk
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APP_VERSION_CODE: ${{ github.run_number }}
         run: |
           cd android
           chmod +x gradlew
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
             export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
-            ./gradlew assembleRelease --no-daemon
+            ./gradlew assembleRelease bundleRelease --no-daemon
             cp app/build/outputs/apk/release/app-release.apk ../omnitext.apk
+            cp app/build/outputs/bundle/release/app-release.aab ../omnitext.aab
             echo "kind=signed release" >> "$GITHUB_OUTPUT"
           else
             ./gradlew assembleDebug --no-daemon
@@ -64,7 +66,7 @@ jobs:
             echo "kind=debug (no signing secrets set)" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish rolling release
+      - name: Publish rolling release (APK for sideload)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
@@ -75,3 +77,13 @@ jobs:
             Android APK built automatically from the latest `main` (${{ steps.apk.outputs.kind }}).
             Sideload it to try Omnitext on Android; Android may warn about installing from an
             unknown source. Not distributed through Google Play.
+
+      # The AAB is for the Play Console (testers/production); download it from this run's
+      # artifacts with: gh run download <run-id> -n play-aab
+      - name: Upload AAB artifact (for Play Console)
+        if: steps.apk.outputs.kind == 'signed release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-aab
+          path: omnitext.aab
+          retention-days: 60
