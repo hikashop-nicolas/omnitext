@@ -128,10 +128,14 @@ otherwise.
 - **Next: live HTML preview via LaTeX.js** (`latex.js`, **MIT**, pure JS, no WASM,
   no server, runs fully in the browser; npm `latex.js`; last release Apr 2023,
   stable). It translates a large, faithful subset of LaTeX to HTML5 (think "marked,
-  for LaTeX"). Wire it as a **Preview view for .tex**, reusing the existing preview
-  editor pattern (already used for Markdown/HTML). Math renders via its built-in
-  handling (KaTeX-class). Be explicit about limits: it is a subset (no arbitrary
-  package compilation, no PDF), so complex documents may render partially.
+  for LaTeX"). Wire it as a **Preview view for .tex** (CodeMirror/stex stays the
+  default editor; preview is the alternative view). Math uses KaTeX-class fonts.
+  SIZE: the JS is ~580 KB; ship **woff2 fonts only** (~315 KB) and drop the legacy
+  .woff/.ttf triplicates (7.7 MB) the npm package also carries. Total ~1 MB, lazy.
+  Render into a shadow root with the latex.js CSS so styles do not leak and the
+  font URLs resolve against our origin. Be explicit about limits: it is a subset
+  (no arbitrary package compilation, no PDF), so complex documents may render
+  partially.
 - **PDF export of the preview (optional):** the rendered HTML can go through the
   existing jsPDF/print path for a rough PDF; not true TeX typesetting, but
   client-side and honest about fidelity.
@@ -144,12 +148,13 @@ maintained (v7.3.3, Dec 2023, 4000+ commits), on npm (`svgedit`, plus the
 UI-less engine `@svgedit/svgcanvas`), fully client-side, and it loads/round-trips
 real `.svg` files in a WYSIWYG vector canvas.
 
-Plan: an `svg` editor module (lazy-loaded) wrapping svgedit (or `@svgedit/svgcanvas`
-with a thin toolbar for tighter theming). Make `.svg` a TEXT format (so the XML
-source stays available) whose defaultEditor is the svg vector editor, with CodeMirror
-(XML) as the alternative in the View switcher. getText returns the serialized SVG so
-Save and history work. Risks: svgedit is a sizeable bundle (lazy-load it) and brings
-its own UI (theme/integrate the full Editor, or build on svgcanvas).
+Plan: an `svg` editor module (lazy-loaded) wrapping **@svgedit/svgcanvas** (the engine
+only) with a thin toolbar. Measured sizes settled this: the FULL `svgedit` package is
+38 MB unpacked (UI, locales, icons, extensions) and is rejected; `@svgedit/svgcanvas`
+bundles to ~1.1 MB minified (325 KB gzipped), no fonts. Make `.svg` a TEXT format (so
+the XML source stays available) whose defaultEditor is the svg vector editor, with
+CodeMirror (XML) as the alternative in the View switcher. getText returns the
+serialized SVG so Save and history work. Cost is acceptable since it is lazy-loaded.
 
 ### Optional future: Typst, the clean "real typesetting" path
 

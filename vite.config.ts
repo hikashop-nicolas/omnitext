@@ -8,7 +8,9 @@ export default defineConfig({
   resolve: { dedupe: ["pdfjs-dist", "pdf-lib"] },
   build: {
     target: "es2022",
-    sourcemap: true,
+    // No sourcemaps in the shipped build: they were ~18MB of the dist (two-thirds of it),
+    // bloating the APK and publishing source on Pages. The dev server still has its own.
+    sourcemap: false,
   },
   test: {
     globals: true,
