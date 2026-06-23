@@ -1,4 +1,4 @@
-import { unzipSync } from "fflate";
+import { readArchive } from "../core/archive";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 
 // Read-only archive (zip) viewer: lists the entries and lets you Open one inside Omnitext
@@ -40,9 +40,9 @@ class ArchiveInstance implements EditorInstance {
     const wrap = document.createElement("div");
     wrap.className = "ot-arc";
 
-    let files: Record<string, Uint8Array> = {};
+    let entries: { name: string; data: Uint8Array }[] = [];
     try {
-      files = ctx.bytes ? unzipSync(ctx.bytes) : {};
+      entries = ctx.bytes ? readArchive(ctx.bytes).filter((e) => !e.name.endsWith("/")) : [];
     } catch {
       wrap.append(msg("This archive could not be read."));
       container.appendChild(wrap);
@@ -50,13 +50,12 @@ class ArchiveInstance implements EditorInstance {
       return;
     }
 
-    const entries = Object.entries(files).filter(([name]) => !name.endsWith("/"));
     const head = document.createElement("div");
     head.className = "ot-arc-head";
     head.textContent = `${entries.length} file${entries.length === 1 ? "" : "s"}`;
     wrap.append(head);
-    entries.sort((a, b) => a[0].localeCompare(b[0]));
-    for (const [name, data] of entries) {
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const { name, data } of entries) {
       const row = document.createElement("div");
       row.className = "ot-arc-row";
       const nm = document.createElement("span");

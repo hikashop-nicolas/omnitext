@@ -1,4 +1,5 @@
-import { unzipSync, zipSync } from "fflate";
+import { gunzipSync } from "fflate";
+import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
@@ -180,7 +181,7 @@ interface Session {
 }
 
 interface ArchiveContext {
-  zipBytes: Uint8Array; // the current archive (updated on each write-back)
+  archiveBytes: Uint8Array; // the current archive (updated on each write-back); zip/tar/tgz
   path: string; // this entry's path inside the archive
   parentName: string; // the archive's filename (for saving)
   parentHandle: FsHandle | null; // the archive's file handle, for in-place save on the web
@@ -498,6 +499,34 @@ async function openBuffer(
     navStack.length = 0;
     updateBackBtn();
   }
+  const lower = filename.toLowerCase();
+  // tar family (incl. gzip-wrapped) -> the archive viewer. Checked by full name because
+  // .tar.gz's trailing extension is .gz.
+  if (lower.endsWith(".tar") || lower.endsWith(".tgz") || lower.endsWith(".tar.gz")) {
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: "tar",
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+      mime,
+    });
+    return;
+  }
+  // A single gzip-compressed file (foo.json.gz): transparently decompress and open the inner
+  // file, so it lands in the right editor.
+  if (lower.endsWith(".gz")) {
+    try {
+      const inner = gunzipSync(new Uint8Array(buffer));
+      const innerBuf = inner.buffer.slice(inner.byteOffset, inner.byteOffset + inner.byteLength) as ArrayBuffer;
+      await openBuffer(innerBuf, filename.slice(0, -3), scheme, null);
+      return;
+    } catch (e) {
+      console.error("gunzip failed", e);
+    }
+  }
   // A registered binary format by extension (image/media/office/pdf) wins.
   const bin = binaryFormatFor(filename);
   if (bin) {
@@ -673,25 +702,28 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
   const entryBytes = session.binary
     ? ((await session.editor.getBytes?.()) ?? new Uint8Array())
     : encodeText(session.editor.getText(), session.encoding);
-  let newZip: Uint8Array;
+  let newArchive: Uint8Array;
   try {
-    const files = unzipSync(a.zipBytes);
-    files[a.path] = new Uint8Array(entryBytes); // normalize the backing buffer for fflate's types
-    newZip = zipSync(files);
+    const kind = detectArchiveKind(a.archiveBytes);
+    const entries = readArchive(a.archiveBytes);
+    const idx = entries.findIndex((e) => e.name === a.path);
+    if (idx >= 0) entries[idx]!.data = new Uint8Array(entryBytes);
+    else entries.push({ name: a.path, data: new Uint8Array(entryBytes) });
+    newArchive = writeArchive(kind, entries);
   } catch (e) {
-    console.error("re-zip failed", e);
+    console.error("re-pack archive failed", e);
     engine.notificationSink.error(t("notify.saveFailed"));
     return;
   }
   try {
     if (isNative()) {
-      await saveBytesNative(newZip, a.parentName);
+      await saveBytesNative(newArchive, a.parentName);
     } else if (a.parentHandle?.createWritable) {
       const w = await a.parentHandle.createWritable();
-      await w.write(newZip);
+      await w.write(newArchive);
       await w.close();
     } else {
-      downloadBytes(newZip, a.parentName);
+      downloadBytes(newArchive, a.parentName);
     }
   } catch (e) {
     console.error("archive save failed", e);
@@ -699,9 +731,9 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
     return;
   }
   // Keep the in-memory archive + the back-target current so a later edit or "back" sees it.
-  a.zipBytes = newZip;
+  a.archiveBytes = newArchive;
   const top = navStack[navStack.length - 1];
-  if (top?.binary) top.bytes = newZip;
+  if (top?.binary) top.bytes = newArchive;
   if (!session.binary) session.lastSavedText = session.editor.getText();
   session.dirty = false;
   updateUI();
@@ -983,19 +1015,18 @@ const workspace: Workspace = {
     void (async () => {
       let archive: ArchiveContext | undefined;
       if (archivePath && session?.editor && session.binary) {
-        const zipBytes = (await session.editor.getBytes?.()) ?? new Uint8Array();
+        const archiveBytes = (await session.editor.getBytes?.()) ?? new Uint8Array();
         archive = {
-          zipBytes,
+          archiveBytes,
           path: archivePath,
-          parentName: session.filename ?? "archive.zip",
+          parentName: session.filename ?? "archive",
           parentHandle: session.fileHandle,
         };
         navStack.push({
           binary: true,
-          bytes: zipBytes,
+          bytes: archiveBytes,
           filename: session.filename,
           formatId: session.formatId,
-          mime: "application/zip",
           encoding: session.encoding,
           fileHandle: session.fileHandle,
         });

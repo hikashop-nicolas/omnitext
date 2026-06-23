@@ -37,6 +37,8 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "zip", exts: [".zip"], mime: "application/zip", viewer: "archive" },
   { id: "jar", exts: [".jar"], mime: "application/java-archive", viewer: "archive" },
   { id: "cbz", exts: [".cbz"], mime: "application/vnd.comicbook+zip", viewer: "archive" },
+  // tar / tar.gz / .tgz (.tar.gz is matched by full name in openBuffer, since the extension is .gz)
+  { id: "tar", exts: [".tar", ".tgz"], mime: "application/x-tar", viewer: "archive" },
 ];
 
 const viewerModule = (): FormatModule => ({
