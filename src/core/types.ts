@@ -149,6 +149,8 @@ export interface EditorMountContext {
   bytes: Uint8Array | null;
   /** Whether this is a binary document. */
   binary: boolean;
+  /** The document's MIME type when known (used by the image/media viewers). */
+  mime?: string;
   /** The format's parsed model (from text or bytes), pre-computed by the host. */
   model: unknown;
   /** The active format, for highlighting/validation and view adapters. May be null. */

@@ -36,8 +36,16 @@ import { xlsFormat } from "./formats/xls";
 import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
+import { imageEditor } from "./editors/image";
+import { mediaEditor } from "./editors/media";
 import { historyTool } from "./tools/history";
 import { makeTextFormats } from "./formats/codemirror-formats";
+import {
+  GENERIC_IMAGE,
+  GENERIC_MEDIA,
+  makeGenericViewerFormats,
+  makeViewerFormats,
+} from "./formats/binary-viewers";
 import { applyDom, initI18n, t } from "./i18n";
 import type {
   EditorInstance,
@@ -73,6 +81,8 @@ engine.registerEditor(pdfEditor);
 engine.registerEditor(odtEditor);
 engine.registerEditor(docxEditor);
 engine.registerEditor(sheetEditor);
+engine.registerEditor(imageEditor);
+engine.registerEditor(mediaEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -103,6 +113,9 @@ for (const f of FORMATS) engine.registerFormat(f);
 // The long tail of text formats (highlighting via CodeMirror). Registered for opening
 // existing files; the New dialog stays the curated FORMATS list above.
 for (const f of makeTextFormats()) engine.registerFormat(f);
+// Image / audio / video viewer formats (read-only), plus generic ones for MIME-class routing.
+for (const f of makeViewerFormats()) engine.registerFormat(f);
+for (const f of makeGenericViewerFormats()) engine.registerFormat(f);
 
 const store = new SessionStore();
 
@@ -221,6 +234,7 @@ interface MountOpts {
   fileHandle?: FsHandle | null;
   formatId?: string | null;
   editorId?: string | null;
+  mime?: string | null;
   recovered?: boolean;
 }
 
@@ -307,6 +321,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     text,
     bytes,
     binary,
+    mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
     model,
     format: formatModule,
     view: chosen.view,
@@ -364,7 +379,14 @@ function binaryFormatFor(filename: string): FormatDescriptor | null {
   return d?.manifest.binary ? d : null;
 }
 
-async function openBuffer(buffer: ArrayBuffer, filename: string, scheme: string, handle: FsHandle | null): Promise<void> {
+async function openBuffer(
+  buffer: ArrayBuffer,
+  filename: string,
+  scheme: string,
+  handle: FsHandle | null,
+  mime?: string,
+): Promise<void> {
+  // A registered binary format by extension (image/media/office/pdf) wins.
   const bin = binaryFormatFor(filename);
   if (bin) {
     await mountDoc({
@@ -375,6 +397,23 @@ async function openBuffer(buffer: ArrayBuffer, filename: string, scheme: string,
       encoding: { label: "binary", bom: false },
       uri: `${scheme}://${filename}`,
       fileHandle: handle,
+      mime,
+    });
+    return;
+  }
+  // No extension match, but the OS told us it is an image/audio/video: route by MIME class.
+  const cls = mime?.split("/")[0];
+  const generic = cls === "image" ? GENERIC_IMAGE : cls === "video" || cls === "audio" ? GENERIC_MEDIA : null;
+  if (generic) {
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: generic,
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+      mime,
     });
     return;
   }
@@ -395,7 +434,7 @@ async function openFile(): Promise<void> {
       const [handle] = await window.showOpenFilePicker();
       if (!handle) return;
       const file = await handle.getFile();
-      await openBuffer(await file.arrayBuffer(), file.name, "fs", handle);
+      await openBuffer(await file.arrayBuffer(), file.name, "fs", handle, file.type);
     } catch (e) {
       if ((e as DOMException)?.name !== "AbortError") console.error(e);
     }
@@ -407,7 +446,7 @@ async function openFile(): Promise<void> {
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
-  await openBuffer(await file.arrayBuffer(), file.name, "upload", null);
+  await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
   fileInput.value = "";
 });
 
@@ -711,7 +750,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
     file.bytes.byteOffset,
     file.bytes.byteOffset + file.bytes.byteLength,
   ) as ArrayBuffer;
-  await openBuffer(buf, file.name, "intent", null);
+  await openBuffer(buf, file.name, "intent", null, file.mime);
   return true;
 }
 

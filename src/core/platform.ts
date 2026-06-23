@@ -24,6 +24,7 @@ const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
 export interface OpenedFile {
   name: string;
   bytes: Uint8Array;
+  mime?: string;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {
@@ -38,7 +39,8 @@ export async function getOpenedFile(): Promise<OpenedFile | null> {
   if (!isNative()) return null;
   try {
     const p = await FileOpener.getPendingFile();
-    return p?.data && p.name ? { name: p.name, bytes: bytesFromBase64(p.data) } : null;
+    if (!p?.data || !p.name) return null;
+    return { name: p.name, bytes: bytesFromBase64(p.data), mime: p.mime || undefined };
   } catch {
     return null;
   }
