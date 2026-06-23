@@ -39,6 +39,7 @@ import { yamlFormat } from "./formats/yaml";
 import { imageEditor } from "./editors/image";
 import { mediaEditor } from "./editors/media";
 import { archiveEditor } from "./editors/archive";
+import { binaryEditor } from "./editors/binary";
 import { latexPreviewEditor } from "./editors/latexpreview";
 import { svgEditor } from "./editors/svgeditor";
 import { latexFormat } from "./formats/latex";
@@ -47,6 +48,7 @@ import { historyTool } from "./tools/history";
 import { makeTextFormats } from "./formats/codemirror-formats";
 import {
   GENERIC_ARCHIVE,
+  GENERIC_BINARY,
   GENERIC_IMAGE,
   GENERIC_MEDIA,
   makeGenericViewerFormats,
@@ -92,6 +94,7 @@ engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
 engine.registerEditor(latexPreviewEditor);
 engine.registerEditor(svgEditor);
+engine.registerEditor(binaryEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -505,6 +508,21 @@ async function openBuffer(
     });
     return;
   }
+  // Unknown type and the content looks binary (NUL / many control bytes): show the hex
+  // fallback rather than decoding it into garbage text.
+  if (looksBinary(buffer)) {
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: GENERIC_BINARY,
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+      mime,
+    });
+    return;
+  }
   const decoded = decodeBytes(buffer);
   await mountDoc({
     text: decoded.text,
@@ -514,6 +532,19 @@ async function openBuffer(
     fileHandle: handle,
   });
   if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
+}
+
+// Heuristic: a NUL byte, or >10% non-text control bytes in the first 8KB, means binary.
+function looksBinary(buffer: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 8192));
+  if (bytes.length === 0) return false;
+  let control = 0;
+  for (const b of bytes) {
+    if (b === 0) return true;
+    // Allow tab (9), LF (10), CR (13); count other low control chars.
+    if ((b < 9 || (b > 13 && b < 32)) && b !== 27) control++;
+  }
+  return control / bytes.length > 0.1;
 }
 
 async function openFile(): Promise<void> {

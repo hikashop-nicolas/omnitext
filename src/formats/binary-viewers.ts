@@ -72,11 +72,13 @@ export function makeViewerFormats(): FormatDescriptor[] {
 export const GENERIC_IMAGE = "image";
 export const GENERIC_MEDIA = "media";
 export const GENERIC_ARCHIVE = "archive";
+export const GENERIC_BINARY = "binary";
 export function makeGenericViewerFormats(): FormatDescriptor[] {
   return [
     descriptor(GENERIC_IMAGE, [], "", "image"),
     descriptor(GENERIC_MEDIA, [], "", "media"),
     descriptor(GENERIC_ARCHIVE, [], "", "archive"),
+    descriptor(GENERIC_BINARY, [], "", "binary"),
   ];
 }
 

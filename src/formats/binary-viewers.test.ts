@@ -29,8 +29,11 @@ describe("binary viewer formats", () => {
     const generic = makeGenericViewerFormats();
     const image = generic.find((d) => d.manifest.id === "image")!;
     const media = generic.find((d) => d.manifest.id === "media")!;
+    const binary = generic.find((d) => d.manifest.id === "binary")!;
     expect(image.manifest.extensions).toEqual([]);
     expect(image.manifest.nativeEditor).toBe("image");
     expect(media.manifest.nativeEditor).toBe("media");
+    expect(binary.manifest.nativeEditor).toBe("binary");
+    expect(binary.manifest.binary).toBe(true);
   });
 });
