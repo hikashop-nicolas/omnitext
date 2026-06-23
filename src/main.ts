@@ -37,6 +37,7 @@ import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import { historyTool } from "./tools/history";
+import { makeTextFormats } from "./formats/codemirror-formats";
 import { applyDom, initI18n, t } from "./i18n";
 import type {
   EditorInstance,
@@ -99,6 +100,9 @@ const FORMATS: FormatDescriptor[] = [
   propertiesFormat,
 ];
 for (const f of FORMATS) engine.registerFormat(f);
+// The long tail of text formats (highlighting via CodeMirror). Registered for opening
+// existing files; the New dialog stays the curated FORMATS list above.
+for (const f of makeTextFormats()) engine.registerFormat(f);
 
 const store = new SessionStore();
 
@@ -142,6 +146,7 @@ interface Session {
   lastSavedText: string;
   dirty: boolean;
   binary: boolean;
+  readOnly: boolean;
 }
 
 let session: Session | null = null;
@@ -157,6 +162,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const editorEl = $("editor");
 const filenameEl = $("filename");
 const dirtyEl = $("dirty");
+const saveBtn = $("btn-save");
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
 const formatLabelEl = $("format-label");
@@ -188,6 +194,10 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
 
 function updateUI(): void {
   filenameEl.textContent = session?.filename ?? t("app.untitled");
+  // Read-only surfaces (Preview, viewers) cannot save: hide Save and the dirty dot.
+  const readOnly = !!session?.readOnly;
+  saveBtn.hidden = readOnly;
+  dirtyEl.hidden = readOnly;
   const modified = !!session?.dirty;
   dirtyEl.classList.toggle("is-modified", modified);
   dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
@@ -289,6 +299,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     lastSavedText: binary ? "" : text,
     dirty: false,
     binary,
+    readOnly: !!chosen.editor.manifest.readOnly,
   };
 
   editorEl.innerHTML = "";

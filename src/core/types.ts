@@ -138,6 +138,8 @@ export interface EditorManifest {
   id: string;
   /** View kinds this editor can edit (e.g. ["text"], ["table"]). */
   consumesViews: ViewKind[];
+  /** A view-only surface (e.g. Preview, image/media/archive viewers): the app hides Save. */
+  readOnly?: boolean;
 }
 
 export interface EditorMountContext {
