@@ -25,13 +25,18 @@ tables, comment markers, etc. round-trip exactly as long as they are not edited.
 - Toolbar: text colour (w:color), highlight colour (named w:highlight), font family
   (w:rFonts), font size (w:sz). All already round-trip through the run serializer.
 
-## Stage 2 (next) -- comments
+## Stage 2 -- comments (DONE)
 
-- Display: read comments.xml; mark commented ranges; a marker + tooltip (author, text);
-  optional comments panel. Preserve commentRangeStart/End + commentReference as passthrough
-  so existing comments survive a save.
-- Add comment ("annotation" toolbar button): wrap the selection in new markers and append
-  to comments.xml (creating it + the content-type + rels when absent).
+- Display: comments.xml is read; commented ranges render with a highlight and a clickable
+  speech-bubble marker that opens a popover (author, date, text) and a tooltip. Cross-
+  paragraph ranges are reopened per paragraph for valid HTML.
+- Preserve: commentRangeStart/End and the commentReference run round-trip as passthrough,
+  so existing comments survive an edit-and-save.
+- Add comment: toolbar button wraps the selection in fresh markers and appends a w:comment
+  to comments.xml on save (creating the part + content-type + relationship when absent).
+- Also shipped beyond the original Stage 1: editable headers/footers (written back to their
+  parts), a free background-colour picker (w:shd for arbitrary colours, w:highlight for the
+  named ones), and an insert-image button (embeds a new media part on save).
 
 ## Stage 3 -- pagination (DONE: pageless + markers)
 
