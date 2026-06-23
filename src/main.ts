@@ -577,6 +577,7 @@ async function changeEditor(editorId: string): Promise<void> {
   // Switch protocol: serialize current model to canonical text, then remount. The
   // hook lets future tools veto or warn on a lossy hand-off.
   const text = session.editor.getText();
+  const prevSaved = session.lastSavedText; // keep the on-disk baseline across the switch
   const ctx = await engine.events.runHook("willChangeEditor", {
     sessionId: session.id,
     toEditor: editorId,
@@ -599,6 +600,13 @@ async function changeEditor(editorId: string): Promise<void> {
     formatId: session.formatId,
     editorId,
   });
+  // A view switch carries the current content over, but must not pretend it is saved:
+  // restore the on-disk baseline and recompute dirty against it.
+  if (session?.editor && !session.binary) {
+    session.lastSavedText = prevSaved;
+    session.dirty = session.editor.getText() !== prevSaved;
+    updateUI();
+  }
 }
 
 // --- wire up -----------------------------------------------------------------

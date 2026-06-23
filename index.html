@@ -187,6 +187,20 @@
         background: var(--ok);
         flex: none;
       }
+      #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* View switcher: pinned bottom-right, always visible (desktop and mobile). */
+      .status-view { display: flex; align-items: center; gap: 6px; flex: none; color: var(--muted); }
+      .status-view svg { width: 15px; height: 15px; display: block; }
+      .status-view select {
+        font: inherit; font-size: 12px; padding: 3px 24px 3px 8px;
+        border: 1px solid var(--border); border-radius: 6px;
+        background: var(--surface); color: var(--text); cursor: pointer; appearance: none;
+        max-width: 40vw;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 8px center;
+      }
+      .status-view select:hover { background-color: var(--surface-hover); }
+      .status-view select:disabled { opacity: 0.55; cursor: default; }
 
       /* Side panel (tool UI: history, etc.) */
       .panel {
@@ -293,7 +307,6 @@
         </div>
         <span class="spacer"></span>
         <span class="field"><span data-i18n="app.format">Format</span> <span id="format-label" class="pill"></span></span>
-        <label class="field"><span data-i18n="app.view">View</span> <select id="editor-select"></select></label>
         <span id="reason" class="pill"></span>
       </header>
       <main id="editor"></main>
@@ -307,6 +320,10 @@
       <footer id="status">
         <span class="status-dot"></span>
         <span id="status-text">Ready. Your edits are kept on this device; use Save to write out the file.</span>
+        <label class="status-view" data-i18n-title="app.view" title="View">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <select id="editor-select" data-i18n-aria="app.view" aria-label="View"></select>
+        </label>
       </footer>
       <div id="newdlg" class="modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newdlg-title">
