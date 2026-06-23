@@ -33,19 +33,16 @@ tables, comment markers, etc. round-trip exactly as long as they are not edited.
 - Add comment ("annotation" toolbar button): wrap the selection in new markers and append
   to comments.xml (creating it + the content-type + rels when absent).
 
-## Stage 3 (decision needed) -- pagination
+## Stage 3 -- pagination (DONE: pageless + markers)
 
-True live pagination (content reflowing across fixed-height A4 pages with repeating
-headers/footers, re-paginating on every edit) is a large engine (this is why Google Docs
-has a "pageless" mode). Two options:
+Chosen option A (pageless + markers). Shipped: one continuous A4-width sheet with
+header/footer bands; manual breaks (w:br type=page) and w:pageBreakBefore render as a
+labelled dashed separator and round-trip; w:lastRenderedPageBreak renders as a subtle
+dotted line (display-only, Word recreates it); a toolbar button inserts a manual break.
 
-- A. Pageless + markers (recommended): one continuous A4-width sheet (current), with
-  header/footer bands and explicit page breaks (w:br type=page / lastRenderedPageBreak)
-  drawn as visual separators. Cheap, robust, good enough to see structure.
-- B. Full reflow pagination: measure + split into page boxes, repeat header/footer per
-  page, re-flow on edit. Big effort, fragile in contenteditable.
-
-Recommendation: ship A; only build B if the merchant truly needs WYSIWYG page count.
+Not built (option B): full reflow pagination -- measure + split into fixed-height page
+boxes, repeat header/footer per page, re-flow on edit. Big effort, fragile in
+contenteditable; only build if an accurate on-screen page count is truly needed.
 
 ## Honest limitations
 
