@@ -10,7 +10,7 @@ interface ViewerFormat {
   id: string;
   exts: string[];
   mime: string;
-  viewer: "image" | "media";
+  viewer: "image" | "media" | "archive";
 }
 
 const VIEWER_FORMATS: ViewerFormat[] = [
@@ -33,6 +33,10 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "oga", exts: [".ogg", ".oga", ".opus"], mime: "audio/ogg", viewer: "media" },
   { id: "m4a", exts: [".m4a", ".aac"], mime: "audio/mp4", viewer: "media" },
   { id: "flac", exts: [".flac"], mime: "audio/flac", viewer: "media" },
+  // Archives (zip-based; docx/xlsx/odt/ods are also zips but have dedicated editors)
+  { id: "zip", exts: [".zip"], mime: "application/zip", viewer: "archive" },
+  { id: "jar", exts: [".jar"], mime: "application/java-archive", viewer: "archive" },
+  { id: "cbz", exts: [".cbz"], mime: "application/vnd.comicbook+zip", viewer: "archive" },
 ];
 
 const viewerModule = (): FormatModule => ({
@@ -67,10 +71,12 @@ export function makeViewerFormats(): FormatDescriptor[] {
  */
 export const GENERIC_IMAGE = "image";
 export const GENERIC_MEDIA = "media";
+export const GENERIC_ARCHIVE = "archive";
 export function makeGenericViewerFormats(): FormatDescriptor[] {
   return [
     descriptor(GENERIC_IMAGE, [], "", "image"),
     descriptor(GENERIC_MEDIA, [], "", "media"),
+    descriptor(GENERIC_ARCHIVE, [], "", "archive"),
   ];
 }
 

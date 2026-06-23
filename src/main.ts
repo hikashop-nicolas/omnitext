@@ -38,9 +38,11 @@ import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import { imageEditor } from "./editors/image";
 import { mediaEditor } from "./editors/media";
+import { archiveEditor } from "./editors/archive";
 import { historyTool } from "./tools/history";
 import { makeTextFormats } from "./formats/codemirror-formats";
 import {
+  GENERIC_ARCHIVE,
   GENERIC_IMAGE,
   GENERIC_MEDIA,
   makeGenericViewerFormats,
@@ -83,6 +85,7 @@ engine.registerEditor(docxEditor);
 engine.registerEditor(sheetEditor);
 engine.registerEditor(imageEditor);
 engine.registerEditor(mediaEditor);
+engine.registerEditor(archiveEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -401,9 +404,16 @@ async function openBuffer(
     });
     return;
   }
-  // No extension match, but the OS told us it is an image/audio/video: route by MIME class.
+  // No extension match, but the OS told us the type: route by MIME class.
   const cls = mime?.split("/")[0];
-  const generic = cls === "image" ? GENERIC_IMAGE : cls === "video" || cls === "audio" ? GENERIC_MEDIA : null;
+  const isZip = mime === "application/zip" || mime === "application/java-archive";
+  const generic = isZip
+    ? GENERIC_ARCHIVE
+    : cls === "image"
+      ? GENERIC_IMAGE
+      : cls === "video" || cls === "audio"
+        ? GENERIC_MEDIA
+        : null;
   if (generic) {
     await mountDoc({
       bytes: new Uint8Array(buffer),
@@ -692,6 +702,16 @@ const workspace: Workspace = {
       updateUI();
       scheduleAutosave();
     });
+  },
+  openFile(name, bytes, mime) {
+    // Open an in-memory file (e.g. an entry chosen in the archive viewer).
+    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    void openBuffer(buf, name, "archive", null, mime);
+  },
+  exportFile(name, bytes) {
+    // Save/share an in-memory file (e.g. extract one archive entry).
+    if (isNative()) void saveBytesNative(bytes, name);
+    else downloadBytes(bytes, name);
   },
 };
 

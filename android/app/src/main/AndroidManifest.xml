@@ -33,6 +33,8 @@
                 <data android:mimeType="application/json" />
                 <data android:mimeType="application/xml" />
                 <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/java-archive" />
                 <data android:mimeType="application/javascript" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="application/yaml" />
@@ -57,6 +59,8 @@
                 <data android:mimeType="application/json" />
                 <data android:mimeType="application/xml" />
                 <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/java-archive" />
                 <data android:mimeType="application/javascript" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="application/yaml" />
