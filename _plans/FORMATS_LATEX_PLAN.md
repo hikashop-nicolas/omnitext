@@ -136,6 +136,21 @@ otherwise.
   existing jsPDF/print path for a rough PDF; not true TeX typesetting, but
   client-side and honest about fidelity.
 
+## Part D - SVG vector editor (svgedit)
+
+SVG is the one image type that is also text, so it deserves real editing, not just a
+preview. **svgedit** (github.com/svg-edit/svgedit) is a good fit: **MIT**, actively
+maintained (v7.3.3, Dec 2023, 4000+ commits), on npm (`svgedit`, plus the
+UI-less engine `@svgedit/svgcanvas`), fully client-side, and it loads/round-trips
+real `.svg` files in a WYSIWYG vector canvas.
+
+Plan: an `svg` editor module (lazy-loaded) wrapping svgedit (or `@svgedit/svgcanvas`
+with a thin toolbar for tighter theming). Make `.svg` a TEXT format (so the XML
+source stays available) whose defaultEditor is the svg vector editor, with CodeMirror
+(XML) as the alternative in the View switcher. getText returns the serialized SVG so
+Save and history work. Risks: svgedit is a sizeable bundle (lazy-load it) and brings
+its own UI (theme/integrate the full Editor, or build on svgcanvas).
+
 ### Optional future: Typst, the clean "real typesetting" path
 
 If the goal is genuine, fully client-side document compilation with real PDF/SVG
@@ -154,9 +169,9 @@ format routing. Route by **MIME class** (file.type on web, the intent MIME on
 Android) so "all images / all video / all audio" is covered without enumerating
 every codec, with extension fallback.
 
-- **Image viewer** (`image/*`, incl. `.png .jpg .gif .webp .avif .bmp .ico` and
-  `.svg`): `<img>` from a blob URL; fit-to-width + zoom. SVG via `<img>` (which
-  does not execute its scripts) for safety. Read-only.
+- **Image viewer** (`image/*`, incl. `.png .jpg .gif .webp .avif .bmp .ico`):
+  `<img>` from a blob URL; click toggles fit-to-width vs actual size. Read-only.
+  SVG is NOT here (it is editable text/XML; see the SVG vector editor below).
 - **Media viewer** (`audio/*`, `video/*`: `.mp4 .webm .ogg .mov(?) .mp3 .wav
   .m4a ...`): HTML5 `<video controls>` / `<audio controls>` from a blob/served
   URL. Codec support is whatever the platform WebView provides (mp4/h264, webm,
@@ -203,7 +218,9 @@ extract-all to a chosen folder where supported)**, not silent extract-next-to-fi
 3. **C2**: archive (zip) viewer (entries + open-entry + extract) via fflate.
 4. **B1**: LaTeX.js preview view for `.tex` (+ the limits note in the UI).
 5. **C3** (optional): generic binary/hex fallback.
-6. **B2 / A2** (optional): Typst editor (`typst.ts`, real client-side PDF/SVG);
+6. **D1**: SVG vector editor via svgedit (.svg = vector by default, XML text as the
+   alternative view).
+7. **B2 / A2** (optional): Typst editor (`typst.ts`, real client-side PDF/SVG);
    a few dedicated `@codemirror/lang-*` packages where the fallback looks weak.
 
 ## Risks / decisions to confirm
