@@ -320,8 +320,10 @@ export interface Workspace {
   getActiveState(): unknown;
   /** Restore an editing-session snapshot from getActiveState. */
   setActiveState(state: unknown): void;
-  /** Open a new document from in-memory bytes (e.g. an entry from an archive). */
-  openFile?(name: string, bytes: Uint8Array, mime?: string): void;
+  /** Open a new document from in-memory bytes (e.g. an entry from an archive). When
+   *  archivePath is set, the new document is an entry of the current archive at that path,
+   *  so saving it writes back into the archive and a back button returns to it. */
+  openFile?(name: string, bytes: Uint8Array, mime?: string, archivePath?: string): void;
   /** Save/share in-memory bytes as a file (native share sheet, else browser download). */
   exportFile?(name: string, bytes: Uint8Array): void;
 }

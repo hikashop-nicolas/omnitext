@@ -67,7 +67,7 @@ class ArchiveInstance implements EditorInstance {
       sz.className = "ot-arc-size";
       sz.textContent = fmtSize(data.length);
       const base = name.split("/").pop() || name;
-      const open = btn("Open", () => this.host.workspace.openFile?.(base, data));
+      const open = btn("Open", () => this.host.workspace.openFile?.(base, data, undefined, name));
       const extract = btn("Extract", () => this.host.workspace.exportFile?.(base, data));
       row.append(nm, sz, open, extract);
       wrap.append(row);

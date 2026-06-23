@@ -6,6 +6,7 @@ const en: Dict = {
     new: "New",
     open: "Open",
     save: "Save",
+    back: "Back to archive",
     saveStatus: "Save status",
     unsavedChanges: "Unsaved changes",
     allSaved: "All changes saved",
@@ -46,6 +47,7 @@ const en: Dict = {
     inThisBrowser: "in this browser",
     recovered: "Recovered unsaved work from a previous session. Use Save to write out the file.",
     saved: "Saved.",
+    savedToArchive: "Saved into {name}.",
     encodingUtf8: "Note: this file's encoding will be saved as UTF-8.",
   },
   notify: {

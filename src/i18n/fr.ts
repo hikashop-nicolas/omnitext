@@ -6,6 +6,7 @@ const fr: Dict = {
     new: "Nouveau",
     open: "Ouvrir",
     save: "Enregistrer",
+    back: "Retour à l'archive",
     saveStatus: "État d'enregistrement",
     unsavedChanges: "Modifications non enregistrées",
     allSaved: "Toutes les modifications sont enregistrées",
@@ -44,6 +45,7 @@ const fr: Dict = {
     inThisBrowser: "dans ce navigateur",
     recovered: "Travail non enregistré récupéré depuis une session précédente. Utilisez Enregistrer pour écrire le fichier.",
     saved: "Enregistré.",
+    savedToArchive: "Enregistré dans {name}.",
     encodingUtf8: "Remarque : l'encodage de ce fichier sera enregistré en UTF-8.",
   },
   notify: {

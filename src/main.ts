@@ -1,3 +1,4 @@
+import { unzipSync, zipSync } from "fflate";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
@@ -174,6 +175,31 @@ interface Session {
   dirty: boolean;
   binary: boolean;
   readOnly: boolean;
+  /** Set when this document is an entry opened from an archive: saving writes back into it. */
+  archive?: ArchiveContext;
+}
+
+interface ArchiveContext {
+  zipBytes: Uint8Array; // the current archive (updated on each write-back)
+  path: string; // this entry's path inside the archive
+  parentName: string; // the archive's filename (for saving)
+  parentHandle: FsHandle | null; // the archive's file handle, for in-place save on the web
+}
+
+// Back navigation: opening an archive entry pushes the archive here so a back button returns.
+interface NavSnapshot {
+  binary: boolean;
+  bytes?: Uint8Array;
+  text?: string;
+  filename: string | null;
+  formatId: string | null;
+  mime?: string;
+  encoding: TextEncoding;
+  fileHandle: FsHandle | null;
+}
+const navStack: NavSnapshot[] = [];
+function updateBackBtn(): void {
+  backBtn.hidden = navStack.length === 0;
 }
 
 let session: Session | null = null;
@@ -211,6 +237,7 @@ const editorEl = $("editor");
 const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const saveBtn = $("btn-save");
+const backBtn = $<HTMLButtonElement>("btn-back");
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
 const formatLabelEl = $("format-label");
@@ -466,6 +493,11 @@ async function openBuffer(
   handle: FsHandle | null,
   mime?: string,
 ): Promise<void> {
+  // Opening a fresh file (anything but drilling into an archive entry) is a new nav root.
+  if (scheme !== "archive") {
+    navStack.length = 0;
+    updateBackBtn();
+  }
   // A registered binary format by extension (image/media/office/pdf) wins.
   const bin = binaryFormatFor(filename);
   if (bin) {
@@ -571,6 +603,10 @@ fileInput.addEventListener("change", async () => {
 
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
+  if (session.archive) {
+    await saveIntoArchive(session.archive);
+    return;
+  }
 
   let bytes: Uint8Array;
   let savedText = "";
@@ -630,6 +666,76 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
   URL.revokeObjectURL(url);
 }
 
+// Saving an archive entry rebuilds the archive with the edited entry and writes the whole
+// archive back (in place via the handle on the web, else share/download).
+async function saveIntoArchive(a: ArchiveContext): Promise<void> {
+  if (!session?.editor) return;
+  const entryBytes = session.binary
+    ? ((await session.editor.getBytes?.()) ?? new Uint8Array())
+    : encodeText(session.editor.getText(), session.encoding);
+  let newZip: Uint8Array;
+  try {
+    const files = unzipSync(a.zipBytes);
+    files[a.path] = new Uint8Array(entryBytes); // normalize the backing buffer for fflate's types
+    newZip = zipSync(files);
+  } catch (e) {
+    console.error("re-zip failed", e);
+    engine.notificationSink.error(t("notify.saveFailed"));
+    return;
+  }
+  try {
+    if (isNative()) {
+      await saveBytesNative(newZip, a.parentName);
+    } else if (a.parentHandle?.createWritable) {
+      const w = await a.parentHandle.createWritable();
+      await w.write(newZip);
+      await w.close();
+    } else {
+      downloadBytes(newZip, a.parentName);
+    }
+  } catch (e) {
+    console.error("archive save failed", e);
+    engine.notificationSink.error(t("notify.saveFailed"));
+    return;
+  }
+  // Keep the in-memory archive + the back-target current so a later edit or "back" sees it.
+  a.zipBytes = newZip;
+  const top = navStack[navStack.length - 1];
+  if (top?.binary) top.bytes = newZip;
+  if (!session.binary) session.lastSavedText = session.editor.getText();
+  session.dirty = false;
+  updateUI();
+  setStatus(t("status.savedToArchive", { name: a.parentName }));
+}
+
+// Return to the archive (or other document) the current entry was opened from.
+async function goBack(): Promise<void> {
+  const snap = navStack.pop();
+  updateBackBtn();
+  if (!snap) return;
+  await mountDoc(
+    snap.binary
+      ? {
+          bytes: snap.bytes ?? new Uint8Array(),
+          binary: true,
+          formatId: snap.formatId,
+          filename: snap.filename,
+          encoding: snap.encoding,
+          mime: snap.mime,
+          fileHandle: snap.fileHandle,
+          uri: snap.filename ? `back://${snap.filename}` : null,
+        }
+      : {
+          text: snap.text ?? "",
+          filename: snap.filename,
+          formatId: snap.formatId,
+          encoding: snap.encoding,
+          fileHandle: snap.fileHandle,
+          uri: snap.filename ? `back://${snap.filename}` : null,
+        },
+  );
+}
+
 // --- new document (format chosen up front) -----------------------------------
 
 function populateNewFormatSelect(): void {
@@ -656,6 +762,8 @@ function closeNewDialog(): void {
 function createNewDocument(): void {
   const formatId = newFormatSel.value || null;
   closeNewDialog();
+  navStack.length = 0; // a new document is a fresh nav root
+  updateBackBtn();
   // Start blank documents in the text editor: structured surfaces (tree/table) error on
   // empty content. The View switcher lets the user move to them once they have content.
   void mountDoc({
@@ -675,6 +783,7 @@ async function changeEditor(editorId: string): Promise<void> {
   // hook lets future tools veto or warn on a lossy hand-off.
   const text = session.editor.getText();
   const prevSaved = session.lastSavedText; // keep the on-disk baseline across the switch
+  const prevArchive = session.archive; // keep the archive write-back context across the switch
   const ctx = await engine.events.runHook("willChangeEditor", {
     sessionId: session.id,
     toEditor: editorId,
@@ -695,13 +804,15 @@ async function changeEditor(editorId: string): Promise<void> {
     editorId,
     isSwitch: true,
   });
+  if (!session) return;
+  session.archive = prevArchive;
   // A view switch carries the current content over, but must not pretend it is saved:
   // restore the on-disk baseline and recompute dirty against it.
-  if (session?.editor && !session.binary) {
+  if (session.editor && !session.binary) {
     session.lastSavedText = prevSaved;
     session.dirty = session.editor.getText() !== prevSaved;
-    updateUI();
   }
+  updateUI();
 }
 
 // --- wire up -----------------------------------------------------------------
@@ -709,6 +820,7 @@ async function changeEditor(editorId: string): Promise<void> {
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
+backBtn.addEventListener("click", () => void goBack());
 $("new-cancel").addEventListener("click", closeNewDialog);
 $("new-create").addEventListener("click", createNewDocument);
 newDlgEl.addEventListener("click", (e) => {
@@ -864,10 +976,34 @@ const workspace: Workspace = {
       scheduleAutosave();
     });
   },
-  openFile(name, bytes, mime) {
-    // Open an in-memory file (e.g. an entry chosen in the archive viewer).
+  openFile(name, bytes, mime, archivePath) {
+    // Open an in-memory file. When it's an archive entry, remember the parent archive so
+    // saving writes back into it and the back button returns to it.
     const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-    void openBuffer(buf, name, "archive", null, mime);
+    void (async () => {
+      let archive: ArchiveContext | undefined;
+      if (archivePath && session?.editor && session.binary) {
+        const zipBytes = (await session.editor.getBytes?.()) ?? new Uint8Array();
+        archive = {
+          zipBytes,
+          path: archivePath,
+          parentName: session.filename ?? "archive.zip",
+          parentHandle: session.fileHandle,
+        };
+        navStack.push({
+          binary: true,
+          bytes: zipBytes,
+          filename: session.filename,
+          formatId: session.formatId,
+          mime: "application/zip",
+          encoding: session.encoding,
+          fileHandle: session.fileHandle,
+        });
+        updateBackBtn();
+      }
+      await openBuffer(buf, name, "archive", null, mime);
+      if (archive && session) session.archive = archive;
+    })();
   },
   exportFile(name, bytes) {
     // Save/share an in-memory file (e.g. extract one archive entry).
