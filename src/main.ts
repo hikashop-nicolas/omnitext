@@ -40,7 +40,9 @@ import { imageEditor } from "./editors/image";
 import { mediaEditor } from "./editors/media";
 import { archiveEditor } from "./editors/archive";
 import { latexPreviewEditor } from "./editors/latexpreview";
+import { svgEditor } from "./editors/svgeditor";
 import { latexFormat } from "./formats/latex";
+import { svgFormat } from "./formats/svg";
 import { historyTool } from "./tools/history";
 import { makeTextFormats } from "./formats/codemirror-formats";
 import {
@@ -89,6 +91,7 @@ engine.registerEditor(imageEditor);
 engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
 engine.registerEditor(latexPreviewEditor);
+engine.registerEditor(svgEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -102,6 +105,7 @@ const FORMATS: FormatDescriptor[] = [
   docxFormat,
   odsFormat,
   latexFormat,
+  svgFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,
@@ -409,15 +413,19 @@ async function openBuffer(
     return;
   }
   // No extension match, but the OS told us the type: route by MIME class.
+  // SVG is excluded: it is editable XML handled by the svg (vector + source) format.
   const cls = mime?.split("/")[0];
   const isZip = mime === "application/zip" || mime === "application/java-archive";
-  const generic = isZip
-    ? GENERIC_ARCHIVE
-    : cls === "image"
-      ? GENERIC_IMAGE
-      : cls === "video" || cls === "audio"
-        ? GENERIC_MEDIA
-        : null;
+  const generic =
+    mime === "image/svg+xml"
+      ? null
+      : isZip
+        ? GENERIC_ARCHIVE
+        : cls === "image"
+          ? GENERIC_IMAGE
+          : cls === "video" || cls === "audio"
+            ? GENERIC_MEDIA
+            : null;
   if (generic) {
     await mountDoc({
       bytes: new Uint8Array(buffer),

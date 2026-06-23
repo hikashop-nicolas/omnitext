@@ -34,3 +34,6 @@ coverage/
 *.jks
 keystore.properties
 android/keystore.properties
+
+# Generated svgedit editor assets (run scripts/copy-svgedit-assets.mjs)
+public/svgedit/

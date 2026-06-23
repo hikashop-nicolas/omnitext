@@ -15,7 +15,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cap:sync": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "predev": "node scripts/copy-svgedit-assets.mjs",
+    "prebuild": "node scripts/copy-svgedit-assets.mjs"
   },
   "devDependencies": {
     "@capacitor/android": "^8.4.1",
@@ -65,6 +67,7 @@
     "pdfjs-dist": "^6.0.227",
     "quill": "^2.0.3",
     "sheetedit": "github:hikashop-nicolas/sheetedit",
+    "svgedit": "^7.4.1",
     "toml": "^4.1.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },

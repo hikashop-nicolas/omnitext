@@ -4,7 +4,7 @@ export const xmlFormat: FormatDescriptor = {
   manifest: {
     kind: "format",
     id: "xml",
-    extensions: [".xml", ".svg", ".xsd", ".xsl"],
+    extensions: [".xml", ".xsd", ".xsl"],
     mimeTypes: ["application/xml", "text/xml"],
     nativeEditor: "codemirror",
   },
