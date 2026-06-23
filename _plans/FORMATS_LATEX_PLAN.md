@@ -202,6 +202,22 @@ every codec, with extension fallback.
   MIME) + Download/Share, and a hex view for small files. So nothing ever fails
   to open.
 
+DONE: zip/jar/cbz + tar/tgz/tar.gz + transparent .gz, all via fflate + a small
+USTAR codec (src/core/tar.ts, src/core/archive.ts), with browse + open-entry +
+extract + edit-and-save-back.
+
+7z/rar/xz/bzip2/zstd/cab (evaluated 2026-06-23, DEFERRED - "not now"):
+- 7zip-min: rejected, Node-only (spawns the native 7za binary; no browser/WebView).
+- JS7z (github GMH-Code/JS7z, npm js7z-tools): a WASM 7-Zip, the viable path. wasm
+  is ~1.5MB (~550KB gz), lazy. The npm build is MULTI-THREADED (pthreads +
+  SharedArrayBuffer) so it needs COOP/COEP, which GitHub Pages cannot set; the
+  SINGLE-THREADED build (ST_MODE=1) works on Pages and would be vendored like the
+  latex/svgedit assets. License: 7-Zip LGPL+BSD, rar via the unRAR license
+  (extract-only) - the first non-MIT dep, permissive but adds notices. API:
+  Emscripten (write to FS, callMain(['x'|'l', ...]), read FS back), async.
+  Write-back only for 7-Zip-creatable formats (7z/xz/bz2), not rar/cab. Revisit
+  on demand.
+
 ### Plumbing this needs
 
 - **Don't read big media into memory.** Today the open path does
