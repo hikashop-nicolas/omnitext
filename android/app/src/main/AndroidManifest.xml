@@ -18,6 +18,51 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- "Open with": list Omnitext for the file types it can edit. content:// and
+                 file:// are read natively (FileOpenerPlugin) and handed to the web app. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-yaml" />
+                <data android:mimeType="application/yaml" />
+                <data android:mimeType="application/toml" />
+                <data android:mimeType="application/sql" />
+                <data android:mimeType="application/x-sh" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
+                <data android:mimeType="application/vnd.oasis.opendocument.text" />
+            </intent-filter>
+
+            <!-- "Share to Omnitext" from another app. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-yaml" />
+                <data android:mimeType="application/yaml" />
+                <data android:mimeType="application/toml" />
+                <data android:mimeType="application/sql" />
+                <data android:mimeType="application/x-sh" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
+                <data android:mimeType="application/vnd.oasis.opendocument.text" />
+            </intent-filter>
         </activity>
 
         <provider

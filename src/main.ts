@@ -1,6 +1,6 @@
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText } from "./core/encoding";
-import { isNative, saveBytesNative } from "./core/platform";
+import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
@@ -689,13 +689,38 @@ engine.workspace = workspace;
 engine.ui = ui;
 $("panel-close").addEventListener("click", () => ui.closePanels());
 
-// --- startup: crash recovery, else a blank doc -------------------------------
+// --- startup: an "Open with" file, else crash recovery, else a blank doc ------
+
+// Open a file handed to us via the OS "Open with"; returns true if one was pending.
+let startupDone = false;
+async function maybeOpenPendingFile(): Promise<boolean> {
+  const file = await getOpenedFile();
+  if (!file) return false;
+  const buf = file.bytes.buffer.slice(
+    file.bytes.byteOffset,
+    file.bytes.byteOffset + file.bytes.byteLength,
+  ) as ArrayBuffer;
+  await openBuffer(buf, file.name, "intent", null);
+  return true;
+}
 
 async function start(): Promise<void> {
   await initI18n();
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   void SessionStore.requestPersistent();
+
+  // A file opened while the app is already running arrives on the next resume; pull it then.
+  document.addEventListener("visibilitychange", () => {
+    if (startupDone && document.visibilityState === "visible") void maybeOpenPendingFile();
+  });
+
+  // A file the app was launched with via "Open with" wins over crash recovery.
+  if (await maybeOpenPendingFile()) {
+    startupDone = true;
+    return;
+  }
+
   let last: DocSnapshot | undefined;
   try {
     last = await store.loadLatest();
@@ -715,6 +740,7 @@ async function start(): Promise<void> {
   } else {
     await mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } });
   }
+  startupDone = true;
 }
 
 void start();
