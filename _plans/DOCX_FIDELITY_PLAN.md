@@ -60,12 +60,15 @@ contenteditable; only build if an accurate on-screen page count is truly needed.
 - Resolve (check) and delete (cross) on each thread: resolve sets w15:done; delete
   removes the comment + its markers.
 
-## Suggestion mode / track changes (DECISION NEEDED, not built)
+## Suggestion mode / track changes (DONE, v1)
 
-Word/Google "suggesting" mode records edits as tracked changes (w:ins / w:del) shown
-inline, with accept/reject. That is a large feature (record every edit as a revision,
-render insertions/deletions, accept/reject each). Recommend scoping it as its own phase
-after the comment work; not started here.
+- Existing w:ins/w:del render as green-underline insertions and red strike-through
+  deletions (author/date), and round-trip on save.
+- A "Suggesting" toggle records typing as insertions and deletions as strike-through
+  (via beforeinput: insertText/paste/delete*).
+- Accept/reject per change (click -> popover) and accept-all / reject-all.
+- Known gaps: each typed char is its own <ins> (cosmetic; valid OOXML); Enter
+  (paragraph split) and formatting-only changes (rPrChange) are not tracked yet.
 
 ## Honest limitations
 
