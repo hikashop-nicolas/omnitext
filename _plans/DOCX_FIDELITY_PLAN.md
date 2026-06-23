@@ -67,8 +67,11 @@ contenteditable; only build if an accurate on-screen page count is truly needed.
 - A "Suggesting" toggle records typing as insertions and deletions as strike-through
   (via beforeinput: insertText/paste/delete*).
 - Accept/reject per change (click -> popover) and accept-all / reject-all.
-- Known gaps: each typed char is its own <ins> (cosmetic; valid OOXML); Enter
-  (paragraph split) and formatting-only changes (rPrChange) are not tracked yet.
+- Paragraph splits/merges tracked (w:pPr>w:rPr>w:ins/w:del) and formatting changes
+  tracked (w:rPrChange): recorded in suggesting mode, displayed, round-tripped, and
+  accept/reject-able.
+- Known gap: each typed char is its own <ins> (cosmetic; valid OOXML, Word merges
+  them visually).
 
 ## Honest limitations
 
