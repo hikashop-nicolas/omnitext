@@ -49,6 +49,24 @@ Not built (option B): full reflow pagination -- measure + split into fixed-heigh
 boxes, repeat header/footer per page, re-flow on edit. Big effort, fragile in
 contenteditable; only build if an accurate on-screen page count is truly needed.
 
+## Comments panel v3 (this pass)
+
+- Link comments to text via the highlight only: drop the inline speech-bubble icon
+  (one per thread was showing one per message); clicking highlighted text activates
+  the thread and clicking a card highlights + scrolls to its range (stronger active
+  colour). One indicator per thread.
+- Reply: a "Reply" button on each thread appends a reply that writes a new w:comment
+  + commentsExtended threading (paraIdParent) + a comment reference on save.
+- Resolve (check) and delete (cross) on each thread: resolve sets w15:done; delete
+  removes the comment + its markers.
+
+## Suggestion mode / track changes (DECISION NEEDED, not built)
+
+Word/Google "suggesting" mode records edits as tracked changes (w:ins / w:del) shown
+inline, with accept/reject. That is a large feature (record every edit as a revision,
+render insertions/deletions, accept/reject each). Recommend scoping it as its own phase
+after the comment work; not started here.
+
 ## Honest limitations
 
 - Tables and images are read-only (preserved exactly, not yet editable in place).
