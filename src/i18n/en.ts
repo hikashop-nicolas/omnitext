@@ -31,6 +31,11 @@ const en: Dict = {
       sheet: "Sheet",
       odt: "ODT",
       docx: "DOCX",
+      svgeditor: "SVG",
+      latexpreview: "LaTeX",
+      image: "Image",
+      media: "Media",
+      archive: "Archive",
     },
     // Why a given editor was chosen (shown in the small status pill).
     reason: { native: "native", view: "view", fallback: "fallback" },
