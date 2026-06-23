@@ -20,6 +20,9 @@ const en: Dict = {
     plainTextOption: "Plain text",
     cancel: "Cancel",
     create: "Create",
+    settings: "Settings",
+    yourName: "Your name",
+    yourNameHint: "Used as the author of comments and replies you add.",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "Text",

@@ -57,6 +57,7 @@ import {
   makeViewerFormats,
 } from "./formats/binary-viewers";
 import { applyDom, initI18n, t } from "./i18n";
+import { getSettings, saveSettings } from "./settings";
 import type {
   EditorInstance,
   EditorResolution,
@@ -863,6 +864,34 @@ newFormatSel.addEventListener("keydown", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
+});
+
+// --- settings dialog ---------------------------------------------------------
+const settingsDlgEl = $("settingsdlg");
+const settingNameEl = $("setting-name") as HTMLInputElement;
+function openSettings(): void {
+  settingNameEl.value = getSettings().name;
+  settingsDlgEl.hidden = false;
+  settingNameEl.focus();
+}
+function closeSettings(): void {
+  settingsDlgEl.hidden = true;
+}
+function saveSettingsDialog(): void {
+  saveSettings({ name: settingNameEl.value.trim() });
+  closeSettings();
+}
+$("btn-settings").addEventListener("click", openSettings);
+$("settings-cancel").addEventListener("click", closeSettings);
+$("settings-save").addEventListener("click", saveSettingsDialog);
+settingsDlgEl.addEventListener("click", (e) => {
+  if (e.target === settingsDlgEl) closeSettings();
+});
+settingNameEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveSettingsDialog();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !settingsDlgEl.hidden) closeSettings();
 });
 // View switcher: with two views a click toggles to the other directly; with three or more
 // it opens a small popover. (One view hides the button entirely.)

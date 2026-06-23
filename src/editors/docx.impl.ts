@@ -1,5 +1,6 @@
 import { createDocxEditor, type DocxEditor } from "docxedit";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import { userName } from "../settings";
 
 // Thin adapter wrapping the standalone docxedit library as an Omnitext editor module.
 class DocxInstance implements EditorInstance {
@@ -8,7 +9,7 @@ class DocxInstance implements EditorInstance {
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
-    this.editor = createDocxEditor(container, this.bytes, { onChange: ctx.onChange });
+    this.editor = createDocxEditor(container, this.bytes, { onChange: ctx.onChange, author: userName() });
   }
 
   getText(): string {

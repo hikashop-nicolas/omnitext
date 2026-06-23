@@ -20,6 +20,9 @@ const fr: Dict = {
     plainTextOption: "Texte brut",
     cancel: "Annuler",
     create: "Créer",
+    settings: "Paramètres",
+    yourName: "Votre nom",
+    yourNameHint: "Utilisé comme auteur des commentaires et réponses que vous ajoutez.",
     editors: {
       codemirror: "Texte",
       table: "Tableau",
