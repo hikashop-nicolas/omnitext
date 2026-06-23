@@ -188,19 +188,30 @@
         flex: none;
       }
       #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      /* View switcher: pinned bottom-right, always visible (desktop and mobile). */
-      .status-view { display: flex; align-items: center; gap: 6px; flex: none; color: var(--muted); }
-      .status-view svg { width: 15px; height: 15px; display: block; }
-      .status-view select {
-        font: inherit; font-size: 12px; padding: 3px 24px 3px 8px;
-        border: 1px solid var(--border); border-radius: 6px;
-        background: var(--surface); color: var(--text); cursor: pointer; appearance: none;
-        max-width: 40vw;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: right 8px center;
+      /* View switcher: an eye button pinned bottom-right, always visible (desktop + mobile).
+         With two views a click toggles directly; with more it opens a popover. */
+      .status-view {
+        display: flex; align-items: center; gap: 6px; flex: none;
+        font: inherit; font-size: 12px; color: var(--text);
+        padding: 3px 9px; border: 1px solid var(--border); border-radius: 6px;
+        background: var(--surface); cursor: pointer; max-width: 45vw;
       }
-      .status-view select:hover { background-color: var(--surface-hover); }
-      .status-view select:disabled { opacity: 0.55; cursor: default; }
+      .status-view[hidden] { display: none; }
+      .status-view:hover { background: var(--surface-hover); }
+      .status-view svg { width: 15px; height: 15px; display: block; flex: none; }
+      #view-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .view-pop {
+        position: fixed; z-index: 20; background: var(--chrome); border: 1px solid var(--border);
+        border-radius: 8px; padding: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        display: flex; flex-direction: column; min-width: 130px;
+      }
+      .view-pop[hidden] { display: none; }
+      .view-pop button {
+        font: inherit; font-size: 13px; text-align: left; background: transparent; color: var(--text);
+        border: 0; border-radius: 5px; padding: 7px 11px; cursor: pointer;
+      }
+      .view-pop button:hover { background: var(--surface); }
+      .view-pop button.is-current { color: var(--accent); font-weight: 600; }
 
       /* Side panel (tool UI: history, etc.) */
       .panel {
@@ -320,10 +331,10 @@
       <footer id="status">
         <span class="status-dot"></span>
         <span id="status-text">Ready. Your edits are kept on this device; use Save to write out the file.</span>
-        <label class="status-view" data-i18n-title="app.view" title="View">
+        <button id="view-btn" class="status-view" type="button" data-i18n-title="app.view" title="View" aria-label="View" aria-haspopup="menu" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-          <select id="editor-select" data-i18n-aria="app.view" aria-label="View"></select>
-        </label>
+          <span id="view-label"></span>
+        </button>
       </footer>
       <div id="newdlg" class="modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newdlg-title">

@@ -176,6 +176,27 @@ interface Session {
 let session: Session | null = null;
 let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 
+// Per-document editor cache: switching keeps the previous editor alive (hidden) instead
+// of disposing it, so its undo history survives a "switch away and come back" (when the
+// content has not changed since). Editing in another view recreates this one on return.
+// All entries are disposed when a different document is opened.
+interface LiveEditor {
+  instance: EditorInstance;
+  el: HTMLElement;
+  text: string; // the content this editor currently reflects
+}
+const liveEditors = new Map<string, LiveEditor>();
+function disposeLiveEditors(): void {
+  for (const { instance } of liveEditors.values()) {
+    try {
+      instance.dispose();
+    } catch {
+      /* ignore */
+    }
+  }
+  liveEditors.clear();
+}
+
 // --- DOM ---------------------------------------------------------------------
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -190,7 +211,8 @@ const saveBtn = $("btn-save");
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
 const formatLabelEl = $("format-label");
-const editorSel = $<HTMLSelectElement>("editor-select");
+const viewBtn = $<HTMLButtonElement>("view-btn");
+const viewLabelEl = $("view-label");
 const fileInput = $<HTMLInputElement>("file-input");
 const toolsEl = $("tools");
 const panelEl = $("panel");
@@ -207,13 +229,13 @@ function setFormatLabel(current: string | null): void {
   formatLabelEl.textContent = current ?? t("app.plainText");
 }
 
+// The View switcher: an eye button (bottom-right). One view -> hidden; two -> a click
+// toggles directly; three+ -> a click opens a popover. Current choices are kept here.
+let viewChoices: EditorResolution[] = [];
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
-  editorSel.innerHTML = "";
-  for (const c of choices) {
-    editorSel.add(new Option(editorLabel(c.editor.manifest.id), c.editor.manifest.id));
-  }
-  editorSel.value = currentId;
-  editorSel.disabled = choices.length <= 1;
+  viewChoices = choices;
+  viewBtn.hidden = choices.length <= 1; // nothing to switch to
+  viewLabelEl.textContent = editorLabel(currentId);
 }
 
 function updateUI(): void {
@@ -226,7 +248,7 @@ function updateUI(): void {
   dirtyEl.classList.toggle("is-modified", modified);
   dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
   setFormatLabel(session?.formatId ?? null);
-  if (session?.editorId) editorSel.value = session.editorId;
+  if (session?.editorId) viewLabelEl.textContent = editorLabel(session.editorId);
 }
 
 function setStatus(msg: string): void {
@@ -247,6 +269,8 @@ interface MountOpts {
   editorId?: string | null;
   mime?: string | null;
   recovered?: boolean;
+  /** A view switch within the same document (keeps other editors alive for undo). */
+  isSwitch?: boolean;
 }
 
 async function mountDoc(opts: MountOpts): Promise<void> {
@@ -309,9 +333,46 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     chosen = { editor: fallback, view: "text", reason: "fallback" };
     editorModule = await fallback.load();
   }
-  const instance = editorModule.create(engine.host("app"));
+  const targetId = chosen.editor.manifest.id;
+  const isSwitch = !!opts.isSwitch;
+  if (!isSwitch) {
+    // New document (open / create / restore): drop every cached editor and start clean.
+    disposeLiveEditors();
+    editorEl.innerHTML = "";
+  } else if (session?.editorId) {
+    // View switch: record what the outgoing editor now holds, then hide (keep alive).
+    const cur = liveEditors.get(session.editorId);
+    if (cur) {
+      cur.text = text;
+      cur.el.style.display = "none";
+    }
+  }
 
-  session?.editor?.dispose();
+  // Reuse a cached editor only when its content still matches (so its undo survives);
+  // otherwise build a fresh one.
+  const cached = isSwitch && !binary ? liveEditors.get(targetId) : undefined;
+  const reuse = !!cached && cached.text === text;
+  let instance: EditorInstance;
+  let mountEl: HTMLElement | null = null;
+  if (cached && reuse) {
+    instance = cached.instance;
+    cached.el.style.display = "";
+  } else {
+    if (cached) {
+      try {
+        cached.instance.dispose();
+      } catch {
+        /* ignore */
+      }
+      cached.el.remove();
+      liveEditors.delete(targetId);
+    }
+    mountEl = document.createElement("div");
+    mountEl.style.height = "100%";
+    editorEl.appendChild(mountEl);
+    instance = editorModule.create(engine.host("app"));
+  }
+
   session = {
     id: session?.id ?? crypto.randomUUID(),
     uri: opts.uri ?? null,
@@ -319,7 +380,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     formatId,
     encoding: opts.encoding,
     editor: instance,
-    editorId: chosen.editor.manifest.id,
+    editorId: targetId,
     fileHandle: opts.fileHandle ?? null,
     lastSavedText: binary ? "" : text,
     dirty: false,
@@ -327,25 +388,30 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     readOnly: !!chosen.editor.manifest.readOnly,
   };
 
-  editorEl.innerHTML = "";
-  instance.mount(editorEl, {
-    text,
-    bytes,
-    binary,
-    mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
-    model,
-    format: formatModule,
-    view: chosen.view,
-    onChange: () => {
-      if (!session) return;
-      session.dirty = session.binary
-        ? true
-        : session.editor!.getText() !== session.lastSavedText;
-      updateUI();
-      if (!session.binary) scheduleAutosave();
-      engine.events.emit("contentChanged", { sessionId: session.id });
-    },
-  });
+  if (mountEl) {
+    liveEditors.set(targetId, { instance, el: mountEl, text });
+    instance.mount(mountEl, {
+      text,
+      bytes,
+      binary,
+      mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
+      model,
+      format: formatModule,
+      view: chosen.view,
+      onChange: () => {
+        if (!session) return;
+        session.dirty = session.binary
+          ? true
+          : session.editor!.getText() !== session.lastSavedText;
+        // Keep the active editor's cache entry current so a later switch-and-return reuses it.
+        const live = liveEditors.get(session.editorId!);
+        if (live && !session.binary) live.text = session.editor!.getText();
+        updateUI();
+        if (!session.binary) scheduleAutosave();
+        engine.events.emit("contentChanged", { sessionId: session.id });
+      },
+    });
+  }
   instance.focus();
 
   const reasonKey = `app.reason.${chosen.reason}`;
@@ -583,10 +649,7 @@ async function changeEditor(editorId: string): Promise<void> {
     toEditor: editorId,
     cancel: false,
   });
-  if (ctx.cancel) {
-    if (session.editorId) editorSel.value = session.editorId;
-    return;
-  }
+  if (ctx.cancel) return;
   if (session.formatId) {
     prefs[session.formatId] = editorId;
     savePrefs();
@@ -599,6 +662,7 @@ async function changeEditor(editorId: string): Promise<void> {
     fileHandle: session.fileHandle,
     formatId: session.formatId,
     editorId,
+    isSwitch: true,
   });
   // A view switch carries the current content over, but must not pretend it is saved:
   // restore the on-disk baseline and recompute dirty against it.
@@ -625,7 +689,53 @@ newFormatSel.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
 });
-editorSel.addEventListener("change", () => void changeEditor(editorSel.value));
+// View switcher: with two views a click toggles to the other directly; with three or more
+// it opens a small popover. (One view hides the button entirely.)
+let viewPop: HTMLElement | null = null;
+function closeViewPop(): void {
+  viewPop?.remove();
+  viewPop = null;
+  document.removeEventListener("pointerdown", onViewOutside, true);
+}
+function onViewOutside(e: Event): void {
+  const t2 = e.target as Node;
+  if (viewPop && !viewPop.contains(t2) && !viewBtn.contains(t2)) closeViewPop();
+}
+function openViewPopover(): void {
+  if (viewPop) {
+    closeViewPop();
+    return;
+  }
+  const pop = document.createElement("div");
+  pop.className = "view-pop";
+  for (const c of viewChoices) {
+    const id = c.editor.manifest.id;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = editorLabel(id);
+    if (id === session?.editorId) b.className = "is-current";
+    b.addEventListener("click", () => {
+      closeViewPop();
+      void changeEditor(id);
+    });
+    pop.appendChild(b);
+  }
+  document.body.appendChild(pop);
+  viewPop = pop;
+  const r = viewBtn.getBoundingClientRect();
+  pop.style.left = `${Math.round(Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))}px`;
+  pop.style.top = `${Math.round(r.top - pop.offsetHeight - 6)}px`; // above the button
+  setTimeout(() => document.addEventListener("pointerdown", onViewOutside, true), 0);
+}
+viewBtn.addEventListener("click", () => {
+  if (viewChoices.length <= 1) return;
+  if (viewChoices.length === 2) {
+    const other = viewChoices.find((c) => c.editor.manifest.id !== session?.editorId);
+    if (other) void changeEditor(other.editor.manifest.id);
+  } else {
+    openViewPopover();
+  }
+});
 
 // Tapping the save-state dot shows its meaning as a brief tooltip (touch has no hover).
 let dirtyTip: HTMLElement | null = null;
