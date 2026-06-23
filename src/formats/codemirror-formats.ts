@@ -61,6 +61,7 @@ async function loadMode(mode: string): Promise<Extension | null> {
     case "scss": return sl((await import("@codemirror/legacy-modes/mode/css")).sCSS);
     case "less": return sl((await import("@codemirror/legacy-modes/mode/css")).less);
     case "json": return (await import("@codemirror/lang-json")).json();
+    case "php": return (await import("@codemirror/lang-php")).php();
     default: return null;
   }
 }
@@ -80,6 +81,7 @@ const TEXT_FORMATS: TextFormat[] = [
   { id: "cpp", exts: [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".ino"], mimes: ["text/x-c++src"], mode: "cpp" },
   { id: "java", exts: [".java"], mimes: ["text/x-java"], mode: "java" },
   { id: "csharp", exts: [".cs"], mimes: ["text/x-csharp"], mode: "csharp" },
+  { id: "php", exts: [".php", ".phtml", ".phps", ".php5", ".php7", ".php8"], mimes: ["application/x-httpd-php", "text/x-php"], mode: "php" },
   { id: "scala", exts: [".scala", ".sc"], mode: "scala" },
   { id: "kotlin", exts: [".kt", ".kts"], mode: "kotlin" },
   { id: "objc", exts: [".m"], mode: "objc" },

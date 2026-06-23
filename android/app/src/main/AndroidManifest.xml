@@ -38,6 +38,7 @@
                 <data android:mimeType="application/x-tar" />
                 <data android:mimeType="application/gzip" />
                 <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-httpd-php" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="application/yaml" />
                 <data android:mimeType="application/toml" />
@@ -66,6 +67,7 @@
                 <data android:mimeType="application/x-tar" />
                 <data android:mimeType="application/gzip" />
                 <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-httpd-php" />
                 <data android:mimeType="application/x-yaml" />
                 <data android:mimeType="application/yaml" />
                 <data android:mimeType="application/toml" />
