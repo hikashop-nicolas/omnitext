@@ -73,6 +73,26 @@ contenteditable; only build if an accurate on-screen page count is truly needed.
 - Known gap: each typed char is its own <ins> (cosmetic; valid OOXML, Word merges
   them visually).
 
+## Remaining gaps (review 2026-06; what docx still misses)
+
+Priority 1 -- data loss on an edited save (the body is regenerated from the modelled
+subset; unmodelled content is dropped; opening + saving unchanged is byte-safe):
+bookmarks (w:bookmarkStart/End), fields (TOC, page numbers, dates, refs), footnotes/
+endnotes, equations (OMML), content controls (w:sdt), symbols (w:sym), text boxes/
+shapes; and normalised-away paragraph props: indentation (w:ind), line/para spacing
+(w:spacing), tab stops (w:tabs), paragraph shading, custom paragraph styles (only
+Heading 1-3 survive). Fix = passthrough these like tables/images.
+
+Priority 2 -- visual fidelity: indentation, line spacing, real tab stops, paragraph
+styles beyond headings, exact list numbering/levels, superscript/subscript, small caps,
+character borders (w:bdr), multi-column/section layout, exact page margins, floating/
+wrapped images.
+
+Priority 3 -- editing: tables are read-only (no cell edit / insert-table); vMerge not
+drawn. Track-changes: per-char <w:ins> (cosmetic), no moves, no table-structure
+revisions. Minor: only external-URL hyperlinks (not bookmark links); resolved comments
+greyed not hidden.
+
 ## Honest limitations
 
 - Tables and images are read-only (preserved exactly, not yet editable in place).
