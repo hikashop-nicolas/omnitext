@@ -120,8 +120,7 @@ const TEXT_FORMATS: TextFormat[] = [
   { id: "less", exts: [".less"], mimes: ["text/x-less"], mode: "less" },
   // JSON-ish (reuse the JSON language)
   { id: "jsonl", exts: [".jsonl", ".ndjson", ".jsonc"], mode: "json" },
-  // Markup / docs (highlighted)
-  { id: "latex", exts: [".tex", ".latex", ".ltx", ".sty", ".cls", ".dtx", ".ins"], mimes: ["text/x-tex", "application/x-tex"], mode: "stex" },
+  // Markup / docs (highlighted). LaTeX has its own format (latex.ts) with a preview view.
   { id: "textile", exts: [".textile"], mode: "textile" },
   { id: "diff", exts: [".diff", ".patch"], mimes: ["text/x-diff"], mode: "diff" },
   // Markup / docs (plain, no dedicated mode)

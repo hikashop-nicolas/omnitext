@@ -44,8 +44,8 @@ describe("codemirror long-tail formats", () => {
     const log = await byId.get("log")!.load();
     expect(log.language).toBeUndefined();
     expect(log.serialize("a\nb")).toBe("a\nb");
-    // LaTeX highlights via the stex mode.
-    const latex = await byId.get("latex")!.load();
-    expect(latex.language!()).toBeTruthy();
+    // Another highlighted one (the textile markup mode) resolves too.
+    const textile = await byId.get("textile")!.load();
+    expect(textile.language!()).toBeTruthy();
   });
 });

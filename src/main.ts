@@ -39,6 +39,8 @@ import { yamlFormat } from "./formats/yaml";
 import { imageEditor } from "./editors/image";
 import { mediaEditor } from "./editors/media";
 import { archiveEditor } from "./editors/archive";
+import { latexPreviewEditor } from "./editors/latexpreview";
+import { latexFormat } from "./formats/latex";
 import { historyTool } from "./tools/history";
 import { makeTextFormats } from "./formats/codemirror-formats";
 import {
@@ -86,6 +88,7 @@ engine.registerEditor(sheetEditor);
 engine.registerEditor(imageEditor);
 engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
+engine.registerEditor(latexPreviewEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
   json5Format,
@@ -98,6 +101,7 @@ const FORMATS: FormatDescriptor[] = [
   odtFormat,
   docxFormat,
   odsFormat,
+  latexFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,

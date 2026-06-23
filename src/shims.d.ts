@@ -14,3 +14,15 @@ declare module "ini" {
   export function stringify(obj: unknown, opts?: unknown): string;
   export function encode(obj: unknown, opts?: unknown): string;
 }
+
+// "latex.js" ships no TypeScript types; declare the bits we use.
+declare module "latex.js" {
+  export class HtmlGenerator {
+    constructor(options?: { hyphenate?: boolean; [k: string]: unknown });
+  }
+  export interface LatexResult {
+    domFragment(): DocumentFragment;
+    htmlDocument(baseURL?: string): Document;
+  }
+  export function parse(latex: string, options: { generator: HtmlGenerator }): LatexResult;
+}

@@ -57,6 +57,7 @@
     "ini": "^6.0.0",
     "js-yaml": "^4.2.0",
     "json5": "^2.2.3",
+    "latex.js": "^0.12.6",
     "marked": "^18.0.5",
     "odtedit": "github:hikashop-nicolas/odtedit",
     "pdf-lib": "^1.17.1",
