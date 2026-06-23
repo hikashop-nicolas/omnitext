@@ -1,5 +1,6 @@
 import { createOdtEditor, type OdtEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import { getSettings } from "../settings";
 
 // Thin adapter wrapping richdoc's odt editor as an Omnitext editor module.
 class OdtInstance implements EditorInstance {
@@ -8,7 +9,12 @@ class OdtInstance implements EditorInstance {
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
-    this.editor = createOdtEditor(container, this.bytes, { onChange: ctx.onChange });
+    const s = getSettings();
+    this.editor = createOdtEditor(container, this.bytes, {
+      onChange: ctx.onChange,
+      defaultPageSize: s.pageSize,
+      paginated: s.paginated,
+    });
   }
 
   getText(): string {

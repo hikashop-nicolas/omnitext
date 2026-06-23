@@ -279,6 +279,8 @@
         background: var(--surface);
         color: var(--text);
       }
+      .modal-check { justify-content: flex-start; }
+      .modal-check input { flex: 0 0 auto; width: auto; padding: 0; border: none; background: none; }
       .modal-hint { margin: -10px 0 16px; font-size: 12px; color: var(--muted, #8b949e); }
       .modal-field select {
         flex: 1;
@@ -373,6 +375,14 @@
           <h2 id="settingsdlg-title" class="modal-title" data-i18n="app.settings">Settings</h2>
           <label class="modal-field"><span data-i18n="app.yourName">Your name</span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>
           <p class="modal-hint" data-i18n="app.yourNameHint">Used as the author of comments and replies you add.</p>
+          <label class="modal-field"><span data-i18n="app.pageSize">Default page size</span>
+            <select id="setting-pagesize">
+              <option value="a4" data-i18n="app.pageSizeA4">A4</option>
+              <option value="letter" data-i18n="app.pageSizeLetter">US Letter</option>
+            </select>
+          </label>
+          <label class="modal-field modal-check"><input id="setting-paginated" type="checkbox" /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
+          <p class="modal-hint" data-i18n="app.docSettingsHint">For Word and OpenDocument files. Page size applies only when the file specifies none.</p>
           <div class="modal-actions">
             <button id="settings-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
             <button id="settings-save" class="btn btn-primary" type="button" data-i18n="app.save">Save</button>

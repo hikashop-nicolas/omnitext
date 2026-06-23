@@ -23,6 +23,11 @@ const fr: Dict = {
     settings: "Paramètres",
     yourName: "Votre nom",
     yourNameHint: "Utilisé comme auteur des commentaires et réponses que vous ajoutez.",
+    pageSize: "Taille de page par défaut",
+    pageSizeA4: "A4",
+    pageSizeLetter: "US Letter",
+    paginated: "Afficher les pages (vue paginée)",
+    docSettingsHint: "Pour les fichiers Word et OpenDocument. La taille de page ne s'applique que si le fichier n'en précise aucune.",
     editors: {
       codemirror: "Texte",
       table: "Tableau",

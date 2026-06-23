@@ -869,8 +869,13 @@ document.addEventListener("keydown", (e) => {
 // --- settings dialog ---------------------------------------------------------
 const settingsDlgEl = $("settingsdlg");
 const settingNameEl = $("setting-name") as HTMLInputElement;
+const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
+const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 function openSettings(): void {
-  settingNameEl.value = getSettings().name;
+  const s = getSettings();
+  settingNameEl.value = s.name;
+  settingPageSizeEl.value = s.pageSize;
+  settingPaginatedEl.checked = s.paginated;
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -878,7 +883,11 @@ function closeSettings(): void {
   settingsDlgEl.hidden = true;
 }
 function saveSettingsDialog(): void {
-  saveSettings({ name: settingNameEl.value.trim() });
+  saveSettings({
+    name: settingNameEl.value.trim(),
+    pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
+    paginated: settingPaginatedEl.checked,
+  });
   closeSettings();
 }
 $("btn-settings").addEventListener("click", openSettings);

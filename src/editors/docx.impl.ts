@@ -1,6 +1,6 @@
 import { createDocxEditor, type DocxEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
-import { userName } from "../settings";
+import { getSettings, userName } from "../settings";
 
 // Thin adapter wrapping richdoc's docx editor as an Omnitext editor module.
 class DocxInstance implements EditorInstance {
@@ -9,7 +9,13 @@ class DocxInstance implements EditorInstance {
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
-    this.editor = createDocxEditor(container, this.bytes, { onChange: ctx.onChange, author: userName() });
+    const s = getSettings();
+    this.editor = createDocxEditor(container, this.bytes, {
+      onChange: ctx.onChange,
+      author: userName(),
+      defaultPageSize: s.pageSize,
+      paginated: s.paginated,
+    });
   }
 
   getText(): string {

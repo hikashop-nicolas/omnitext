@@ -23,6 +23,11 @@ const en: Dict = {
     settings: "Settings",
     yourName: "Your name",
     yourNameHint: "Used as the author of comments and replies you add.",
+    pageSize: "Default page size",
+    pageSizeA4: "A4",
+    pageSizeLetter: "US Letter",
+    paginated: "Show pages (paginated view)",
+    docSettingsHint: "For Word and OpenDocument files. Page size applies only when the file specifies none.",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "Text",
