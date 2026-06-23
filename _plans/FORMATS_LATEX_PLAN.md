@@ -148,13 +148,23 @@ maintained (v7.3.3, Dec 2023, 4000+ commits), on npm (`svgedit`, plus the
 UI-less engine `@svgedit/svgcanvas`), fully client-side, and it loads/round-trips
 real `.svg` files in a WYSIWYG vector canvas.
 
-Plan: an `svg` editor module (lazy-loaded) wrapping **@svgedit/svgcanvas** (the engine
-only) with a thin toolbar. Measured sizes settled this: the FULL `svgedit` package is
-38 MB unpacked (UI, locales, icons, extensions) and is rejected; `@svgedit/svgcanvas`
-bundles to ~1.1 MB minified (325 KB gzipped), no fonts. Make `.svg` a TEXT format (so
-the XML source stays available) whose defaultEditor is the svg vector editor, with
-CodeMirror (XML) as the alternative in the View switcher. getText returns the
-serialized SVG so Save and history work. Cost is acceptable since it is lazy-loaded.
+SIZE is fine (the FULL `svgedit` is 38 MB unpacked and rejected; `@svgedit/svgcanvas`
+bundles to ~1.1 MB), but the EMBED is the catch (found while scoping): bare
+`@svgedit/svgcanvas` ships a single minified CJS bundle with no documented
+standalone-embed path. Its constructor takes a large config object normally supplied
+by the full svgedit Editor (wiring it by hand means reverse-engineering that), and the
+full Editor fetches locale/extension assets at runtime, which is awkward in a bundled
+static app. So a real SVG vector editor is a FOCUSED mini-project, best as a small
+standalone wrapper library (like pdfedit/sheetedit) that nails the svgcanvas embed once
+and exposes a clean API; Omnitext then consumes it as a git dependency.
+
+Two paths to choose between:
+- **(D1a) Full vector editor**: build that svgcanvas wrapper lib. `.svg` becomes a text
+  format whose defaultEditor is the vector editor, with CodeMirror (XML) as the
+  alternative; getText returns serialized SVG. Bigger effort, the real WYSIWYG goal.
+- **(D1b) Lighter now**: keep `.svg` as editable XML text and add a live rendered SVG
+  preview view (reuse the preview pattern; render via <img>/inline). Cheap; gives
+  see-and-edit without vector tools. Can precede D1a.
 
 ### Optional future: Typst, the clean "real typesetting" path
 
