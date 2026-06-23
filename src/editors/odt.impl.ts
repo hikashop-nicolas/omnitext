@@ -1,7 +1,7 @@
-import { createOdtEditor, type OdtEditor } from "odtedit";
+import { createOdtEditor, type OdtEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 
-// Thin adapter wrapping the standalone odtedit library as an Omnitext editor module.
+// Thin adapter wrapping richdoc's odt editor as an Omnitext editor module.
 class OdtInstance implements EditorInstance {
   private editor: OdtEditor | null = null;
   private bytes: Uint8Array = new Uint8Array();

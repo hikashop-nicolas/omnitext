@@ -1,8 +1,8 @@
-import { createDocxEditor, type DocxEditor } from "docxedit";
+import { createDocxEditor, type DocxEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { userName } from "../settings";
 
-// Thin adapter wrapping the standalone docxedit library as an Omnitext editor module.
+// Thin adapter wrapping richdoc's docx editor as an Omnitext editor module.
 class DocxInstance implements EditorInstance {
   private editor: DocxEditor | null = null;
   private bytes: Uint8Array = new Uint8Array();

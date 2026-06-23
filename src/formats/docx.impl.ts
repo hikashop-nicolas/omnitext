@@ -1,6 +1,6 @@
 import type { FormatModule, ParseResult } from "../core/types";
 
-// DOCX behavior (binary). The model holds the original bytes; the docx editor (docxedit)
+// DOCX behavior (binary). The model holds the original bytes; the docx editor (richdoc)
 // reads, edits, and re-exports them via its getBytes(). serializeBinary is a fallback
 // (returns the original) since the editor owns export.
 export const docxImpl: FormatModule = {

@@ -1,6 +1,6 @@
 import type { FormatModule, ParseResult } from "../core/types";
 
-// ODT behavior (binary). The model holds the original bytes; the odt editor (odtedit)
+// ODT behavior (binary). The model holds the original bytes; the odt editor (richdoc)
 // reads, edits, and re-exports them via its getBytes(). serializeBinary is a fallback
 // (returns the original) since the editor owns export.
 export const odtImpl: FormatModule = {
