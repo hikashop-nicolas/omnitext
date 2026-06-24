@@ -71,10 +71,22 @@
             <ul id="new-format-list" class="combobox-list" role="listbox" hidden></ul>
           </div>
           <div id="new-format-opts" hidden>
-            <label class="combobox-label" for="new-paper" data-i18n="app.pageSize">Default page size</label>
+            <label class="combobox-label" for="new-paper" data-i18n="app.pageSize">Page size</label>
             <select id="new-paper" class="new-opt-select">
               <option value="a4" data-i18n="app.pageSizeA4">A4</option>
+              <option value="a3" data-i18n="app.pageSizeA3">A3</option>
+              <option value="a5" data-i18n="app.pageSizeA5">A5</option>
+              <option value="b4" data-i18n="app.pageSizeB4">B4 (JIS)</option>
+              <option value="b5" data-i18n="app.pageSizeB5">B5 (JIS)</option>
               <option value="letter" data-i18n="app.pageSizeLetter">US Letter</option>
+              <option value="legal" data-i18n="app.pageSizeLegal">US Legal</option>
+              <option value="tabloid" data-i18n="app.pageSizeTabloid">Tabloid</option>
+              <option value="executive" data-i18n="app.pageSizeExecutive">Executive</option>
+            </select>
+            <label class="combobox-label" for="new-orientation" data-i18n="app.orientation">Orientation</label>
+            <select id="new-orientation" class="new-opt-select">
+              <option value="portrait" data-i18n="app.orientationPortrait">Portrait</option>
+              <option value="landscape" data-i18n="app.orientationLandscape">Landscape</option>
             </select>
             <label class="modal-field modal-check"><input id="new-paginated" type="checkbox" checked /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
           </div>

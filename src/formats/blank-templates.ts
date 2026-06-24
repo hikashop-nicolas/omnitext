@@ -20,28 +20,41 @@ const DOCX_DOCRELS =
   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
 
-export type Paper = "a4" | "letter";
-// Page size in twips (1/1440in): A4 = 210x297mm, US Letter = 8.5x11in.
+export type Paper = "a3" | "a4" | "a5" | "b4" | "b5" | "letter" | "legal" | "tabloid" | "executive";
+export type Orientation = "portrait" | "landscape";
+/** The page sizes the New dialog offers, in display order. */
+export const PAPER_SIZES = ["a4", "a3", "a5", "b4", "b5", "letter", "legal", "tabloid", "executive"] as const;
+
+// Page size in twips (1/1440in). ISO/JIS sizes are mm, the US sizes are inches.
 const DOCX_PGSZ: Record<Paper, { w: number; h: number }> = {
-  a4: { w: 11906, h: 16838 },
-  letter: { w: 12240, h: 15840 },
+  a3: { w: 16838, h: 23811 }, // 297x420mm
+  a4: { w: 11906, h: 16838 }, // 210x297mm
+  a5: { w: 8391, h: 11906 }, // 148x210mm
+  b4: { w: 14570, h: 20636 }, // 257x364mm (JIS)
+  b5: { w: 10318, h: 14570 }, // 182x257mm (JIS)
+  letter: { w: 12240, h: 15840 }, // 8.5x11in
+  legal: { w: 12240, h: 20160 }, // 8.5x14in
+  tabloid: { w: 15840, h: 24480 }, // 11x17in
+  executive: { w: 10440, h: 15120 }, // 7.25x10.5in
 };
-const docxDoc = (paper: Paper): string => {
-  const { w, h } = DOCX_PGSZ[paper];
+const docxDoc = (paper: Paper, orient: Orientation): string => {
+  let { w, h } = DOCX_PGSZ[paper];
+  const landscape = orient === "landscape";
+  if (landscape) [w, h] = [h, w];
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
     "<w:p/>" +
-    `<w:sectPr><w:pgSz w:w="${w}" w:h="${h}"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr>` +
+    `<w:sectPr><w:pgSz w:w="${w}" w:h="${h}"${landscape ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr>` +
     "</w:body></w:document>"
   );
 };
 
-function blankDocx(paper: Paper): Uint8Array {
+function blankDocx(paper: Paper, orient: Orientation): Uint8Array {
   return zipSync({
     "[Content_Types].xml": strToU8(DOCX_CT),
     "_rels/.rels": strToU8(DOCX_RELS),
-    "word/document.xml": strToU8(docxDoc(paper)),
+    "word/document.xml": strToU8(docxDoc(paper, orient)),
     "word/_rels/document.xml.rels": strToU8(DOCX_DOCRELS),
   });
 }
@@ -52,18 +65,26 @@ const ODT_CONTENT =
   'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2">' +
   "<office:body><office:text><text:p/></office:text></office:body></office:document-content>";
 const ODT_PAGE: Record<Paper, { w: string; h: string }> = {
+  a3: { w: "29.7cm", h: "42cm" },
   a4: { w: "21cm", h: "29.7cm" },
+  a5: { w: "14.8cm", h: "21cm" },
+  b4: { w: "25.7cm", h: "36.4cm" },
+  b5: { w: "18.2cm", h: "25.7cm" },
   letter: { w: "8.5in", h: "11in" },
+  legal: { w: "8.5in", h: "14in" },
+  tabloid: { w: "11in", h: "17in" },
+  executive: { w: "7.25in", h: "10.5in" },
 };
-const odtStyles = (paper: Paper): string => {
-  const { w, h } = ODT_PAGE[paper];
+const odtStyles = (paper: Paper, orient: Orientation): string => {
+  let { w, h } = ODT_PAGE[paper];
+  if (orient === "landscape") [w, h] = [h, w];
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ' +
     'xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ' +
     'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.2">' +
     '<office:automatic-styles><style:page-layout style:name="pm1">' +
-    `<style:page-layout-properties fo:page-width="${w}" fo:page-height="${h}" fo:margin-top="2cm" fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"/>` +
+    `<style:page-layout-properties fo:page-width="${w}" fo:page-height="${h}" style:print-orientation="${orient}" fo:margin-top="2cm" fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"/>` +
     "</style:page-layout></office:automatic-styles>" +
     '<office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1"/></office:master-styles>' +
     "</office:document-styles>"
@@ -77,11 +98,11 @@ const ODT_MANIFEST =
   '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>' +
   "</manifest:manifest>";
 
-function blankOdt(paper: Paper): Uint8Array {
+function blankOdt(paper: Paper, orient: Orientation): Uint8Array {
   return zipSync({
     mimetype: [strToU8("application/vnd.oasis.opendocument.text"), { level: 0 }],
     "content.xml": strToU8(ODT_CONTENT),
-    "styles.xml": strToU8(odtStyles(paper)),
+    "styles.xml": strToU8(odtStyles(paper, orient)),
     "META-INF/manifest.xml": strToU8(ODT_MANIFEST),
   });
 }
@@ -107,10 +128,10 @@ export const BLANK_BINARY_FORMATS = ["docx", "odt", "xlsx", "ods", "xls", "pdf"]
 export const PAPER_FORMATS = ["docx", "odt"] as const;
 
 /** Generate the bytes of a blank document for a binary format, or null if unsupported. */
-export async function blankTemplate(formatId: string, paper: Paper = "a4"): Promise<Uint8Array | null> {
+export async function blankTemplate(formatId: string, paper: Paper = "a4", orient: Orientation = "portrait"): Promise<Uint8Array | null> {
   switch (formatId) {
-    case "docx": return blankDocx(paper);
-    case "odt": return blankOdt(paper);
+    case "docx": return blankDocx(paper, orient);
+    case "odt": return blankOdt(paper, orient);
     case "xlsx": return blankSheet("xlsx");
     case "ods": return blankSheet("ods");
     case "xls": return blankSheet("xls");

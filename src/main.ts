@@ -257,6 +257,7 @@ const newFormatInput = $<HTMLInputElement>("new-format-input");
 const newFormatList = $<HTMLUListElement>("new-format-list");
 const newFormatOptsEl = $("new-format-opts");
 const newPaperSel = $<HTMLSelectElement>("new-paper");
+const newOrientSel = $<HTMLSelectElement>("new-orientation");
 const newPaginatedChk = $<HTMLInputElement>("new-paginated");
 
 // Format is a read-only label for the active document: it is determined by the file's
@@ -871,6 +872,7 @@ function openNewDialog(): void {
   // seed the per-document options from the global defaults
   const s = getSettings();
   newPaperSel.value = s.pageSize;
+  newOrientSel.value = "portrait";
   newPaginatedChk.checked = s.paginated;
   newFormatOptsEl.hidden = true;
   newDlgEl.hidden = false;
@@ -888,7 +890,8 @@ async function createNewDocument(): Promise<void> {
   const picked = activeOption();
   const formatId = newFormatSelectedId ?? picked?.id ?? null;
   const descriptor = formatId ? engine.formats.byId(formatId) : null;
-  const paper = newPaperSel.value === "letter" ? "letter" : ("a4" as Paper);
+  const paper = (newPaperSel.value || "a4") as Paper;
+  const orient = newOrientSel.value === "landscape" ? "landscape" : "portrait";
   const paginated = newPaginatedChk.checked;
   closeNewDialog();
   navStack.length = 0; // a new document is a fresh nav root
@@ -896,7 +899,7 @@ async function createNewDocument(): Promise<void> {
 
   // Binary formats (docx/odt/sheets/pdf) need a real blank file, opened in their editor.
   if (descriptor?.manifest.binary && formatId) {
-    const bytes = await blankTemplate(formatId, paper);
+    const bytes = await blankTemplate(formatId, paper, orient);
     if (!bytes) {
       engine.notificationSink.error(t("notify.formatLoadFailed", { format: formatId }));
       return;
