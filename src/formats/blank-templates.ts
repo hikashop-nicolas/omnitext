@@ -22,6 +22,8 @@ const DOCX_DOCRELS =
 
 export type Paper = "a3" | "a4" | "a5" | "b4" | "b5" | "letter" | "legal" | "tabloid" | "executive";
 export type Orientation = "portrait" | "landscape";
+/** Writing direction: normal, horizontal right-to-left (Arabic/Hebrew), or vertical (Japanese). */
+export type Direction = "ltr" | "rtl" | "vertical";
 /** The page sizes the New dialog offers, in display order. */
 export const PAPER_SIZES = ["a4", "a3", "a5", "b4", "b5", "letter", "legal", "tabloid", "executive"] as const;
 
@@ -37,24 +39,25 @@ const DOCX_PGSZ: Record<Paper, { w: number; h: number }> = {
   tabloid: { w: 15840, h: 24480 }, // 11x17in
   executive: { w: 10440, h: 15120 }, // 7.25x10.5in
 };
-const docxDoc = (paper: Paper, orient: Orientation): string => {
+const docxDoc = (paper: Paper, orient: Orientation, direction: Direction): string => {
   let { w, h } = DOCX_PGSZ[paper];
   const landscape = orient === "landscape";
   if (landscape) [w, h] = [h, w];
+  const dirXml = direction === "vertical" ? '<w:textDirection w:val="tbRl"/>' : direction === "rtl" ? "<w:bidi/>" : "";
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
     "<w:p/>" +
-    `<w:sectPr><w:pgSz w:w="${w}" w:h="${h}"${landscape ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr>` +
+    `<w:sectPr><w:pgSz w:w="${w}" w:h="${h}"${landscape ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/>${dirXml}</w:sectPr>` +
     "</w:body></w:document>"
   );
 };
 
-function blankDocx(paper: Paper, orient: Orientation): Uint8Array {
+function blankDocx(paper: Paper, orient: Orientation, direction: Direction): Uint8Array {
   return zipSync({
     "[Content_Types].xml": strToU8(DOCX_CT),
     "_rels/.rels": strToU8(DOCX_RELS),
-    "word/document.xml": strToU8(docxDoc(paper, orient)),
+    "word/document.xml": strToU8(docxDoc(paper, orient, direction)),
     "word/_rels/document.xml.rels": strToU8(DOCX_DOCRELS),
   });
 }
@@ -75,16 +78,17 @@ const ODT_PAGE: Record<Paper, { w: string; h: string }> = {
   tabloid: { w: "11in", h: "17in" },
   executive: { w: "7.25in", h: "10.5in" },
 };
-const odtStyles = (paper: Paper, orient: Orientation): string => {
+const odtStyles = (paper: Paper, orient: Orientation, direction: Direction): string => {
   let { w, h } = ODT_PAGE[paper];
   if (orient === "landscape") [w, h] = [h, w];
+  const wm = direction === "vertical" ? ' style:writing-mode="tb-rl"' : direction === "rtl" ? ' style:writing-mode="rl-tb"' : "";
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ' +
     'xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ' +
     'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.2">' +
     '<office:automatic-styles><style:page-layout style:name="pm1">' +
-    `<style:page-layout-properties fo:page-width="${w}" fo:page-height="${h}" style:print-orientation="${orient}" fo:margin-top="2cm" fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"/>` +
+    `<style:page-layout-properties fo:page-width="${w}" fo:page-height="${h}" style:print-orientation="${orient}"${wm} fo:margin-top="2cm" fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"/>` +
     "</style:page-layout></office:automatic-styles>" +
     '<office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1"/></office:master-styles>' +
     "</office:document-styles>"
@@ -98,11 +102,11 @@ const ODT_MANIFEST =
   '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>' +
   "</manifest:manifest>";
 
-function blankOdt(paper: Paper, orient: Orientation): Uint8Array {
+function blankOdt(paper: Paper, orient: Orientation, direction: Direction): Uint8Array {
   return zipSync({
     mimetype: [strToU8("application/vnd.oasis.opendocument.text"), { level: 0 }],
     "content.xml": strToU8(ODT_CONTENT),
-    "styles.xml": strToU8(odtStyles(paper, orient)),
+    "styles.xml": strToU8(odtStyles(paper, orient, direction)),
     "META-INF/manifest.xml": strToU8(ODT_MANIFEST),
   });
 }
@@ -127,11 +131,14 @@ export const BLANK_BINARY_FORMATS = ["docx", "odt", "xlsx", "ods", "xls", "pdf"]
 /** Formats whose blank template honors a paper size (the New dialog offers the choice). */
 export const PAPER_FORMATS = ["docx", "odt"] as const;
 
+/** Formats whose blank template honors a writing direction (rtl / vertical). */
+export const DIRECTION_FORMATS = ["docx", "odt"] as const;
+
 /** Generate the bytes of a blank document for a binary format, or null if unsupported. */
-export async function blankTemplate(formatId: string, paper: Paper = "a4", orient: Orientation = "portrait"): Promise<Uint8Array | null> {
+export async function blankTemplate(formatId: string, paper: Paper = "a4", orient: Orientation = "portrait", direction: Direction = "ltr"): Promise<Uint8Array | null> {
   switch (formatId) {
-    case "docx": return blankDocx(paper, orient);
-    case "odt": return blankOdt(paper, orient);
+    case "docx": return blankDocx(paper, orient, direction);
+    case "odt": return blankOdt(paper, orient, direction);
     case "xlsx": return blankSheet("xlsx");
     case "ods": return blankSheet("ods");
     case "xls": return blankSheet("xls");

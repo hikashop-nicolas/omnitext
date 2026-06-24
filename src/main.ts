@@ -259,6 +259,7 @@ const newFormatOptsEl = $("new-format-opts");
 const newPaperSel = $<HTMLSelectElement>("new-paper");
 const newOrientSel = $<HTMLSelectElement>("new-orientation");
 const newPaginatedChk = $<HTMLInputElement>("new-paginated");
+const newDirectionSel = $<HTMLSelectElement>("new-direction");
 
 // Format is a read-only label for the active document: it is determined by the file's
 // content/extension on open, or chosen up front in the New dialog. Switching the format
@@ -874,6 +875,7 @@ function openNewDialog(): void {
   newPaperSel.value = s.pageSize;
   newOrientSel.value = "portrait";
   newPaginatedChk.checked = s.paginated;
+  newDirectionSel.value = "ltr";
   newFormatOptsEl.hidden = true;
   newDlgEl.hidden = false;
   newFormatInput.focus();
@@ -893,13 +895,14 @@ async function createNewDocument(): Promise<void> {
   const paper = (newPaperSel.value || "a4") as Paper;
   const orient = newOrientSel.value === "landscape" ? "landscape" : "portrait";
   const paginated = newPaginatedChk.checked;
+  const direction = (newDirectionSel.value || "ltr") as "ltr" | "rtl" | "vertical";
   closeNewDialog();
   navStack.length = 0; // a new document is a fresh nav root
   updateBackBtn();
 
   // Binary formats (docx/odt/sheets/pdf) need a real blank file, opened in their editor.
   if (descriptor?.manifest.binary && formatId) {
-    const bytes = await blankTemplate(formatId, paper, orient);
+    const bytes = await blankTemplate(formatId, paper, orient, direction);
     if (!bytes) {
       engine.notificationSink.error(t("notify.formatLoadFailed", { format: formatId }));
       return;

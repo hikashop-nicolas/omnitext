@@ -39,6 +39,10 @@ const fr: Dict = {
     orientationPortrait: "Portrait",
     orientationLandscape: "Paysage",
     paginated: "Afficher les pages (vue paginée)",
+    writingDirection: "Sens d'écriture",
+    dirLtr: "De gauche à droite",
+    dirRtl: "De droite à gauche (arabe, hébreu)",
+    dirVertical: "Vertical (japonais)",
     docSettingsHint: "Pour les fichiers Word et OpenDocument. La taille de page ne s'applique que si le fichier n'en précise aucune.",
     editors: {
       codemirror: "Texte",

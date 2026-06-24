@@ -39,6 +39,10 @@ const en: Dict = {
     orientationPortrait: "Portrait",
     orientationLandscape: "Landscape",
     paginated: "Show pages (paginated view)",
+    writingDirection: "Writing direction",
+    dirLtr: "Left to right",
+    dirRtl: "Right to left (Arabic, Hebrew)",
+    dirVertical: "Vertical (Japanese)",
     docSettingsHint: "For Word and OpenDocument files. Page size applies only when the file specifies none.",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
