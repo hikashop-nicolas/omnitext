@@ -13,7 +13,7 @@ class OdtInstance implements EditorInstance {
     this.editor = createOdtEditor(container, this.bytes, {
       onChange: ctx.onChange,
       defaultPageSize: s.pageSize,
-      paginated: s.paginated,
+      paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
     });
   }
 

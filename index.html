@@ -286,6 +286,10 @@
       .combobox-list li.active, .combobox-list li:hover { background: var(--accent, #6e7bff); color: #fff; }
       .combobox-list li.active .opt-ext, .combobox-list li:hover .opt-ext { color: #e8e8ff; }
       .combobox-empty { color: var(--muted, #8b949e); cursor: default; }
+      #new-format-opts .new-opt-select {
+        width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; margin-bottom: 10px;
+        padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text);
+      }
       .modal-field {
         display: flex; align-items: center; gap: 8px;
         margin-bottom: 18px; color: var(--text);
@@ -387,6 +391,14 @@
           <div class="combobox" id="new-format-combo">
             <input id="new-format-input" type="text" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="new-format-list" data-i18n-placeholder="app.formatSearch" placeholder="Search formats…" />
             <ul id="new-format-list" class="combobox-list" role="listbox" hidden></ul>
+          </div>
+          <div id="new-format-opts" hidden>
+            <label class="combobox-label" for="new-paper" data-i18n="app.pageSize">Default page size</label>
+            <select id="new-paper" class="new-opt-select">
+              <option value="a4" data-i18n="app.pageSizeA4">A4</option>
+              <option value="letter" data-i18n="app.pageSizeLetter">US Letter</option>
+            </select>
+            <label class="modal-field modal-check"><input id="new-paginated" type="checkbox" checked /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
           </div>
           <div class="modal-actions">
             <button id="new-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>

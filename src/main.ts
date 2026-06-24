@@ -48,6 +48,7 @@ import { latexFormat } from "./formats/latex";
 import { svgFormat } from "./formats/svg";
 import { historyTool } from "./tools/history";
 import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
+import { blankTemplate, BLANK_BINARY_FORMATS, PAPER_FORMATS, type Paper } from "./formats/blank-templates";
 import {
   GENERIC_ARCHIVE,
   GENERIC_BINARY,
@@ -253,6 +254,9 @@ const panelBodyEl = $("panel-body");
 const newDlgEl = $("newdlg");
 const newFormatInput = $<HTMLInputElement>("new-format-input");
 const newFormatList = $<HTMLUListElement>("new-format-list");
+const newFormatOptsEl = $("new-format-opts");
+const newPaperSel = $<HTMLSelectElement>("new-paper");
+const newPaginatedChk = $<HTMLInputElement>("new-paginated");
 
 // Format is a read-only label for the active document: it is determined by the file's
 // content/extension on open, or chosen up front in the New dialog. Switching the format
@@ -304,6 +308,8 @@ interface MountOpts {
   recovered?: boolean;
   /** A view switch within the same document (keeps other editors alive for undo). */
   isSwitch?: boolean;
+  /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
+  docOptions?: { paginated?: boolean };
 }
 
 async function mountDoc(opts: MountOpts): Promise<void> {
@@ -431,6 +437,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       model,
       format: formatModule,
       view: chosen.view,
+      docOptions: opts.docOptions,
       onChange: () => {
         if (!session) return;
         session.dirty = session.binary
@@ -788,7 +795,11 @@ function buildNewFormatOptions(): NewFormatOption[] {
     seen.add(id);
     opts.push({ id, label: id, ext: exts.join(" "), search: `${id} ${exts.join(" ")}`.toLowerCase() });
   };
-  for (const f of FORMATS) if (!f.manifest.binary) add(f.manifest.id, f.manifest.extensions ?? []);
+  const creatableBinary = BLANK_BINARY_FORMATS as readonly string[];
+  for (const f of FORMATS) {
+    if (f.manifest.binary && !creatableBinary.includes(f.manifest.id)) continue; // binary needs a blank template
+    add(f.manifest.id, f.manifest.extensions ?? []);
+  }
   for (const f of TEXT_FORMAT_TABLE) add(f.id, f.exts);
   const [plain, ...rest] = opts;
   rest.sort((a, b) => a.label.localeCompare(b.label));
@@ -841,6 +852,12 @@ function pickNewFormat(o: NewFormatOption): void {
   newFormatInput.value = o.id ? `${o.label}${o.ext ? " " + o.ext.split(" ")[0] : ""}` : o.label;
   newFormatList.hidden = true;
   newFormatInput.setAttribute("aria-expanded", "false");
+  updateNewFormatOpts();
+}
+// Show the page-size / pagination options only for formats that have a page (docx/odt).
+function updateNewFormatOpts(): void {
+  const id = newFormatSelectedId ?? "";
+  newFormatOptsEl.hidden = !(PAPER_FORMATS as readonly string[]).includes(id);
 }
 const escapeText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -850,6 +867,11 @@ function openNewDialog(): void {
   newFormatInput.value = "";
   newFormatInput.placeholder = t("app.formatSearch");
   newFormatList.hidden = true;
+  // seed the per-document options from the global defaults
+  const s = getSettings();
+  newPaperSel.value = s.pageSize;
+  newPaginatedChk.checked = s.paginated;
+  newFormatOptsEl.hidden = true;
   newDlgEl.hidden = false;
   newFormatInput.focus();
   renderNewFormatList("");
@@ -860,15 +882,37 @@ function closeNewDialog(): void {
   newFormatList.hidden = true;
 }
 
-function createNewDocument(): void {
+async function createNewDocument(): Promise<void> {
   // If the user typed but did not click an option, take the highlighted match.
   const picked = activeOption();
   const formatId = newFormatSelectedId ?? picked?.id ?? null;
+  const descriptor = formatId ? engine.formats.byId(formatId) : null;
+  const paper = newPaperSel.value === "letter" ? "letter" : ("a4" as Paper);
+  const paginated = newPaginatedChk.checked;
   closeNewDialog();
   navStack.length = 0; // a new document is a fresh nav root
   updateBackBtn();
-  // Start blank documents in the text editor: structured surfaces (tree/table) error on
-  // empty content. The View switcher lets the user move to them once they have content.
+
+  // Binary formats (docx/odt/sheets/pdf) need a real blank file, opened in their editor.
+  if (descriptor?.manifest.binary && formatId) {
+    const bytes = await blankTemplate(formatId, paper);
+    if (!bytes) {
+      engine.notificationSink.error(t("notify.formatLoadFailed", { format: formatId }));
+      return;
+    }
+    void mountDoc({
+      binary: true,
+      bytes,
+      filename: null,
+      encoding: { label: "utf-8", bom: false },
+      formatId,
+      editorId: descriptor.manifest.defaultEditor ?? null,
+      docOptions: { paginated },
+    });
+    return;
+  }
+
+  // Text formats start blank in the text editor; the View switcher offers richer surfaces.
   void mountDoc({
     text: "",
     filename: null,
@@ -925,12 +969,13 @@ $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
 backBtn.addEventListener("click", () => void goBack());
 $("new-cancel").addEventListener("click", closeNewDialog);
-$("new-create").addEventListener("click", createNewDocument);
+$("new-create").addEventListener("click", () => void createNewDocument());
 newDlgEl.addEventListener("click", (e) => {
   if (e.target === newDlgEl) closeNewDialog(); // click the backdrop to dismiss
 });
 newFormatInput.addEventListener("input", () => {
   newFormatSelectedId = null; // typing invalidates a prior pick
+  updateNewFormatOpts();
   renderNewFormatList(newFormatInput.value);
 });
 newFormatInput.addEventListener("focus", () => renderNewFormatList(newFormatInput.value));
@@ -947,7 +992,7 @@ newFormatInput.addEventListener("keydown", (e) => {
     e.preventDefault();
     const opt = activeOption();
     if (opt && !newFormatList.hidden) pickNewFormat(opt);
-    createNewDocument();
+    void createNewDocument();
   } else if (e.key === "Escape") {
     if (!newFormatList.hidden) { newFormatList.hidden = true; e.stopPropagation(); }
   }

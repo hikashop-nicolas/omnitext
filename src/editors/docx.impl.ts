@@ -14,7 +14,7 @@ class DocxInstance implements EditorInstance {
       onChange: ctx.onChange,
       author: userName(),
       defaultPageSize: s.pageSize,
-      paginated: s.paginated,
+      paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
     });
   }
 

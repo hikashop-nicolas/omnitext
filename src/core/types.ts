@@ -157,6 +157,8 @@ export interface EditorMountContext {
   format: FormatModule | null;
   /** The view kind the resolver picked for this editor. */
   view: ViewKind;
+  /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
+  docOptions?: { paginated?: boolean };
   /** Editor calls this after a user edit so the host can mark dirty + autosave. */
   onChange(): void;
 }
