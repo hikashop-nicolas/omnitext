@@ -1,0 +1,320 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --chrome: #fbfbfd;
+  --surface: #f1f2f4;
+  --surface-hover: #e8eaed;
+  --border: #e4e6eb;
+  --text: #1c1e21;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --canvas: #ffffff;
+  --amber: #b45309;
+  --ok: #16a34a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --chrome: #161b22;
+    --surface: #21262d;
+    --surface-hover: #2b323b;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #6e7bff;
+    --accent-fg: #0b0e14;
+    --canvas: #282c34;
+    --amber: #e3a008;
+    --ok: #3fb950;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+#app { display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden; }
+
+/* Toolbar */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 2;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.015em;
+  user-select: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 8px;
+}
+.brand:hover { background: var(--surface); }
+.brand:focus-visible { outline: 2px solid var(--accent, #6e7bff); outline-offset: 1px; }
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(79, 70, 229, 0.4));
+}
+.sep { width: 1px; height: 22px; background: var(--border); }
+.group { display: flex; align-items: center; gap: 6px; }
+.spacer { flex: 1; }
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.04s;
+}
+.btn:hover { background: var(--surface-hover); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+/* Icon-only buttons: fixed size regardless of language (label is in title/aria-label). */
+.btn svg { display: block; width: 17px; height: 17px; }
+.btn.icon { padding: 6px 9px; }
+
+.doc { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#filename {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+/* Save-state dot: green when saved, orange when there are unsaved changes.
+   Tappable to show a tooltip (the old "(modified)" text was hard to see on phones). */
+.dirty {
+  width: 11px; height: 11px; flex: none; padding: 0; border: 0; border-radius: 50%;
+  background: var(--ok); cursor: pointer; box-shadow: 0 0 0 2px var(--chrome);
+}
+.dirty.is-modified { background: var(--amber); }
+.dirty:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ot-tip {
+  position: fixed; z-index: 20; pointer-events: none; white-space: nowrap;
+  background: var(--text); color: var(--bg); font-size: 12px;
+  padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.ot-tip[hidden] { display: none; }
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.field select {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 26px 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.field select:hover { background-color: var(--surface-hover); }
+
+.pill {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Editor */
+#editor { flex: 1; min-height: 0; overflow: hidden; background: var(--canvas); }
+.cm-editor { height: 100%; }
+.cm-editor.cm-focused { outline: none; }
+
+/* Status bar */
+#status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  background: var(--chrome);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+#status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* View switcher: an eye button pinned bottom-right, always visible (desktop + mobile).
+   With two views a click toggles directly; with more it opens a popover. */
+.status-view {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  font: inherit; font-size: 12px; color: var(--text);
+  padding: 3px 9px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); cursor: pointer; max-width: 45vw;
+}
+.status-view[hidden] { display: none; }
+.status-view:hover { background: var(--surface-hover); }
+.status-view svg { width: 15px; height: 15px; display: block; flex: none; }
+#view-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-pop {
+  position: fixed; z-index: 20; background: var(--chrome); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  display: flex; flex-direction: column; min-width: 130px;
+}
+.view-pop[hidden] { display: none; }
+.view-pop button {
+  font: inherit; font-size: 13px; text-align: left; background: transparent; color: var(--text);
+  border: 0; border-radius: 5px; padding: 7px 11px; cursor: pointer;
+}
+.view-pop button:hover { background: var(--surface); }
+.view-pop button.is-current { color: var(--accent); font-weight: 600; }
+
+/* Side panel (tool UI: history, etc.) */
+.panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 400px; max-width: 92vw;
+  display: flex; flex-direction: column;
+  background: var(--chrome);
+  border-left: 1px solid var(--border);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.18);
+  z-index: 5;
+}
+.panel[hidden] { display: none; }
+.panel-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+}
+.panel-title { font-weight: 600; flex: 1; }
+#panel-close {
+  border: 0; background: transparent; color: var(--muted);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: 5px;
+}
+#panel-close:hover { background: var(--surface); color: var(--text); }
+.panel-body { flex: 1; overflow: auto; padding: 12px 14px; }
+
+/* Modal (New document) */
+.modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+.modal[hidden] { display: none; }
+.modal-card {
+  width: 320px; max-width: 92vw;
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.32);
+}
+.modal-title { margin: 0 0 14px; font-size: 15px; }
+/* Filterable format picker (type to filter, choose from the dropdown below) */
+.combobox-label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text); }
+.combobox { position: relative; margin-bottom: 18px; }
+.combobox input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 13px;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--surface); color: var(--text);
+}
+.combobox-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+  max-height: 240px; overflow-y: auto; margin: 0; padding: 4px; list-style: none;
+  background: var(--chrome); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+.combobox-list[hidden] { display: none; }
+.combobox-list li { padding: 6px 9px; border-radius: 5px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.combobox-list li .opt-ext { color: var(--muted, #8b949e); font-size: 12px; margin-left: 6px; }
+.combobox-list li.active, .combobox-list li:hover { background: var(--accent, #6e7bff); color: #fff; }
+.combobox-list li.active .opt-ext, .combobox-list li:hover .opt-ext { color: #e8e8ff; }
+.combobox-empty { color: var(--muted, #8b949e); cursor: default; }
+#new-format-opts .new-opt-select {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; margin-bottom: 10px;
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text);
+}
+.modal-field {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 18px; color: var(--text);
+}
+.modal-field input {
+  flex: 1;
+  font: inherit; font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+}
+.modal-check { justify-content: flex-start; }
+.modal-check input { flex: 0 0 auto; width: auto; padding: 0; border: none; background: none; }
+.modal-hint { margin: -10px 0 16px; font-size: 12px; color: var(--muted, #8b949e); }
+.modal-field select {
+  flex: 1;
+  font: inherit; font-size: 13px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b949e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 560px) {
+  .pill { display: none; }
+  /* Hide the Format / View group on phones: it overflows the toolbar off-screen. */
+  .field { display: none; }
+  #filename { max-width: 110px; }
+}

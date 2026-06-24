@@ -1,3 +1,4 @@
+import "./app.css";
 import { gunzipSync } from "fflate";
 import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
