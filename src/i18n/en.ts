@@ -18,6 +18,8 @@ const en: Dict = {
     history: "History",
     newDocument: "New document",
     plainTextOption: "Plain text",
+    formatSearch: "Search formats…",
+    noMatches: "No matching format",
     cancel: "Cancel",
     create: "Create",
     settings: "Settings",

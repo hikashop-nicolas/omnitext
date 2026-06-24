@@ -266,6 +266,26 @@
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.32);
       }
       .modal-title { margin: 0 0 14px; font-size: 15px; }
+      /* Filterable format picker (type to filter, choose from the dropdown below) */
+      .combobox-label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text); }
+      .combobox { position: relative; margin-bottom: 18px; }
+      .combobox input {
+        width: 100%; box-sizing: border-box; font: inherit; font-size: 13px;
+        padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px;
+        background: var(--surface); color: var(--text);
+      }
+      .combobox-list {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+        max-height: 240px; overflow-y: auto; margin: 0; padding: 4px; list-style: none;
+        background: var(--chrome); border: 1px solid var(--border); border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+      }
+      .combobox-list[hidden] { display: none; }
+      .combobox-list li { padding: 6px 9px; border-radius: 5px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+      .combobox-list li .opt-ext { color: var(--muted, #8b949e); font-size: 12px; margin-left: 6px; }
+      .combobox-list li.active, .combobox-list li:hover { background: var(--accent, #6e7bff); color: #fff; }
+      .combobox-list li.active .opt-ext, .combobox-list li:hover .opt-ext { color: #e8e8ff; }
+      .combobox-empty { color: var(--muted, #8b949e); cursor: default; }
       .modal-field {
         display: flex; align-items: center; gap: 8px;
         margin-bottom: 18px; color: var(--text);
@@ -363,7 +383,11 @@
       <div id="newdlg" class="modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newdlg-title">
           <h2 id="newdlg-title" class="modal-title" data-i18n="app.newDocument">New document</h2>
-          <label class="modal-field"><span data-i18n="app.format">Format</span> <select id="new-format"></select></label>
+          <label class="combobox-label" for="new-format-input" data-i18n="app.format">Format</label>
+          <div class="combobox" id="new-format-combo">
+            <input id="new-format-input" type="text" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="new-format-list" data-i18n-placeholder="app.formatSearch" placeholder="Search formats…" />
+            <ul id="new-format-list" class="combobox-list" role="listbox" hidden></ul>
+          </div>
           <div class="modal-actions">
             <button id="new-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
             <button id="new-create" class="btn btn-primary" type="button" data-i18n="app.create">Create</button>

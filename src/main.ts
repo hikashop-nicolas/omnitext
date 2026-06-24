@@ -47,7 +47,7 @@ import { svgEditor } from "./editors/svgeditor";
 import { latexFormat } from "./formats/latex";
 import { svgFormat } from "./formats/svg";
 import { historyTool } from "./tools/history";
-import { makeTextFormats } from "./formats/codemirror-formats";
+import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
 import {
   GENERIC_ARCHIVE,
   GENERIC_BINARY,
@@ -251,7 +251,8 @@ const panelEl = $("panel");
 const panelTitleEl = $("panel-title");
 const panelBodyEl = $("panel-body");
 const newDlgEl = $("newdlg");
-const newFormatSel = $<HTMLSelectElement>("new-format");
+const newFormatInput = $<HTMLInputElement>("new-format-input");
+const newFormatList = $<HTMLUListElement>("new-format-list");
 
 // Format is a read-only label for the active document: it is determined by the file's
 // content/extension on open, or chosen up front in the New dialog. Switching the format
@@ -771,29 +772,98 @@ async function goBack(): Promise<void> {
 
 // --- new document (format chosen up front) -----------------------------------
 
-function populateNewFormatSelect(): void {
-  newFormatSel.innerHTML = "";
-  newFormatSel.add(new Option(t("app.plainTextOption"), ""));
-  // Only text-based formats can be created blank; binary formats need real file bytes.
-  for (const f of FORMATS) {
-    if (f.manifest.binary) continue;
-    newFormatSel.add(new Option(f.manifest.id, f.manifest.id));
-  }
-  newFormatSel.value = "";
+// All formats that can be created blank: the curated text/data formats plus the long tail
+// of CodeMirror text formats. Binary formats need real file bytes, so they are excluded.
+interface NewFormatOption {
+  id: string | null;
+  label: string;
+  ext: string;
+  search: string;
+}
+function buildNewFormatOptions(): NewFormatOption[] {
+  const opts: NewFormatOption[] = [{ id: null, label: t("app.plainTextOption"), ext: ".txt", search: "plain text txt" }];
+  const seen = new Set<string>();
+  const add = (id: string, exts: readonly string[]): void => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    opts.push({ id, label: id, ext: exts.join(" "), search: `${id} ${exts.join(" ")}`.toLowerCase() });
+  };
+  for (const f of FORMATS) if (!f.manifest.binary) add(f.manifest.id, f.manifest.extensions ?? []);
+  for (const f of TEXT_FORMAT_TABLE) add(f.id, f.exts);
+  const [plain, ...rest] = opts;
+  rest.sort((a, b) => a.label.localeCompare(b.label));
+  return [plain!, ...rest];
 }
 
+let newFormatOpts: NewFormatOption[] = [];
+let newFormatSelectedId: string | null = null;
+let newFormatActive = -1; // highlighted index in the rendered list
+
+function renderNewFormatList(query: string): void {
+  const q = query.trim().toLowerCase();
+  const matches = q ? newFormatOpts.filter((o) => o.search.includes(q)) : newFormatOpts;
+  newFormatList.innerHTML = "";
+  if (!matches.length) {
+    const li = document.createElement("li");
+    li.className = "combobox-empty";
+    li.textContent = t("app.noMatches");
+    newFormatList.appendChild(li);
+  } else {
+    matches.forEach((o, i) => {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.dataset.id = o.id ?? "";
+      li.dataset.idx = String(i);
+      li.innerHTML = `${escapeText(o.label)}${o.ext ? `<span class="opt-ext">${escapeText(o.ext)}</span>` : ""}`;
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault(); // keep focus in the input
+        pickNewFormat(o);
+      });
+      newFormatList.appendChild(li);
+    });
+  }
+  newFormatActive = matches.length ? 0 : -1;
+  highlightNewFormat();
+  newFormatList.hidden = false;
+  newFormatInput.setAttribute("aria-expanded", "true");
+}
+function highlightNewFormat(): void {
+  Array.from(newFormatList.children).forEach((li, i) => li.classList.toggle("active", i === newFormatActive));
+  if (newFormatActive >= 0) (newFormatList.children[newFormatActive] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
+}
+function activeOption(): NewFormatOption | null {
+  const q = newFormatInput.value.trim().toLowerCase();
+  const matches = q ? newFormatOpts.filter((o) => o.search.includes(q)) : newFormatOpts;
+  return newFormatActive >= 0 ? matches[newFormatActive] ?? null : null;
+}
+function pickNewFormat(o: NewFormatOption): void {
+  newFormatSelectedId = o.id;
+  newFormatInput.value = o.id ? `${o.label}${o.ext ? " " + o.ext.split(" ")[0] : ""}` : o.label;
+  newFormatList.hidden = true;
+  newFormatInput.setAttribute("aria-expanded", "false");
+}
+const escapeText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function openNewDialog(): void {
-  populateNewFormatSelect();
+  newFormatOpts = buildNewFormatOptions();
+  newFormatSelectedId = null;
+  newFormatInput.value = "";
+  newFormatInput.placeholder = t("app.formatSearch");
+  newFormatList.hidden = true;
   newDlgEl.hidden = false;
-  newFormatSel.focus();
+  newFormatInput.focus();
+  renderNewFormatList("");
 }
 
 function closeNewDialog(): void {
   newDlgEl.hidden = true;
+  newFormatList.hidden = true;
 }
 
 function createNewDocument(): void {
-  const formatId = newFormatSel.value || null;
+  // If the user typed but did not click an option, take the highlighted match.
+  const picked = activeOption();
+  const formatId = newFormatSelectedId ?? picked?.id ?? null;
   closeNewDialog();
   navStack.length = 0; // a new document is a fresh nav root
   updateBackBtn();
@@ -859,8 +929,28 @@ $("new-create").addEventListener("click", createNewDocument);
 newDlgEl.addEventListener("click", (e) => {
   if (e.target === newDlgEl) closeNewDialog(); // click the backdrop to dismiss
 });
-newFormatSel.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") createNewDocument();
+newFormatInput.addEventListener("input", () => {
+  newFormatSelectedId = null; // typing invalidates a prior pick
+  renderNewFormatList(newFormatInput.value);
+});
+newFormatInput.addEventListener("focus", () => renderNewFormatList(newFormatInput.value));
+newFormatInput.addEventListener("keydown", (e) => {
+  const count = newFormatList.children.length;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (newFormatList.hidden) renderNewFormatList(newFormatInput.value);
+    else if (count) { newFormatActive = (newFormatActive + 1) % count; highlightNewFormat(); }
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (count) { newFormatActive = (newFormatActive - 1 + count) % count; highlightNewFormat(); }
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const opt = activeOption();
+    if (opt && !newFormatList.hidden) pickNewFormat(opt);
+    createNewDocument();
+  } else if (e.key === "Escape") {
+    if (!newFormatList.hidden) { newFormatList.hidden = true; e.stopPropagation(); }
+  }
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
