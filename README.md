@@ -4,8 +4,8 @@ A browser-only, **open-anything** text & document editor. It runs entirely clien
 backend, no login, no upload — and is published as a static site on GitHub Pages. The editing
 surface adapts to the file: code in a code editor, CSV in a grid, JSON as a tree, HTML/Markdown
 as rich text, LaTeX with a live preview, SVG in a vector editor, PDF / DOCX / ODT / spreadsheets
-in dedicated in-browser editors, raster images in an image editor, and RTF, audio/video and
-archives in viewers. The interface is multilingual and auto-detects your language.
+in dedicated in-browser editors, and RTF, images, audio/video and archives in viewers — with an
+opt-in raster image editor. The interface is multilingual and auto-detects your language.
 
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
@@ -44,10 +44,10 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
   re-encodes the raster (an animated GIF flattens to one frame).
-- **Viewers** (read-only): **audio & video**
-  (HTML5), and **archives** — `.zip`/`.jar`/`.cbz`, `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where
-  you can browse entries, open one inside Omnitext, extract it, or edit it and save it back
-  into the archive. Anything else opens in a **hex** view, so no file ever fails to open.
+- **Viewers** (read-only): **audio & video** (HTML5) and **archives** — `.zip`/`.jar`/`.cbz`,
+  `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
+  extract it, or edit it and save it back into the archive. Anything else opens in a **hex**
+  view, so no file ever fails to open.
 - **Multilingual**: the UI auto-detects your language (English + French today; adding one is a
   single file), and each editor library translates its own UI independently.
 - **Tools**: version **history** with diff.
@@ -79,10 +79,12 @@ round-trip to a dedicated editor. The core imports no parser and no DOM editor w
 
 The binary-document editors live in their own MIT repos (pdfedit, docxedit, odtedit,
 sheetedit) and are consumed here as git dependencies, so each is reusable on its own.
-Read-only surfaces (preview, image/media/archive/hex viewers) carry a `readOnly` flag, so the
-app hides Save for them. Switching the View keeps the previous editor alive, so its undo
+Read-only surfaces (preview, rtf, image/media/archive/hex viewers) carry a `readOnly` flag, so
+the app hides Save for them. Switching the View keeps the previous editor alive, so its undo
 history survives a round-trip. Third-party editors are loaded on demand: [svgedit](https://github.com/SVG-Edit/svgedit)
-for SVG and [latex.js](https://github.com/michael-brade/LaTeX.js) for the LaTeX preview;
+for SVG, [latex.js](https://github.com/michael-brade/LaTeX.js) for the LaTeX preview,
+[rtf.js](https://github.com/tbluemel/rtf.js) for RTF rendering, and
+[Filerobot](https://github.com/scaleflex/filerobot-image-editor) for image editing;
 archives use [fflate](https://github.com/101arrowz/fflate) plus a small built-in tar codec.
 
 ## Scripts
