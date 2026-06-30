@@ -10,6 +10,7 @@ import { milkdownEditor } from "./editors/milkdown";
 import { docxEditor } from "./editors/docx";
 import { odtEditor } from "./editors/odt";
 import { pdfEditor } from "./editors/pdf";
+import { rtfEditor } from "./editors/rtf";
 import { previewEditor } from "./editors/preview";
 import { quillEditor } from "./editors/quill";
 import { sheetEditor } from "./editors/sheet";
@@ -35,6 +36,7 @@ import { tomlFormat } from "./formats/toml";
 import { tsvFormat } from "./formats/tsv";
 import { typescriptFormat } from "./formats/typescript";
 import { pdfFormat } from "./formats/pdf";
+import { rtfFormat } from "./formats/rtf";
 import { xlsFormat } from "./formats/xls";
 import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
@@ -91,6 +93,7 @@ engine.registerEditor(treeEditor);
 engine.registerEditor(milkdownEditor);
 engine.registerEditor(quillEditor);
 engine.registerEditor(pdfEditor);
+engine.registerEditor(rtfEditor);
 engine.registerEditor(odtEditor);
 engine.registerEditor(docxEditor);
 engine.registerEditor(sheetEditor);
@@ -109,6 +112,7 @@ const FORMATS: FormatDescriptor[] = [
   xlsxFormat,
   xlsFormat,
   pdfFormat,
+  rtfFormat,
   odtFormat,
   docxFormat,
   odsFormat,

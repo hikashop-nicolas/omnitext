@@ -66,6 +66,7 @@
     "pdfjs-dist": "^6.0.227",
     "quill": "^2.0.3",
     "richdoc": "github:hikashop-nicolas/richdoc",
+    "rtf.js": "^3.0.9",
     "sheetedit": "github:hikashop-nicolas/sheetedit",
     "svgedit": "^7.4.1",
     "toml": "^4.1.1",

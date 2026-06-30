@@ -53,6 +53,7 @@ const en: Dict = {
       milkdown: "Rich",
       quill: "WYSIWYG",
       pdf: "PDF",
+      rtf: "RTF",
       sheet: "Sheet",
       odt: "ODT",
       docx: "DOCX",
