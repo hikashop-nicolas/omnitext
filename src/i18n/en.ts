@@ -60,6 +60,7 @@ const en: Dict = {
       svgeditor: "SVG",
       latexpreview: "LaTeX",
       image: "Image",
+      imageedit: "Image editor",
       media: "Media",
       archive: "Archive",
     },

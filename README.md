@@ -4,8 +4,8 @@ A browser-only, **open-anything** text & document editor. It runs entirely clien
 backend, no login, no upload — and is published as a static site on GitHub Pages. The editing
 surface adapts to the file: code in a code editor, CSV in a grid, JSON as a tree, HTML/Markdown
 as rich text, LaTeX with a live preview, SVG in a vector editor, PDF / DOCX / ODT / spreadsheets
-in dedicated in-browser editors, and RTF, images, audio/video and archives in viewers. The
-interface is multilingual and auto-detects your language.
+in dedicated in-browser editors, raster images in an image editor, and RTF, audio/video and
+archives in viewers. The interface is multilingual and auto-detects your language.
 
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
@@ -40,7 +40,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   - legacy **XLS** via a SheetJS-backed grid
 - **RTF** — Rich Text Format documents rendered read-only via
   [rtf.js](https://github.com/tbluemel/rtf.js) (view only, no editing).
-- **Viewers** (read-only): **images** (PNG/JPG/GIF/WebP/AVIF/BMP/ICO), **audio & video**
+- **Images** (PNG/JPG/GIF/WebP/AVIF/BMP/ICO) — shown in a read-only viewer by default; switch
+  to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
+  crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
+  re-encodes the raster (an animated GIF flattens to one frame).
+- **Viewers** (read-only): **audio & video**
   (HTML5), and **archives** — `.zip`/`.jar`/`.cbz`, `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where
   you can browse entries, open one inside Omnitext, extract it, or edit it and save it back
   into the archive. Anything else opens in a **hex** view, so no file ever fails to open.
@@ -96,8 +100,8 @@ npm run build      # typecheck + production build into dist/
 src/core/      engine, event bus, registries, editor resolution, host types, encoding,
                session store, archive + tar codec
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
-               odt, sheet, svgeditor, latexpreview) and read-only viewers (rtf, image, media,
-               archive, binary/hex)
+               odt, sheet, svgeditor, latexpreview, filerobot image editor) and read-only
+               viewers (rtf, image, media, archive, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, pdf/docx/odt/xlsx/ods/xls, rtf, the
                codemirror-formats long-tail table, and binary-viewers for images/media/archives)

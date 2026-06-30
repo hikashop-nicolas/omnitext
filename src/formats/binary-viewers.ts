@@ -56,6 +56,9 @@ function descriptor(id: string, exts: string[], mime: string, viewer: string): F
       mimeTypes: [mime],
       binary: true,
       nativeEditor: viewer,
+      // Images also offer the raster image editor (Filerobot) as an opt-in alternative in the
+      // switcher; the read-only viewer stays the default (no defaultEditor override).
+      viewAdapters: viewer === "image" ? ["image"] : undefined,
     },
     detect: () => 0,
     load: () => Promise.resolve(viewerModule()),
