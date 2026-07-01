@@ -184,6 +184,7 @@ interface Session {
   lastSavedText: string;
   dirty: boolean;
   binary: boolean;
+  mime: string | null;
   readOnly: boolean;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
@@ -433,6 +434,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     lastSavedText: binary ? "" : text,
     dirty: false,
     binary,
+    mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0] ?? null,
     readOnly: !!chosen.editor.manifest.readOnly,
   };
 
@@ -940,8 +942,11 @@ async function createNewDocument(): Promise<void> {
 async function changeEditor(editorId: string): Promise<void> {
   if (!session?.editor || editorId === session.editorId) return;
   // Switch protocol: serialize current model to canonical text, then remount. The
-  // hook lets future tools veto or warn on a lossy hand-off.
+  // hook lets future tools veto or warn on a lossy hand-off. Binary formats have no text,
+  // so carry the current bytes across the switch (e.g. image viewer -> image editor);
+  // otherwise the new editor receives no image and fails to load.
   const text = session.editor.getText();
+  const switchBytes = session.binary ? ((await session.editor.getBytes?.()) ?? null) : null;
   const prevSaved = session.lastSavedText; // keep the on-disk baseline across the switch
   const prevArchive = session.archive; // keep the archive write-back context across the switch
   const ctx = await engine.events.runHook("willChangeEditor", {
@@ -956,6 +961,9 @@ async function changeEditor(editorId: string): Promise<void> {
   }
   await mountDoc({
     text,
+    bytes: switchBytes,
+    binary: session.binary,
+    mime: session.mime,
     filename: session.filename,
     encoding: session.encoding,
     uri: session.uri,
