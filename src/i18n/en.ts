@@ -15,6 +15,7 @@ const en: Dict = {
     view: "View",
     plainText: "plain text",
     close: "Close",
+    skipToContent: "Skip to content",
     history: "History",
     newDocument: "New document",
     plainTextOption: "Plain text",

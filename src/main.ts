@@ -1174,10 +1174,11 @@ viewBtn.addEventListener("click", () => {
   }
 });
 
-// Tapping the save-state dot shows its meaning as a brief tooltip (touch has no hover).
+// Show the save-state dot's meaning as a brief tooltip: on tap (touch has no hover) and on
+// keyboard focus (no hover either), so keyboard users get the same hint.
 let dirtyTip: HTMLElement | null = null;
 let dirtyTipTimer: ReturnType<typeof setTimeout> | undefined;
-dirtyEl.addEventListener("click", () => {
+const showDirtyTip = () => {
   if (!dirtyTip) {
     dirtyTip = document.createElement("div");
     dirtyTip.className = "ot-tip";
@@ -1192,7 +1193,14 @@ dirtyEl.addEventListener("click", () => {
   dirtyTipTimer = setTimeout(() => {
     if (dirtyTip) dirtyTip.hidden = true;
   }, 2200);
-});
+};
+const hideDirtyTip = () => {
+  clearTimeout(dirtyTipTimer);
+  if (dirtyTip) dirtyTip.hidden = true;
+};
+dirtyEl.addEventListener("click", showDirtyTip);
+dirtyEl.addEventListener("focus", showDirtyTip);
+dirtyEl.addEventListener("blur", hideDirtyTip);
 
 window.addEventListener("beforeunload", (e) => {
   if (session?.dirty) {

@@ -9,6 +9,7 @@
     <title>Omnitext</title>
   </head>
   <body>
+    <a href="#editor" class="skip-link" data-i18n="app.skipToContent">Skip to content</a>
     <div id="app">
       <header id="toolbar">
         <button class="brand" id="btn-settings" type="button" data-i18n-title="app.settings" title="Settings" data-i18n-aria="app.settings" aria-label="Settings" aria-haspopup="dialog">
@@ -46,7 +47,7 @@
         <span class="field"><span data-i18n="app.format">Format</span> <span id="format-label" class="pill"></span></span>
         <span id="reason" class="pill"></span>
       </header>
-      <main id="editor"></main>
+      <main id="editor" tabindex="-1"></main>
       <aside id="panel" class="panel" hidden>
         <div class="panel-header">
           <span id="panel-title" class="panel-title"></span>

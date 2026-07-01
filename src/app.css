@@ -319,6 +319,23 @@ body {
   #filename { max-width: 110px; }
 }
 
+/* Skip link: first tab stop, jumps focus to the editor; visible only when focused. */
+.skip-link {
+  position: fixed;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  text-decoration: none;
+  transition: top 0.12s;
+}
+.skip-link:focus { top: 8px; }
+#editor:focus { outline: none; } /* focused via the skip link; no ring around the whole editor */
+
 /* Visible keyboard focus for form controls and the remaining custom buttons. */
 input:focus-visible, select:focus-visible, textarea:focus-visible,
 .status-view:focus-visible, #panel-close:focus-visible, .view-pop button:focus-visible {
