@@ -20,6 +20,18 @@ const SAVED_TYPE_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
 };
 
+// Hide Filerobot's own Save (Omnitext's Save owns the write-back, reading the edited image
+// via getCurrentImgDataFnRef) and its Close "X" (a no-op here), so there is one Save button
+// and no dead control. Undo/redo/reset stay. Injected once.
+const STYLE_ID = "ot-filerobot-style";
+function ensureStyle(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const s = document.createElement("style");
+  s.id = STYLE_ID;
+  s.textContent = ".FIE_topbar-save-wrapper,.FIE_topbar-save-button,.FIE_topbar-close-button{display:none!important;}";
+  document.head.appendChild(s);
+}
+
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const comma = dataUrl.indexOf(",");
   const bin = atob(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
@@ -37,6 +49,7 @@ class FilerobotInstance implements EditorInstance {
   private original: Uint8Array = new Uint8Array();
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
+    ensureStyle();
     this.original = ctx.bytes ?? new Uint8Array();
     const mime = ctx.mime || "image/png";
     this.savedType = SAVED_TYPE_BY_MIME[mime] ?? "png";
