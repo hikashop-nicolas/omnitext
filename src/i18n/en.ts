@@ -16,6 +16,7 @@ const en: Dict = {
     plainText: "plain text",
     close: "Close",
     skipToContent: "Skip to content",
+    dropToOpen: "Drop a file to open",
     history: "History",
     newDocument: "New document",
     plainTextOption: "Plain text",

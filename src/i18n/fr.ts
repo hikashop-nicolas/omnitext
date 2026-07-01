@@ -16,6 +16,7 @@ const fr: Dict = {
     plainText: "texte brut",
     close: "Fermer",
     skipToContent: "Aller au contenu",
+    dropToOpen: "Déposez un fichier pour l'ouvrir",
     history: "Historique",
     newDocument: "Nouveau document",
     plainTextOption: "Texte brut",

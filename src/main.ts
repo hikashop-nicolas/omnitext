@@ -650,6 +650,38 @@ fileInput.addEventListener("change", async () => {
   fileInput.value = "";
 });
 
+// Drag-and-drop: dropping a file anywhere on the window opens it (the Open button remains the
+// keyboard path). Only file drags are intercepted, so dragging text within an editor is
+// unaffected. A depth counter tracks enter/leave across nested elements.
+const dropzoneEl = $("dropzone");
+let dragDepth = 0;
+const isFileDrag = (e: DragEvent): boolean => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
+window.addEventListener("dragenter", (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  dropzoneEl.classList.add("show");
+});
+window.addEventListener("dragover", (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+});
+window.addEventListener("dragleave", (e) => {
+  if (!isFileDrag(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropzoneEl.classList.remove("show");
+});
+window.addEventListener("drop", async (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  dropzoneEl.classList.remove("show");
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
+});
+
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
   if (session.archive) {

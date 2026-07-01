@@ -343,6 +343,29 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
   outline-offset: 1px;
 }
 
+/* File drag-and-drop overlay: shown only while a file is dragged over the window. */
+.dropzone {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+.dropzone.show { display: flex; }
+.dropzone-inner {
+  padding: 22px 30px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--chrome);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
 /* Notification toast: an assertive aria-live region, kept in the DOM (announces on change). */
 .toast {
   position: fixed;
