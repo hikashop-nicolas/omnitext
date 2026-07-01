@@ -56,8 +56,8 @@
       </aside>
       <footer id="status">
         <span class="status-dot"></span>
-        <span id="status-text">Ready. Your edits are kept on this device; use Save to write out the file.</span>
-        <button id="view-btn" class="status-view" type="button" data-i18n-title="app.view" title="View" aria-label="View" aria-haspopup="menu" hidden>
+        <span id="status-text" aria-live="polite">Ready. Your edits are kept on this device; use Save to write out the file.</span>
+        <button id="view-btn" class="status-view" type="button" data-i18n-title="app.view" title="View" aria-label="View" aria-haspopup="menu" aria-expanded="false" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
           <span id="view-label"></span>
         </button>
@@ -122,6 +122,7 @@
         </div>
       </div>
     </div>
+    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <input id="file-input" type="file" hidden />
     <script type="module" src="/src/main.ts"></script>
   </body>

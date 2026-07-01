@@ -318,3 +318,42 @@ body {
   .field { display: none; }
   #filename { max-width: 110px; }
 }
+
+/* Visible keyboard focus for form controls and the remaining custom buttons. */
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+.status-view:focus-visible, #panel-close:focus-visible, .view-pop button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Notification toast: an assertive aria-live region, kept in the DOM (announces on change). */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%) translateY(6px);
+  max-width: min(560px, 92vw);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { border-color: #e0484f; }
+.toast.warn { border-color: var(--amber); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

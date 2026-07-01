@@ -872,7 +872,21 @@ function updateNewFormatOpts(): void {
 }
 const escapeText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Modal focus management: remember what had focus, trap Tab inside the card, restore on close.
+let modalReturnFocus: HTMLElement | null = null;
+function trapModalTab(card: HTMLElement, e: KeyboardEvent): void {
+  if (e.key !== "Tab") return;
+  const f = [...card.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter((el) => el.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0]!;
+  const last = f[f.length - 1]!;
+  const a = document.activeElement;
+  if (e.shiftKey && (a === first || !card.contains(a))) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+}
+
 function openNewDialog(): void {
+  modalReturnFocus = document.activeElement as HTMLElement | null;
   newFormatOpts = buildNewFormatOptions();
   newFormatSelectedId = null;
   newFormatInput.value = "";
@@ -893,6 +907,8 @@ function openNewDialog(): void {
 function closeNewDialog(): void {
   newDlgEl.hidden = true;
   newFormatList.hidden = true;
+  modalReturnFocus?.focus();
+  modalReturnFocus = null;
 }
 
 async function createNewDocument(): Promise<void> {
@@ -985,6 +1001,34 @@ async function changeEditor(editorId: string): Promise<void> {
 
 // --- wire up -----------------------------------------------------------------
 
+// Surface notifications visibly (they previously only reached the console) in an assertive
+// aria-live region so errors are seen and announced by screen readers.
+const toastEl = $("toast");
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+function showToast(msg: string, kind: "info" | "warn" | "error"): void {
+  toastEl.textContent = msg;
+  toastEl.className = `toast show ${kind}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.className = "toast";
+    toastEl.textContent = "";
+  }, 5000);
+}
+engine.notificationSink = {
+  info: (m) => { console.info("[omnitext]", m); showToast(m, "info"); },
+  warn: (m) => { console.warn("[omnitext]", m); showToast(m, "warn"); },
+  error: (m) => { console.error("[omnitext]", m); showToast(m, "error"); },
+};
+
+// Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
+// "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).
+document.addEventListener("keydown", (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+  const k = e.key.toLowerCase();
+  if (k === "s") { e.preventDefault(); void saveFile(); }
+  else if (k === "o") { e.preventDefault(); void openFile(); }
+});
+
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
@@ -994,6 +1038,7 @@ $("new-create").addEventListener("click", () => void createNewDocument());
 newDlgEl.addEventListener("click", (e) => {
   if (e.target === newDlgEl) closeNewDialog(); // click the backdrop to dismiss
 });
+newDlgEl.addEventListener("keydown", (e) => trapModalTab(newDlgEl.querySelector(".modal-card") as HTMLElement, e));
 newFormatInput.addEventListener("input", () => {
   newFormatSelectedId = null; // typing invalidates a prior pick
   updateNewFormatOpts();
@@ -1028,6 +1073,7 @@ const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 function openSettings(): void {
+  modalReturnFocus = document.activeElement as HTMLElement | null;
   const s = getSettings();
   settingNameEl.value = s.name;
   settingPageSizeEl.value = s.pageSize;
@@ -1037,6 +1083,8 @@ function openSettings(): void {
 }
 function closeSettings(): void {
   settingsDlgEl.hidden = true;
+  modalReturnFocus?.focus();
+  modalReturnFocus = null;
 }
 function saveSettingsDialog(): void {
   saveSettings({
@@ -1052,6 +1100,7 @@ $("settings-save").addEventListener("click", saveSettingsDialog);
 settingsDlgEl.addEventListener("click", (e) => {
   if (e.target === settingsDlgEl) closeSettings();
 });
+settingsDlgEl.addEventListener("keydown", (e) => trapModalTab(settingsDlgEl.querySelector(".modal-card") as HTMLElement, e));
 settingNameEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") saveSettingsDialog();
 });
@@ -1061,10 +1110,12 @@ document.addEventListener("keydown", (e) => {
 // View switcher: with two views a click toggles to the other directly; with three or more
 // it opens a small popover. (One view hides the button entirely.)
 let viewPop: HTMLElement | null = null;
-function closeViewPop(): void {
+function closeViewPop(returnFocus = false): void {
   viewPop?.remove();
   viewPop = null;
+  viewBtn.setAttribute("aria-expanded", "false");
   document.removeEventListener("pointerdown", onViewOutside, true);
+  if (returnFocus) viewBtn.focus();
 }
 function onViewOutside(e: Event): void {
   const t2 = e.target as Node;
@@ -1072,28 +1123,45 @@ function onViewOutside(e: Event): void {
 }
 function openViewPopover(): void {
   if (viewPop) {
-    closeViewPop();
+    closeViewPop(true);
     return;
   }
   const pop = document.createElement("div");
   pop.className = "view-pop";
+  pop.setAttribute("role", "menu");
   for (const c of viewChoices) {
     const id = c.editor.manifest.id;
     const b = document.createElement("button");
     b.type = "button";
+    b.setAttribute("role", "menuitem");
     b.textContent = editorLabel(id);
-    if (id === session?.editorId) b.className = "is-current";
+    if (id === session?.editorId) {
+      b.className = "is-current";
+      b.setAttribute("aria-current", "true");
+    }
     b.addEventListener("click", () => {
-      closeViewPop();
+      closeViewPop(true);
       void changeEditor(id);
     });
     pop.appendChild(b);
   }
+  // Keyboard: arrows move between items, Home/End jump, Escape closes and returns focus.
+  pop.addEventListener("keydown", (e) => {
+    const items = [...pop.querySelectorAll<HTMLElement>("button")];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    else if (e.key === "Home") { e.preventDefault(); items[0]?.focus(); }
+    else if (e.key === "End") { e.preventDefault(); items[items.length - 1]?.focus(); }
+    else if (e.key === "Escape") { e.preventDefault(); closeViewPop(true); }
+  });
   document.body.appendChild(pop);
   viewPop = pop;
+  viewBtn.setAttribute("aria-expanded", "true");
   const r = viewBtn.getBoundingClientRect();
   pop.style.left = `${Math.round(Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))}px`;
   pop.style.top = `${Math.round(r.top - pop.offsetHeight - 6)}px`; // above the button
+  (pop.querySelector<HTMLElement>("button.is-current") ?? pop.querySelector<HTMLElement>("button"))?.focus();
   setTimeout(() => document.addEventListener("pointerdown", onViewOutside, true), 0);
 }
 viewBtn.addEventListener("click", () => {
@@ -1280,6 +1348,9 @@ const ui: UIContributions = {
 engine.workspace = workspace;
 engine.ui = ui;
 $("panel-close").addEventListener("click", () => ui.closePanels());
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !panelEl.hidden) ui.closePanels();
+});
 
 // --- startup: an "Open with" file, else crash recovery, else a blank doc ------
 
