@@ -397,3 +397,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+#filename { cursor: pointer; }
+#filename:hover { text-decoration: underline; }

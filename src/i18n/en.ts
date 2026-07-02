@@ -18,6 +18,8 @@ const en: Dict = {
     skipToContent: "Skip to content",
     dropToOpen: "Drop a file to open",
     discardConfirm: "This document has unsaved changes. Discard them?",
+    saveAsPrompt: "File name:",
+    renameTitle: "Rename",
     history: "History",
     newDocument: "New document",
     plainTextOption: "Plain text",

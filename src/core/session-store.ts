@@ -12,6 +12,10 @@ export interface DocSnapshot {
   text: string;
   encoding: TextEncoding;
   updatedAt: number;
+  /** Binary documents: the exported bytes (text is "" then). IndexedDB stores them natively. */
+  bytes?: Uint8Array;
+  binary?: boolean;
+  mime?: string | null;
 }
 
 const DB_NAME = "omnitext";

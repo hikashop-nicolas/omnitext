@@ -463,7 +463,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
         const live = liveEditors.get(session.editorId!);
         if (live && !session.binary) live.text = session.editor!.getText();
         updateUI();
-        if (!session.binary) scheduleAutosave();
+        scheduleAutosave();
         engine.events.emit("contentChanged", { sessionId: session.id });
       },
     });
@@ -481,25 +481,39 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   setStatus(opts.recovered ? t("status.recovered") : t("status.ready", { where }));
 }
 
-function snapshot(): DocSnapshot | null {
+async function snapshot(): Promise<DocSnapshot | null> {
   if (!session?.editor) return null;
-  return {
+  const base = {
     id: session.id,
     uri: session.uri,
     filename: session.filename,
     formatId: session.formatId,
-    text: session.editor.getText(),
     encoding: session.encoding,
     updatedAt: Date.now(),
   };
+  if (!session.binary) return { ...base, text: session.editor.getText() };
+  const bytes = await session.editor.getBytes?.();
+  if (!bytes) return null;
+  return { ...base, text: "", bytes, binary: true, mime: session.mime };
 }
 
+let autosaveBusy = false;
 function scheduleAutosave(): void {
   clearTimeout(autosaveTimer);
+  // Binary snapshots run the editor's full export; give them a longer debounce.
   autosaveTimer = setTimeout(() => {
-    const snap = snapshot();
-    if (snap) void store.save(snap).catch((e) => console.error("autosave failed", e));
-  }, 400);
+    if (autosaveBusy) {
+      scheduleAutosave(); // an export is still running; retry after another delay
+      return;
+    }
+    autosaveBusy = true;
+    void snapshot()
+      .then((snap) => (snap ? store.save(snap) : undefined))
+      .catch((e) => console.error("autosave failed", e))
+      .finally(() => {
+        autosaveBusy = false;
+      });
+  }, session?.binary ? 3000 : 400);
 }
 
 // --- open / save -------------------------------------------------------------
@@ -647,6 +661,37 @@ function confirmDiscard(): boolean {
   return window.confirm(t("app.discardConfirm"));
 }
 
+/** Default file name for an unnamed document: "untitled" + the format's extension. */
+function suggestedName(): string {
+  const d = session?.formatId ? engine.formats.byId(session.formatId) : null;
+  const ext = d?.manifest.extensions?.[0] ?? ".txt";
+  return `untitled${ext.startsWith(".") ? ext : `.${ext}`}`;
+}
+
+// Clicking the filename renames the document (archive entries keep their path).
+function renameDoc(): void {
+  if (!session || session.archive) return;
+  const current = session.gzipName ?? session.filename ?? "";
+  const input = window.prompt(t("app.saveAsPrompt"), current || suggestedName());
+  if (input === null) return;
+  const name = input.trim();
+  if (!name) return;
+  if (session.gzipName) {
+    // Renaming a gz-opened file: keep compressing when the new name stays .gz.
+    if (name.toLowerCase().endsWith(".gz")) {
+      session.gzipName = name;
+      session.filename = name.slice(0, -3);
+    } else {
+      session.gzipName = null;
+      session.filename = name;
+    }
+  } else {
+    session.filename = name;
+  }
+  updateUI();
+  scheduleAutosave();
+}
+
 async function openFile(): Promise<void> {
   if (!confirmDiscard()) return;
   if (window.showOpenFilePicker) {
@@ -730,7 +775,15 @@ async function saveFile(): Promise<void> {
     bytes = encodeText(savedText, session.encoding);
   }
 
-  let name = session.filename ?? "untitled.txt";
+  // A document that never had a name: ask for one (with the format's extension), so a
+  // new DOCX/XLSX/PDF doesn't download binary bytes as "untitled.txt".
+  if (!session.filename) {
+    const input = window.prompt(t("app.saveAsPrompt"), suggestedName());
+    if (input === null) return; // cancelled: don't save
+    session.filename = input.trim() || suggestedName();
+    updateUI();
+  }
+  let name = session.filename;
   if (session.gzipName) {
     // Opened from a gzip wrapper: write back compressed, under the original .gz name.
     bytes = gzipSync(bytes);
@@ -1099,6 +1152,13 @@ $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
 backBtn.addEventListener("click", () => void goBack());
+filenameEl.addEventListener("click", renameDoc);
+filenameEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    renameDoc();
+  }
+});
 $("new-cancel").addEventListener("click", closeNewDialog);
 $("new-create").addEventListener("click", () => void createNewDocument());
 newDlgEl.addEventListener("click", (e) => {
@@ -1464,7 +1524,19 @@ async function start(): Promise<void> {
   } catch (e) {
     console.error("recovery load failed", e);
   }
-  if (last?.text) {
+  if (last?.binary && last.bytes?.length) {
+    session = { id: last.id } as Session;
+    await mountDoc({
+      bytes: last.bytes,
+      binary: true,
+      filename: last.filename,
+      encoding: last.encoding,
+      uri: last.uri,
+      formatId: last.formatId,
+      mime: last.mime,
+      recovered: true,
+    });
+  } else if (last?.text) {
     session = { id: last.id } as Session;
     await mountDoc({
       text: last.text,

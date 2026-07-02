@@ -18,6 +18,8 @@ const fr: Dict = {
     skipToContent: "Aller au contenu",
     dropToOpen: "Déposez un fichier pour l'ouvrir",
     discardConfirm: "Ce document contient des modifications non enregistrées. Les abandonner ?",
+    saveAsPrompt: "Nom du fichier :",
+    renameTitle: "Renommer",
     history: "Historique",
     newDocument: "Nouveau document",
     plainTextOption: "Texte brut",
