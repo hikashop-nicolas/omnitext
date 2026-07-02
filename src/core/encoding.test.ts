@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decodeBytes, encodeText } from "./encoding";
+import { decodeBytes, encodeText, hasUtf16Bom } from "./encoding";
 
 function bytesOf(...nums: number[]): ArrayBuffer {
   return new Uint8Array(nums).buffer;
@@ -40,5 +40,14 @@ describe("encoding", () => {
     expect(d.text).toBe("a");
     expect(d.encoding.label).toBe("utf-16le");
     expect(d.lossyOnSave).toBe(true);
+  });
+
+  it("detects UTF-16 BOMs so the binary sniffer does not eat them", () => {
+    expect(hasUtf16Bom(bytesOf(0xff, 0xfe, 0x61, 0x00))).toBe(true); // LE
+    expect(hasUtf16Bom(bytesOf(0xfe, 0xff, 0x00, 0x61))).toBe(true); // BE
+    expect(hasUtf16Bom(bytesOf(0xef, 0xbb, 0xbf, 0x68))).toBe(false); // UTF-8 BOM
+    expect(hasUtf16Bom(bytesOf(0x00, 0x01, 0x02))).toBe(false); // binary
+    expect(hasUtf16Bom(bytesOf(0xff))).toBe(false); // too short
+    expect(hasUtf16Bom(bytesOf())).toBe(false); // empty
   });
 });

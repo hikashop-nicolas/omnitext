@@ -1,8 +1,8 @@
 import "./app.css";
-import { gunzipSync } from "fflate";
+import { gunzipSync, gzipSync } from "fflate";
 import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, encodeText } from "./core/encoding";
+import { decodeBytes, encodeText, hasUtf16Bom } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
@@ -186,6 +186,9 @@ interface Session {
   binary: boolean;
   mime: string | null;
   readOnly: boolean;
+  /** The original .gz filename when the document was opened from a gzip wrapper:
+      saving re-compresses and writes back under this name. */
+  gzipName: string | null;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
 }
@@ -315,6 +318,7 @@ interface MountOpts {
   formatId?: string | null;
   editorId?: string | null;
   mime?: string | null;
+  gzipName?: string | null;
   recovered?: boolean;
   /** A view switch within the same document (keeps other editors alive for undo). */
   isSwitch?: boolean;
@@ -436,6 +440,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     binary,
     mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0] ?? null,
     readOnly: !!chosen.editor.manifest.readOnly,
+    gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
   };
 
   if (mountEl) {
@@ -513,6 +518,7 @@ async function openBuffer(
   scheme: string,
   handle: FsHandle | null,
   mime?: string,
+  gzipName: string | null = null,
 ): Promise<void> {
   // Opening a fresh file (anything but drilling into an archive entry) is a new nav root.
   if (scheme !== "archive") {
@@ -536,12 +542,13 @@ async function openBuffer(
     return;
   }
   // A single gzip-compressed file (foo.json.gz): transparently decompress and open the inner
-  // file, so it lands in the right editor.
+  // file, so it lands in the right editor. The wrapper name (and handle) ride along so Save
+  // re-compresses and writes foo.json.gz back, instead of a plain foo.json.
   if (lower.endsWith(".gz")) {
     try {
       const inner = gunzipSync(new Uint8Array(buffer));
       const innerBuf = inner.buffer.slice(inner.byteOffset, inner.byteOffset + inner.byteLength) as ArrayBuffer;
-      await openBuffer(innerBuf, filename.slice(0, -3), scheme, null);
+      await openBuffer(innerBuf, filename.slice(0, -3), scheme, handle, undefined, filename);
       return;
     } catch (e) {
       console.error("gunzip failed", e);
@@ -559,6 +566,7 @@ async function openBuffer(
       uri: `${scheme}://${filename}`,
       fileHandle: handle,
       mime,
+      gzipName,
     });
     return;
   }
@@ -586,12 +594,14 @@ async function openBuffer(
       uri: `${scheme}://${filename}`,
       fileHandle: handle,
       mime,
+      gzipName,
     });
     return;
   }
   // Unknown type and the content looks binary (NUL / many control bytes): show the hex
-  // fallback rather than decoding it into garbage text.
-  if (looksBinary(buffer)) {
+  // fallback rather than decoding it into garbage text. UTF-16 text is full of NULs,
+  // so a BOM overrides the sniff and routes to the text decoder below.
+  if (!hasUtf16Bom(buffer) && looksBinary(buffer)) {
     await mountDoc({
       bytes: new Uint8Array(buffer),
       binary: true,
@@ -601,6 +611,7 @@ async function openBuffer(
       uri: `${scheme}://${filename}`,
       fileHandle: handle,
       mime,
+      gzipName,
     });
     return;
   }
@@ -611,6 +622,7 @@ async function openBuffer(
     encoding: decoded.encoding,
     uri: `${scheme}://${filename}`,
     fileHandle: handle,
+    gzipName,
   });
   if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
 }
@@ -628,7 +640,15 @@ function looksBinary(buffer: ArrayBuffer): boolean {
   return control / bytes.length > 0.1;
 }
 
+// Replacing the current document (Open / New / drop / Back) must not silently discard
+// unsaved edits; beforeunload only covers leaving the page.
+function confirmDiscard(): boolean {
+  if (!session?.dirty) return true;
+  return window.confirm(t("app.discardConfirm"));
+}
+
 async function openFile(): Promise<void> {
+  if (!confirmDiscard()) return;
   if (window.showOpenFilePicker) {
     try {
       const [handle] = await window.showOpenFilePicker();
@@ -679,6 +699,7 @@ window.addEventListener("drop", async (e) => {
   dropzoneEl.classList.remove("show");
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
+  if (!confirmDiscard()) return;
   await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
 });
 
@@ -709,7 +730,12 @@ async function saveFile(): Promise<void> {
     bytes = encodeText(savedText, session.encoding);
   }
 
-  const name = session.filename ?? "untitled.txt";
+  let name = session.filename ?? "untitled.txt";
+  if (session.gzipName) {
+    // Opened from a gzip wrapper: write back compressed, under the original .gz name.
+    bytes = gzipSync(bytes);
+    name = session.gzipName;
+  }
   const handle = session.fileHandle;
   try {
     if (isNative()) {
@@ -754,13 +780,19 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
   const entryBytes = session.binary
     ? ((await session.editor.getBytes?.()) ?? new Uint8Array())
     : encodeText(session.editor.getText(), session.encoding);
+  // A .gz entry was opened decompressed (openBuffer gunzips it): re-compress on the way
+  // back in. .tar.gz/.tgz entries open as whole archives and stay compressed throughout.
+  const entryData =
+    a.path.endsWith(".gz") && !a.path.endsWith(".tar.gz")
+      ? gzipSync(new Uint8Array(entryBytes))
+      : new Uint8Array(entryBytes);
   let newArchive: Uint8Array;
   try {
     const kind = detectArchiveKind(a.archiveBytes);
     const entries = readArchive(a.archiveBytes);
     const idx = entries.findIndex((e) => e.name === a.path);
-    if (idx >= 0) entries[idx]!.data = new Uint8Array(entryBytes);
-    else entries.push({ name: a.path, data: new Uint8Array(entryBytes) });
+    if (idx >= 0) entries[idx]!.data = entryData;
+    else entries.push({ name: a.path, data: entryData });
     newArchive = writeArchive(kind, entries);
   } catch (e) {
     console.error("re-pack archive failed", e);
@@ -794,6 +826,7 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
 
 // Return to the archive (or other document) the current entry was opened from.
 async function goBack(): Promise<void> {
+  if (!confirmDiscard()) return;
   const snap = navStack.pop();
   updateBackBtn();
   if (!snap) return;
@@ -944,6 +977,7 @@ function closeNewDialog(): void {
 }
 
 async function createNewDocument(): Promise<void> {
+  if (!confirmDiscard()) return;
   // If the user typed but did not click an option, take the highlighted match.
   const picked = activeOption();
   const formatId = newFormatSelectedId ?? picked?.id ?? null;

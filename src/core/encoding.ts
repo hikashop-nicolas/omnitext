@@ -12,6 +12,12 @@ export interface DecodedText {
   lossyOnSave: boolean;
 }
 
+/** UTF-16 BOM present: text despite the NUL bytes a binary sniffer would trip on. */
+export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
+  const b = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 2));
+  return b.length >= 2 && ((b[0] === 0xff && b[1] === 0xfe) || (b[0] === 0xfe && b[1] === 0xff));
+}
+
 export function decodeBytes(buffer: ArrayBuffer): DecodedText {
   const bytes = new Uint8Array(buffer);
 

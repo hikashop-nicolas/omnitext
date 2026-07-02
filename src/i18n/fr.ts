@@ -17,6 +17,7 @@ const fr: Dict = {
     close: "Fermer",
     skipToContent: "Aller au contenu",
     dropToOpen: "Déposez un fichier pour l'ouvrir",
+    discardConfirm: "Ce document contient des modifications non enregistrées. Les abandonner ?",
     history: "Historique",
     newDocument: "Nouveau document",
     plainTextOption: "Texte brut",
