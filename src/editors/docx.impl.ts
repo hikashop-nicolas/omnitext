@@ -1,5 +1,6 @@
 import { createDocxEditor, initLocale, type DocxEditor } from "richdoc";
-import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { t } from "../i18n";
 import { getSettings, userName } from "../settings";
 
 // Load the browser language once (a dynamic import of the matching richdoc locale chunk; only
@@ -13,6 +14,8 @@ class DocxInstance implements EditorInstance {
   private bytes: Uint8Array = new Uint8Array();
   private disposed = false;
 
+  constructor(private host: HostAPI) {}
+
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
     const s = getSettings();
@@ -24,6 +27,10 @@ class DocxInstance implements EditorInstance {
         defaultPageSize: s.pageSize,
         paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
       });
+    }).catch((e: unknown) => {
+      // An async construction failure is otherwise an unhandled rejection with a blank editor.
+      console.error("[omnitext] editor construction failed", e);
+      this.host.notifications.error(t("notify.readFailed", { what: "docx" }));
     });
   }
 
@@ -49,5 +56,5 @@ class DocxInstance implements EditorInstance {
 }
 
 export const docxEditor: EditorModule = {
-  create: () => new DocxInstance(),
+  create: (host) => new DocxInstance(host),
 };

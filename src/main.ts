@@ -320,6 +320,8 @@ interface MountOpts {
   mime?: string | null;
   gzipName?: string | null;
   recovered?: boolean;
+  /** Internal: this mount is already the safe fallback after a mount failure. */
+  fallbackMount?: boolean;
   /** A view switch within the same document (keeps other editors alive for undo). */
   isSwitch?: boolean;
   /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
@@ -445,7 +447,8 @@ async function mountDoc(opts: MountOpts): Promise<void> {
 
   if (mountEl) {
     liveEditors.set(targetId, { instance, el: mountEl, text });
-    instance.mount(mountEl, {
+    try {
+      instance.mount(mountEl, {
       text,
       bytes,
       binary,
@@ -467,6 +470,24 @@ async function mountDoc(opts: MountOpts): Promise<void> {
         engine.events.emit("contentChanged", { sessionId: session.id });
       },
     });
+    } catch (e) {
+      // A throwing editor must not wedge the app: tell the user and fall back to a
+      // safe surface (hex viewer for binary content, the text editor otherwise).
+      console.error("editor mount failed", e);
+      engine.notificationSink.error(t("notify.readFailed", { what: formatId ?? t("notify.documentWord") }));
+      try {
+        instance.dispose();
+      } catch {
+        /* ignore */
+      }
+      mountEl.remove();
+      liveEditors.delete(targetId);
+      if (!opts.fallbackMount) {
+        if (binary) await mountDoc({ ...opts, formatId: GENERIC_BINARY, editorId: null, fallbackMount: true });
+        else await mountDoc({ ...opts, editorId: "codemirror", fallbackMount: true });
+      }
+      return;
+    }
   }
   instance.focus();
 

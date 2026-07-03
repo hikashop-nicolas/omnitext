@@ -1,5 +1,6 @@
 import { createOdtEditor, initLocale, type OdtEditor } from "richdoc";
-import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { t } from "../i18n";
 import { getSettings } from "../settings";
 
 // Load the browser language once (a dynamic import of the matching richdoc locale chunk; only
@@ -13,6 +14,8 @@ class OdtInstance implements EditorInstance {
   private bytes: Uint8Array = new Uint8Array();
   private disposed = false;
 
+  constructor(private host: HostAPI) {}
+
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
     const s = getSettings();
@@ -23,6 +26,10 @@ class OdtInstance implements EditorInstance {
         defaultPageSize: s.pageSize,
         paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
       });
+    }).catch((e: unknown) => {
+      // An async construction failure is otherwise an unhandled rejection with a blank editor.
+      console.error("[omnitext] editor construction failed", e);
+      this.host.notifications.error(t("notify.readFailed", { what: "odt" }));
     });
   }
 
@@ -48,5 +55,5 @@ class OdtInstance implements EditorInstance {
 }
 
 export const odtEditor: EditorModule = {
-  create: () => new OdtInstance(),
+  create: (host) => new OdtInstance(host),
 };
