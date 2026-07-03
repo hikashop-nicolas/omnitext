@@ -95,6 +95,28 @@ moves here, with commits, so the reasoning is not lost.
   toolbars (richdoc pattern); the 2800-line index.ts split into
   model/xlsx/ods/recalc/workbook/editor/toolbar/formulabar modules.
 
+## Editing/robustness batch (2026-07-03)
+
+- sheetedit undo/redo (commit 29ede77): every action records the affected
+  cells' fields before/after (value edits via grid or formula bar, range
+  clears, TSV pastes, styles, borders, merges with structural inverses);
+  Ctrl/Cmd+Z / Shift+Z / Y plus toolbar buttons; bounded to 100 steps. Also
+  fixed a latent bug the tests exposed: a re-render while a cell input was
+  focused could fire a late blur on the stale element and commit its outdated
+  value over fresh state; commits are now guarded by input identity.
+- sheetedit floating style bar (commit 29ede77): bold/italic/colours/alignment
+  appear near the selection when the mouse approaches it (richdoc's float-bar
+  pattern), constrained to the grid area, disabled on touch devices.
+- omnitext encoding handling (commit 0a16662): strict UTF-8 with a
+  windows-1252 fallback ends the silent U+FFFD corruption of Latin-1/cp1252
+  files; a status-bar encoding pill shows the decode in use and re-decodes the
+  kept original bytes on demand (utf-8, windows-1252, iso-8859-15, shift_jis,
+  euc-jp, gbk, big5, windows-1251, koi8-r), guarded by the dirty confirm.
+- pdfedit lazy page rendering (commit 21396f8): page shells appear instantly
+  and content renders as pages approach the viewport; session-state indexes
+  became per-page (stable under lazy order) and restore force-renders the
+  pages it needs; overlay-font passes scoped and idempotent.
+
 ## Resolved per-repo findings (originally listed in the audit)
 
 - omnitext: UTF-16-to-hex-viewer routing; missing dirty guard on
@@ -111,4 +133,7 @@ moves here, with commits, so the reasoning is not lost.
   calcChain; ods regenerating every sheet's body (row attributes, header
   groups, covered-cell content, beyond-cap runs); raw errors on
   corrupt/encrypted files; chartsheet style crash; no arrow-key navigation; no
-  multi-cell copy/paste; no formula bar; monolithic single-file layout.
+  multi-cell copy/paste; no formula bar; monolithic single-file layout; no
+  undo/redo; no floating style bar.
+- omnitext: legacy encodings corrupting silently (no picker).
+- pdfedit: eager full-document rendering.
