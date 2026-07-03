@@ -42,6 +42,22 @@ describe("encoding", () => {
     expect(d.lossyOnSave).toBe(true);
   });
 
+  it("falls back to windows-1252 for invalid UTF-8 instead of corrupting", () => {
+    const d = decodeBytes(bytesOf(0x63, 0x61, 0x66, 0xe9)); // "café" in Latin-1
+    expect(d.text).toBe("caf\u00e9");
+    expect(d.encoding.label).toBe("windows-1252");
+    expect(d.lossyOnSave).toBe(true);
+  });
+
+  it("decodes with a forced encoding from the picker", () => {
+    const d = decodeBytes(bytesOf(0x82, 0xa0), "shift_jis"); // hiragana A
+    expect(d.text).toBe("\u3042");
+    expect(d.encoding.label).toBe("shift_jis");
+    expect(d.lossyOnSave).toBe(true);
+    const u = decodeBytes(new TextEncoder().encode("plain").buffer as ArrayBuffer, "utf-8");
+    expect(u.lossyOnSave).toBe(false);
+  });
+
   it("detects UTF-16 BOMs so the binary sniffer does not eat them", () => {
     expect(hasUtf16Bom(bytesOf(0xff, 0xfe, 0x61, 0x00))).toBe(true); // LE
     expect(hasUtf16Bom(bytesOf(0xfe, 0xff, 0x00, 0x61))).toBe(true); // BE

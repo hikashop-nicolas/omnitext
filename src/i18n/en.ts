@@ -20,6 +20,7 @@ const en: Dict = {
     discardConfirm: "This document has unsaved changes. Discard them?",
     saveAsPrompt: "File name:",
     renameTitle: "Rename",
+    encodingTitle: "Reopen with a different encoding",
     history: "History",
     newDocument: "New document",
     plainTextOption: "Plain text",

@@ -2,7 +2,7 @@ import "./app.css";
 import { gunzipSync, gzipSync } from "fflate";
 import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, encodeText, hasUtf16Bom } from "./core/encoding";
+import { decodeBytes, encodeText, hasUtf16Bom, ENCODINGS } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
@@ -189,6 +189,8 @@ interface Session {
   /** The original .gz filename when the document was opened from a gzip wrapper:
       saving re-compresses and writes back under this name. */
   gzipName: string | null;
+  /** Text documents: the original bytes, kept so "reopen with encoding" can re-decode. */
+  srcBytes: ArrayBuffer | null;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
 }
@@ -299,6 +301,12 @@ function updateUI(): void {
   dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
   setFormatLabel(session?.formatId ?? null);
   if (session?.editorId) viewLabelEl.textContent = editorLabel(session.editorId);
+  // Encoding pill: only for text documents whose original bytes are re-decodable.
+  const encEl = document.getElementById("enc-btn");
+  if (encEl) {
+    encEl.hidden = !session || session.binary || !session.srcBytes;
+    encEl.textContent = session?.encoding.label ?? "";
+  }
 }
 
 function setStatus(msg: string): void {
@@ -319,6 +327,7 @@ interface MountOpts {
   editorId?: string | null;
   mime?: string | null;
   gzipName?: string | null;
+  srcBytes?: ArrayBuffer | null;
   recovered?: boolean;
   /** Internal: this mount is already the safe fallback after a mount failure. */
   fallbackMount?: boolean;
@@ -443,6 +452,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0] ?? null,
     readOnly: !!chosen.editor.manifest.readOnly,
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
+    srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
   };
 
   if (mountEl) {
@@ -658,6 +668,7 @@ async function openBuffer(
     uri: `${scheme}://${filename}`,
     fileHandle: handle,
     gzipName,
+    srcBytes: buffer,
   });
   if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
 }
@@ -1173,6 +1184,61 @@ $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
 backBtn.addEventListener("click", () => void goBack());
+// --- encoding pill: shows the decode in use; click re-decodes the original bytes ----
+const encBtn = $("enc-btn");
+let encPop: HTMLElement | null = null;
+const closeEncPop = () => {
+  encPop?.remove();
+  encPop = null;
+};
+encBtn.addEventListener("click", () => {
+  if (encPop) {
+    closeEncPop();
+    return;
+  }
+  if (!session?.srcBytes || session.binary) return;
+  const pop = document.createElement("div");
+  pop.className = "view-pop";
+  for (const enc of ENCODINGS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = enc;
+    if (enc === session.encoding.label) b.setAttribute("aria-current", "true");
+    b.addEventListener("click", () => {
+      closeEncPop();
+      void reopenWithEncoding(enc);
+    });
+    pop.appendChild(b);
+  }
+  const r = encBtn.getBoundingClientRect();
+  pop.style.position = "fixed";
+  pop.style.left = `${r.left}px`;
+  pop.style.bottom = `${window.innerHeight - r.top + 4}px`;
+  document.body.appendChild(pop);
+  encPop = pop;
+  setTimeout(() => document.addEventListener("click", function once(e) {
+    if (!pop.contains(e.target as Node)) closeEncPop();
+    document.removeEventListener("click", once);
+  }), 0);
+});
+async function reopenWithEncoding(enc: string): Promise<void> {
+  if (!session?.srcBytes) return;
+  if (!confirmDiscard()) return; // re-decoding replaces any unsaved edits
+  const src = session.srcBytes;
+  const dec = decodeBytes(src, enc);
+  await mountDoc({
+    text: dec.text,
+    filename: session.filename,
+    encoding: dec.encoding,
+    uri: session.uri,
+    fileHandle: session.fileHandle,
+    formatId: session.formatId,
+    gzipName: session.gzipName,
+    srcBytes: src,
+  });
+  if (dec.lossyOnSave) setStatus(t("status.encodingUtf8"));
+}
+
 filenameEl.addEventListener("click", renameDoc);
 filenameEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {

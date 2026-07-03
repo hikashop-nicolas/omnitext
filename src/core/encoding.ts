@@ -18,8 +18,21 @@ export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
   return b.length >= 2 && ((b[0] === 0xff && b[1] === 0xfe) || (b[0] === 0xfe && b[1] === 0xff));
 }
 
-export function decodeBytes(buffer: ArrayBuffer): DecodedText {
+/** Encodings offered by the "reopen with encoding" picker (TextDecoder built-ins). */
+export const ENCODINGS = ["utf-8", "windows-1252", "iso-8859-15", "shift_jis", "euc-jp", "gbk", "big5", "windows-1251", "koi8-r"] as const;
+
+export function decodeBytes(buffer: ArrayBuffer, forced?: string): DecodedText {
   const bytes = new Uint8Array(buffer);
+
+  // An explicit pick from the encoding menu wins over detection.
+  if (forced) {
+    try {
+      const text = new TextDecoder(forced).decode(bytes);
+      return { text, encoding: { label: forced, bom: false }, lossyOnSave: forced !== "utf-8" };
+    } catch {
+      /* unknown codec: fall through to detection */
+    }
+  }
 
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     const text = new TextDecoder("utf-8").decode(bytes.subarray(3));
@@ -34,8 +47,15 @@ export function decodeBytes(buffer: ArrayBuffer): DecodedText {
     return { text, encoding: { label: "utf-16be", bom: true }, lossyOnSave: true };
   }
 
-  const text = new TextDecoder("utf-8").decode(bytes);
-  return { text, encoding: { label: "utf-8", bom: false }, lossyOnSave: false };
+  // Strict UTF-8 first; anything invalid falls back to windows-1252 (which cannot
+  // fail) instead of silently corrupting Latin-1/cp1252 text into U+FFFD.
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return { text, encoding: { label: "utf-8", bom: false }, lossyOnSave: false };
+  } catch {
+    const text = new TextDecoder("windows-1252").decode(bytes);
+    return { text, encoding: { label: "windows-1252", bom: false }, lossyOnSave: true };
+  }
 }
 
 export function encodeText(text: string, encoding: TextEncoding): Uint8Array {

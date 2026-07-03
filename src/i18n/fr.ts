@@ -20,6 +20,7 @@ const fr: Dict = {
     discardConfirm: "Ce document contient des modifications non enregistrées. Les abandonner ?",
     saveAsPrompt: "Nom du fichier :",
     renameTitle: "Renommer",
+    encodingTitle: "Rouvrir avec un autre encodage",
     history: "Historique",
     newDocument: "Nouveau document",
     plainTextOption: "Texte brut",
