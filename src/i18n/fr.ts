@@ -87,6 +87,7 @@ const fr: Dict = {
     cannotSave: "Ce document ne peut pas être enregistré.",
     saveFailed: "Impossible d'enregistrer le fichier.",
     documentWord: "document",
+    updateReady: "Une nouvelle version d'Omnitext est prête. Elle sera chargée à la prochaine ouverture de l'application.",
   },
   history: {
     title: "Historique des versions",

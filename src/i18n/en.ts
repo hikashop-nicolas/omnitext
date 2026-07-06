@@ -89,6 +89,7 @@ const en: Dict = {
     cannotSave: "This document can't be saved.",
     saveFailed: "Could not save the file.",
     documentWord: "document",
+    updateReady: "A new version of Omnitext is ready. It loads the next time you open the app.",
   },
   history: {
     title: "Version history",

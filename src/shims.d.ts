@@ -1,6 +1,15 @@
 // Side-effect CSS imports (Vite injects these at build time).
 declare module "*.css";
 
+// Vite build flags (tsconfig types has vitest/globals, not vite/client).
+interface ImportMetaEnv {
+  readonly PROD: boolean;
+  readonly DEV: boolean;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 // Vite "?url" imports return the asset URL as a string.
 declare module "*?url" {
   const url: string;

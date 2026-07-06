@@ -1640,3 +1640,20 @@ async function start(): Promise<void> {
 }
 
 void start();
+
+// PWA service worker: production web builds only. The Capacitor app ships its
+// assets locally and the dev server must never be cached.
+if (import.meta.env.PROD && !isNative() && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      const announce = (worker: ServiceWorker | null) => {
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller)
+            showToast(t("notify.updateReady"), "info");
+        });
+      };
+      announce(reg.installing);
+      reg.addEventListener("updatefound", () => announce(reg.installing));
+    }).catch((e) => console.warn("[omnitext] service worker registration failed", e));
+  });
+}
