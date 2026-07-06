@@ -117,6 +117,37 @@ moves here, with commits, so the reasoning is not lost.
   became per-page (stable under lazy order) and restore force-renders the
   pages it needs; overlay-font passes scoped and idempotent.
 
+## Undo/redo + PWA batch (2026-07-07)
+
+- omnitext PWA (commit 9f1fbe7): web app manifest (installable, standalone,
+  192/512 + maskable icons) and a build-generated service worker precaching the
+  whole dist under a content-digest cache name. Navigations stay network-first
+  (never re-cached, so a new index.html can't pair with old chunks); everything
+  else is cache-first. Ends the stale lazy-chunk 404s after a redeploy and makes
+  the app fully offline (verified: killed the server, app reloads and lazy
+  chunks serve from cache). Found and fixed en route: cache.put stores decoded
+  bodies with the network headers, and stale Content-Encoding / Vary: Origin
+  headers make Chrome reject entries for Vite's crossorigin-attributed
+  stylesheet/script tags; responses are stored sanitized.
+- pdfedit document-level undo/redo (commit e85d98b): a unified snapshot stack
+  covers typing, execCommand toggles, Range-surgery styling, alignment, text
+  boxes and images (native undo only ever covered the first two). Typing
+  coalesces per paragraph, image nudges per image; pristine overlay HTML is
+  captured while clean so undo returns paragraphs to unedited and resets
+  isDirty. Ctrl/Cmd+Z/Y + toolbar buttons + undo/redo/canUndo/canRedo API.
+  Also fixed: session state now records per-paragraph alignment (was lost on
+  getState/applyState round trips), and a blur-reentrancy crash when removing
+  a focused empty box (caught by the new e2e).
+- richdoc trustworthy undo/redo (commit 2bbc6d9): snapshot stack over the
+  logical body (cleanBody output, data-URL images interned into a shared pool),
+  restored wholesale with immediate reflow and caret re-placed by logical block
+  index through the pagination wrappers. Typing runs capture lazily (400ms
+  idle / focusout / discrete op), never mid-IME-composition; suggest-mode
+  typing coalesces too. Bands and notes keep native undo (Ctrl+Z only
+  intercepted inside the body). Toolbar buttons + RichEditor
+  undo/redo/canUndo/canRedo. Verified live on the two-column sample, where
+  repagination reparents blocks around every edit.
+
 ## Resolved per-repo findings (originally listed in the audit)
 
 - omnitext: UTF-16-to-hex-viewer routing; missing dirty guard on
@@ -135,5 +166,8 @@ moves here, with commits, so the reasoning is not lost.
   corrupt/encrypted files; chartsheet style crash; no arrow-key navigation; no
   multi-cell copy/paste; no formula bar; monolithic single-file layout; no
   undo/redo; no floating style bar.
-- omnitext: legacy encodings corrupting silently (no picker).
-- pdfedit: eager full-document rendering.
+- omnitext: legacy encodings corrupting silently (no picker); not a PWA (no
+  manifest/service worker, stale-chunk 404s after redeploys).
+- pdfedit: eager full-document rendering; undo/redo partial to absent.
+- richdoc: native undo invalidated by pagination reparenting and programmatic
+  mutations.
