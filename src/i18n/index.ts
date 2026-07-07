@@ -13,6 +13,7 @@ type Params = Record<string, string | number> & { count?: number };
 const REGISTRY: Record<string, () => Promise<{ default: Dict }>> = {
   en: () => Promise.resolve({ default: en }),
   fr: () => import("./fr"),
+  ja: () => import("./ja"),
 };
 
 let active: Dict = en;

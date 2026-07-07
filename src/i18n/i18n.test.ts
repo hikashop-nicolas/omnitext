@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { t } from "./index";
 import en from "./en";
 import fr from "./fr";
+import ja from "./ja";
 import type { Dict } from "./index";
 
 // Collect every dotted leaf key in a dict.
@@ -18,6 +19,10 @@ function keys(d: Dict, prefix = ""): string[] {
 describe("i18n", () => {
   it("fr has exactly the same keys as en (the canonical set)", () => {
     expect(keys(fr).sort()).toEqual(keys(en).sort());
+  });
+
+  it("ja has exactly the same keys as en (the canonical set)", () => {
+    expect(keys(ja).sort()).toEqual(keys(en).sort());
   });
 
   it("interpolates params and falls back to English / the key", () => {
