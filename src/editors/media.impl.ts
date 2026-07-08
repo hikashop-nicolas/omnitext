@@ -2,8 +2,10 @@ import type { EditorInstance, EditorModule, EditorMountContext } from "../core/t
 import { t } from "../i18n";
 
 // Read-only audio/video viewer. Plays the bytes via a blob URL in a <video> or <audio>
-// element (chosen by MIME). Codec support is whatever the platform WebView provides; an
-// unsupported file shows a clear message instead of a broken player.
+// element (chosen by MIME). Codec support is whatever the platform WebView provides; when
+// direct playback fails, the file is remuxed in memory (mediabunny, lazy chunk) into a
+// container the browser accepts — no re-encode, the document bytes stay untouched — and
+// only if that also fails does the clear "not supported" message show.
 // Player shortcuts: space/K play-pause, F fullscreen (video), M mute, arrows seek/volume,
 // Home/End jump; handled on the wrapper so they work wherever focus sits in the viewer.
 
@@ -25,6 +27,32 @@ function ensureStyles(): void {
 
 const SEEK_STEP = 5; // seconds
 const VOLUME_STEP = 0.05;
+
+/**
+ * Repackage the bytes into a browser-friendly container (stream copy where the codec is
+ * allowed in the target, WebCodecs transcode where the platform can decode but the copy
+ * isn't allowed). Returns null when no target container can represent the tracks.
+ */
+async function tryRemux(bytes: Uint8Array, isAudio: boolean): Promise<Blob | null> {
+  const mb = await import("mediabunny");
+  const targets = isAudio
+    ? [new mb.Mp4OutputFormat(), new mb.OggOutputFormat(), new mb.WavOutputFormat()]
+    : [new mb.Mp4OutputFormat(), new mb.WebMOutputFormat()];
+  for (const format of targets) {
+    try {
+      const input = new mb.Input({ source: new mb.BufferSource(bytes.slice().buffer), formats: mb.ALL_FORMATS });
+      const target = new mb.BufferTarget();
+      const output = new mb.Output({ format, target });
+      const conversion = await mb.Conversion.init({ input, output });
+      if (!conversion.isValid) continue;
+      await conversion.execute();
+      if (target.buffer) return new Blob([target.buffer], { type: format.mimeType });
+    } catch {
+      // try the next container
+    }
+  }
+  return null;
+}
 
 class MediaInstance implements EditorInstance {
   private wrap: HTMLElement | null = null;
@@ -48,12 +76,34 @@ class MediaInstance implements EditorInstance {
       const hint = t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys");
       m.title = hint;
       wrap.setAttribute("aria-label", hint);
-      m.addEventListener("error", () => {
+      const fail = () => {
         wrap.textContent = "";
         const d = document.createElement("div");
         d.className = "ot-media-msg";
         d.textContent = t("viewer.mediaUnsupported");
         wrap.appendChild(d);
+      };
+      let remuxed = false;
+      m.addEventListener("error", () => {
+        if (remuxed) return fail();
+        remuxed = true;
+        const note = document.createElement("div");
+        note.className = "ot-media-msg";
+        note.textContent = t("viewer.mediaConverting");
+        wrap.appendChild(note);
+        tryRemux(ctx.bytes!, isAudio).then(
+          (blob) => {
+            note.remove();
+            if (!blob) return fail();
+            if (this.url) URL.revokeObjectURL(this.url);
+            this.url = URL.createObjectURL(blob);
+            m.src = this.url; // a second error on the remuxed source falls through to fail()
+          },
+          () => {
+            note.remove();
+            fail();
+          },
+        );
       });
       wrap.addEventListener("keydown", (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;

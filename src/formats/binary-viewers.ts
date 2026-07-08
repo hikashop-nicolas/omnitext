@@ -23,17 +23,28 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "avif", exts: [".avif"], mime: "image/avif", viewer: "image" },
   { id: "bmp", exts: [".bmp"], mime: "image/bmp", viewer: "image" },
   { id: "icon", exts: [".ico"], mime: "image/x-icon", viewer: "image" },
-  // Video
+  // Video. Chrome/WebView play more containers than commonly assumed (mkv shares the
+  // WebM demuxer, mov/3gp are ISO-BMFF cousins); the ones the platform can't play get
+  // the viewer's clear "not supported" message (and a remux attempt) instead of hex.
   { id: "mp4", exts: [".mp4", ".m4v"], mime: "video/mp4", viewer: "media" },
   { id: "webmv", exts: [".webm"], mime: "video/webm", viewer: "media" },
   { id: "ogv", exts: [".ogv"], mime: "video/ogg", viewer: "media" },
   { id: "mov", exts: [".mov"], mime: "video/quicktime", viewer: "media" },
+  { id: "mkv", exts: [".mkv"], mime: "video/x-matroska", viewer: "media" },
+  { id: "3gp", exts: [".3gp", ".3g2"], mime: "video/3gpp", viewer: "media" },
+  { id: "mpegts", exts: [".mts", ".m2ts"], mime: "video/mp2t", viewer: "media" },
+  { id: "avi", exts: [".avi"], mime: "video/x-msvideo", viewer: "media" },
+  { id: "wmv", exts: [".wmv"], mime: "video/x-ms-wmv", viewer: "media" },
   // Audio
   { id: "mp3", exts: [".mp3"], mime: "audio/mpeg", viewer: "media" },
   { id: "wav", exts: [".wav"], mime: "audio/wav", viewer: "media" },
   { id: "oga", exts: [".ogg", ".oga", ".opus"], mime: "audio/ogg", viewer: "media" },
-  { id: "m4a", exts: [".m4a", ".aac"], mime: "audio/mp4", viewer: "media" },
+  { id: "m4a", exts: [".m4a"], mime: "audio/mp4", viewer: "media" },
+  { id: "aac", exts: [".aac"], mime: "audio/aac", viewer: "media" },
   { id: "flac", exts: [".flac"], mime: "audio/flac", viewer: "media" },
+  { id: "weba", exts: [".weba"], mime: "audio/webm", viewer: "media" },
+  { id: "mka", exts: [".mka"], mime: "audio/x-matroska", viewer: "media" },
+  { id: "wma", exts: [".wma"], mime: "audio/x-ms-wma", viewer: "media" },
   // Archives (zip-based; docx/xlsx/odt/ods are also zips but have dedicated editors)
   { id: "zip", exts: [".zip"], mime: "application/zip", viewer: "archive" },
   { id: "jar", exts: [".jar"], mime: "application/java-archive", viewer: "archive" },

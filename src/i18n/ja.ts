@@ -130,6 +130,7 @@ const ja: Dict = {
     mediaKeysAudio: "スペース：再生/一時停止 · M：ミュート · ← →：シーク · ↑ ↓：音量",
     mediaUnsupported: "このメディア形式はお使いのブラウザーでは再生できません。",
     mediaEmpty: "再生できる内容がありません。",
+    mediaConverting: "再生用に変換しています…",
   },
   tableEditor: {
     needsFormat: "表エディターには表ビューを持つ形式が必要です。",

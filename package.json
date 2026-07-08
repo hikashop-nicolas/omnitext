@@ -65,6 +65,7 @@
     "json5": "^2.2.3",
     "latex.js": "^0.12.6",
     "marked": "^18.0.5",
+    "mediabunny": "^1.50.7",
     "pdf-lib": "^1.17.1",
     "pdfedit": "github:hikashop-nicolas/pdfedit",
     "pdfjs-dist": "^6.0.227",

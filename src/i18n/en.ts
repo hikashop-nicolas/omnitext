@@ -130,6 +130,7 @@ const en: Dict = {
     mediaKeysAudio: "Space: play/pause · M: mute · ← →: seek · ↑ ↓: volume",
     mediaUnsupported: "This media format is not supported by your browser.",
     mediaEmpty: "Nothing to play.",
+    mediaConverting: "Converting for playback…",
   },
   tableEditor: {
     needsFormat: "The table editor needs a format with a table view.",

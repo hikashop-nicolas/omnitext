@@ -47,7 +47,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
   re-encodes the raster (an animated GIF flattens to one frame).
-- **Viewers** (read-only): **audio & video** (HTML5) and **archives** — `.zip`/`.jar`/`.cbz`,
+- **Viewers** (read-only): **audio & video** — the common web formats plus `.mkv`, `.mov`,
+  `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a container directly, the
+  file is repackaged in memory ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded
+  on demand) and played without re-encoding. Player shortcuts: space, F, M, arrows.
+  And **archives** — `.zip`/`.jar`/`.cbz`,
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
   extract it, or edit it and save it back into the archive. Anything else opens in a **hex**
   view, so no file ever fails to open.

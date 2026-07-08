@@ -376,6 +376,28 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   fullscreen control button is refused there — so the actual fullscreen entry
   needs one manual keypress on a real screen, like the pptx Present flow did.
 
+## Media container compatibility (2026-07-09)
+
+- Tier 1, routing: .mkv/.mka, .weba, .3gp/.3g2, .mts/.m2ts, .avi, .wmv/.wma
+  now route to the media viewer instead of the hex view (.aac also got its
+  own audio/aac entry instead of riding audio/mp4). Chrome/WebView plays
+  several of these directly (mkv shares the WebM demuxer); the rest get the
+  viewer's clear message instead of hex gibberish. .ts stays TypeScript.
+- Tier 2, remux fallback: when the media element errors, mediabunny
+  (MPL-2.0, ~620 KB lazy chunk loaded only on failure) repackages the file
+  in memory — stream copy when the codec fits the target container, WebCodecs
+  transcode when the platform can decode it but the copy doesn't fit — trying
+  MP4 then WebM for video, MP4/Ogg/WAV for audio, then plays the result. The
+  document bytes stay untouched (getBytes still returns the original); the
+  "Converting for playback…" note shows meanwhile (i18n en/fr/ja).
+- Codecs the platform truly lacks (WMV, MPEG-2 video, old DivX) still fail
+  with the clear message: fixing those means ffmpeg.wasm (~30 MB, COOP/COEP,
+  GPL care), deliberately not taken; logged as a feature idea.
+- Verified live on the production build: a generated H.264 MPEG-TS (.mts)
+  failed direct playback, showed the converting note, remuxed to MP4
+  (ftypisom bytes confirmed) and played; a .mkv played directly with no
+  remux; the wav/webm shortcut tests still pass.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

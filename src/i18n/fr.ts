@@ -128,6 +128,7 @@ const fr: Dict = {
     mediaKeysAudio: "Espace : lecture/pause · M : muet · ← → : avancer/reculer · ↑ ↓ : volume",
     mediaUnsupported: "Ce format multimédia n'est pas pris en charge par votre navigateur.",
     mediaEmpty: "Rien à lire.",
+    mediaConverting: "Conversion pour la lecture…",
   },
   tableEditor: {
     needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",
