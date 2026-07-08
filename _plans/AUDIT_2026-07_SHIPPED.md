@@ -292,6 +292,25 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   the 24px gap), so every paper page starts on a card boundary. Unpaginated
   docs keep @page margin 15mm.
 
+## sheetedit dates + number formats (2026-07-08, sheetedit d150550)
+
+- New core/dates.ts: Excel 1900-system serial math (fake leap day included),
+  ISO / ODF-duration conversions, typed-date recognition, format
+  classification. Typed dates, bare times and "50%" now store real serials /
+  fractions and adopt a matching number format; the French locale accepts
+  comma decimals ("3,5"); CSV mode is exempt (what you type is what the file
+  stores). xlsx t="d" cells parse to serials; untouched ones keep their XML.
+- Persistence: model-adopted formats are interned into styles.xml on save
+  (custom numFmt, xf clone; a minimal styles.xml is minted when absent), and
+  ods cells map back to their ODF value type, so editing an ods
+  date/time/percentage/currency cell no longer degrades it to a float.
+- Toolbar "123" number-format picker (General/number/thousands/percent/
+  currency/date/datetime/time), presets localized (EUR/USD/JPY, d/m vs m/d).
+  Date cells edit as "2026-07-08", not their serial. Undo carries formats.
+- 25 new tests (141 total); verified live in omnitext (b0472ff): fr typed
+  "8/7/2026" -> 08/07/2026, "3,5" -> 3.5, "=A1+1" on the date + Date preset
+  -> 09/07/2026, "3,5" + Monnaie -> "3.50 €", formula bar shows the ISO date.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
