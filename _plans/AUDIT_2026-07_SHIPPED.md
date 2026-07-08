@@ -148,6 +148,26 @@ moves here, with commits, so the reasoning is not lost.
   undo/redo/canUndo/canRedo. Verified live on the two-column sample, where
   repagination reparents blocks around every edit.
 
+## CSV sniffing + richdoc paste batch (2026-07-08)
+
+- omnitext CSV delimiter sniffing (commit after 3123d47): csvImpl.parse sniffs
+  comma/semicolon/tab/pipe with a quote-aware per-line consistency score and
+  keeps the winner on the model, so a semicolon CSV (French Excel default)
+  opens as a real grid and dirty rows re-serialize with the file's own
+  separator. Content detection for extension-less files uses the same scorer
+  and demands structure, ending the "prose with a comma routes to the table
+  editor" false positive. Verified live: semicolon CSV opens 3-column.
+- richdoc paste pipeline (commit 76550e9): external clipboard HTML is
+  normalized onto the editor vocabulary (headings, alignment/indent, lists
+  nested inside the li, tables rebuilt as docx-table/docx-cell, semantic tags
+  to b/i/u/s, run-style whitelist, safe hrefs, pre to monospace paragraphs,
+  Google Docs wrapper unwrapped, transparent backgrounds dropped). External
+  images fetch-inline to data URLs (capped 600px); CORS/non-image failures
+  degrade to a visible link instead of vanishing on save; clipboard image
+  files paste directly. Internal copies and suggest mode keep their existing
+  paths. 23 unit tests + an e2e write check; verified live in omnitext
+  (GDocs-style paste + same-origin image inlined, junk styles stripped).
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
