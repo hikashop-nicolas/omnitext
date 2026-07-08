@@ -168,6 +168,27 @@ moves here, with commits, so the reasoning is not lost.
   paths. 23 unit tests + an e2e write check; verified live in omnitext
   (GDocs-style paste + same-origin image inlined, junk styles stripped).
 
+## Row/column structure batch (2026-07-08)
+
+- omnitext table view row/column ops (commit c78c66a): the ViewEdit contract
+  gained insertRow/deleteRow/insertCol/deleteCol, implemented by csv and tsv
+  (span-preserving: untouched rows stay byte-exact, new rows take the file's
+  dominant terminator) and xls/xlsx (grid splices). The table editor grew a
+  toolbar acting on the focused cell, with en/fr/ja strings. Verified live.
+- sheetedit row/column insert/delete with reference rewriting (commit
+  34f9352): right-click on a row/column header (single line or whole-line
+  selection run). References rewrite across all sheets with sheet-prefix
+  resolution: shifts (anchors too), #REF! on deletes, range grow/shrink,
+  whole-column and whole-row ranges. Model, merges (+mergeCells XML),
+  sizes, xlsx sheet XML (implicit refs materialized first, cols/dimension
+  remapped, shared groups de-shared, calcChain dropped) and ods row
+  metadata / column declarations all shift together. Structural undo
+  restores dropped cells, formulas, merges and sizes from a snapshot;
+  earlier history is cleared as its positions no longer replay. Verified
+  live in omnitext: SUM range extended on inside-insert with live recalc,
+  shrank on delete, undo restored formula and values. Known limit:
+  hyperlink/validation/conditional-format anchors are not rewritten.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
