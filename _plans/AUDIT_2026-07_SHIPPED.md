@@ -320,10 +320,14 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   @intity/epub-js (BSD-2-Clause, sandboxed iframe without allow-scripts,
   prev/next arrows + arrow keys; epub.js clobbers its target element's class,
   so it renders into a holder inside the styled page card).
-- Both are binary formats routed by extension with the archive viewer as the
-  alternate view; view switches carry bytes via getBytes() (the new editors
-  initially omitted it, which emptied the archive view). Both libs are lazy
-  chunks; i18n labels/strings added in en/fr/ja; README updated.
+- Both are binary formats routed by extension; the editors implement
+  getBytes() so view switches carry the file. Both libs are lazy chunks; i18n
+  labels/strings added in en/fr/ja; README updated.
+- Follow-up (owner feedback, 2026-07-09): the archive alternate view was
+  removed from both (normal users don't need the zip internals), and pptx
+  gained a fullscreen presentation mode: a Present button over the list, one
+  slide scaled to the screen, arrows/space/click to advance (Home/End too), a
+  slide counter, Escape to leave, and the list re-syncs to the ended slide.
 - Verified live on the production build with generated fixtures (3-slide
   python-pptx deck incl. leveled bullets and a styled shape; 2-chapter
   hand-built epub): rendering, page turns, epub <-> archive round-trip.

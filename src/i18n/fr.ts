@@ -120,6 +120,8 @@ const fr: Dict = {
     failed: "Impossible d'afficher ce fichier : {error}",
     prevPage: "Page précédente",
     nextPage: "Page suivante",
+    present: "Présenter",
+    presentTitle: "Diaporama plein écran : flèches, espace ou clic pour changer de diapositive, Échap pour quitter",
   },
   tableEditor: {
     needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",

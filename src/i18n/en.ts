@@ -122,6 +122,8 @@ const en: Dict = {
     failed: "Could not render this file: {error}",
     prevPage: "Previous page",
     nextPage: "Next page",
+    present: "Present",
+    presentTitle: "Fullscreen slideshow: arrows, space or click to change slides, Escape to leave",
   },
   tableEditor: {
     needsFormat: "The table editor needs a format with a table view.",

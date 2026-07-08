@@ -122,6 +122,8 @@ const ja: Dict = {
     failed: "このファイルを表示できませんでした：{error}",
     prevPage: "前のページ",
     nextPage: "次のページ",
+    present: "スライドショー",
+    presentTitle: "全画面スライドショー：矢印キー・スペース・クリックでスライド切り替え、Escで終了",
   },
   tableEditor: {
     needsFormat: "表エディターには表ビューを持つ形式が必要です。",
