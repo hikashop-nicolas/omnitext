@@ -328,6 +328,11 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   gained a fullscreen presentation mode: a Present button over the list, one
   slide scaled to the screen, arrows/space/click to advance (Home/End too), a
   slide counter, Escape to leave, and the list re-syncs to the ended slide.
+- Second follow-up (same day): a left thumbnail sidebar (numbered, click to
+  jump, active slide highlighted and kept in view, hidden on narrow screens
+  and 1-slide decks), and arrows/space/PageUp-Down/Home/End snap between
+  slides in the normal list view too. Verified live: thumb click, arrow and
+  space navigation, highlight tracking.
 - Verified live on the production build with generated fixtures (3-slide
   python-pptx deck incl. leveled bullets and a styled shape; 2-chapter
   hand-built epub): rendering, page turns, epub <-> archive round-trip.
