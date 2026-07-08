@@ -7,7 +7,8 @@ export const csvFormat: FormatDescriptor = {
     id: "csv",
     extensions: [".csv"],
     mimeTypes: ["text/csv"],
-    viewAdapters: ["table"],
+    viewAdapters: ["sheet", "table"],
+    defaultEditor: "sheet",
   },
   detect({ sample }) {
     return sniffConfidence(sample);

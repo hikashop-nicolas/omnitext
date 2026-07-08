@@ -6,7 +6,8 @@ export const tsvFormat: FormatDescriptor = {
     id: "tsv",
     extensions: [".tsv"],
     mimeTypes: ["text/tab-separated-values"],
-    viewAdapters: ["table"],
+    viewAdapters: ["sheet", "table"],
+    defaultEditor: "sheet",
   },
   detect({ sample }) {
     const firstLine = sample.split(/\r\n|\r|\n/, 1)[0] ?? "";

@@ -155,6 +155,8 @@ export interface EditorMountContext {
   binary: boolean;
   /** The document's MIME type when known (used by the image/media viewers). */
   mime?: string;
+  /** The document's file name (editors use it to name derived artifacts). */
+  filename?: string;
   /** The format's parsed model (from text or bytes), pre-computed by the host. */
   model: unknown;
   /** The active format, for highlighting/validation and view adapters. May be null. */

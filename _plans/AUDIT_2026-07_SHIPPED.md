@@ -189,6 +189,26 @@ moves here, with commits, so the reasoning is not lost.
   shrank on delete, undo restored formula and values. Known limit:
   hyperlink/validation/conditional-format anchors are not rewritten.
 
+## CSV-in-sheetedit batch (2026-07-08)
+
+Per _plans/CSV_AND_STRUCTURE_PLAN.md in the sheetedit repo (all three open
+decisions approved: sheet default view, formulas computed, convert opens new):
+
+- sheetedit restructured like richdoc: src/core (+ core/ui) and
+  src/adapters/{xlsx,ods,csv} with read/write/styles split per format;
+  identical public export surface.
+- sheetedit csv adapter: sniffed delimiter, span-preserving rows (open-save
+  byte-identical, no numeric coercion of untouched data), formulas computed on
+  open and saved as text, structure ops wired, csv-mode UI (no styling
+  cluster, no tab bar) plus a Convert-to-XLSX button whose output carries
+  values, formulas with cached results, and column widths.
+- omnitext: csv/tsv now default to the sheet view (Table and Text stay in the
+  switcher); the sheet adapter bridges text documents through sheetedit's
+  synchronous getText() so encoding, history and .gz keep working; Convert
+  opens the produced .xlsx as a new document behind the usual dirty guard.
+  Verified live end to end (edit 800->900, total recalcs to 1150, converted
+  workbook opens with full styling UI and the computed total).
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

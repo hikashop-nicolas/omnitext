@@ -463,6 +463,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       bytes,
       binary,
       mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
+      filename: opts.filename ?? undefined,
       model,
       format: formatModule,
       view: chosen.view,
@@ -778,6 +779,16 @@ window.addEventListener("drop", async (e) => {
   if (!file) return;
   if (!confirmDiscard()) return;
   await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
+});
+
+// An editor produced a derived document (e.g. sheetedit's CSV-to-XLSX conversion):
+// open it as a new unsaved document, with the usual dirty guard.
+window.addEventListener("omnitext:open-bytes", async (e) => {
+  const { name, bytes, mime } = (e as CustomEvent<{ name: string; bytes: Uint8Array; mime?: string }>).detail ?? {};
+  if (!name || !bytes) return;
+  if (!confirmDiscard()) return;
+  const copy = bytes.slice();
+  await openBuffer(copy.buffer as ArrayBuffer, name, "upload", null, mime);
 });
 
 async function saveFile(): Promise<void> {
