@@ -1,4 +1,5 @@
 import type { FormatDescriptor } from "../../core/types";
+import { sniffConfidence } from "./sniff";
 
 export const csvFormat: FormatDescriptor = {
   manifest: {
@@ -9,8 +10,7 @@ export const csvFormat: FormatDescriptor = {
     viewAdapters: ["table"],
   },
   detect({ sample }) {
-    const firstLine = sample.split(/\r\n|\r|\n/, 1)[0] ?? "";
-    return firstLine.includes(",") ? 0.4 : 0;
+    return sniffConfidence(sample);
   },
   load: () => import("./impl").then((m) => m.csvImpl),
 };

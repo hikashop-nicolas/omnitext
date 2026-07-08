@@ -32,7 +32,7 @@ describe("engine wiring", () => {
   it("detects by content when no filename is given", () => {
     const e = new OmnitextEngine({ fallbackEditorId: "text" });
     e.registerFormat(csvFormat);
-    const hit = e.detect({ sample: "a,b\nc,d\n" });
+    const hit = e.detect({ sample: "a,b,c\nd,e,f\ng,h,i\n" });
     expect(hit?.descriptor.manifest.id).toBe("csv");
   });
 

@@ -148,6 +148,13 @@ moves here, with commits, so the reasoning is not lost.
   undo/redo/canUndo/canRedo. Verified live on the two-column sample, where
   repagination reparents blocks around every edit.
 
+## Dropped by decision (not fixed, closed on purpose)
+
+- omnitext "HTML default editor is destructive" (Quill as the default .html
+  editor rewrites the file via getSemanticHTML on the first keystroke):
+  owner decided 2026-07-08 the current behavior is fine; the text editor
+  remains available via the view switcher. Not a bug to fix.
+
 ## Resolved per-repo findings (originally listed in the audit)
 
 - omnitext: UTF-16-to-hex-viewer routing; missing dirty guard on
