@@ -265,6 +265,23 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   aria combobox/listbox semantics. The history tool's command title is now
   localized. Everything verified live in French.
 
+## richdoc product batch + dark mode (2026-07-08)
+
+- richdoc (6077a5d): comment text editing (inline textarea on every thread
+  item; rewrites travel through CommentEdits.edited into comments.xml with
+  the w14:paraId anchor preserved, and into rebuilt odt annotations); the
+  new-comment prompt became a dialog; live word/character count; image files
+  drop-insert at the caret point; print / save-as-PDF via a same-origin print
+  window that clones the page cards and stylesheets. 2 tests; all verified
+  live.
+- Dark mode: richdoc (5951747) and sheetedit (61a0869) chrome palettes became
+  --rdoc-* / --sheetedit-* custom properties (documents stay paper-white);
+  omnitext maps them from its own tokens, adds a Settings theme select
+  (system/light/dark, persisted, no-FOUC inline boot script) and remounts the
+  active editor on theme or OS changes so mount-sampled surfaces follow.
+  Verified live both ways: forcing light turns the whole family light
+  including both libraries' chrome, grid cells and pages stay white.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

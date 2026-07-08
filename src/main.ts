@@ -337,6 +337,8 @@ interface MountOpts {
   isSwitch?: boolean;
   /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
   docOptions?: { paginated?: boolean };
+  /** Remount even when a cached editor of the same id could be reused (theme change). */
+  forceFresh?: boolean;
 }
 
 async function mountDoc(opts: MountOpts): Promise<void> {
@@ -416,7 +418,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
 
   // Reuse a cached editor only when its content still matches (so its undo survives);
   // otherwise build a fresh one.
-  const cached = isSwitch && !binary ? liveEditors.get(targetId) : undefined;
+  const cached = isSwitch && !binary && !opts.forceFresh ? liveEditors.get(targetId) : undefined;
   const reuse = !!cached && cached.text === text;
   let instance: EditorInstance;
   let mountEl: HTMLElement | null = null;
@@ -1128,8 +1130,8 @@ async function createNewDocument(): Promise<void> {
 
 // --- editor switching (text is the canonical hand-off) -----------------------
 
-async function changeEditor(editorId: string): Promise<void> {
-  if (!session?.editor || editorId === session.editorId) return;
+async function changeEditor(editorId: string, opts: { force?: boolean } = {}): Promise<void> {
+  if (!session?.editor || (editorId === session.editorId && !opts.force)) return;
   // Switch protocol: serialize current model to canonical text, then remount. The
   // hook lets future tools veto or warn on a lossy hand-off. Binary formats have no text,
   // so carry the current bytes across the switch (e.g. image viewer -> image editor);
@@ -1160,6 +1162,7 @@ async function changeEditor(editorId: string): Promise<void> {
     formatId: session.formatId,
     editorId,
     isSwitch: true,
+    forceFresh: opts.force,
   });
   if (!session) return;
   session.archive = prevArchive;
@@ -1308,12 +1311,26 @@ const settingsDlgEl = $("settingsdlg");
 const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
+const settingThemeEl = $("setting-theme") as HTMLSelectElement;
+
+// Apply a theme choice: attribute for the palette, then remount the active
+// editor so surfaces that sample colors at mount (CodeMirror and friends)
+// pick up the new palette.
+function applyTheme(theme: "system" | "light" | "dark", remount = true): void {
+  if (theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  if (remount && session?.editorId) void changeEditor(session.editorId, { force: true });
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (getSettings().theme === "system" && session?.editorId) void changeEditor(session.editorId, { force: true });
+});
 function openSettings(): void {
   modalReturnFocus = document.activeElement as HTMLElement | null;
   const s = getSettings();
   settingNameEl.value = s.name;
   settingPageSizeEl.value = s.pageSize;
   settingPaginatedEl.checked = s.paginated;
+  settingThemeEl.value = s.theme;
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -1323,11 +1340,15 @@ function closeSettings(): void {
   modalReturnFocus = null;
 }
 function saveSettingsDialog(): void {
+  const theme = settingThemeEl.value === "light" ? "light" : settingThemeEl.value === "dark" ? "dark" : "system";
+  const themeChanged = theme !== getSettings().theme;
   saveSettings({
     name: settingNameEl.value.trim(),
     pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
     paginated: settingPaginatedEl.checked,
+    theme,
   });
+  if (themeChanged) applyTheme(theme);
   closeSettings();
 }
 $("btn-settings").addEventListener("click", openSettings);

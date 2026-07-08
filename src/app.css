@@ -14,8 +14,11 @@
   --ok: #16a34a;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
+/* Dark palette: applied by OS preference unless the user forces light, and by
+   the manual dark override. The block is duplicated because a media query and
+   an attribute selector cannot share one rule in plain CSS. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0d1117;
     --chrome: #161b22;
     --surface: #21262d;
@@ -30,6 +33,46 @@
     --ok: #3fb950;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --chrome: #161b22;
+  --surface: #21262d;
+  --surface-hover: #2b323b;
+  --border: #2d333b;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #6e7bff;
+  --accent-fg: #0b0e14;
+  --canvas: #282c34;
+  --amber: #e3a008;
+  --ok: #3fb950;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* First-party editor libraries follow the app theme through their custom
+   properties (the documents themselves stay paper-white by design). */
+#app {
+  --rdoc-chrome: var(--chrome);
+  --rdoc-chrome2: var(--surface);
+  --rdoc-border: var(--border);
+  --rdoc-btn: var(--surface);
+  --rdoc-btn-border: var(--border);
+  --rdoc-text: var(--text);
+  --rdoc-muted: var(--muted);
+  --rdoc-accent: var(--accent);
+  --rdoc-canvas: var(--canvas);
+  --rdoc-panel: var(--surface);
+  --sheetedit-bg: var(--bg);
+  --sheetedit-chrome: var(--chrome);
+  --sheetedit-chrome2: var(--surface);
+  --sheetedit-border: var(--border);
+  --sheetedit-btn: var(--surface);
+  --sheetedit-btn-hover: var(--surface-hover);
+  --sheetedit-btn-border: var(--border);
+  --sheetedit-text: var(--text);
+  --sheetedit-muted: var(--muted);
+  --sheetedit-accent: var(--accent);
 }
 
 * { box-sizing: border-box; }

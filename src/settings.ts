@@ -4,6 +4,7 @@
 const KEY = "omnitext:settings";
 
 export type PageSize = "a4" | "letter";
+export type Theme = "system" | "light" | "dark";
 
 export interface Settings {
   name: string;
@@ -11,9 +12,11 @@ export interface Settings {
   pageSize: PageSize;
   /** Paginated (page cards) vs a single continuous page in the rich-document editor. */
   paginated: boolean;
+  /** Color theme: follow the OS, or force light/dark. */
+  theme: Theme;
 }
 
-const DEFAULTS: Settings = { name: "", pageSize: "a4", paginated: true };
+const DEFAULTS: Settings = { name: "", pageSize: "a4", paginated: true, theme: "system" };
 
 export function getSettings(): Settings {
   try {
