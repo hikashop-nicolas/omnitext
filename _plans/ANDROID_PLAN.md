@@ -1,5 +1,11 @@
 # Omnitext on Android (Google Play) plan
 
+Status: shipped. The Capacitor Android app builds from the same `npm run build`
+bundle, CI (`.github/workflows/android.yml`) publishes a signed release APK to
+the rolling `android-latest` GitHub release on every push to `main`, and the app
+runs on-device. Kept as the design record; Play Store publication is tracked
+separately in PLAY_STORE.md.
+
 ## Goal and hard constraints
 
 - Ship Omnitext as an Android app on the Google Play Store.
