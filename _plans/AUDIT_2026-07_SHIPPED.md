@@ -209,6 +209,27 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   Verified live end to end (edit 800->900, total recalcs to 1150, converted
   workbook opens with full styling UI and the computed total).
 
+## Virtualized grid batch (2026-07-08, sheetedit fef6c8a..d2eec45)
+
+- Two-axis windowed rendering: only the viewport rows/columns (plus overscan)
+  get DOM, with spacer geometry keeping the scrollbars honest. The ROWS_CAP /
+  COLS_CAP render limits are gone; the remaining bounds are the file formats'
+  own grid limits. Custom row heights / column widths resolve in O(log n)
+  via sorted delta indexes; merges extend the window so they render whole;
+  an in-progress edit is pinned (value + caret) across window re-renders;
+  keyboard navigation scrolls the target into the window first. Selection
+  ops bounded for the uncapped world (paint = rendered cells, clear = existing
+  cells, copy clamps to the used extent).
+- Found en route and fixed: fast-formula-parser's built-in aggregates are
+  quadratic in range size (SUM over a 100k-row column: ~30s, frozen tab).
+  recalc now overrides SUM/AVERAGE/MIN/MAX/COUNT/COUNTA with single-pass
+  Excel-semantics implementations: 100k-row SUM in ~100ms. Also dropped a
+  redundant recalc from the csv getText path (halves commit cost for hosts).
+- Verified live on a 100k-row ; 12-col CSV in omnitext: opens in seconds with
+  ~550 DOM cells, jump-to-bottom shows the computed total, editing row 50000
+  updates the SUM exactly, deep edits save with untouched neighbours intact.
+  8 new tests including a perf guard.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
