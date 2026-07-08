@@ -4,6 +4,7 @@ import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText, hasUtf16Bom, ENCODINGS } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
+import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
@@ -530,6 +531,7 @@ async function snapshot(): Promise<DocSnapshot | null> {
 }
 
 let autosaveBusy = false;
+let storageFullWarned = false;
 function scheduleAutosave(): void {
   clearTimeout(autosaveTimer);
   // Binary snapshots run the editor's full export; give them a longer debounce.
@@ -541,7 +543,15 @@ function scheduleAutosave(): void {
     autosaveBusy = true;
     void snapshot()
       .then((snap) => (snap ? store.save(snap) : undefined))
-      .catch((e) => console.error("autosave failed", e))
+      .catch((e) => {
+        console.error("autosave failed", e);
+        // Quota exhaustion even after pruning: tell the user once instead of
+        // silently losing crash recovery for the rest of the session.
+        if (isQuotaError(e) && !storageFullWarned) {
+          storageFullWarned = true;
+          engine.notificationSink.error(t("notify.storageFull"));
+        }
+      })
       .finally(() => {
         autosaveBusy = false;
       });
@@ -1604,6 +1614,7 @@ async function start(): Promise<void> {
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   void SessionStore.requestPersistent();
+  void store.prune(session?.id ?? null).catch(() => undefined); // old crash-recovery snapshots go at boot
 
   // A file opened while the app is already running arrives on the next resume; pull it then.
   document.addEventListener("visibilitychange", () => {

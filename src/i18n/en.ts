@@ -90,6 +90,7 @@ const en: Dict = {
     saveFailed: "Could not save the file.",
     documentWord: "document",
     updateReady: "A new version of Omnitext is ready. It loads the next time you open the app.",
+    storageFull: "Browser storage is full. Old snapshots were removed, but crash recovery may not keep up; save your work to disk.",
   },
   history: {
     title: "Version history",

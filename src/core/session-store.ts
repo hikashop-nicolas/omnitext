@@ -1,3 +1,4 @@
+import { isQuotaError, staleSessionIds } from "./retention";
 import type { TextEncoding } from "./types";
 
 // Crash-recovery + autosave store. The browser store is a CACHE, not the durable copy
@@ -58,12 +59,34 @@ export class SessionStore {
 
   async save(snap: DocSnapshot): Promise<void> {
     const db = await this.db();
-    await tx(db, "readwrite", (s) => s.put(snap));
+    try {
+      await tx(db, "readwrite", (s) => s.put(snap));
+    } catch (e) {
+      // Storage full: shed old crash-recovery snapshots and retry once. The
+      // caller surfaces the failure if even that is not enough.
+      if (!isQuotaError(e)) throw e;
+      await this.prune(snap.id, 0); // age 0 = everything but the current session
+      await tx(db, "readwrite", (s) => s.put(snap));
+    }
     try {
       localStorage.setItem(LAST_KEY, snap.id);
     } catch {
       /* localStorage may be unavailable in private mode; ignore */
     }
+  }
+
+  /** Delete crash-recovery snapshots that are old or beyond the newest few.
+      Cheap and idempotent; runs once at boot and again under quota pressure. */
+  async prune(keepId: string | null = null, maxAgeMs?: number): Promise<void> {
+    const db = await this.db();
+    const all = await tx<DocSnapshot[]>(db, "readonly", (s) => s.getAll());
+    const ids = staleSessionIds(
+      all.map((d) => ({ id: d.id, updatedAt: d.updatedAt })),
+      Date.now(),
+      keepId,
+      maxAgeMs,
+    );
+    for (const id of ids) await tx(db, "readwrite", (s) => s.delete(id));
   }
 
   async get(id: string): Promise<DocSnapshot | undefined> {

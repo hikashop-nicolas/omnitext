@@ -1,6 +1,10 @@
+import { isQuotaError, staleVersionKeys, versionIdsToDrop } from "../core/retention";
+
 // Version snapshots for the history tool. Kept in its own IndexedDB database so it
 // stays decoupled from the crash-recovery store. Snapshots are keyed by a stable
-// per-document key (uri when known, else the session id).
+// per-document key (uri when known, else the session id). Retention: each key is
+// capped (automatic snapshots dropped before deliberate ones) and keys untouched
+// for months are removed wholesale, so the store cannot grow without bound.
 
 export interface Version {
   id?: number;
@@ -45,6 +49,20 @@ export class VersionStore {
   }
 
   async add(version: Version): Promise<void> {
+    try {
+      await this.addRaw(version);
+    } catch (e) {
+      // Storage full: shed aggressively (this key down to a handful, stale keys
+      // gone entirely) and retry once; the caller surfaces a second failure.
+      if (!isQuotaError(e)) throw e;
+      await this.pruneKey(version.key, 10);
+      await this.pruneStale();
+      await this.addRaw(version);
+    }
+    await this.pruneKey(version.key);
+  }
+
+  private async addRaw(version: Version): Promise<void> {
     const db = await this.db();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
@@ -52,6 +70,34 @@ export class VersionStore {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
+  }
+
+  /** Cap one document's history, dropping Auto/Opened snapshots first. */
+  async pruneKey(key: string, cap?: number): Promise<void> {
+    const versions = await this.listByKey(key);
+    const ids = versionIdsToDrop(versions, cap);
+    if (!ids.length) return;
+    const db = await this.db();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      for (const id of ids) store.delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /** Remove every version of documents whose history saw nothing for months. */
+  async pruneStale(): Promise<void> {
+    const db = await this.db();
+    const all = await new Promise<Version[]>((resolve, reject) => {
+      const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result as Version[]);
+      req.onerror = () => reject(req.error);
+    });
+    const newest = new Map<string, number>();
+    for (const v of all) newest.set(v.key, Math.max(newest.get(v.key) ?? 0, v.ts));
+    for (const key of staleVersionKeys(newest, Date.now())) await this.deleteByKey(key);
   }
 
   /** Versions for a key, newest first. */

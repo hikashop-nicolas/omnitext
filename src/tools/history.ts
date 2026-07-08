@@ -222,6 +222,7 @@ export const historyTool: ToolModule = {
   manifest: { kind: "tool", id: "history", capabilities: ["history", "diff"] },
   activate(host: HostAPI): Disposable {
     const store = new VersionStore();
+    void store.pruneStale().catch(() => undefined); // months-old histories go at boot
     let timer: ReturnType<typeof setTimeout> | undefined;
     const disposables = [
       // Baseline: snapshot the pristine document on open so the original is always restorable.

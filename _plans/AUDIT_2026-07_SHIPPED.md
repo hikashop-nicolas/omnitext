@@ -230,6 +230,22 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   updates the SUM exactly, deep edits save with untouched neighbours intact.
   8 new tests including a perf guard.
 
+## Trust + storage batch (2026-07-08)
+
+- sheetedit formula trust (92252eb): unknown sheet names give #REF! instead
+  of silently reading sheet 1; formulas that cannot be evaluated (unknown
+  function, parse failure) keep the file's cached value but carry a red
+  corner badge with an explanatory tooltip (en/fr/ja); circular references
+  are badged on the true cycle members (reverse peel separates cells merely
+  downstream). The DATEDIF-class behavior stays silent by design. 6 tests.
+- omnitext IndexedDB retention (core/retention.ts): crash-recovery snapshots
+  pruned at boot (30 days / newest 20, never the current session); version
+  history capped per document (100, automatic snapshots dropped before
+  deliberate ones) with whole-document cleanup after 90 idle days; quota
+  errors now prune-and-retry, and a persistent failure surfaces one toast
+  (notify.storageFull) instead of dying silently. Policies are pure
+  functions with 7 tests.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

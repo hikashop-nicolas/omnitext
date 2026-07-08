@@ -88,6 +88,7 @@ const fr: Dict = {
     saveFailed: "Impossible d'enregistrer le fichier.",
     documentWord: "document",
     updateReady: "Une nouvelle version d'Omnitext est prête. Elle sera chargée à la prochaine ouverture de l'application.",
+    storageFull: "Le stockage du navigateur est plein. Les anciens instantanés ont été supprimés, mais la récupération après plantage peut être incomplète ; enregistrez votre travail sur disque.",
   },
   history: {
     title: "Historique des versions",
