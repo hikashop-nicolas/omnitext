@@ -311,6 +311,23 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   "8/7/2026" -> 08/07/2026, "3,5" -> 3.5, "=A1+1" on the date + Date preset
   -> 09/07/2026, "3,5" + Monnaie -> "3.50 €", formula bar shows the ISO date.
 
+## PPTX + EPUB viewers (2026-07-08)
+
+- .pptx: read-only slide viewer on @aiden0z/pptx-renderer (Apache-2.0,
+  DOM/SVG, windowed slide list, echarts for charts; the pdfjs SmartArt
+  fallback is disabled because it wants pdfjs-dist v5 vs the app's v6, pinned
+  via a package.json override). .epub: read-only paginated reader on
+  @intity/epub-js (BSD-2-Clause, sandboxed iframe without allow-scripts,
+  prev/next arrows + arrow keys; epub.js clobbers its target element's class,
+  so it renders into a holder inside the styled page card).
+- Both are binary formats routed by extension with the archive viewer as the
+  alternate view; view switches carry bytes via getBytes() (the new editors
+  initially omitted it, which emptied the archive view). Both libs are lazy
+  chunks; i18n labels/strings added in en/fr/ja; README updated.
+- Verified live on the production build with generated fixtures (3-slide
+  python-pptx deck incl. leveled bullets and a styled shape; 2-chapter
+  hand-built epub): rendering, page turns, epub <-> archive round-trip.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

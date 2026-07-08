@@ -40,6 +40,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   - legacy **XLS** via a SheetJS-backed grid
 - **RTF** — Rich Text Format documents rendered read-only via
   [rtf.js](https://github.com/tbluemel/rtf.js) (view only, no editing).
+- **PPTX** — PowerPoint presentations rendered read-only as a scrollable slide list via
+  [pptx-renderer](https://github.com/aiden0z/pptx-renderer) (shapes, tables, charts, images).
+- **EPUB** — books rendered read-only as paginated pages via
+  [epub-js](https://github.com/intity/epub-js), with keyboard and arrow navigation.
+  Both are zips, so the archive view is one click away in the View switcher.
 - **Images** (PNG/JPG/GIF/WebP/AVIF/BMP/ICO) — shown in a read-only viewer by default; switch
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
@@ -48,8 +53,8 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
   extract it, or edit it and save it back into the archive. Anything else opens in a **hex**
   view, so no file ever fails to open.
-- **Multilingual**: the UI auto-detects your language (English + French today; adding one is a
-  single file), and each editor library translates its own UI independently.
+- **Multilingual**: the UI auto-detects your language (English, French and Japanese today;
+  adding one is a single file), and each editor library translates its own UI independently.
 - **Tools**: version **history** with diff.
 - **Local-first**: IndexedDB autosave + crash recovery; UTF-8 / BOM and line endings
   preserved so text round-trips byte-for-byte.

@@ -76,6 +76,8 @@ const ja: Dict = {
       imageedit: "画像エディター",
       media: "メディア",
       archive: "アーカイブ",
+      pptx: "スライド",
+      epub: "書籍",
     },
     // Why a given editor was chosen (shown in the small status pill).
     reason: { native: "ネイティブ", view: "表示", fallback: "代替" },
@@ -113,6 +115,13 @@ const ja: Dict = {
     chars: "{n} 文字",
     changes: { one: "{n} 件の変更", other: "{n} 件の変更" },
     label: { manual: "手動", opened: "開いた時", saved: "保存時", auto: "自動" },
+  },
+  viewer: {
+    rendering: "描画中…",
+    empty: "このファイルには内容がありません。",
+    failed: "このファイルを表示できませんでした：{error}",
+    prevPage: "前のページ",
+    nextPage: "次のページ",
   },
   tableEditor: {
     needsFormat: "表エディターには表ビューを持つ形式が必要です。",

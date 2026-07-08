@@ -50,6 +50,10 @@ import { archiveEditor } from "./editors/archive";
 import { binaryEditor } from "./editors/binary";
 import { latexPreviewEditor } from "./editors/latexpreview";
 import { svgEditor } from "./editors/svgeditor";
+import { pptxEditor } from "./editors/pptx";
+import { epubEditor } from "./editors/epub";
+import { pptxFormat } from "./formats/pptx";
+import { epubFormat } from "./formats/epub";
 import { latexFormat } from "./formats/latex";
 import { svgFormat } from "./formats/svg";
 import { historyTool } from "./tools/history";
@@ -106,6 +110,8 @@ engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
 engine.registerEditor(latexPreviewEditor);
 engine.registerEditor(svgEditor);
+engine.registerEditor(pptxEditor);
+engine.registerEditor(epubEditor);
 engine.registerEditor(binaryEditor);
 const FORMATS: FormatDescriptor[] = [
   jsonFormat,
@@ -143,6 +149,9 @@ for (const f of makeTextFormats()) engine.registerFormat(f);
 // Image / audio / video viewer formats (read-only), plus generic ones for MIME-class routing.
 for (const f of makeViewerFormats()) engine.registerFormat(f);
 for (const f of makeGenericViewerFormats()) engine.registerFormat(f);
+// Office/book viewers (read-only, open-only: not offered in the New dialog).
+engine.registerFormat(pptxFormat);
+engine.registerFormat(epubFormat);
 
 const store = new SessionStore();
 

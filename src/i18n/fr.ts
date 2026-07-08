@@ -75,6 +75,8 @@ const fr: Dict = {
       imageedit: "Éditeur d'image",
       media: "Média",
       archive: "Archive",
+      pptx: "Diapositives",
+      epub: "Livre",
     },
     reason: { native: "natif", view: "vue", fallback: "repli" },
   },
@@ -111,6 +113,13 @@ const fr: Dict = {
     chars: "{n} caractères",
     changes: { one: "{n} modification", other: "{n} modifications" },
     label: { manual: "Manuel", opened: "Ouvert", saved: "Enregistré", auto: "Auto" },
+  },
+  viewer: {
+    rendering: "Rendu en cours…",
+    empty: "Ce fichier n'a aucun contenu.",
+    failed: "Impossible d'afficher ce fichier : {error}",
+    prevPage: "Page précédente",
+    nextPage: "Page suivante",
   },
   tableEditor: {
     needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",

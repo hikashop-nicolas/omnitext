@@ -76,6 +76,8 @@ const en: Dict = {
       imageedit: "Image editor",
       media: "Media",
       archive: "Archive",
+      pptx: "Slides",
+      epub: "Book",
     },
     // Why a given editor was chosen (shown in the small status pill).
     reason: { native: "native", view: "view", fallback: "fallback" },
@@ -113,6 +115,13 @@ const en: Dict = {
     chars: "{n} chars",
     changes: { one: "{n} change", other: "{n} changes" },
     label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto" },
+  },
+  viewer: {
+    rendering: "Rendering…",
+    empty: "This file has no content.",
+    failed: "Could not render this file: {error}",
+    prevPage: "Previous page",
+    nextPage: "Next page",
   },
   tableEditor: {
     needsFormat: "The table editor needs a format with a table view.",
