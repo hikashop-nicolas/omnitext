@@ -1,11 +1,29 @@
 # Omnitext
 
-A browser-only, **open-anything** text & document editor. It runs entirely client-side — no
-backend, no login, no upload — and is published as a static site on GitHub Pages. The editing
-surface adapts to the file: code in a code editor, CSV in a grid, JSON as a tree, HTML/Markdown
-as rich text, LaTeX with a live preview, SVG in a vector editor, PDF / DOCX / ODT / spreadsheets
-in dedicated in-browser editors, and RTF, images, audio/video and archives in viewers — with an
-opt-in raster image editor. The interface is multilingual and auto-detects your language.
+**One free app that opens and edits practically any file — entirely in your browser.**
+
+Code, Word documents, spreadsheets, PDFs, Markdown, LaTeX, SVG, images, slides, books,
+audio/video, archives: Omnitext picks the right editing surface for each file (a code editor
+for JSON, a grid for CSV and XLSX, rich text for DOCX, a vector editor for SVG, a player for
+media, …), lets you edit, and saves the file back — preserving everything you didn't touch.
+No file ever fails to open: unknown text opens as plain text, unknown binary as a hex view.
+
+## Why Omnitext
+
+- **Free, no ads, no upsell** — every feature is available to everyone, always.
+- **No login, no tracking** — no account, no telemetry, no cookie banner. It's a static
+  site; your files never leave your device.
+- **One app for everything** — instead of one website for PDFs, another for spreadsheets and
+  a third for images, a single consistent app (and a single Android "Open with" target)
+  handles them all.
+- **Small and fast** — the shell is ~170 KB gzipped; each editor loads on demand only when
+  you open its file type. Works offline as a PWA once visited.
+- **Open source, reusable in your projects** — MIT-licensed, including the standalone
+  document-editor libraries it's built on ([pdfedit](https://github.com/hikashop-nicolas/pdfedit),
+  [richdoc](https://github.com/hikashop-nicolas/richdoc),
+  [sheetedit](https://github.com/hikashop-nicolas/sheetedit)), which you can embed in your
+  own apps, commercial ones included.
+- **Multilingual** — the UI auto-detects your language (English, French, Japanese so far).
 
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
