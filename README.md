@@ -68,7 +68,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
 - **Viewers** (read-only): **audio & video** — the common web formats plus `.mkv`, `.mov`,
   `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a container directly, the
   file is repackaged in memory ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded
-  on demand) and played without re-encoding. Player shortcuts: space, F, M, arrows.
+  on demand) and played without re-encoding. Text subtitles embedded in MKV/WebM (SRT, ASS,
+  WebVTT tracks) are extracted and shown via the player's CC menu. Player shortcuts: space,
+  F (fullscreen), M (mute), S/D (speed, remembered across files), arrows (seek/volume).
   And **archives** — `.zip`/`.jar`/`.cbz`,
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
   extract it, or edit it and save it back into the archive. Anything else opens in a **hex**

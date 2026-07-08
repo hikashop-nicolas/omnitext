@@ -398,6 +398,26 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   (ftypisom bytes confirmed) and played; a .mkv played directly with no
   remux; the wav/webm shortcut tests still pass.
 
+## Playback speed + embedded subtitles (2026-07-09)
+
+- Speed: S slows / D speeds the player by 0.2x (clamped 0.2-4), a transient
+  badge shows the rate, and the value persists in localStorage so the next
+  file starts at the remembered speed (owner-requested, YouTube-style).
+  Hint strings updated in en/fr/ja.
+- Embedded subtitles: new src/editors/mkv-subs.ts, a dependency-free
+  Matroska/WebM EBML walker that extracts S_TEXT tracks (SRT, ASS/SSA with
+  tag stripping, WebVTT) into standalone WebVTT and attaches them as native
+  <track> elements, so Chrome's CC menu appears; first track shows by
+  default. Handles BlockGroup durations (3s fallback for duration-less
+  SimpleBlocks), unknown-size clusters (streamed files), multiple tracks,
+  and skips bitmap subs (VobSub/PGS). 6 unit tests on hand-built EBML
+  fixtures (110 total).
+- Not covered: subtitles inside MP4 (tx3g) — rarer, needs an ISO-BMFF
+  parser; and mediabunny cannot read subtitle tracks at all, hence the
+  hand-rolled extractor. Verified live: an in-browser-muxed MKV (video +
+  WebVTT track) plays with "Hello subtitles" rendered, cues and label
+  extracted correctly; rate persisted across a file switch (1.2x).
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

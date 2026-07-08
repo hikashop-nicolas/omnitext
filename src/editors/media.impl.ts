@@ -1,5 +1,6 @@
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { t } from "../i18n";
+import { extractMkvSubtitles } from "./mkv-subs";
 
 // Read-only audio/video viewer. Plays the bytes via a blob URL in a <video> or <audio>
 // element (chosen by MIME). Codec support is whatever the platform WebView provides; when
@@ -16,17 +17,23 @@ function ensureStyles(): void {
   const s = document.createElement("style");
   s.id = STYLE_ID;
   s.textContent = `
-    .ot-media { height:100%; overflow:auto; background:#000;
+    .ot-media { height:100%; overflow:auto; background:#000; position:relative;
       display:flex; align-items:center; justify-content:center; outline:none; }
     .ot-media video { max-width:100%; max-height:100%; }
     .ot-media audio { width:min(90%, 520px); }
     .ot-media-msg { color:#bbb; padding:24px; font:14px system-ui, sans-serif; text-align:center; }
+    .ot-media-rate { position:absolute; top:14px; right:16px; z-index:1; pointer-events:none;
+      background:rgba(20,20,24,0.85); color:#fff; font:600 14px system-ui, sans-serif;
+      padding:6px 10px; border-radius:8px; opacity:0; transition:opacity .2s; }
+    .ot-media-rate.show { opacity:1; }
   `;
   document.head.appendChild(s);
 }
 
 const SEEK_STEP = 5; // seconds
 const VOLUME_STEP = 0.05;
+const RATE_STEP = 0.2;
+const RATE_KEY = "omnitext.mediaRate"; // playback speed, remembered across files
 
 /**
  * Repackage the bytes into a browser-friendly container (stream copy where the codec is
@@ -59,6 +66,7 @@ class MediaInstance implements EditorInstance {
   private url: string | null = null;
   private bytes: Uint8Array | null = null;
   private onDocKey: ((e: KeyboardEvent) => void) | null = null;
+  private subUrls: string[] = [];
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -77,6 +85,27 @@ class MediaInstance implements EditorInstance {
       const hint = t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys");
       m.title = hint;
       wrap.setAttribute("aria-label", hint);
+      // Playback speed: S slower / D faster, remembered across files (like a player).
+      const rateBadge = document.createElement("div");
+      rateBadge.className = "ot-media-rate";
+      let rateTimer = 0;
+      const setRate = (rate: number, show: boolean) => {
+        const r = Math.min(4, Math.max(0.2, Math.round(rate * 10) / 10));
+        m.playbackRate = r;
+        try {
+          localStorage.setItem(RATE_KEY, String(r));
+        } catch {
+          /* private mode */
+        }
+        if (show) {
+          rateBadge.textContent = `${r}×`;
+          rateBadge.classList.add("show");
+          window.clearTimeout(rateTimer);
+          rateTimer = window.setTimeout(() => rateBadge.classList.remove("show"), 900);
+        }
+      };
+      const savedRate = Number(localStorage.getItem(RATE_KEY));
+      if (savedRate && savedRate !== 1) m.addEventListener("loadeddata", () => setRate(savedRate, false), { once: true });
       const fail = () => {
         wrap.textContent = "";
         const d = document.createElement("div");
@@ -130,6 +159,12 @@ class MediaInstance implements EditorInstance {
           case "m":
             m.muted = !m.muted;
             break;
+          case "s":
+            setRate(m.playbackRate - RATE_STEP, true);
+            break;
+          case "d":
+            setRate(m.playbackRate + RATE_STEP, true);
+            break;
           case "ArrowLeft":
             m.currentTime = Math.max(0, m.currentTime - SEEK_STEP);
             break;
@@ -164,7 +199,31 @@ class MediaInstance implements EditorInstance {
         },
         { once: true },
       );
+      // Embedded text subtitles (Matroska/WebM): the video element ignores them, so
+      // extract each S_TEXT track to WebVTT and attach it; Chrome then offers its CC menu.
+      if (!isAudio) {
+        window.setTimeout(() => {
+          if (!this.wrap) return;
+          try {
+            const subs = extractMkvSubtitles(ctx.bytes!);
+            subs.forEach((s, i) => {
+              const track = document.createElement("track");
+              track.kind = "subtitles";
+              track.label = s.label;
+              track.srclang = s.language;
+              const url = URL.createObjectURL(new Blob([s.vtt], { type: "text/vtt" }));
+              this.subUrls.push(url);
+              track.src = url;
+              if (i === 0) track.default = true;
+              m.appendChild(track);
+            });
+          } catch {
+            /* subtitles are best-effort */
+          }
+        });
+      }
       wrap.appendChild(m);
+      wrap.appendChild(rateBadge);
     } else {
       const d = document.createElement("div");
       d.className = "ot-media-msg";
@@ -195,6 +254,8 @@ class MediaInstance implements EditorInstance {
   dispose(): void {
     if (this.onDocKey) document.removeEventListener("keydown", this.onDocKey);
     this.onDocKey = null;
+    for (const u of this.subUrls) URL.revokeObjectURL(u);
+    this.subUrls = [];
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = null;
     this.wrap?.remove();
