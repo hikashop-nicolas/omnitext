@@ -282,6 +282,16 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   Verified live both ways: forcing light turns the whole family light
   including both libraries' chrome, grid cells and pages stay white.
 
+## Print fixes + toolbar placement (2026-07-08, richdoc 28120db + 1d70228)
+
+- Print buttons moved into the top toolbar: print far left, find/replace far
+  right (margin-left auto), both outside the overflow-managed item range.
+- Extra blank first page then all-white pages fixed: the print window now uses
+  a single flowing clone (Chrome's print engine paints clipped abs-positioned
+  sheets blank) with @page sized to the measured card pitch (page height plus
+  the 24px gap), so every paper page starts on a card boundary. Unpaginated
+  docs keep @page margin 15mm.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
