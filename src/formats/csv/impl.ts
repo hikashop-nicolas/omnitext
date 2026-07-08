@@ -5,7 +5,7 @@ import type {
   ViewEdit,
   ViewKind,
 } from "../../core/types";
-import { type CsvModel, editCell, parseCsv, serializeCsv } from "./roundtrip";
+import { applyTableEdit, type CsvModel, type CsvTableEdit, parseCsv, serializeCsv } from "./roundtrip";
 import { sniffDelimiter } from "./sniff";
 
 // CSV behavior (lazy-loaded). Its model is the span-preserving CsvModel (roundtrip.ts),
@@ -28,9 +28,6 @@ export const csvImpl: FormatModule = {
     return out;
   },
   applyViewEdit(model, edit: ViewEdit): unknown {
-    if (edit.type === "cell") {
-      return editCell(model as CsvModel, edit.row, edit.col, edit.value);
-    }
-    throw new Error(`unsupported csv view edit "${edit.type}"`);
+    return applyTableEdit(model as CsvModel, edit as CsvTableEdit);
   },
 };

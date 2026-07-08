@@ -5,7 +5,7 @@ import type {
   ViewEdit,
   ViewKind,
 } from "../core/types";
-import { type CsvModel, editCell, parseCsv, serializeCsv } from "./csv/roundtrip";
+import { applyTableEdit, type CsvModel, type CsvTableEdit, parseCsv, serializeCsv } from "./csv/roundtrip";
 
 // TSV reuses the CSV span-preserving round-trip with a tab delimiter, so it gets the
 // same byte-exact guarantee and the same generic table editor.
@@ -25,9 +25,6 @@ export const tsvImpl: FormatModule = {
     return out;
   },
   applyViewEdit(model, edit: ViewEdit): unknown {
-    if (edit.type === "cell") {
-      return editCell(model as CsvModel, edit.row, edit.col, edit.value);
-    }
-    throw new Error(`unsupported tsv view edit "${edit.type}"`);
+    return applyTableEdit(model as CsvModel, edit as CsvTableEdit);
   },
 };

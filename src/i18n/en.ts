@@ -106,6 +106,21 @@ const en: Dict = {
     changes: { one: "{n} change", other: "{n} changes" },
     label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto" },
   },
+  tableEditor: {
+    needsFormat: "The table editor needs a format with a table view.",
+    rowAboveLabel: "+ Row above",
+    rowBelowLabel: "+ Row below",
+    deleteRowLabel: "− Row",
+    colLeftLabel: "+ Col left",
+    colRightLabel: "+ Col right",
+    deleteColLabel: "− Col",
+    insertRowAbove: "Insert a row above the selected cell",
+    insertRowBelow: "Insert a row below the selected cell",
+    deleteRow: "Delete the selected row",
+    insertColLeft: "Insert a column left of the selected cell",
+    insertColRight: "Insert a column right of the selected cell",
+    deleteCol: "Delete the selected column",
+  },
 };
 
 export default en;

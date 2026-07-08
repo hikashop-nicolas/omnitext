@@ -104,6 +104,21 @@ const fr: Dict = {
     changes: { one: "{n} modification", other: "{n} modifications" },
     label: { manual: "Manuel", opened: "Ouvert", saved: "Enregistré", auto: "Auto" },
   },
+  tableEditor: {
+    needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",
+    rowAboveLabel: "+ Ligne au-dessus",
+    rowBelowLabel: "+ Ligne en dessous",
+    deleteRowLabel: "− Ligne",
+    colLeftLabel: "+ Col. à gauche",
+    colRightLabel: "+ Col. à droite",
+    deleteColLabel: "− Col.",
+    insertRowAbove: "Insérer une ligne au-dessus de la cellule sélectionnée",
+    insertRowBelow: "Insérer une ligne en dessous de la cellule sélectionnée",
+    deleteRow: "Supprimer la ligne sélectionnée",
+    insertColLeft: "Insérer une colonne à gauche de la cellule sélectionnée",
+    insertColRight: "Insérer une colonne à droite de la cellule sélectionnée",
+    deleteCol: "Supprimer la colonne sélectionnée",
+  },
 };
 
 export default fr;

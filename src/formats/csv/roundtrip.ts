@@ -23,6 +23,30 @@ export interface CsvModel {
   delimiter: string;
 }
 
+/** A structural or cell edit coming from the generic table editor (core ViewEdit). */
+export type CsvTableEdit =
+  | { type: "cell"; row: number; col: number; value: string }
+  | { type: "insertRow"; at: number }
+  | { type: "deleteRow"; at: number }
+  | { type: "insertCol"; at: number }
+  | { type: "deleteCol"; at: number };
+
+/** Apply any table-view edit; shared by the csv and tsv format modules. */
+export function applyTableEdit(model: CsvModel, edit: CsvTableEdit): CsvModel {
+  switch (edit.type) {
+    case "cell":
+      return editCell(model, edit.row, edit.col, edit.value);
+    case "insertRow":
+      return insertRow(model, edit.at);
+    case "deleteRow":
+      return deleteRow(model, edit.at);
+    case "insertCol":
+      return insertCol(model, edit.at);
+    case "deleteCol":
+      return deleteCol(model, edit.at);
+  }
+}
+
 const CR = "\r";
 const LF = "\n";
 const QUOTE = '"';
@@ -133,6 +157,64 @@ export function serializeCsv(model: CsvModel): string {
     }
   }
   return out;
+}
+
+/** The file's dominant line terminator (first one seen), for newly created rows. */
+function dominantTerminator(model: CsvModel): string {
+  for (const r of model.rows) if (r.terminator) return r.terminator;
+  return "\n";
+}
+
+/** Insert an empty row before index `at` (at = rows.length appends). Only the new row
+    (and, when appending, the previously-last row that needs a terminator) is dirtied. */
+export function insertRow(model: CsvModel, at: number): CsvModel {
+  if (at < 0 || at > model.rows.length) throw new RangeError(`row ${at} out of range`);
+  const rows = model.rows.slice();
+  const term = dominantTerminator(model);
+  const width = rows[Math.min(at, rows.length - 1)]?.cells.length ?? 1;
+  const cells = Array.from({ length: Math.max(1, width) }, () => "");
+  const appending = at === rows.length;
+  if (appending && rows.length > 0 && rows[rows.length - 1]!.terminator === "") {
+    const last = rows[rows.length - 1]!;
+    rows[rows.length - 1] = { ...last, terminator: term, dirty: true };
+    rows.push({ cells, raw: "", terminator: "", dirty: true });
+  } else {
+    rows.splice(at, 0, { cells, raw: "", terminator: term, dirty: true });
+  }
+  return { ...model, rows };
+}
+
+/** Remove the row at index `at`. Untouched rows stay byte-exact. */
+export function deleteRow(model: CsvModel, at: number): CsvModel {
+  if (at < 0 || at >= model.rows.length) throw new RangeError(`row ${at} out of range`);
+  const rows = model.rows.slice();
+  rows.splice(at, 1);
+  return { ...model, rows };
+}
+
+/** Insert an empty column before index `at` in every row (reformats the whole file). */
+export function insertCol(model: CsvModel, at: number): CsvModel {
+  if (at < 0) throw new RangeError(`column ${at} out of range`);
+  const rows = model.rows.map((r) => {
+    const cells = r.cells.slice();
+    cells.splice(Math.min(at, cells.length), 0, "");
+    return { ...r, cells, dirty: true };
+  });
+  return { ...model, rows };
+}
+
+/** Remove the column at index `at` from every row that has it (reformats the file). */
+export function deleteCol(model: CsvModel, at: number): CsvModel {
+  if (at < 0) throw new RangeError(`column ${at} out of range`);
+  const rows = model.rows.map((r) => {
+    if (at >= r.cells.length) return r;
+    const cells = r.cells.slice();
+    cells.splice(at, 1);
+    // A row must keep at least one (possibly empty) field to stay a row.
+    if (!cells.length) cells.push("");
+    return { ...r, cells, dirty: true };
+  });
+  return { ...model, rows };
 }
 
 /** Return a new model with one cell edited and that row marked dirty. */

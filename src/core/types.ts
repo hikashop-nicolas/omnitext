@@ -45,7 +45,11 @@ export interface TableView {
 }
 
 export type ViewEdit =
-  | { type: "cell"; row: number; col: number; value: string };
+  | { type: "cell"; row: number; col: number; value: string }
+  | { type: "insertRow"; at: number }
+  | { type: "deleteRow"; at: number }
+  | { type: "insertCol"; at: number }
+  | { type: "deleteCol"; at: number };
 
 /** The view a read-only preview editor consumes. */
 export interface PreviewView {

@@ -34,4 +34,26 @@ describe("xlsx round-trip via the table view", () => {
       ["2", "bob"],
     ]);
   });
+
+  it("row and column structure edits round-trip through write and reparse", () => {
+    const model = xlsxImpl.parseBinary!(makeXlsx([
+      ["id", "name"],
+      [1, "alice"],
+    ])).model;
+    let m = xlsxImpl.applyViewEdit!(model, { type: "insertRow", at: 1 });
+    m = xlsxImpl.applyViewEdit!(m, { type: "cell", row: 1, col: 0, value: "new" });
+    m = xlsxImpl.applyViewEdit!(m, { type: "insertCol", at: 1 });
+    m = xlsxImpl.applyViewEdit!(m, { type: "deleteRow", at: 2 });
+    const reparsed = xlsxImpl.toView!(xlsxImpl.parseBinary!(xlsxImpl.serializeBinary!(m)).model, "table") as TableView;
+    expect(reparsed.rows).toEqual([
+      ["id", "", "name"],
+      ["new", "", ""],
+    ]);
+    const shrunk = xlsxImpl.applyViewEdit!(m, { type: "deleteCol", at: 1 });
+    const view = xlsxImpl.toView!(shrunk, "table") as TableView;
+    expect(view.rows).toEqual([
+      ["id", "name"],
+      ["new", ""],
+    ]);
+  });
 });

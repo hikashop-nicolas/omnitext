@@ -106,6 +106,21 @@ const ja: Dict = {
     changes: { one: "{n} 件の変更", other: "{n} 件の変更" },
     label: { manual: "手動", opened: "開いた時", saved: "保存時", auto: "自動" },
   },
+  tableEditor: {
+    needsFormat: "表エディターには表ビューを持つ形式が必要です。",
+    rowAboveLabel: "+ 上に行",
+    rowBelowLabel: "+ 下に行",
+    deleteRowLabel: "− 行",
+    colLeftLabel: "+ 左に列",
+    colRightLabel: "+ 右に列",
+    deleteColLabel: "− 列",
+    insertRowAbove: "選択したセルの上に行を挿入",
+    insertRowBelow: "選択したセルの下に行を挿入",
+    deleteRow: "選択した行を削除",
+    insertColLeft: "選択したセルの左に列を挿入",
+    insertColRight: "選択したセルの右に列を挿入",
+    deleteCol: "選択した列を削除",
+  },
 };
 
 export default ja;

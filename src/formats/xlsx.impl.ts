@@ -48,15 +48,32 @@ function make(bookType: XLSX.BookType): FormatModule {
     },
     applyViewEdit(model, edit: ViewEdit): unknown {
       const m = model as SheetModel;
+      const rows = m.rows.map((r) => r.slice());
       if (edit.type === "cell") {
-        const rows = m.rows.map((r) => r.slice());
         while (rows.length <= edit.row) rows.push([]);
         const row = rows[edit.row]!;
         while (row.length <= edit.col) row.push("");
         row[edit.col] = edit.value;
         return { ...m, rows };
       }
-      throw new Error(`unsupported spreadsheet view edit "${edit.type}"`);
+      if (edit.type === "insertRow") {
+        const width = rows[Math.min(edit.at, rows.length - 1)]?.length ?? 1;
+        rows.splice(Math.min(edit.at, rows.length), 0, Array.from({ length: Math.max(1, width) }, () => ""));
+        return { ...m, rows };
+      }
+      if (edit.type === "deleteRow") {
+        if (edit.at >= 0 && edit.at < rows.length) rows.splice(edit.at, 1);
+        return { ...m, rows };
+      }
+      if (edit.type === "insertCol") {
+        for (const row of rows) row.splice(Math.min(edit.at, row.length), 0, "");
+        return { ...m, rows };
+      }
+      if (edit.type === "deleteCol") {
+        for (const row of rows) if (edit.at < row.length) row.splice(edit.at, 1);
+        return { ...m, rows };
+      }
+      throw new Error(`unsupported spreadsheet view edit "${(edit as ViewEdit).type}"`);
     },
   };
 }
