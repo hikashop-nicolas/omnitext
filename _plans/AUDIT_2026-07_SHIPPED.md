@@ -337,6 +337,28 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   python-pptx deck incl. leveled bullets and a styled shape; 2-chapter
   hand-built epub): rendering, page turns, epub <-> archive round-trip.
 
+## sheetedit cell styles completed (2026-07-09, sheetedit 2f2bfc6 + dae566d)
+
+- The six missing style fields ship end to end: font size, font family,
+  underline, strikethrough, wrap text and vertical alignment, read+write
+  through the xlsx style pools (u/strike/sz/name on fonts, vertical/wrapText
+  on the xf alignment) and the ods automatic styles (style:text-underline-/
+  line-through-style, fo:font-size/-family, fo:wrap-option,
+  style:vertical-align). Font size/name equal to the workbook default are
+  suppressed on read so plain cells keep an undefined cellStyle.
+- Toolbar: stateless font-family and size pickers (placeholder re-selects
+  after apply), U/S buttons (float bar too), valign top/middle/bottom, wrap
+  toggle; i18n in en/fr/ja. Grid renders underline/strike/size/family; wrap
+  and valign persist but a single-line <input> grid cannot show them (logged
+  as residue).
+- Fixed along the way: workbooks with no xl/styles.xml (e.g. from the CSV
+  converter) silently ignored every style button; setXlsxCellStyle now mints
+  the minimal stylesheet like the number-format path (regression test).
+- 8 new tests (149 total). Verified live in the sheetedit demo and the
+  omnitext production build (dc5e1e8): A1 bold 18pt Georgia underline+strike
+  applied and rendered; also fixed stale README credits (richdoc) and the
+  binary-viewers SVG comment in the same omnitext commit.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
