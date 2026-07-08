@@ -58,6 +58,7 @@ class MediaInstance implements EditorInstance {
   private wrap: HTMLElement | null = null;
   private url: string | null = null;
   private bytes: Uint8Array | null = null;
+  private onDocKey: ((e: KeyboardEvent) => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -105,8 +106,15 @@ class MediaInstance implements EditorInstance {
           },
         );
       });
-      wrap.addEventListener("keydown", (e) => {
+      // Document-level so the shortcuts work no matter where focus sits (the open
+      // dialog returns focus to the toolbar, drag-drop leaves it on the body, ...).
+      // Typing and button/menu interaction elsewhere is never hijacked.
+      this.onDocKey = (e: KeyboardEvent) => {
+        if (!wrap.isConnected || wrap.offsetParent === null) return; // gone or hidden (view switch)
         if (e.ctrlKey || e.metaKey || e.altKey) return;
+        const el = e.target instanceof HTMLElement ? e.target : null;
+        if (el && !wrap.contains(el) && el.closest("input, textarea, select, button, a, [contenteditable], [role=dialog], [role=menu], [role=listbox]"))
+          return;
         const key = e.key === " " ? " " : e.key.length === 1 ? e.key.toLowerCase() : e.key;
         switch (key) {
           case " ":
@@ -145,7 +153,17 @@ class MediaInstance implements EditorInstance {
             return;
         }
         e.preventDefault();
-      });
+      };
+      document.addEventListener("keydown", this.onDocKey);
+      // The open dialog's focus-restore lands on the toolbar after mount; once the
+      // media is ready, pull focus into the player so the shortcuts work immediately.
+      m.addEventListener(
+        "loadeddata",
+        () => {
+          if (!wrap.contains(document.activeElement)) wrap.focus();
+        },
+        { once: true },
+      );
       wrap.appendChild(m);
     } else {
       const d = document.createElement("div");
@@ -175,6 +193,8 @@ class MediaInstance implements EditorInstance {
   }
 
   dispose(): void {
+    if (this.onDocKey) document.removeEventListener("keydown", this.onDocKey);
+    this.onDocKey = null;
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = null;
     this.wrap?.remove();
