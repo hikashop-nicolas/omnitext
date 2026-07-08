@@ -34,8 +34,7 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
 - **Binary documents**, each edited *in place* (the parts you don't touch are preserved),
   via a dedicated standalone library:
   - **PDF** — [pdfedit](https://github.com/hikashop-nicolas/pdfedit)
-  - **DOCX** — [docxedit](https://github.com/hikashop-nicolas/docxedit)
-  - **ODT** — [odtedit](https://github.com/hikashop-nicolas/odtedit)
+  - **DOCX / ODT** — [richdoc](https://github.com/hikashop-nicolas/richdoc)
   - **XLSX / ODS** (formula-aware) — [sheetedit](https://github.com/hikashop-nicolas/sheetedit)
   - legacy **XLS** via a SheetJS-backed grid
 - **RTF** — Rich Text Format documents rendered read-only via
@@ -44,7 +43,6 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   [pptx-renderer](https://github.com/aiden0z/pptx-renderer) (shapes, tables, charts, images).
 - **EPUB** — books rendered read-only as paginated pages via
   [epub-js](https://github.com/intity/epub-js), with keyboard and arrow navigation.
-  Both are zips, so the archive view is one click away in the View switcher.
 - **Images** (PNG/JPG/GIF/WebP/AVIF/BMP/ICO) — shown in a read-only viewer by default; switch
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
@@ -82,8 +80,8 @@ specifically: it picks an editor per format (native pairing → generic view →
 and every file can always fall back to the text editor. Binary formats delegate the full
 round-trip to a dedicated editor. The core imports no parser and no DOM editor widget.
 
-The binary-document editors live in their own MIT repos (pdfedit, docxedit, odtedit,
-sheetedit) and are consumed here as git dependencies, so each is reusable on its own.
+The binary-document editors live in their own MIT repos (pdfedit, richdoc, sheetedit)
+and are consumed here as git dependencies, so each is reusable on its own.
 Read-only surfaces (preview, rtf, image/media/archive/hex viewers) carry a `readOnly` flag, so
 the app hides Save for them. Switching the View keeps the previous editor alive, so its undo
 history survives a round-trip. Third-party editors are loaded on demand: [svgedit](https://github.com/SVG-Edit/svgedit)
@@ -108,11 +106,12 @@ src/core/      engine, event bus, registries, editor resolution, host types, enc
                session store, archive + tar codec
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
                odt, sheet, svgeditor, latexpreview, filerobot image editor) and read-only
-               viewers (rtf, image, media, archive, binary/hex)
+               viewers (rtf, pptx, epub, image, media, archive, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
-               sql/shell/dotenv/properties, latex, svg, pdf/docx/odt/xlsx/ods/xls, rtf, the
-               codemirror-formats long-tail table, and binary-viewers for images/media/archives)
-src/i18n/      app-shell translations (en, fr) + the auto-detect runtime
+               sql/shell/dotenv/properties, latex, svg, pdf/docx/odt/xlsx/ods/xls, pptx, epub,
+               rtf, the codemirror-formats long-tail table, and binary-viewers for
+               images/media/archives)
+src/i18n/      app-shell translations (en, fr, ja) + the auto-detect runtime
 src/tools/     cross-cutting tools (history / diff)
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery
 ```

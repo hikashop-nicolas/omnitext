@@ -4,7 +4,8 @@ import type { FormatDescriptor, FormatModule } from "../core/types";
 // Each is a binary format whose native editor is the read-only image/media viewer. The
 // document's MIME flows to the viewer (via the mount context) so it builds the right blob.
 //
-// SVG is intentionally NOT here: it is editable XML, handled by the xml text format.
+// SVG is intentionally NOT here: it has its own format module (formats/svg.ts) with the
+// svgedit vector editor as native and the XML source a view switch away.
 
 interface ViewerFormat {
   id: string;
