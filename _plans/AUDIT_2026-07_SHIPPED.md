@@ -359,6 +359,23 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   applied and rendered; also fixed stale README credits (richdoc) and the
   binary-viewers SVG comment in the same omnitext commit.
 
+## Media viewer keyboard controls (2026-07-09)
+
+- Audio/video player shortcuts, requested by the owner: space/K play-pause,
+  F fullscreen (video only), M mute, left/right seek 5s, up/down volume 5%,
+  Home/End jump to start/end. Handled on the focused viewer wrapper (focused
+  on mount), preventDefault so space doesn't scroll and native handling never
+  double-fires; the hint is the element tooltip + aria-label (separate audio
+  string without the F segment).
+- The two hardcoded English messages (unsupported format, nothing to play)
+  moved to i18n; en/fr/ja strings added.
+- Verified live on the production build (wav tone + in-browser recorded
+  webm): play/pause, seek, mute, volume all respond. F is exercised to the
+  requestFullscreen call (trusted key, correct element) but the automation
+  harness denies fullscreen with the debugger attached — even Chrome's own
+  fullscreen control button is refused there — so the actual fullscreen entry
+  needs one manual keypress on a real screen, like the pptx Present flow did.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

@@ -126,6 +126,10 @@ const en: Dict = {
     presentTitle: "Fullscreen slideshow: arrows, space or click to change slides, Escape to leave",
     slides: "Slides",
     slideN: "Slide {n}",
+    mediaKeys: "Space: play/pause · F: fullscreen · M: mute · ← →: seek · ↑ ↓: volume",
+    mediaKeysAudio: "Space: play/pause · M: mute · ← →: seek · ↑ ↓: volume",
+    mediaUnsupported: "This media format is not supported by your browser.",
+    mediaEmpty: "Nothing to play.",
   },
   tableEditor: {
     needsFormat: "The table editor needs a format with a table view.",

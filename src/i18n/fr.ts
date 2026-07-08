@@ -124,6 +124,10 @@ const fr: Dict = {
     presentTitle: "Diaporama plein écran : flèches, espace ou clic pour changer de diapositive, Échap pour quitter",
     slides: "Diapositives",
     slideN: "Diapositive {n}",
+    mediaKeys: "Espace : lecture/pause · F : plein écran · M : muet · ← → : avancer/reculer · ↑ ↓ : volume",
+    mediaKeysAudio: "Espace : lecture/pause · M : muet · ← → : avancer/reculer · ↑ ↓ : volume",
+    mediaUnsupported: "Ce format multimédia n'est pas pris en charge par votre navigateur.",
+    mediaEmpty: "Rien à lire.",
   },
   tableEditor: {
     needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",

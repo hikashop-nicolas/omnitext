@@ -126,6 +126,10 @@ const ja: Dict = {
     presentTitle: "全画面スライドショー：矢印キー・スペース・クリックでスライド切り替え、Escで終了",
     slides: "スライド",
     slideN: "スライド {n}",
+    mediaKeys: "スペース：再生/一時停止 · F：全画面 · M：ミュート · ← →：シーク · ↑ ↓：音量",
+    mediaKeysAudio: "スペース：再生/一時停止 · M：ミュート · ← →：シーク · ↑ ↓：音量",
+    mediaUnsupported: "このメディア形式はお使いのブラウザーでは再生できません。",
+    mediaEmpty: "再生できる内容がありません。",
   },
   tableEditor: {
     needsFormat: "表エディターには表ビューを持つ形式が必要です。",
