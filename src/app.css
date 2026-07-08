@@ -400,3 +400,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 
 #filename { cursor: pointer; }
 #filename:hover { text-decoration: underline; }
+
+/* Command palette (Cmd/Ctrl+K) */
+.palette-card { width: min(520px, 92vw); padding: 10px; }
+.palette-input {
+  width: 100%; box-sizing: border-box; font: 15px/1.4 inherit; color: var(--text);
+  background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px;
+}
+.palette-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 46vh; overflow: auto; }
+.palette-list li {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  padding: 7px 10px; border-radius: 6px; cursor: pointer; color: var(--text);
+}
+.palette-list li[aria-selected="true"], .palette-list li:hover { background: var(--accent-dim, rgba(110,123,255,0.18)); }
+.palette-hint { color: var(--muted); font-size: 12px; }
+.palette-none { color: var(--muted); padding: 10px; }

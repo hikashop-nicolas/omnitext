@@ -246,6 +246,25 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   (notify.storageFull) instead of dying silently. Policies are pure
   functions with 7 tests.
 
+## Product-win batch (2026-07-08)
+
+- pdfedit (2506183, a56ffc2): find bar (Ctrl+F, highlights over lazily
+  rendered pages, never mutates the editable overlays); bold/italic toggles
+  keep the embedded typeface (sibling variant, else faux bold double-strike /
+  faux italic shear on the original font) instead of dropping to Helvetica;
+  user-password PDFs open view-only after a prompt; exports no longer embed
+  an unused standard font. 5 unit + 4 e2e tests with new embedded-font and
+  AES-encrypted fixtures.
+- sheetedit (e12eccc): fill handle (series, cyclic patterns,
+  trailing-integer text, relative formula copy; drag preview; one undo step)
+  and find/replace (finds across sheets, replaces on the active one,
+  replace-all in one undo step). 12 tests.
+- omnitext: command palette on Cmd/Ctrl+K over the engine command registry
+  plus core actions and the current document's views; fuzzy ranking with
+  word-start bonuses and diacritic folding (core/palette.ts, 6 tests);
+  aria combobox/listbox semantics. The history tool's command title is now
+  localized. Everything verified live in French.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

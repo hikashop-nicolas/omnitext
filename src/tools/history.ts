@@ -234,7 +234,7 @@ export const historyTool: ToolModule = {
       }),
       host.commands.register({
         id: "history.open",
-        title: "History: Open version history",
+        title: t("history.title"),
         run: () => openPanel(host, store),
       }),
       host.ui.addToolbarButton({

@@ -4,6 +4,7 @@ import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText, hasUtf16Bom, ENCODINGS } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
+import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
@@ -1199,6 +1200,7 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (k === "s") { e.preventDefault(); void saveFile(); }
   else if (k === "o") { e.preventDefault(); void openFile(); }
+  else if (k === "k") { e.preventDefault(); paletteEl.hidden ? openPalette() : closePalette(); }
 });
 
 $("btn-new").addEventListener("click", openNewDialog);
@@ -1340,6 +1342,129 @@ settingNameEl.addEventListener("keydown", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !settingsDlgEl.hidden) closeSettings();
+});
+
+// --- command palette (Cmd/Ctrl+K) ---------------------------------------------
+// One searchable list over everything actionable: core actions, every command in
+// the engine registry (tools contribute there), and the current document's views.
+const paletteEl = document.createElement("div");
+paletteEl.className = "modal";
+paletteEl.hidden = true;
+const paletteCard = document.createElement("div");
+paletteCard.className = "modal-card palette-card";
+paletteCard.setAttribute("role", "dialog");
+paletteCard.setAttribute("aria-modal", "true");
+const paletteInput = document.createElement("input");
+paletteInput.type = "text";
+paletteInput.setAttribute("role", "combobox");
+paletteInput.setAttribute("aria-expanded", "true");
+paletteInput.setAttribute("aria-controls", "palette-list");
+paletteInput.className = "palette-input";
+const paletteList = document.createElement("ul");
+paletteList.id = "palette-list";
+paletteList.className = "palette-list";
+paletteList.setAttribute("role", "listbox");
+paletteCard.append(paletteInput, paletteList);
+paletteEl.appendChild(paletteCard);
+document.body.appendChild(paletteEl);
+
+let paletteItems: PaletteEntry[] = [];
+let paletteActive = 0;
+
+function paletteEntries(): PaletteEntry[] {
+  const out: PaletteEntry[] = [
+    { label: t("app.newDocument"), run: () => openNewDialog() },
+    { label: t("app.open"), hint: "Ctrl+O", run: () => void openFile() },
+    { label: t("app.save"), hint: "Ctrl+S", run: () => void saveFile() },
+    { label: t("app.settings"), run: () => openSettings() },
+  ];
+  for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });
+  for (const c of viewChoices) {
+    const id = c.editor.manifest.id;
+    if (id === session?.editorId) continue;
+    out.push({ label: `${t("app.view")} : ${editorLabel(id)}`, run: () => void changeEditor(id) });
+  }
+  return out;
+}
+
+function renderPalette(): void {
+  const filtered = filterEntries(paletteItems, paletteInput.value);
+  paletteList.innerHTML = "";
+  paletteActive = Math.min(paletteActive, Math.max(0, filtered.length - 1));
+  if (!filtered.length) {
+    const li = document.createElement("li");
+    li.className = "palette-none";
+    li.textContent = t("app.paletteNone");
+    paletteList.appendChild(li);
+    paletteInput.removeAttribute("aria-activedescendant");
+    return;
+  }
+  filtered.forEach((entry, i) => {
+    const li = document.createElement("li");
+    li.id = `palette-opt-${i}`;
+    li.setAttribute("role", "option");
+    li.setAttribute("aria-selected", String(i === paletteActive));
+    const label = document.createElement("span");
+    label.textContent = entry.label;
+    li.appendChild(label);
+    if (entry.hint) {
+      const hint = document.createElement("span");
+      hint.className = "palette-hint";
+      hint.textContent = entry.hint;
+      li.appendChild(hint);
+    }
+    li.addEventListener("click", () => {
+      closePalette();
+      entry.run();
+    });
+    paletteList.appendChild(li);
+  });
+  paletteInput.setAttribute("aria-activedescendant", `palette-opt-${paletteActive}`);
+  paletteList.querySelector(`#palette-opt-${paletteActive}`)?.scrollIntoView({ block: "nearest" });
+}
+
+function openPalette(): void {
+  paletteInput.placeholder = t("app.paletteSearch");
+  paletteInput.setAttribute("aria-label", t("app.palette"));
+  paletteCard.setAttribute("aria-label", t("app.palette"));
+  paletteItems = paletteEntries();
+  paletteActive = 0;
+  paletteInput.value = "";
+  paletteEl.hidden = false;
+  renderPalette();
+  paletteInput.focus();
+}
+function closePalette(): void {
+  paletteEl.hidden = true;
+}
+paletteInput.addEventListener("input", () => {
+  paletteActive = 0;
+  renderPalette();
+});
+paletteInput.addEventListener("keydown", (e) => {
+  const filtered = filterEntries(paletteItems, paletteInput.value);
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    paletteActive = filtered.length ? (paletteActive + 1) % filtered.length : 0;
+    renderPalette();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    paletteActive = filtered.length ? (paletteActive - 1 + filtered.length) % filtered.length : 0;
+    renderPalette();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const entry = filtered[paletteActive];
+    if (entry) {
+      closePalette();
+      entry.run();
+    }
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    closePalette();
+  }
+});
+paletteEl.addEventListener("pointerdown", (e) => {
+  if (e.target === paletteEl) closePalette(); // click on the backdrop
 });
 // View switcher: with two views a click toggles to the other directly; with three or more
 // it opens a small popover. (One view hides the button entirely.)
