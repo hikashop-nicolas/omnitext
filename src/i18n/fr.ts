@@ -122,6 +122,8 @@ const fr: Dict = {
     nextPage: "Page suivante",
     present: "Présenter",
     presentTitle: "Diaporama plein écran : flèches, espace ou clic pour changer de diapositive, Échap pour quitter",
+    slides: "Diapositives",
+    slideN: "Diapositive {n}",
   },
   tableEditor: {
     needsFormat: "L'éditeur de tableau nécessite un format avec une vue tableau.",

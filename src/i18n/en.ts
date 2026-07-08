@@ -124,6 +124,8 @@ const en: Dict = {
     nextPage: "Next page",
     present: "Present",
     presentTitle: "Fullscreen slideshow: arrows, space or click to change slides, Escape to leave",
+    slides: "Slides",
+    slideN: "Slide {n}",
   },
   tableEditor: {
     needsFormat: "The table editor needs a format with a table view.",

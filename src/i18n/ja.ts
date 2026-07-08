@@ -124,6 +124,8 @@ const ja: Dict = {
     nextPage: "次のページ",
     present: "スライドショー",
     presentTitle: "全画面スライドショー：矢印キー・スペース・クリックでスライド切り替え、Escで終了",
+    slides: "スライド",
+    slideN: "スライド {n}",
   },
   tableEditor: {
     needsFormat: "表エディターには表ビューを持つ形式が必要です。",
