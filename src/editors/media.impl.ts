@@ -36,8 +36,12 @@ function ensureStyles(): void {
     .ot-media-rate.show { opacity:1; }
     .ot-media-tracksbtn { position:absolute; top:12px; left:14px; z-index:2;
       background:rgba(20,20,24,0.85); color:#fff; font:600 13px system-ui, sans-serif;
-      padding:6px 10px; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer; }
+      padding:6px 10px; border:1px solid rgba(255,255,255,0.25); border-radius:8px; cursor:pointer;
+      transition:opacity .25s; }
     .ot-media-tracksbtn:hover { background:rgba(50,50,58,0.9); }
+    /* Fullscreen with an idle mouse: hide our chrome like the native controls do. */
+    .ot-media.ot-media-idle { cursor:none; }
+    .ot-media.ot-media-idle .ot-media-tracksbtn { opacity:0; pointer-events:none; }
     .ot-media-menu { position:absolute; top:44px; left:14px; z-index:3; min-width:200px;
       background:rgba(24,24,30,0.97); color:#eee; font:13px system-ui, sans-serif;
       border:1px solid rgba(255,255,255,0.2); border-radius:10px; padding:6px; }
@@ -169,6 +173,10 @@ class MediaInstance implements EditorInstance {
       if (savedRate && savedRate !== 1) m.addEventListener("loadeddata", () => setRate(savedRate, false), { once: true });
       // Assigned in the video-only tracks section below; C toggles subtitles.
       let toggleSubs: () => void = () => undefined;
+      const toggleFullscreen = () => {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void wrap.requestFullscreen?.().catch(() => undefined); // wrap, so subs/overlays come along
+      };
       const fail = () => {
         wrap.textContent = "";
         const d = document.createElement("div");
@@ -222,8 +230,7 @@ class MediaInstance implements EditorInstance {
             break;
           case "f":
             if (isAudio) return;
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void wrap.requestFullscreen?.().catch(() => undefined); // wrap, so subs/overlays come along
+            toggleFullscreen();
             break;
           case "m":
             m.muted = !m.muted;
@@ -337,24 +344,18 @@ class MediaInstance implements EditorInstance {
           if (!entry.el) entry.el = attachTrackEl(entry);
           entry.el.track.mode = "showing";
         };
-        // The native controls' own fullscreen button fullscreens the bare video, where
-        // the libass canvas can't follow; bridge with the in-video text track meanwhile.
-        const onFsChange = () => {
+        // When only the bare video is fullscreen (a state we failed to upgrade, below),
+        // no sibling canvas can follow; bridge styled subs with the in-video text track.
+        const bridgeSubs = () => {
           const entry = activeSub >= 0 ? subTracks[activeSub] : undefined;
           if (!entry || !octopus) return;
-          const videoOnlyFs = document.fullscreenElement === m;
-          if (videoOnlyFs) {
+          if (document.fullscreenElement === m) {
             if (!entry.el) entry.el = attachTrackEl(entry);
             entry.el.track.mode = "showing";
           } else if (entry.el) {
             entry.el.track.mode = "disabled";
           }
-          // Nudge libass once the fullscreen layout settles (its own listeners can
-          // fire before the video has its final box).
-          window.setTimeout(() => octopus?.resize?.(), 250);
         };
-        document.addEventListener("fullscreenchange", onFsChange);
-        this.teardown.push(() => document.removeEventListener("fullscreenchange", onFsChange));
 
         const btn = document.createElement("button");
         btn.type = "button";
@@ -373,6 +374,55 @@ class MediaInstance implements EditorInstance {
         };
         document.addEventListener("click", closeMenu);
         this.teardown.push(() => document.removeEventListener("click", closeMenu));
+
+        // Fullscreen chrome: hide the CC button (and cursor) after 2.5s of mouse idle,
+        // like the native controls; any movement brings it back.
+        let idleTimer = 0;
+        const poke = () => {
+          wrap.classList.remove("ot-media-idle");
+          window.clearTimeout(idleTimer);
+          if (document.fullscreenElement === wrap)
+            idleTimer = window.setTimeout(() => {
+              if (menu.hidden) wrap.classList.add("ot-media-idle");
+            }, 2500);
+        };
+        wrap.addEventListener("pointermove", poke);
+
+        // Double-click toggles fullscreen (like F); without this, Chrome's native
+        // handler fullscreens the bare video where none of our overlays can live.
+        m.addEventListener("dblclick", (e) => {
+          const r = m.getBoundingClientRect();
+          if (e.clientY > r.bottom - 70) return; // over the native control bar
+          e.preventDefault();
+          toggleFullscreen();
+        });
+
+        // Any native path that still fullscreens the bare video (the controls' own
+        // fullscreen button) is upgraded to wrap fullscreen within the same gesture.
+        let upgrading = false;
+        const onFsChange = () => {
+          poke();
+          if (document.fullscreenElement === m && !upgrading) {
+            upgrading = true;
+            document
+              .exitFullscreen()
+              .then(() => wrap.requestFullscreen())
+              .then(
+                () => (upgrading = false),
+                () => {
+                  upgrading = false;
+                  bridgeSubs(); // couldn't upgrade: at least keep subtitles visible
+                },
+              );
+            return;
+          }
+          bridgeSubs();
+          // Nudge libass once the fullscreen layout settles (its own listeners can
+          // fire before the video has its final box).
+          window.setTimeout(() => octopus?.resize?.(), 250);
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+        this.teardown.push(() => document.removeEventListener("fullscreenchange", onFsChange));
 
         const fileInput = document.createElement("input");
         fileInput.type = "file";
