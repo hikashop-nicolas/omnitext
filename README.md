@@ -73,7 +73,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   on demand) and played without re-encoding. Text subtitles embedded in MKV/WebM (SRT, ASS,
   WebVTT tracks; UTF-8 incl. CJK) are extracted and shown, with a CC menu to switch subtitle
   tracks, load an external `.srt`/`.ass`/`.vtt` file (legacy encodings auto-detected), and
-  switch between the file's audio tracks. Player shortcuts: space, F (fullscreen), M (mute),
+  switch between the file's audio tracks. Latin-script ASS subtitles render fully styled via
+  [libass](https://github.com/libass/JavascriptSubtitlesOctopus) (WASM, loaded on demand);
+  CJK ASS uses the plain-text path so system fonts render the glyphs. Player shortcuts: space, F (fullscreen), M (mute),
   S/D (speed, remembered across files), C (subtitles on/off), arrows (seek/volume).
   And **archives** — `.zip`/`.jar`/`.cbz`,
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,

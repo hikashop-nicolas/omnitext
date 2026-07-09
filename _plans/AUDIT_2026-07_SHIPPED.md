@@ -441,6 +441,31 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   C toggles showing/disabled, switching to 日本語 produced a source with
   exactly one audio track and playback resumed.
 
+## Styled ASS rendering via libass (2026-07-09)
+
+- ASS/SSA subtitles now render fully styled (fonts, colours, outlines,
+  positioning, karaoke) through @jellyfin/libass-wasm (SubtitlesOctopus),
+  lazy-loaded only when an ASS track is selected; worker + wasm + fallback
+  font (~2.8 MB) are copied to public/octopus/ by a prebuild script and
+  served same-origin. The media element gains a shrink-wrapped stage div so
+  the libass canvas overlays the video exactly (octopus assumes it shares
+  the video's left edge; a positioning !important pins its canvas parent).
+- Embedded MKV ASS tracks are reconstructed into a complete .ass document:
+  header from CodecPrivate, Dialogue lines rebuilt from block timing
+  (ReadOrder dropped, H:MM:SS.cc times). External .ass files pass their
+  decoded text straight through. The plain-text VTT conversion remains the
+  automatic fallback when libass fails to boot.
+- CJK gate: the bundled fallback font is Latin-only, so tracks whose script
+  contains Han/kana/hangul use the plain-text path (system fonts render the
+  glyphs correctly) instead of showing tofu. Follow-up idea, also the
+  building block for a future subtitle editor: feed libass a real font via
+  the Local Font Access API or a user-supplied font file.
+- 1 new unit test (115 total; ASS doc reconstruction with CodecPrivate
+  header and timed Dialogue lines). Verified live: external styled .ass on
+  a playing video renders "Styled ASS overlay" yellow/bold/outlined
+  top-center on a canvas aligned with the video box; C toggles the canvas
+  off and back; no <track> duplicate while styled.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

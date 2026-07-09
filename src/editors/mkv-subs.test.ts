@@ -186,3 +186,32 @@ describe("external subtitle files", () => {
     expect(decodeSubtitleBytes(te.encode("UTF-8 text 日本語"))).toBe("UTF-8 text 日本語");
   });
 });
+
+describe("embedded ASS document reconstruction", () => {
+  it("rebuilds a full .ass with the CodecPrivate header and timed Dialogue lines", () => {
+    const header = "[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\nFormat: Name, Fontname\nStyle: Default,Arial\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text";
+    const entry = el(0xae, [
+      ...el(0xd7, [1]),
+      ...el(0x83, [0x11]),
+      ...el(0x86, Array.from(te.encode("S_TEXT/ASS"))),
+      ...el(0x63a2, Array.from(te.encode(header))),
+    ]);
+    const cluster = el(0x1f43b675, [
+      ...el(0xe7, uintPayload(60000)), // 1 minute
+      ...el(0xa0, [...el(0xa1, simpleBlock(1, 500, "7,0,Default,,0,0,0,,{\\b1}Bold{\\b0} text")), ...el(0x9b, uintPayload(2340))]),
+    ]);
+    const subs = extractMkvSubtitles(mkv({ tracks: entry, clusters: cluster }));
+    expect(subs).toHaveLength(1);
+    const doc = subs[0]!.assDoc!;
+    expect(doc).toContain("[Script Info]");
+    expect(doc).toContain("[Events]");
+    expect(doc).toContain("Dialogue: 0,0:01:00.50,0:01:02.84,Default,,0,0,0,,{\\b1}Bold{\\b0} text");
+    // The plain-text VTT fallback still strips the tags.
+    expect(subs[0]!.vtt).toContain("Bold text");
+    // SRT tracks get no assDoc.
+    const srtSubs = extractMkvSubtitles(
+      mkv({ tracks: subtitleTrackEntry(1, "S_TEXT/UTF8"), clusters: el(0x1f43b675, [...el(0xe7, uintPayload(0)), ...el(0xa3, simpleBlock(1, 0, "x"))]) }),
+    );
+    expect(srtSubs[0]!.assDoc).toBeUndefined();
+  });
+});

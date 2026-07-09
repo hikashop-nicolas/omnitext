@@ -37,3 +37,6 @@ android/keystore.properties
 
 # Generated svgedit editor assets (run scripts/copy-svgedit-assets.mjs)
 public/svgedit/
+
+# Generated SubtitlesOctopus (libass) worker assets (run scripts/copy-octopus-assets.mjs)
+public/octopus/

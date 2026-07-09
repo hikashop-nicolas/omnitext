@@ -1,6 +1,6 @@
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { t } from "../i18n";
-import { extractMkvInfo, subtitleFileToVtt, type MkvAudioTrack } from "./mkv-subs";
+import { decodeSubtitleBytes, extractMkvInfo, subtitleFileToVtt, type MkvAudioTrack } from "./mkv-subs";
 
 // Read-only audio/video viewer. Plays the bytes via a blob URL in a <video> or <audio>
 // element (chosen by MIME). Codec support is whatever the platform WebView provides; when
@@ -19,7 +19,11 @@ function ensureStyles(): void {
   s.textContent = `
     .ot-media { height:100%; overflow:auto; background:#000; position:relative;
       display:flex; align-items:center; justify-content:center; outline:none; }
+    .ot-media-stage { position:relative; display:flex; max-width:100%; max-height:100%; }
     .ot-media video { max-width:100%; max-height:100%; }
+    /* libass canvas parent: out of the flex flow, pinned to the video's box (octopus
+       sets position:relative inline, hence the !important). */
+    .ot-media-stage .libassjs-canvas-parent { position:absolute !important; top:0; left:0; }
     .ot-media audio { width:min(90%, 520px); }
     .ot-media-msg { color:#bbb; padding:24px; font:14px system-ui, sans-serif; text-align:center; }
     .ot-media-rate { position:absolute; top:14px; right:16px; z-index:1; pointer-events:none;
@@ -42,6 +46,10 @@ function ensureStyles(): void {
   `;
   document.head.appendChild(s);
 }
+
+// Han/kana/hangul in a subtitle script: the bundled libass fallback font is Latin-only,
+// so styled rendering would show tofu; those tracks use the plain-text path instead.
+const CJK_RE = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 
 const SEEK_STEP = 5; // seconds
 const VOLUME_STEP = 0.05;
@@ -244,11 +252,61 @@ class MediaInstance implements EditorInstance {
       // video element ignores in-container subs), a menu switches subtitle and audio
       // tracks and loads external .srt/.ass/.vtt files, and C toggles subtitles.
       if (!isAudio) {
-        const subTracks: HTMLTrackElement[] = [];
+        interface SubEntry {
+          label: string;
+          lang: string;
+          vtt: string;
+          /** Full .ass text: selected tracks render styled via libass (lazy WASM). */
+          assDoc?: string;
+          el: HTMLTrackElement | null;
+        }
+        const subTracks: SubEntry[] = [];
         let activeSub = -1;
         let lastSub = 0;
         let audioTracks: MkvAudioTrack[] = [];
         let activeAudio = 0;
+        let octopus: { dispose(): void } | null = null;
+        let octopusFor = -1;
+        const dropOctopus = () => {
+          try {
+            octopus?.dispose();
+          } catch {
+            /* worker already gone */
+          }
+          octopus = null;
+          octopusFor = -1;
+          wrap.querySelector(".libassjs-canvas-parent")?.remove(); // stage child
+        };
+        this.teardown.push(dropOctopus);
+        // Styled ASS rendering via SubtitlesOctopus (libass WASM, same-origin worker
+        // assets under octopus/). Falls back to the plain-text VTT track on failure.
+        const startOctopus = async (i: number) => {
+          const entry = subTracks[i]!;
+          try {
+            const mod = await import("@jellyfin/libass-wasm");
+            if (!this.wrap || activeSub !== i) return; // switched away while loading
+            const SubtitlesOctopus = mod.default;
+            octopus = new SubtitlesOctopus({
+              video: m as HTMLVideoElement,
+              subContent: entry.assDoc!,
+              workerUrl: new URL("octopus/subtitles-octopus-worker.js", document.baseURI).toString(),
+              fallbackFont: new URL("octopus/default.woff2", document.baseURI).toString(),
+              onError: () => {
+                dropOctopus();
+                showVttFallback(i);
+              },
+            });
+            octopusFor = i;
+          } catch {
+            showVttFallback(i);
+          }
+        };
+        const showVttFallback = (i: number) => {
+          if (activeSub !== i) return;
+          const entry = subTracks[i]!;
+          if (!entry.el) entry.el = attachTrackEl(entry);
+          entry.el.track.mode = "showing";
+        };
 
         const btn = document.createElement("button");
         btn.type = "button";
@@ -278,32 +336,50 @@ class MediaInstance implements EditorInstance {
           menu.hidden = true;
           if (!f) return;
           try {
-            const vtt = subtitleFileToVtt(f.name, new Uint8Array(await f.arrayBuffer()));
-            addSubTrack(f.name.replace(/\.[^.]+$/, ""), "und", vtt, true);
+            const raw = new Uint8Array(await f.arrayBuffer());
+            const vtt = subtitleFileToVtt(f.name, raw);
+            const isAss = /\.(ass|ssa)$/i.test(f.name);
+            addSubTrack(
+              { label: f.name.replace(/\.[^.]+$/, ""), lang: "und", vtt, assDoc: isAss ? decodeSubtitleBytes(raw) : undefined },
+              true,
+            );
           } catch {
             /* unreadable subtitle file */
           }
         });
 
+        const attachTrackEl = (entry: SubEntry): HTMLTrackElement => {
+          const track = document.createElement("track");
+          track.kind = "subtitles";
+          track.label = entry.label;
+          track.srclang = entry.lang;
+          const url = URL.createObjectURL(new Blob([entry.vtt], { type: "text/vtt" }));
+          this.subUrls.push(url);
+          track.src = url;
+          m.appendChild(track);
+          return track;
+        };
         const setSub = (i: number) => {
           activeSub = i;
           if (i >= 0) lastSub = i;
-          subTracks.forEach((tr, j) => (tr.track.mode = j === i ? "showing" : "disabled"));
+          if (octopusFor !== i) dropOctopus();
+          const target = i >= 0 ? subTracks[i] : undefined;
+          const styled = !!target?.assDoc && !CJK_RE.test(target.assDoc);
+          subTracks.forEach((entry, j) => {
+            if (entry.el) entry.el.track.mode = j === i && !styled ? "showing" : "disabled";
+          });
+          if (target && !styled && !target.el) {
+            target.el = attachTrackEl(target);
+            target.el.track.mode = "showing";
+          }
+          if (target && styled && octopusFor !== i) void startOctopus(i);
           rebuildMenu();
         };
         toggleSubs = () => {
           if (subTracks.length) setSub(activeSub >= 0 ? -1 : Math.min(lastSub, subTracks.length - 1));
         };
-        const addSubTrack = (label: string, lang: string, vtt: string, select: boolean) => {
-          const track = document.createElement("track");
-          track.kind = "subtitles";
-          track.label = label;
-          track.srclang = lang;
-          const url = URL.createObjectURL(new Blob([vtt], { type: "text/vtt" }));
-          this.subUrls.push(url);
-          track.src = url;
-          m.appendChild(track);
-          subTracks.push(track);
+        const addSubTrack = (entry: Omit<SubEntry, "el">, select: boolean) => {
+          subTracks.push({ ...entry, el: null });
           if (select) setSub(subTracks.length - 1);
           else rebuildMenu();
         };
@@ -357,8 +433,8 @@ class MediaInstance implements EditorInstance {
             setSub(-1);
             menu.hidden = true;
           });
-          subTracks.forEach((tr, i) =>
-            item(tr.label || `#${i + 1}`, activeSub === i, () => {
+          subTracks.forEach((entry, i) =>
+            item(entry.label || `#${i + 1}`, activeSub === i, () => {
               setSub(i);
               menu.hidden = true;
             }),
@@ -375,7 +451,7 @@ class MediaInstance implements EditorInstance {
           if (!this.wrap) return;
           try {
             const info = extractMkvInfo(ctx.bytes!);
-            info.subtitles.forEach((s, i) => addSubTrack(s.label || s.language, s.language, s.vtt, i === 0));
+            info.subtitles.forEach((s, i) => addSubTrack({ label: s.label || s.language, lang: s.language, vtt: s.vtt, assDoc: s.assDoc }, i === 0));
             audioTracks = info.audio;
             rebuildMenu();
           } catch {
@@ -386,7 +462,10 @@ class MediaInstance implements EditorInstance {
         wrap.appendChild(menu);
         wrap.appendChild(fileInput);
       }
-      wrap.appendChild(m);
+      const stage = document.createElement("div");
+      stage.className = "ot-media-stage";
+      stage.appendChild(m);
+      wrap.appendChild(stage);
       wrap.appendChild(rateBadge);
     } else {
       const d = document.createElement("div");

@@ -8,6 +8,8 @@ export interface MkvSubtitleTrack {
   label: string;
   language: string;
   vtt: string;
+  /** Full reconstructed .ass document for ASS/SSA tracks (styled rendering). */
+  assDoc?: string;
 }
 
 /** An audio track's identity, for the track-switch menu (playback swaps via remux). */
@@ -36,6 +38,7 @@ const ID_CODEC_ID = 0x86;
 const ID_NAME = 0x536e;
 const ID_LANGUAGE = 0x22b59c;
 const ID_LANGUAGE_BCP47 = 0x22b59d;
+const ID_CODEC_PRIVATE = 0x63a2;
 const ID_CLUSTER = 0x1f43b675;
 const ID_CLUSTER_TIMESTAMP = 0xe7;
 const ID_SIMPLE_BLOCK = 0xa3;
@@ -57,6 +60,10 @@ interface TrackInfo {
   label: string;
   language: string;
   cues: Cue[];
+  /** ASS: the file header ([Script Info] + styles + Format line) from CodecPrivate. */
+  codecPrivate?: string;
+  /** ASS: raw event payloads with block timing, to rebuild Dialogue lines. */
+  assEvents: { start: number; end: number; payload: string }[];
 }
 
 class Reader {
@@ -255,6 +262,8 @@ export function extractMkvInfo(bytes: Uint8Array): MkvInfo {
       const startMs = ((clusterTs + relTime) * scale) / 1e6;
       const durMs = duration != null ? (duration * scale) / 1e6 : 3000;
       if (text) track.cues.push({ start: Math.max(0, startMs), end: Math.max(0, startMs + durMs), text });
+      if (raw && (track.codec.includes("ASS") || track.codec.includes("SSA")))
+        track.assEvents.push({ start: Math.max(0, startMs), end: Math.max(0, startMs + durMs), payload: raw });
     }
     r.pos = start + size;
   };
@@ -265,6 +274,7 @@ export function extractMkvInfo(bytes: Uint8Array): MkvInfo {
     let codec = "";
     let name = "";
     let lang = "";
+    let priv = "";
     while (r.pos < end) {
       const id = r.readId();
       const size = r.readSize();
@@ -274,10 +284,11 @@ export function extractMkvInfo(bytes: Uint8Array): MkvInfo {
       else if (id === ID_CODEC_ID) codec = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
       else if (id === ID_NAME) name = utf8.decode(r.bytes(size));
       else if (id === ID_LANGUAGE || (id === ID_LANGUAGE_BCP47 && !lang)) lang = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
+      else if (id === ID_CODEC_PRIVATE) priv = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
       r.pos += size;
     }
     r.pos = end;
-    if (type === 0x11 && codec.startsWith("S_TEXT")) tracks.set(num, { codec, label: name, language: lang || "und", cues: [] });
+    if (type === 0x11 && codec.startsWith("S_TEXT")) tracks.set(num, { codec, label: name, language: lang || "und", cues: [], codecPrivate: priv || undefined, assEvents: [] });
     else if (type === 0x02) audio.push({ number: num, label: name, language: lang || "und" });
   };
 
@@ -378,7 +389,43 @@ function finish(tracks: Map<number, TrackInfo>): MkvSubtitleTrack[] {
   for (const t of tracks.values()) {
     if (!t.cues.length) continue;
     t.cues.sort((a, b) => a.start - b.start);
-    out.push({ label: t.label || t.language, language: t.language, vtt: buildVtt(t.cues) });
+    out.push({ label: t.label || t.language, language: t.language, vtt: buildVtt(t.cues), assDoc: buildAssDoc(t) });
   }
   return out;
+}
+
+/** ASS time: H:MM:SS.cc (centiseconds). */
+function assTime(ms: number): string {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const cs = Math.floor((ms % 1000) / 10);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${h}:${p(m)}:${p(s)}.${p(cs)}`;
+}
+
+/**
+ * Rebuild a complete .ass document for an embedded ASS/SSA track: the header comes
+ * from CodecPrivate (which holds everything up to the [Events] Format line), and the
+ * Dialogue lines come from the blocks ("ReadOrder,Layer,Style,..." -> Start/End from
+ * the block timing, ReadOrder dropped). Used for styled rendering via libass.
+ */
+function buildAssDoc(t: TrackInfo): string | undefined {
+  if (!t.assEvents.length) return undefined;
+  let header = (t.codecPrivate ?? "").replace(/\r\n?/g, "\n").trimEnd();
+  if (!header)
+    header =
+      "[Script Info]\nScriptType: v4.00+\nPlayResX: 384\nPlayResY: 288\n\n[V4+ Styles]\n" +
+      "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
+      "Style: Default,Arial,16,&Hffffff,&Hffffff,&H0,&H0,0,0,0,0,100,100,0,0,1,1,0,2,10,10,10,1";
+  if (!/\[Events\]/i.test(header))
+    header += "\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text";
+  const events = [...t.assEvents].sort((a, b) => a.start - b.start);
+  const lines = events.map((ev) => {
+    const parts = ev.payload.split(",");
+    const layer = parts.length > 1 ? parts[1]!.trim() : "0";
+    const rest = parts.length > 2 ? parts.slice(2).join(",") : ev.payload;
+    return `Dialogue: ${layer},${assTime(ev.start)},${assTime(ev.end)},${rest}`;
+  });
+  return header + "\n" + lines.join("\n") + "\n";
 }
