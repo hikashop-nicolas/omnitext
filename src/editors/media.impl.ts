@@ -21,6 +21,10 @@ function ensureStyles(): void {
       display:flex; align-items:center; justify-content:center; outline:none; }
     .ot-media-stage { position:relative; display:flex; max-width:100%; max-height:100%; }
     .ot-media video { max-width:100%; max-height:100%; }
+    /* F fullscreens the whole player (wrap), so the libass canvas and the overlays
+       ride along; the video then fills the screen with letterboxing. */
+    .ot-media:fullscreen .ot-media-stage { width:100%; height:100%; }
+    .ot-media:fullscreen video { width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; }
     /* libass canvas parent: out of the flex flow, pinned to the video's box (octopus
        sets position:relative inline, hence the !important). */
     .ot-media-stage .libassjs-canvas-parent { position:absolute !important; top:0; left:0; }
@@ -204,7 +208,7 @@ class MediaInstance implements EditorInstance {
           case "f":
             if (isAudio) return;
             if (document.fullscreenElement) void document.exitFullscreen();
-            else void (m as HTMLVideoElement).requestFullscreen?.().catch(() => undefined);
+            else void wrap.requestFullscreen?.().catch(() => undefined); // wrap, so subs/overlays come along
             break;
           case "m":
             m.muted = !m.muted;
@@ -311,6 +315,21 @@ class MediaInstance implements EditorInstance {
           if (!entry.el) entry.el = attachTrackEl(entry);
           entry.el.track.mode = "showing";
         };
+        // The native controls' own fullscreen button fullscreens the bare video, where
+        // the libass canvas can't follow; bridge with the in-video text track meanwhile.
+        const onFsChange = () => {
+          const entry = activeSub >= 0 ? subTracks[activeSub] : undefined;
+          if (!entry || !octopus) return;
+          const videoOnlyFs = document.fullscreenElement === m;
+          if (videoOnlyFs) {
+            if (!entry.el) entry.el = attachTrackEl(entry);
+            entry.el.track.mode = "showing";
+          } else if (entry.el) {
+            entry.el.track.mode = "disabled";
+          }
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+        this.teardown.push(() => document.removeEventListener("fullscreenchange", onFsChange));
 
         const btn = document.createElement("button");
         btn.type = "button";
