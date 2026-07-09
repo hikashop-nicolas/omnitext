@@ -131,9 +131,9 @@ class MediaInstance implements EditorInstance {
       m.src = this.url;
       m.controls = true;
       m.autoplay = true; // opening a file is the user's intent to play; policy-blocked = stays paused
-      const hint = t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys");
-      m.title = hint;
-      wrap.setAttribute("aria-label", hint);
+      // Shortcut list goes to assistive tech only; a title tooltip here pops up on
+      // every hover over the player, which gets old fast.
+      wrap.setAttribute("aria-label", t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys"));
       // Playback speed: S slower / D faster, remembered across files (like a player).
       const rateBadge = document.createElement("div");
       rateBadge.className = "ot-media-rate";
@@ -273,7 +273,7 @@ class MediaInstance implements EditorInstance {
         let lastSub = 0;
         let audioTracks: MkvAudioTrack[] = [];
         let activeAudio = 0;
-        let octopus: { dispose(): void } | null = null;
+        let octopus: { dispose(): void; resize?: () => void } | null = null;
         let octopusFor = -1;
         const dropOctopus = () => {
           try {
@@ -327,6 +327,9 @@ class MediaInstance implements EditorInstance {
           } else if (entry.el) {
             entry.el.track.mode = "disabled";
           }
+          // Nudge libass once the fullscreen layout settles (its own listeners can
+          // fire before the video has its final box).
+          window.setTimeout(() => octopus?.resize?.(), 250);
         };
         document.addEventListener("fullscreenchange", onFsChange);
         this.teardown.push(() => document.removeEventListener("fullscreenchange", onFsChange));
