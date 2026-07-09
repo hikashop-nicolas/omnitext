@@ -126,6 +126,7 @@ class MediaInstance implements EditorInstance {
       const m = document.createElement(isAudio ? "audio" : "video") as HTMLMediaElement;
       m.src = this.url;
       m.controls = true;
+      m.autoplay = true; // opening a file is the user's intent to play; policy-blocked = stays paused
       const hint = t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys");
       m.title = hint;
       wrap.setAttribute("aria-label", hint);
@@ -186,6 +187,9 @@ class MediaInstance implements EditorInstance {
       // Typing and button/menu interaction elsewhere is never hijacked.
       this.onDocKey = (e: KeyboardEvent) => {
         if (!wrap.isConnected || wrap.offsetParent === null) return; // gone or hidden (view switch)
+        // Already claimed by someone else (e.g. a speed-controller browser extension
+        // handling S/D itself): don't double-handle, or every press fires twice.
+        if (e.defaultPrevented) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const el = e.target instanceof HTMLElement ? e.target : null;
         if (el && !wrap.contains(el) && el.closest("input, textarea, select, button, a, [contenteditable], [role=dialog], [role=menu], [role=listbox]"))
@@ -406,6 +410,7 @@ class MediaInstance implements EditorInstance {
               m.currentTime = pos;
               m.playbackRate = rate;
               if (!wasPaused) void m.play();
+              else m.pause(); // autoplay would otherwise restart a paused player
             },
             { once: true },
           );

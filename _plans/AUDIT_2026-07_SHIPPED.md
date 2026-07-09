@@ -466,6 +466,19 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   top-center on a canvas aligned with the video box; C toggles the canvas
   off and back; no <track> duplicate while styled.
 
+## Media polish: extension coexistence + autoplay (2026-07-09)
+
+- Owner hit double-handled keys and 0.1-step speed jumps with an always-on
+  speed badge: a speed-controller browser extension (Video Speed Controller
+  style) was fighting the built-in S/D keys. The player's document-level key
+  handler now skips events something else already claimed
+  (e.defaultPrevented), so extension users get exactly one handler; without
+  the extension, behavior is unchanged (0.2 steps, transient badge).
+- Media files autoplay on open (m.autoplay): opening a file is the play
+  intent; when the platform's autoplay policy blocks it (no user gesture,
+  e.g. Android intent), the player just stays paused. An audio-track switch
+  no longer restarts a deliberately paused player (autoplay would have).
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
