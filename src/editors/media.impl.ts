@@ -134,10 +134,27 @@ class MediaInstance implements EditorInstance {
       // Shortcut list goes to assistive tech only; a title tooltip here pops up on
       // every hover over the player, which gets old fast.
       wrap.setAttribute("aria-label", t(isAudio ? "viewer.mediaKeysAudio" : "viewer.mediaKeys"));
-      // Playback speed: S slower / D faster, remembered across files (like a player).
+      // Top-right OSD badge: speed, volume and seek feedback for the keyboard controls.
       const rateBadge = document.createElement("div");
       rateBadge.className = "ot-media-rate";
       let rateTimer = 0;
+      const flashBadge = (text: string) => {
+        rateBadge.textContent = text;
+        rateBadge.classList.add("show");
+        window.clearTimeout(rateTimer);
+        rateTimer = window.setTimeout(() => rateBadge.classList.remove("show"), 900);
+      };
+      const fmtClock = (secs: number): string => {
+        const s = Math.max(0, Math.floor(secs));
+        const h = Math.floor(s / 3600);
+        const mn = Math.floor((s % 3600) / 60);
+        const sc = s % 60;
+        const p = (n: number) => String(n).padStart(2, "0");
+        return h ? `${h}:${p(mn)}:${p(sc)}` : `${mn}:${p(sc)}`;
+      };
+      const flashSeek = () => flashBadge(Number.isFinite(m.duration) ? `${fmtClock(m.currentTime)} / ${fmtClock(m.duration)}` : fmtClock(m.currentTime));
+      const flashVolume = () => flashBadge(m.muted ? "🔇" : `🔊 ${Math.round(m.volume * 100)}%`);
+      // Playback speed: S slower / D faster, remembered across files (like a player).
       const setRate = (rate: number, show: boolean) => {
         const r = Math.min(4, Math.max(0.2, Math.round(rate * 10) / 10));
         m.playbackRate = r;
@@ -146,12 +163,7 @@ class MediaInstance implements EditorInstance {
         } catch {
           /* private mode */
         }
-        if (show) {
-          rateBadge.textContent = `${r}×`;
-          rateBadge.classList.add("show");
-          window.clearTimeout(rateTimer);
-          rateTimer = window.setTimeout(() => rateBadge.classList.remove("show"), 900);
-        }
+        if (show) flashBadge(`${r}×`);
       };
       const savedRate = Number(localStorage.getItem(RATE_KEY));
       if (savedRate && savedRate !== 1) m.addEventListener("loadeddata", () => setRate(savedRate, false), { once: true });
@@ -190,7 +202,10 @@ class MediaInstance implements EditorInstance {
       // dialog returns focus to the toolbar, drag-drop leaves it on the body, ...).
       // Typing and button/menu interaction elsewhere is never hijacked.
       this.onDocKey = (e: KeyboardEvent) => {
-        if (!wrap.isConnected || wrap.offsetParent === null) return; // gone or hidden (view switch)
+        // Gone, or hidden by a view switch. NOT offsetParent: the fullscreen top layer
+        // makes the wrap position:fixed, where offsetParent is null while fully visible.
+        if (!wrap.isConnected) return;
+        if (wrap.checkVisibility ? !wrap.checkVisibility() : wrap.offsetParent === null && !document.fullscreenElement) return;
         // Already claimed by someone else (e.g. a speed-controller browser extension
         // handling S/D itself): don't double-handle, or every press fires twice.
         if (e.defaultPrevented) return;
@@ -212,6 +227,7 @@ class MediaInstance implements EditorInstance {
             break;
           case "m":
             m.muted = !m.muted;
+            flashVolume();
             break;
           case "s":
             setRate(m.playbackRate - RATE_STEP, true);
@@ -224,22 +240,28 @@ class MediaInstance implements EditorInstance {
             break;
           case "ArrowLeft":
             m.currentTime = Math.max(0, m.currentTime - SEEK_STEP);
+            flashSeek();
             break;
           case "ArrowRight":
             m.currentTime = Math.min(m.duration || Infinity, m.currentTime + SEEK_STEP);
+            flashSeek();
             break;
           case "ArrowUp":
             m.volume = Math.min(1, m.volume + VOLUME_STEP);
             m.muted = false;
+            flashVolume();
             break;
           case "ArrowDown":
             m.volume = Math.max(0, m.volume - VOLUME_STEP);
+            flashVolume();
             break;
           case "Home":
             m.currentTime = 0;
+            flashSeek();
             break;
           case "End":
             if (Number.isFinite(m.duration)) m.currentTime = m.duration;
+            flashSeek();
             break;
           default:
             return;
@@ -247,15 +269,15 @@ class MediaInstance implements EditorInstance {
         e.preventDefault();
       };
       document.addEventListener("keydown", this.onDocKey);
-      // The open dialog's focus-restore lands on the toolbar after mount; once the
-      // media is ready, pull focus into the player so the shortcuts work immediately.
-      m.addEventListener(
-        "loadeddata",
-        () => {
-          if (!wrap.contains(document.activeElement)) wrap.focus();
-        },
-        { once: true },
-      );
+      // The open dialog's focus-restore lands on the toolbar after mount (and Chrome
+      // shows the focused button's title tooltip over the video). Pull focus into the
+      // player once ready, with retries because the restore can land after us.
+      const pullFocus = () => {
+        if (wrap.isConnected && !wrap.contains(document.activeElement)) wrap.focus();
+      };
+      m.addEventListener("loadeddata", pullFocus, { once: true });
+      window.setTimeout(pullFocus, 600);
+      window.setTimeout(pullFocus, 1500);
       // Tracks (video only): embedded subtitles are extracted to WebVTT <track>s (the
       // video element ignores in-container subs), a menu switches subtitle and audio
       // tracks and loads external .srt/.ass/.vtt files, and C toggles subtitles.
