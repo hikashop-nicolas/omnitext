@@ -17,7 +17,9 @@ No file ever fails to open: unknown text opens as plain text, unknown binary as 
   a third for images, a single consistent app (and a single Android "Open with" target)
   handles them all.
 - **Small and fast** — the shell is ~170 KB gzipped; each editor loads on demand only when
-  you open its file type. Works offline as a PWA once visited.
+  you open its file type. Works offline as a PWA once visited; installing it (browser menu →
+  Install) also registers Omnitext in your desktop's **"Open with"** menu for its file types
+  on Chrome/Edge.
 - **Open source, reusable in your projects** — MIT-licensed, including the standalone
   document-editor libraries it's built on ([pdfedit](https://github.com/hikashop-nicolas/pdfedit),
   [richdoc](https://github.com/hikashop-nicolas/richdoc),
@@ -69,8 +71,10 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a container directly, the
   file is repackaged in memory ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded
   on demand) and played without re-encoding. Text subtitles embedded in MKV/WebM (SRT, ASS,
-  WebVTT tracks) are extracted and shown via the player's CC menu. Player shortcuts: space,
-  F (fullscreen), M (mute), S/D (speed, remembered across files), arrows (seek/volume).
+  WebVTT tracks; UTF-8 incl. CJK) are extracted and shown, with a CC menu to switch subtitle
+  tracks, load an external `.srt`/`.ass`/`.vtt` file (legacy encodings auto-detected), and
+  switch between the file's audio tracks. Player shortcuts: space, F (fullscreen), M (mute),
+  S/D (speed, remembered across files), C (subtitles on/off), arrows (seek/volume).
   And **archives** — `.zip`/`.jar`/`.cbz`,
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
   extract it, or edit it and save it back into the archive. Anything else opens in a **hex**

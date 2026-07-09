@@ -8,8 +8,136 @@
   "background_color": "#f8fafc",
   "theme_color": "#4f46e5",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "text/plain": [
+          ".txt",
+          ".text",
+          ".log",
+          ".md",
+          ".markdown",
+          ".csv",
+          ".tsv",
+          ".json",
+          ".json5",
+          ".yaml",
+          ".yml",
+          ".xml",
+          ".toml",
+          ".ini",
+          ".tex",
+          ".srt",
+          ".vtt"
+        ],
+        "application/pdf": [
+          ".pdf"
+        ],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+          ".docx"
+        ],
+        "application/vnd.oasis.opendocument.text": [
+          ".odt"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "application/vnd.oasis.opendocument.spreadsheet": [
+          ".ods"
+        ],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+          ".pptx"
+        ],
+        "application/epub+zip": [
+          ".epub"
+        ],
+        "application/rtf": [
+          ".rtf"
+        ],
+        "application/zip": [
+          ".zip",
+          ".jar",
+          ".cbz"
+        ],
+        "application/x-tar": [
+          ".tar",
+          ".tgz"
+        ],
+        "application/gzip": [
+          ".gz"
+        ],
+        "image/svg+xml": [
+          ".svg"
+        ],
+        "image/png": [
+          ".png"
+        ],
+        "image/jpeg": [
+          ".jpg",
+          ".jpeg"
+        ],
+        "image/gif": [
+          ".gif"
+        ],
+        "image/webp": [
+          ".webp"
+        ],
+        "video/mp4": [
+          ".mp4",
+          ".m4v"
+        ],
+        "video/webm": [
+          ".webm"
+        ],
+        "video/x-matroska": [
+          ".mkv"
+        ],
+        "video/quicktime": [
+          ".mov"
+        ],
+        "video/mp2t": [
+          ".mts",
+          ".m2ts"
+        ],
+        "video/x-msvideo": [
+          ".avi"
+        ],
+        "audio/mpeg": [
+          ".mp3"
+        ],
+        "audio/wav": [
+          ".wav"
+        ],
+        "audio/ogg": [
+          ".ogg",
+          ".oga",
+          ".opus"
+        ],
+        "audio/mp4": [
+          ".m4a"
+        ],
+        "audio/flac": [
+          ".flac"
+        ]
+      }
+    }
   ]
 }

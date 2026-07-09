@@ -418,6 +418,29 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   WebVTT track) plays with "Hello subtitles" rendered, cues and label
   extracted correctly; rate persisted across a file switch (1.2x).
 
+## Media tracks menu + desktop Open-with (2026-07-09)
+
+- C key toggles subtitles (remembers the last active track). A CC menu on
+  the video lists subtitle tracks (Off / each track / "Load subtitle
+  file…") and, when the file has several, audio tracks. Audio switching
+  remuxes in memory keeping only the chosen track (mediabunny per-track
+  discard; browsers expose no embedded-audio-track API), restoring
+  position/rate/play state; the subtitle <track> elements survive the swap.
+- External subtitles: .srt/.ass/.ssa/.vtt files load from the menu; SRT and
+  ASS convert to WebVTT (Format-line ordering honored, {\tags} stripped);
+  non-UTF-8 files decode via a strict-decoder chain (utf-8, shift_jis,
+  euc-kr, gb18030, then windows-1252), so CJK subtitle files work. MKV
+  embedded subs are UTF-8 by spec and pass through TextDecoder untouched.
+- Desktop "Open with": manifest file_handlers (~30 MIME entries) +
+  launchQueue consumer wired to the picker path (handle kept, so in-place
+  save works). Requires installing the PWA; Chromium desktop only. Chosen
+  over splitting the media player into its own repo: the association gap
+  was a manifest gap, not a packaging one.
+- 4 new unit tests (114 total). Verified live: menu shows
+  Sous-titres(Off/English/Load) + Audio(Français/日本語) on a 2-audio MKV,
+  C toggles showing/disabled, switching to 日本語 produced a source with
+  exactly one audio track and playback resumed.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html

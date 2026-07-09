@@ -10,6 +10,19 @@ export interface MkvSubtitleTrack {
   vtt: string;
 }
 
+/** An audio track's identity, for the track-switch menu (playback swaps via remux). */
+export interface MkvAudioTrack {
+  /** Matroska TrackNumber; matches mediabunny's InputTrack.id. */
+  number: number;
+  label: string;
+  language: string;
+}
+
+export interface MkvInfo {
+  subtitles: MkvSubtitleTrack[];
+  audio: MkvAudioTrack[];
+}
+
 // Element IDs (including their length-marker bits, as stored in the file).
 const ID_EBML = 0x1a45dfa3;
 const ID_SEGMENT = 0x18538067;
@@ -22,6 +35,7 @@ const ID_TRACK_TYPE = 0x83;
 const ID_CODEC_ID = 0x86;
 const ID_NAME = 0x536e;
 const ID_LANGUAGE = 0x22b59c;
+const ID_LANGUAGE_BCP47 = 0x22b59d;
 const ID_CLUSTER = 0x1f43b675;
 const ID_CLUSTER_TIMESTAMP = 0xe7;
 const ID_SIMPLE_BLOCK = 0xa3;
@@ -139,9 +153,90 @@ function buildVtt(cues: Cue[]): string {
 }
 
 export function extractMkvSubtitles(bytes: Uint8Array): MkvSubtitleTrack[] {
-  if (bytes.length < 8 || bytes[0] !== 0x1a || bytes[1] !== 0x45 || bytes[2] !== 0xdf || bytes[3] !== 0xa3) return [];
+  return extractMkvInfo(bytes).subtitles;
+}
+
+// --- external subtitle files (.srt / .ass / .ssa / .vtt) ----------------------
+
+/**
+ * Decode subtitle-file bytes to text. Subtitle files in the wild are often not
+ * UTF-8 (Shift_JIS, GBK, EUC-KR, Windows-1252 are common); try strict decoders
+ * in order and fall back to permissive Windows-1252, which never fails.
+ */
+export function decodeSubtitleBytes(bytes: Uint8Array): string {
+  for (const enc of ["utf-8", "shift_jis", "euc-kr", "gb18030"]) {
+    try {
+      return new TextDecoder(enc, { fatal: true }).decode(bytes);
+    } catch {
+      /* next */
+    }
+  }
+  return new TextDecoder("windows-1252").decode(bytes);
+}
+
+/** SRT text -> WebVTT (comma decimals to dots, index lines dropped). */
+export function srtToVtt(srt: string): string {
+  const blocks = srt.replace(/^﻿/, "").replace(/\r\n?/g, "\n").split(/\n{2,}/);
+  const out = ["WEBVTT"];
+  for (const block of blocks) {
+    const lines = block.split("\n").filter((l) => l.trim() !== "");
+    if (!lines.length) continue;
+    if (/^\d+$/.test(lines[0]!.trim())) lines.shift(); // cue index
+    if (!lines.length || !lines[0]!.includes("-->")) continue;
+    const timing = lines[0]!.replace(/(\d+):(\d+):(\d+),(\d+)/g, "$1:$2:$3.$4");
+    out.push(`${timing}\n${lines.slice(1).join("\n")}`);
+  }
+  return out.join("\n\n") + "\n";
+}
+
+/** ASS/SSA file -> WebVTT (Dialogue events; styling and positioning dropped). */
+export function assFileToVtt(ass: string): string {
+  const lines = ass.replace(/\r\n?/g, "\n").split("\n");
+  let fields: string[] = [];
+  const cues: Cue[] = [];
+  const toMs = (t: string): number => {
+    const m = t.trim().match(/(\d+):(\d+):(\d+)[.:](\d+)/);
+    if (!m) return 0;
+    return Number(m[1]) * 3600000 + Number(m[2]) * 60000 + Number(m[3]) * 1000 + Number(m[4]!.padEnd(3, "0").slice(0, 3));
+  };
+  for (const line of lines) {
+    if (/^Format:/i.test(line)) {
+      fields = line.slice(line.indexOf(":") + 1).split(",").map((f) => f.trim().toLowerCase());
+    } else if (/^Dialogue:/i.test(line)) {
+      const startIdx = fields.indexOf("start");
+      const endIdx = fields.indexOf("end");
+      const textIdx = fields.indexOf("text");
+      if (startIdx < 0 || endIdx < 0 || textIdx < 0) continue;
+      const parts = line.slice(line.indexOf(":") + 1).split(",");
+      const text = parts
+        .slice(textIdx)
+        .join(",")
+        .replace(/\{[^}]*\}/g, "")
+        .replace(/\\N/gi, "\n")
+        .replace(/\\h/g, " ")
+        .trim();
+      if (text) cues.push({ start: toMs(parts[startIdx]!), end: toMs(parts[endIdx]!), text });
+    }
+  }
+  cues.sort((a, b) => a.start - b.start);
+  return buildVtt(cues);
+}
+
+/** Any supported subtitle file -> WebVTT, by extension (vtt passes through). */
+export function subtitleFileToVtt(name: string, bytes: Uint8Array): string {
+  const text = decodeSubtitleBytes(bytes);
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".vtt")) return text.replace(/^﻿/, "");
+  if (lower.endsWith(".ass") || lower.endsWith(".ssa")) return assFileToVtt(text);
+  return srtToVtt(text);
+}
+
+export function extractMkvInfo(bytes: Uint8Array): MkvInfo {
+  const empty: MkvInfo = { subtitles: [], audio: [] };
+  if (bytes.length < 8 || bytes[0] !== 0x1a || bytes[1] !== 0x45 || bytes[2] !== 0xdf || bytes[3] !== 0xa3) return empty;
   const r = new Reader(bytes);
   const tracks = new Map<number, TrackInfo>();
+  const audio: MkvAudioTrack[] = [];
   let scale = 1_000_000; // ns per tick (default = 1 ms)
 
   const parseBlock = (size: number, clusterTs: number, duration: number | null): void => {
@@ -178,11 +273,12 @@ export function extractMkvSubtitles(bytes: Uint8Array): MkvSubtitleTrack[] {
       else if (id === ID_TRACK_TYPE) type = r.uint(size);
       else if (id === ID_CODEC_ID) codec = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
       else if (id === ID_NAME) name = utf8.decode(r.bytes(size));
-      else if (id === ID_LANGUAGE) lang = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
+      else if (id === ID_LANGUAGE || (id === ID_LANGUAGE_BCP47 && !lang)) lang = utf8.decode(r.bytes(size)).replace(/\0+$/, "");
       r.pos += size;
     }
     r.pos = end;
     if (type === 0x11 && codec.startsWith("S_TEXT")) tracks.set(num, { codec, label: name, language: lang || "und", cues: [] });
+    else if (type === 0x02) audio.push({ number: num, label: name, language: lang || "und" });
   };
 
   const parseCluster = (end: number | null): void => {
@@ -232,7 +328,7 @@ export function extractMkvSubtitles(bytes: Uint8Array): MkvSubtitleTrack[] {
       const id = r.readId();
       const size = r.readSize();
       if (id === ID_EBML) {
-        if (size == null) return [];
+        if (size == null) return empty;
         r.pos += size;
       } else if (id === ID_SEGMENT) {
         const segEnd = size == null ? r.length : Math.min(r.pos + size, r.length);
@@ -262,7 +358,7 @@ export function extractMkvSubtitles(bytes: Uint8Array): MkvSubtitleTrack[] {
           } else if (csize != null) {
             r.pos += csize;
           } else {
-            return finish(tracks); // unknown-size non-cluster: bail with what we have
+            return { subtitles: finish(tracks), audio }; // unknown-size non-cluster: bail with what we have
           }
         }
       } else if (size != null) {
@@ -274,7 +370,7 @@ export function extractMkvSubtitles(bytes: Uint8Array): MkvSubtitleTrack[] {
   } catch {
     // Truncated or malformed tail: keep whatever cues were collected.
   }
-  return finish(tracks);
+  return { subtitles: finish(tracks), audio };
 }
 
 function finish(tracks: Map<number, TrackInfo>): MkvSubtitleTrack[] {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMkvSubtitles } from "./mkv-subs";
+import { assFileToVtt, decodeSubtitleBytes, extractMkvInfo, extractMkvSubtitles, srtToVtt } from "./mkv-subs";
 
 // Hand-built EBML fixtures: enough Matroska structure for the extractor
 // (EBML header, Segment > Info/Tracks/Cluster with subtitle blocks).
@@ -135,5 +135,54 @@ describe("mkv subtitle extraction", () => {
     const subs = extractMkvSubtitles(mkv({ tracks: subtitleTrackEntry(1, "S_TEXT/UTF8"), clusters: cluster }));
     expect(subs).toHaveLength(1);
     expect(subs[0]!.vtt).toContain("00:00:00.250 --> 00:00:00.750\nstreamed");
+  });
+});
+
+describe("mkv audio track listing", () => {
+  it("lists audio tracks with names and languages", () => {
+    const audioJa = el(0xae, [
+      ...el(0xd7, [2]),
+      ...el(0x83, [0x02]),
+      ...el(0x86, Array.from(te.encode("A_AAC"))),
+      ...el(0x536e, Array.from(te.encode("Japanese"))),
+      ...el(0x22b59c, Array.from(te.encode("jpn"))),
+    ]);
+    const audioEn = el(0xae, [...el(0xd7, [3]), ...el(0x83, [0x02]), ...el(0x86, Array.from(te.encode("A_AAC")))]);
+    const info = extractMkvInfo(mkv({ tracks: [...audioJa, ...audioEn], clusters: [] }));
+    expect(info.audio).toEqual([
+      { number: 2, label: "Japanese", language: "jpn" },
+      { number: 3, label: "", language: "und" },
+    ]);
+  });
+});
+
+describe("external subtitle files", () => {
+  it("converts SRT to WebVTT (comma decimals, index lines)", () => {
+    const srt = "1\r\n00:00:01,500 --> 00:00:03,000\r\nHello\r\n\r\n2\r\n00:01:00,000 --> 00:01:02,250\r\n<i>Line 1</i>\r\nLine 2\r\n";
+    const vtt = srtToVtt(srt);
+    expect(vtt).toContain("WEBVTT");
+    expect(vtt).toContain("00:00:01.500 --> 00:00:03.000\nHello");
+    expect(vtt).toContain("00:01:00.000 --> 00:01:02.250\n<i>Line 1</i>\nLine 2");
+    expect(vtt).not.toMatch(/\n1\n/);
+  });
+
+  it("converts ASS dialogue lines, honoring the Format field order", () => {
+    const ass = [
+      "[Script Info]",
+      "Title: x",
+      "[Events]",
+      "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+      "Dialogue: 0,0:00:02.00,0:00:04.50,Default,,0,0,0,,{\\i1}Salut{\\i0}\\Ndeuxième ligne",
+    ].join("\n");
+    const vtt = assFileToVtt(ass);
+    expect(vtt).toContain("00:00:02.000 --> 00:00:04.500\nSalut\ndeuxième ligne");
+    expect(vtt).not.toContain("{\\i1}");
+  });
+
+  it("decodes CJK subtitle files that are not UTF-8 (Shift_JIS)", () => {
+    // "こんにちは" in Shift_JIS.
+    const sjis = new Uint8Array([0x82, 0xb1, 0x82, 0xf1, 0x82, 0xc9, 0x82, 0xbf, 0x82, 0xcd]);
+    expect(decodeSubtitleBytes(sjis)).toBe("こんにちは");
+    expect(decodeSubtitleBytes(te.encode("UTF-8 text 日本語"))).toBe("UTF-8 text 日本語");
   });
 });

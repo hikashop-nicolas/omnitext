@@ -803,6 +803,23 @@ window.addEventListener("drop", async (e) => {
   await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
 });
 
+// Installed-PWA "Open with" (desktop Chromium): the OS hands files declared in the
+// manifest's file_handlers to the launch queue; open the first one with its handle
+// so in-place save works like the picker path.
+interface LaunchParamsLike {
+  files?: FsHandle[];
+}
+(window as { launchQueue?: { setConsumer(cb: (p: LaunchParamsLike) => void): void } }).launchQueue?.setConsumer(async (params) => {
+  const handle = params.files?.[0];
+  if (!handle) return;
+  try {
+    const file = await handle.getFile();
+    await openBuffer(await file.arrayBuffer(), file.name, "fs", handle, file.type);
+  } catch (e) {
+    console.error("launch queue open failed", e);
+  }
+});
+
 // An editor produced a derived document (e.g. sheetedit's CSV-to-XLSX conversion):
 // open it as a new unsaved document, with the usual dirty guard.
 window.addEventListener("omnitext:open-bytes", async (e) => {
