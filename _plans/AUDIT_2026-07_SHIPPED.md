@@ -479,6 +479,27 @@ decisions approved: sheet default view, formulas computed, convert opens new):
   e.g. Android intent), the player just stays paused. An audio-track switch
   no longer restarts a deliberately paused player (autoplay would have).
 
+## Media fullscreen + player UX polish (2026-07-09, owner-tested)
+
+- Fullscreen subtitles (ddd937a): F fullscreens the player container so the
+  libass canvas and overlays ride along (:fullscreen CSS, object-fit
+  letterboxing); a text-track bridge covers bare-video fullscreen.
+- Dead keys in fullscreen (33d45af): the handler's offsetParent-null
+  "hidden" check tripped in the fullscreen top layer (position:fixed), so F
+  couldn't exit; replaced with checkVisibility().
+- OSD (33d45af): the speed badge generalized - up/down show volume %, M the
+  mute state, left/right/Home/End show position/duration.
+- Tooltip fixes (017f161, 33d45af): the shortcut list left the media title
+  attribute (hover tooltip on every pass), and the focus pull retries so the
+  Open button's focus tooltip ("Ouvrir") stops hovering over the video.
+- Fullscreen chrome (7374932): CC button + cursor fade after 2.5s mouse
+  idle in fullscreen; double-click toggles wrap fullscreen (Chrome's native
+  dblclick fullscreened the bare video); any remaining bare-video fullscreen
+  is upgraded to wrap fullscreen within the gesture.
+- All confirmed working by the owner on real files (2026-07-09). Debugging
+  detour worth remembering: the local preview server had died, so the tests
+  "still failing" were the service worker's offline cache of an old build.
+
 ## Dropped by decision (not fixed, closed on purpose)
 
 - omnitext "HTML default editor is destructive" (Quill as the default .html
