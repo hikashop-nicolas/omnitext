@@ -86,6 +86,16 @@ declare module "utif" {
   export default UTIF;
 }
 
+// "foliate-js/view.js" registers the <foliate-view> custom element as a side effect and
+// ships no types; imported only for that effect.
+declare module "foliate-js/view.js";
+
+// "libheif-js/wasm-bundle" (WASM build of libheif) ships no types; typed loosely.
+declare module "libheif-js/wasm-bundle" {
+  const libheif: unknown;
+  export default libheif;
+}
+
 // "latex.js" ships no TypeScript types; declare the bits we use.
 declare module "latex.js" {
   export class HtmlGenerator {
