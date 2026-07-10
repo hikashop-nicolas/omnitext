@@ -10,6 +10,7 @@ import { SessionStore, type DocSnapshot } from "./core/session-store";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
 import { docxEditor } from "./editors/docx";
+import { docEditor } from "./editors/doc";
 import { odtEditor } from "./editors/odt";
 import { pdfEditor } from "./editors/pdf";
 import { rtfEditor } from "./editors/rtf";
@@ -27,6 +28,7 @@ import { javascriptFormat } from "./formats/javascript";
 import { jsonFormat } from "./formats/json";
 import { json5Format } from "./formats/json5";
 import { docxFormat } from "./formats/docx";
+import { docFormat } from "./formats/doc";
 import { markdownFormat } from "./formats/markdown";
 import { odsFormat } from "./formats/ods";
 import { odtFormat } from "./formats/odt";
@@ -147,6 +149,7 @@ engine.registerEditor(pdfEditor);
 engine.registerEditor(rtfEditor);
 engine.registerEditor(odtEditor);
 engine.registerEditor(docxEditor);
+engine.registerEditor(docEditor);
 engine.registerEditor(sheetEditor);
 engine.registerEditor(imageEditor);
 engine.registerEditor(filerobotEditor);
@@ -187,6 +190,7 @@ const FORMATS: FormatDescriptor[] = [
   rtfFormat,
   odtFormat,
   docxFormat,
+  docFormat,
   odsFormat,
   latexFormat,
   svgFormat,
