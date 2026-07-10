@@ -25,6 +25,7 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - run: npm run test # don't ship an APK from a bundle whose tests fail
       - run: npm run build # the same web build GitHub Pages uses
 
       - uses: actions/setup-java@v4
