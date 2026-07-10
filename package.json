@@ -92,7 +92,7 @@
     "pdfjs-dist": "^6.0.227",
     "postal-mime": "^2.7.5",
     "quill": "^2.0.3",
-    "react-filerobot-image-editor": "4.8.1",
+    "react-filerobot-image-editor": "5.0.1",
     "richdoc": "github:hikashop-nicolas/richdoc",
     "rtf.js": "^3.0.9",
     "sheetedit": "github:hikashop-nicolas/sheetedit",
