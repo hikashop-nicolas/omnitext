@@ -142,10 +142,7 @@ const TEXT_FORMATS: TextFormat[] = [
   { id: "vue", exts: [".vue"] },
   { id: "svelte", exts: [".svelte"] },
   { id: "astro", exts: [".astro"] },
-  // Communication / calendar / contacts (plain)
-  { id: "email", exts: [".eml"], mimes: ["message/rfc822"] },
-  { id: "vcard", exts: [".vcf", ".vcard"], mimes: ["text/vcard"] },
-  { id: "icalendar", exts: [".ics", ".ical"], mimes: ["text/calendar"] },
+  // .eml/.msg (email viewer), .vcf/.ics (PIM viewer) have dedicated formats now.
   // Subtitles (plain for now; a timeline editor is a possible future)
   { id: "subtitle", exts: [".srt", ".vtt", ".sub", ".ass", ".ssa"], mimes: ["text/vtt"] },
   // Logs and generic plain text

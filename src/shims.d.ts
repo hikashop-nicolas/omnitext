@@ -57,6 +57,35 @@ declare module "wellknown" {
   export function stringify(geometry: unknown): string;
 }
 
+// "notebookjs" ships no TypeScript types; declare the bits we use.
+declare module "notebookjs" {
+  interface RenderedNotebook {
+    render(): HTMLElement;
+  }
+  export const nb: {
+    parse(json: unknown): RenderedNotebook;
+    markdown: (src: string) => string;
+    highlighter: (text: string, pre: HTMLElement, code: HTMLElement, lang?: string) => string;
+    sanitizer: (html: string) => string;
+    ansi: (text: string) => string;
+  };
+}
+
+// "utif" (UTIF.js) ships no TypeScript types; declare the bits we use.
+declare module "utif" {
+  interface IFD {
+    width: number;
+    height: number;
+    [key: string]: unknown;
+  }
+  const UTIF: {
+    decode(buffer: ArrayBuffer | Uint8Array): IFD[];
+    decodeImage(buffer: ArrayBuffer | Uint8Array, ifd: IFD): void;
+    toRGBA8(ifd: IFD): Uint8Array;
+  };
+  export default UTIF;
+}
+
 // "latex.js" ships no TypeScript types; declare the bits we use.
 declare module "latex.js" {
   export class HtmlGenerator {

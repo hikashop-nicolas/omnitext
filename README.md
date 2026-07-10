@@ -59,6 +59,16 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
 - **Design files** (read-only): **PSD** (Photoshop) renders the flattened composite and
   layer tree ([@webtoon/psd](https://github.com/webtoon/psd)); **AI** (Illustrator) renders
   its PDF-compatible artwork via pdf.js.
+- **Fonts** (read-only): **TTF / OTF / WOFF** show a specimen, a glyph grid and the
+  name/metadata table ([opentype.js](https://github.com/opentypejs/opentype.js)).
+- **Data**: **SQLite** databases (`.db`/`.sqlite`) open a table browser with an ad-hoc
+  query box ([sql.js](https://github.com/sql-js/sql.js)); **Jupyter notebooks** (`.ipynb`)
+  render markdown, code and output cells ([notebookjs](https://github.com/jsvine/notebookjs)),
+  and stay editable as raw JSON.
+- **Email & contacts** (read-only): **`.eml`** and Outlook **`.msg`** messages render
+  headers, body and attachments, with remote content (tracking pixels) blocked; **`.ics`**
+  calendar events and **`.vcf`** contacts render as cards
+  ([ical.js](https://github.com/kewisch/ical.js)), editable as text.
 - **Structured surfaces**: CSV / TSV as an editable **grid**, JSON as a **tree**, HTML and
   Markdown as **rich text** (Quill / Milkdown), plus a read-only HTML **preview**.
 - **Binary documents**, each edited *in place* (the parts you don't touch are preserved),
@@ -77,7 +87,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
   re-encodes the raster (an animated GIF flattens to one frame).
-- **Viewers** (read-only): **audio & video** — the common web formats plus `.mkv`, `.mov`,
+- **Viewers** (read-only): multi-page **TIFF** images
+  ([UTIF.js](https://github.com/photopea/UTIF.js)) and **`.torrent`** metadata (name, size,
+  trackers, file tree, info-hash). **audio & video** — the common web formats plus `.mkv`, `.mov`,
   `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a container directly, the
   file is repackaged in memory ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded
   on demand) and played without re-encoding. Text subtitles embedded in MKV/WebM (SRT, ASS,
@@ -147,11 +159,13 @@ src/core/      engine, event bus, registries, editor resolution, host types, enc
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
                odt, sheet, svgeditor, geoeditor, latexpreview, filerobot image editor) and
                read-only viewers (rtf, pptx, epub, image, media, archive, psdviewer, aiviewer,
-               binary/hex)
+               fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, tiffviewer,
+               torrentviewer, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
-               pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, the codemirror-formats
-               long-tail table, and binary-viewers for images/media/archives)
+               pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, font, sqlite, ipynb,
+               eml/msg, ics/vcf, tiff, torrent, the codemirror-formats long-tail table, and
+               binary-viewers for images/media/archives)
 src/i18n/      app-shell translations (en, fr, ja) + the auto-detect runtime
 src/tools/     cross-cutting tools (history / diff)
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery
