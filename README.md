@@ -63,11 +63,16 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   name/metadata table ([opentype.js](https://github.com/opentypejs/opentype.js)).
 - **Data**: **SQLite** databases (`.db`/`.sqlite`) open a table browser with an ad-hoc
   query box ([sql.js](https://github.com/sql-js/sql.js)); **Apache Parquet** (`.parquet`)
-  opens as a grid with column types ([hyparquet](https://github.com/hyparam/hyparquet));
-  **Jupyter notebooks** (`.ipynb`) render markdown, code and output cells
-  ([notebookjs](https://github.com/jsvine/notebookjs)), and stay editable as raw JSON.
-- **3D models** (read-only): **STL / PLY / OBJ / glTF / GLB** open in a WebGL viewer with
-  orbit controls ([three.js](https://github.com/mrdoob/three.js)).
+  and **Arrow / Feather** (`.arrow`) open as a grid with column types
+  ([hyparquet](https://github.com/hyparam/hyparquet),
+  [apache-arrow](https://github.com/apache/arrow)); **Jupyter notebooks** (`.ipynb`) render
+  markdown, code and output cells ([notebookjs](https://github.com/jsvine/notebookjs)), and
+  stay editable as raw JSON.
+- **3D & CAD** (read-only): **STL / PLY / OBJ / glTF / GLB** open in a WebGL viewer with
+  free rotation ([three.js](https://github.com/mrdoob/three.js)); **DXF** drawings render
+  in a 2D CAD viewer with pan/zoom ([dxf-viewer](https://github.com/vagran/dxf-viewer)).
+- **DICOM** (`.dcm` medical images, read-only) — renders the image with window/level plus
+  the tag metadata ([dicom-parser](https://github.com/cornerstonejs/dicomParser)).
 - **Email & contacts** (read-only): **`.eml`** and Outlook **`.msg`** messages render
   headers, body and attachments, with remote content (tracking pixels) blocked; **`.ics`**
   calendar events and **`.vcf`** contacts render as cards
@@ -90,6 +95,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   [foliate-js](https://github.com/johnfactotum/foliate-js) (DRM-free files only).
 - **HEIC / HEIF** (iPhone photos, read-only) — decoded to a canvas
   ([libheif-js](https://github.com/catdad-experiments/libheif-js)).
+- **Camera RAW** (CR2/CR3, NEF, ARW, DNG, …, read-only) — shows the embedded JPEG preview
+  and the EXIF shot metadata (camera, lens, exposure) via
+  [exifr](https://github.com/MikeKovarik/exifr).
 - **Images** (PNG/JPG/GIF/WebP/AVIF/BMP/ICO) — shown in a read-only viewer by default; switch
   to the **image editor** ([Filerobot](https://github.com/scaleflex/filerobot-image-editor):
   crop, rotate, flip, resize, filters, annotate, draw, text) to edit and save. Editing
@@ -168,12 +176,13 @@ src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdo
                read-only viewers (rtf, pptx, epub, image, media, archive, psdviewer, aiviewer,
                fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, tiffviewer,
                torrentviewer, model3dviewer, parquetviewer, heicviewer, ebookviewer,
-               binary/hex)
+               dxfviewer, dicomviewer, recordsviewer, rawviewer, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
                pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, font, sqlite, ipynb,
-               eml/msg, ics/vcf, tiff, torrent, model3d, parquet, heic, ebook, the
-               codemirror-formats long-tail table, and binary-viewers for images/media/archives)
+               eml/msg, ics/vcf, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
+               arrow, raw, the codemirror-formats long-tail table, and binary-viewers for
+               images/media/archives)
 src/i18n/      app-shell translations (en, fr, ja) + the auto-detect runtime
 src/tools/     cross-cutting tools (history / diff)
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery

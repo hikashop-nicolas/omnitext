@@ -86,6 +86,38 @@ declare module "utif" {
   export default UTIF;
 }
 
+// "dxf-viewer" ships no TypeScript types; declare the bits we use.
+declare module "dxf-viewer" {
+  export class DxfViewer {
+    constructor(domElement: HTMLElement, options?: Record<string, unknown>);
+    Load(opts: {
+      url: string;
+      fonts?: unknown;
+      progressCbk?: unknown;
+      workerFactory?: unknown;
+    }): Promise<void>;
+    GetLayers?(): unknown[];
+    SetSize(w: number, h: number): void;
+    Clear(): void;
+    Destroy(): void;
+  }
+}
+
+// "dicom-parser" ships no TypeScript types; type it loosely.
+declare module "dicom-parser" {
+  const dicomParser: {
+    parseDicom(byteArray: Uint8Array): {
+      byteArray: Uint8Array;
+      elements: Record<string, { dataOffset: number; length: number; encapsulatedPixelData?: boolean }>;
+      uint16(tag: string): number | undefined;
+      string(tag: string): string | undefined;
+      intString(tag: string, index?: number): number | undefined;
+      floatString(tag: string, index?: number): number | undefined;
+    };
+  };
+  export default dicomParser;
+}
+
 // "foliate-js/view.js" registers the <foliate-view> custom element as a side effect and
 // ships no types; imported only for that effect.
 declare module "foliate-js/view.js";

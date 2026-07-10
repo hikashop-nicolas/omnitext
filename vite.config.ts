@@ -8,7 +8,9 @@ export default defineConfig({
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
   // the browser; alias it to a tiny stub so the ~3MB dep is not bundled.
   resolve: {
-    dedupe: ["pdfjs-dist", "pdf-lib"],
+    // three: the 3D model viewer and dxf-viewer both use it; keep a single instance so
+    // cross-instance objects (e.g. a THREE.Color passed to dxf-viewer) work correctly.
+    dedupe: ["pdfjs-dist", "pdf-lib", "three"],
     alias: { jsdom: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname },
   },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every
