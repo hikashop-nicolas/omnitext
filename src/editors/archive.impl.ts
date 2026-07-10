@@ -1,9 +1,12 @@
-import { readArchive } from "../core/archive";
+import { readArchive, type ArchiveEntry } from "../core/archive";
+import { extractWithLibarchive, isLibarchiveArchive } from "../core/libarchive";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 
-// Read-only archive (zip) viewer: lists the entries and lets you Open one inside Omnitext
-// (it is routed back through the open flow to the right editor/viewer) or Extract it (save
-// or share). Save of the archive itself is hidden (read-only). Uses fflate, fully in-browser.
+// Read-only archive viewer: lists the entries and lets you Open one inside Omnitext (it is
+// routed back through the open flow to the right editor/viewer) or Extract it (save or
+// share). Save of the archive itself is hidden (read-only). zip/tar/tar.gz go through
+// fflate + the tar codec; 7z/RAR/xz/bzip2/zstd/lz4 go through libarchive-wasm on demand.
+// Fully in-browser.
 
 const STYLE_ID = "omnitext-archive-style";
 
@@ -39,16 +42,27 @@ class ArchiveInstance implements EditorInstance {
     this.bytes = ctx.bytes;
     const wrap = document.createElement("div");
     wrap.className = "ot-arc";
+    wrap.append(msg("Reading…"));
+    container.appendChild(wrap);
+    this.wrap = wrap;
+    void this.load(wrap, ctx.bytes, ctx.filename);
+  }
 
-    let entries: { name: string; data: Uint8Array }[] = [];
+  private async load(
+    wrap: HTMLElement,
+    bytes: Uint8Array | null,
+    filename?: string,
+  ): Promise<void> {
+    let entries: ArchiveEntry[] = [];
     try {
-      entries = ctx.bytes ? readArchive(ctx.bytes).filter((e) => !e.name.endsWith("/")) : [];
+      entries = await getEntries(bytes, filename);
     } catch {
+      wrap.textContent = "";
       wrap.append(msg("This archive could not be read."));
-      container.appendChild(wrap);
-      this.wrap = wrap;
       return;
     }
+    if (wrap !== this.wrap) return; // disposed while extracting
+    wrap.textContent = "";
 
     const head = document.createElement("div");
     head.className = "ot-arc-head";
@@ -72,9 +86,6 @@ class ArchiveInstance implements EditorInstance {
       wrap.append(row);
     }
     if (entries.length === 0) wrap.append(msg("This archive is empty."));
-
-    container.appendChild(wrap);
-    this.wrap = wrap;
   }
 
   getText(): string {
@@ -97,6 +108,16 @@ class ArchiveInstance implements EditorInstance {
     this.wrap?.remove();
     this.wrap = null;
   }
+}
+
+// Pick the extractor by content: libarchive for 7z/RAR/xz/bzip2/zstd/lz4, else fflate.
+async function getEntries(bytes: Uint8Array | null, filename?: string): Promise<ArchiveEntry[]> {
+  if (!bytes) return [];
+  if (isLibarchiveArchive(bytes)) {
+    const base = (filename?.split("/").pop() || "archive").replace(/\.[^.]+$/, "");
+    return (await extractWithLibarchive(bytes, base)).filter((e) => !e.name.endsWith("/"));
+  }
+  return readArchive(bytes).filter((e) => !e.name.endsWith("/"));
 }
 
 function btn(label: string, onClick: () => void): HTMLButtonElement {

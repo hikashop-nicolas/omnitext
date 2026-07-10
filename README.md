@@ -115,8 +115,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   CJK ASS uses the plain-text path so system fonts render the glyphs. Player shortcuts: space, F (fullscreen), M (mute),
   S/D (speed, remembered across files), C (subtitles on/off), arrows (seek/volume).
   And **archives** — `.zip`/`.jar`/`.cbz`,
-  `.tar`, `.tar.gz`/`.tgz`, and `.gz` — where you can browse entries, open one inside Omnitext,
-  extract it, or edit it and save it back into the archive. Anything else opens in a **hex**
+  `.tar`, `.tar.gz`/`.tgz`, and `.gz` (via [fflate](https://github.com/101arrowz/fflate)),
+  plus **7z, RAR, and tar.xz / tar.bz2** (via
+  [libarchive-wasm](https://github.com/nika-begiashvili/libarchivejs), loaded on demand) —
+  where you can browse entries, open one inside Omnitext, extract it, or (for the zip/tar
+  family) edit it and save it back into the archive. Anything else opens in a **hex**
   view, so no file ever fails to open.
 - **Multilingual**: the UI auto-detects your language (English, French and Japanese today;
   adding one is a single file), and each editor library translates its own UI independently.

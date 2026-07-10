@@ -51,6 +51,12 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "cbz", exts: [".cbz"], mime: "application/vnd.comicbook+zip", viewer: "archive" },
   // tar / tar.gz / .tgz (.tar.gz is matched by full name in openBuffer, since the extension is .gz)
   { id: "tar", exts: [".tar", ".tgz"], mime: "application/x-tar", viewer: "archive" },
+  // 7z / RAR / xz / bzip2 (+ tar wrapped in them) via libarchive-wasm. (This libarchive
+  // build has no zstd/lz4, so those are intentionally not offered.)
+  { id: "7z", exts: [".7z"], mime: "application/x-7z-compressed", viewer: "archive" },
+  { id: "rar", exts: [".rar", ".cbr"], mime: "application/vnd.rar", viewer: "archive" },
+  { id: "xz", exts: [".xz", ".txz"], mime: "application/x-xz", viewer: "archive" },
+  { id: "bzip2", exts: [".bz2", ".tbz2", ".tbz"], mime: "application/x-bzip2", viewer: "archive" },
 ];
 
 const viewerModule = (): FormatModule => ({

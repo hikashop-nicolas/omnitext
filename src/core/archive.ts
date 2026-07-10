@@ -2,8 +2,9 @@ import { gunzipSync, gzipSync, unzipSync, zipSync } from "fflate";
 import { readTar, writeTar } from "./tar";
 
 // Read/write archives across the formats we support fully client-side: zip (and zip-based
-// .jar/.cbz) via fflate, and tar / tar.gz / .tgz via the tar codec (+ fflate gzip).
-// 7z/rar/xz/zstd/bzip2 are out of scope (proprietary or heavy WASM, no permissive lib).
+// .jar/.cbz) via fflate, and tar / tar.gz / .tgz via the tar codec (+ fflate gzip). These
+// are the read/write formats. 7z/RAR/xz/bzip2/zstd/lz4 are extract-only, handled separately
+// by core/libarchive.ts (libarchive-wasm) and surfaced through the archive viewer.
 
 export type ArchiveKind = "zip" | "tar" | "tgz";
 
