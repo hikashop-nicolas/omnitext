@@ -28,7 +28,7 @@ jobs:
       - run: npm run test # gate the deploy on the unit suite (catches a dep bump that breaks a format)
       - run: npm run build
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
