@@ -78,7 +78,7 @@
     "hyparquet-compressors": "^1.1.1",
     "ical.js": "^2.2.1",
     "ini": "^6.0.0",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^5.2.1",
     "json5": "^2.2.3",
     "latex.js": "^0.12.6",
     "libarchive-wasm": "^1.2.0",
