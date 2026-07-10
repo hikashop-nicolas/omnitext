@@ -50,12 +50,24 @@ import { archiveEditor } from "./editors/archive";
 import { binaryEditor } from "./editors/binary";
 import { latexPreviewEditor } from "./editors/latexpreview";
 import { svgEditor } from "./editors/svgeditor";
+import { geoEditor } from "./editors/geoeditor";
+import { psdViewer } from "./editors/psdviewer";
+import { aiViewer } from "./editors/aiviewer";
 import { pptxEditor } from "./editors/pptx";
 import { epubEditor } from "./editors/epub";
 import { pptxFormat } from "./formats/pptx";
 import { epubFormat } from "./formats/epub";
 import { latexFormat } from "./formats/latex";
 import { svgFormat } from "./formats/svg";
+import { geojsonFormat } from "./formats/geojson";
+import { kmlFormat } from "./formats/kml";
+import { kmzFormat } from "./formats/kmz";
+import { gpxFormat } from "./formats/gpx";
+import { topojsonFormat } from "./formats/topojson";
+import { wktFormat } from "./formats/wkt";
+import { shpFormat } from "./formats/shp";
+import { psdFormat } from "./formats/psd";
+import { aiFormat } from "./formats/ai";
 import { historyTool } from "./tools/history";
 import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
 import { blankTemplate, BLANK_BINARY_FORMATS, PAPER_FORMATS, type Paper } from "./formats/blank-templates";
@@ -110,6 +122,9 @@ engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
 engine.registerEditor(latexPreviewEditor);
 engine.registerEditor(svgEditor);
+engine.registerEditor(geoEditor);
+engine.registerEditor(psdViewer);
+engine.registerEditor(aiViewer);
 engine.registerEditor(pptxEditor);
 engine.registerEditor(epubEditor);
 engine.registerEditor(binaryEditor);
@@ -128,6 +143,15 @@ const FORMATS: FormatDescriptor[] = [
   odsFormat,
   latexFormat,
   svgFormat,
+  geojsonFormat,
+  kmlFormat,
+  kmzFormat,
+  gpxFormat,
+  topojsonFormat,
+  wktFormat,
+  shpFormat,
+  psdFormat,
+  aiFormat,
   yamlFormat,
   xmlFormat,
   tomlFormat,

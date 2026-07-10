@@ -42,6 +42,21 @@ declare module "@jellyfin/libass-wasm" {
   }
 }
 
+// "geojs" ships no TypeScript types and is a large UMD bundle; type it loosely.
+declare module "geojs" {
+  const geo: any;
+  export default geo;
+}
+
+// "topojson-client" / "wellknown" ship no types; declare the bits we use.
+declare module "topojson-client" {
+  export function feature(topology: unknown, object: unknown): unknown;
+}
+declare module "wellknown" {
+  export function parse(wkt: string): unknown;
+  export function stringify(geometry: unknown): string;
+}
+
 // "latex.js" ships no TypeScript types; declare the bits we use.
 declare module "latex.js" {
   export class HtmlGenerator {

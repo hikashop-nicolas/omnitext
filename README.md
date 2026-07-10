@@ -2,10 +2,11 @@
 
 **One free app that opens and edits practically any file — entirely in your browser.**
 
-Code, Word documents, spreadsheets, PDFs, Markdown, LaTeX, SVG, images, slides, books,
+Code, Word documents, spreadsheets, PDFs, Markdown, LaTeX, SVG, maps, images, slides, books,
 audio/video, archives: Omnitext picks the right editing surface for each file (a code editor
-for JSON, a grid for CSV and XLSX, rich text for DOCX, a vector editor for SVG, a player for
-media, …), lets you edit, and saves the file back — preserving everything you didn't touch.
+for JSON, a grid for CSV and XLSX, rich text for DOCX, a vector editor for SVG, an interactive
+map for GeoJSON/KML, a player for media, …), lets you edit, and saves the file back —
+preserving everything you didn't touch.
 No file ever fails to open: unknown text opens as plain text, unknown binary as a hex view.
 
 ## Why Omnitext
@@ -23,7 +24,8 @@ No file ever fails to open: unknown text opens as plain text, unknown binary as 
 - **Open source, reusable in your projects** — MIT-licensed, including the standalone
   document-editor libraries it's built on ([pdfedit](https://github.com/hikashop-nicolas/pdfedit),
   [richdoc](https://github.com/hikashop-nicolas/richdoc),
-  [sheetedit](https://github.com/hikashop-nicolas/sheetedit)), which you can embed in your
+  [sheetedit](https://github.com/hikashop-nicolas/sheetedit),
+  [geoedit](https://github.com/hikashop-nicolas/geoedit)), which you can embed in your
   own apps, commercial ones included.
 - **Multilingual** — the UI auto-detects your language (English, French, Japanese so far).
 
@@ -49,6 +51,14 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
 - **LaTeX** — edit `.tex` with highlighting, with a live rendered HTML **preview** (latex.js).
 - **SVG** — a full WYSIWYG **vector editor** ([svgedit](https://github.com/SVG-Edit/svgedit)),
   with the XML source one click away in the View switcher.
+- **Maps** — GeoJSON, KML, KMZ and GPX open in an interactive **map editor**
+  ([geoedit](https://github.com/hikashop-nicolas/geoedit)): draw and reshape features, edit
+  their properties and colours, measure distance/area, undo/redo, all spliced back into the
+  file byte-for-byte. TopoJSON, WKT and Shapefiles (`.shp`) open read-only (export them to
+  an editable format).
+- **Design files** (read-only): **PSD** (Photoshop) renders the flattened composite and
+  layer tree ([@webtoon/psd](https://github.com/webtoon/psd)); **AI** (Illustrator) renders
+  its PDF-compatible artwork via pdf.js.
 - **Structured surfaces**: CSV / TSV as an editable **grid**, JSON as a **tree**, HTML and
   Markdown as **rich text** (Quill / Milkdown), plus a read-only HTML **preview**.
 - **Binary documents**, each edited *in place* (the parts you don't touch are preserved),
@@ -110,8 +120,8 @@ specifically: it picks an editor per format (native pairing → generic view →
 and every file can always fall back to the text editor. Binary formats delegate the full
 round-trip to a dedicated editor. The core imports no parser and no DOM editor widget.
 
-The binary-document editors live in their own MIT repos (pdfedit, richdoc, sheetedit)
-and are consumed here as git dependencies, so each is reusable on its own.
+The dedicated editor libraries live in their own MIT repos (pdfedit, richdoc, sheetedit,
+geoedit) and are consumed here as git dependencies, so each is reusable on its own.
 Read-only surfaces (preview, rtf, image/media/archive/hex viewers) carry a `readOnly` flag, so
 the app hides Save for them. Switching the View keeps the previous editor alive, so its undo
 history survives a round-trip. Third-party editors are loaded on demand: [svgedit](https://github.com/SVG-Edit/svgedit)
@@ -135,12 +145,13 @@ npm run build      # typecheck + production build into dist/
 src/core/      engine, event bus, registries, editor resolution, host types, encoding,
                session store, archive + tar codec
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
-               odt, sheet, svgeditor, latexpreview, filerobot image editor) and read-only
-               viewers (rtf, pptx, epub, image, media, archive, binary/hex)
+               odt, sheet, svgeditor, geoeditor, latexpreview, filerobot image editor) and
+               read-only viewers (rtf, pptx, epub, image, media, archive, psdviewer, aiviewer,
+               binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
-               sql/shell/dotenv/properties, latex, svg, pdf/docx/odt/xlsx/ods/xls, pptx, epub,
-               rtf, the codemirror-formats long-tail table, and binary-viewers for
-               images/media/archives)
+               sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
+               pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, the codemirror-formats
+               long-tail table, and binary-viewers for images/media/archives)
 src/i18n/      app-shell translations (en, fr, ja) + the auto-detect runtime
 src/tools/     cross-cutting tools (history / diff)
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery

@@ -42,8 +42,9 @@ export function editorCandidates(
     }
   }
 
-  // The universal text fallback only applies to text documents.
-  if (!format?.manifest.binary) {
+  // The universal text fallback applies to text documents, unless the format opts out
+  // (e.g. geospatial files that are only ever edited on the interactive map).
+  if (!format?.manifest.binary && !format?.manifest.soleEditor) {
     const fallback = editors.byId(fallbackEditorId);
     if (fallback) add({ editor: fallback, view: "text", reason: "fallback" });
   }

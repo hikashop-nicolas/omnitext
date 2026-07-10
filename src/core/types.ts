@@ -97,6 +97,9 @@ export interface FormatManifest {
   defaultEditor?: string;
   /** Content is binary (bytes), not text: use parseBinary/serializeBinary. */
   binary?: boolean;
+  /** Suppress the universal CodeMirror text fallback: the native editor is the only
+   *  surface (e.g. geospatial files edited only on the interactive map). */
+  soleEditor?: boolean;
 }
 
 /**
