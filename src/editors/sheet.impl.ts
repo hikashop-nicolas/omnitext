@@ -1,4 +1,4 @@
-import { createSheetEditor, type SheetEditor } from "sheetedit";
+import { createSheetEditorAsync, type SheetEditor } from "sheetedit";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
@@ -10,13 +10,15 @@ class SheetInstance implements EditorInstance {
   private bytes: Uint8Array = new Uint8Array();
   private text = "";
   private binary = true;
+  private disposed = false;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
     const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
-    this.editor = createSheetEditor(container, this.bytes, {
+    // Async factory inflates a zip-based workbook off the main thread before the parse.
+    void createSheetEditorAsync(container, this.bytes, {
       onChange: ctx.onChange,
       formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",
       fileName: ctx.filename,
@@ -27,7 +29,14 @@ class SheetInstance implements EditorInstance {
           }),
         );
       },
-    });
+    })
+      .then((editor) => {
+        if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
+        else this.editor = editor;
+      })
+      .catch((e: unknown) => {
+        console.error("[omnitext] sheet editor construction failed", e);
+      });
   }
 
   getText(): string {
@@ -46,6 +55,7 @@ class SheetInstance implements EditorInstance {
   focus(): void {}
 
   dispose(): void {
+    this.disposed = true;
     this.editor?.destroy();
     this.editor = null;
   }

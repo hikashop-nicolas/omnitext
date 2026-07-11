@@ -1,4 +1,4 @@
-import { createDocxEditor, initLocale, type DocxEditor } from "richdoc";
+import { createDocxEditorAsync, initLocale, type DocxEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { t } from "../i18n";
 import { getSettings, userName } from "../settings";
@@ -19,15 +19,23 @@ class DocxInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
     const s = getSettings();
-    void localeReady.then(() => {
-      if (this.disposed) return;
-      this.editor = createDocxEditor(container, this.bytes, {
-        onChange: ctx.onChange,
-        author: userName(),
-        defaultPageSize: s.pageSize,
-        paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
-      });
-    }).catch((e: unknown) => {
+    void localeReady
+      .then(() => {
+        if (this.disposed) return null;
+        // Async factory inflates the .docx off the main thread before the (main-thread) parse.
+        return createDocxEditorAsync(container, this.bytes, {
+          onChange: ctx.onChange,
+          author: userName(),
+          defaultPageSize: s.pageSize,
+          paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
+        });
+      })
+      .then((editor) => {
+        if (!editor) return;
+        if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
+        else this.editor = editor;
+      })
+      .catch((e: unknown) => {
       // An async construction failure is otherwise an unhandled rejection with a blank editor.
       console.error("[omnitext] editor construction failed", e);
       this.host.notifications.error(t("notify.readFailed", { what: "docx" }));

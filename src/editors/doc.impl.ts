@@ -1,4 +1,4 @@
-import { createDocEditor, initLocale, type DocEditor } from "richdoc";
+import { createDocEditorAsync, initLocale, type DocEditor } from "richdoc";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { t } from "../i18n";
 import { getSettings, userName } from "../settings";
@@ -21,13 +21,18 @@ class DocInstance implements EditorInstance {
     const s = getSettings();
     void localeReady
       .then(() => {
-        if (this.disposed) return;
-        this.editor = createDocEditor(container, this.bytes, {
+        if (this.disposed) return null;
+        return createDocEditorAsync(container, this.bytes, {
           onChange: ctx.onChange,
           author: userName(),
           defaultPageSize: s.pageSize,
           paginated: ctx.docOptions?.paginated ?? s.paginated,
         });
+      })
+      .then((editor) => {
+        if (!editor) return;
+        if (this.disposed) editor.destroy(); // disposed while constructing: don't leak the editor
+        else this.editor = editor;
       })
       .catch((e: unknown) => {
         console.error("[omnitext] editor construction failed", e);
