@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectArchiveKind, readArchive, writeArchive, type ArchiveEntry } from "./archive";
+import { detectArchiveKind, readArchive, readArchiveAsync, writeArchive, writeArchiveAsync, type ArchiveEntry } from "./archive";
 import { readTar, writeTar } from "./tar";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -27,6 +27,14 @@ describe("archive codec", () => {
       const out = readArchive(packed).filter((e) => !e.name.endsWith("/"));
       expect(out.map((e) => e.name).sort()).toEqual(["dir/data.json", "hello.txt"]);
       expect(dec(out.find((e) => e.name === "hello.txt")!.data)).toBe("hi there\n");
+    });
+
+    it(`off-thread (async) round-trips ${kind} identically to sync`, async () => {
+      const packed = await writeArchiveAsync(kind, ENTRIES);
+      expect(Array.from(packed)).toEqual(Array.from(writeArchive(kind, ENTRIES)));
+      const out = (await readArchiveAsync(packed)).filter((e) => !e.name.endsWith("/"));
+      expect(out.map((e) => e.name).sort()).toEqual(["dir/data.json", "hello.txt"]);
+      expect(dec(out.find((e) => e.name === "dir/data.json")!.data)).toBe('{"a":1}');
     });
   }
 });

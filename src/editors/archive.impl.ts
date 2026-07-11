@@ -1,4 +1,4 @@
-import { readArchive, type ArchiveEntry } from "../core/archive";
+import { readArchiveAsync, type ArchiveEntry } from "../core/archive";
 import { extractWithLibarchive, isLibarchiveArchive } from "../core/libarchive";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 
@@ -117,7 +117,7 @@ async function getEntries(bytes: Uint8Array | null, filename?: string): Promise<
     const base = (filename?.split("/").pop() || "archive").replace(/\.[^.]+$/, "");
     return (await extractWithLibarchive(bytes, base)).filter((e) => !e.name.endsWith("/"));
   }
-  return readArchive(bytes).filter((e) => !e.name.endsWith("/"));
+  return (await readArchiveAsync(bytes)).filter((e) => !e.name.endsWith("/"));
 }
 
 function btn(label: string, onClick: () => void): HTMLButtonElement {

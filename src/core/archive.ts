@@ -1,5 +1,6 @@
 import { gunzipSync, gzipSync, unzipSync, zipSync } from "fflate";
 import { readTar, writeTar } from "./tar";
+import { gunzipAsync, gzipAsync, unzipAsync, zipAsync } from "./zip";
 
 // Read/write archives across the formats we support fully client-side: zip (and zip-based
 // .jar/.cbz) via fflate, and tar / tar.gz / .tgz via the tar codec (+ fflate gzip). These
@@ -39,4 +40,23 @@ export function writeArchive(kind: ArchiveKind, entries: ArchiveEntry[]): Uint8A
   }
   const tar = writeTar(entries.map((e) => ({ name: e.name, data: new Uint8Array(e.data) })));
   return kind === "tgz" ? gzipSync(tar) : tar;
+}
+
+// Same as readArchive / writeArchive, but the zip/gzip runs off the main thread. Used on the
+// save/re-pack path (and archive open) so a large archive does not freeze the UI. The tar
+// framing itself is light and stays synchronous; only the deflate/inflate is offloaded.
+export async function readArchiveAsync(bytes: Uint8Array): Promise<ArchiveEntry[]> {
+  if (isZip(bytes)) return Object.entries(await unzipAsync(bytes)).map(([name, data]) => ({ name, data }));
+  if (isGzip(bytes)) return readTar(await gunzipAsync(bytes));
+  return readTar(bytes);
+}
+
+export async function writeArchiveAsync(kind: ArchiveKind, entries: ArchiveEntry[]): Promise<Uint8Array> {
+  if (kind === "zip") {
+    const files: Record<string, Uint8Array> = {};
+    for (const e of entries) files[e.name] = new Uint8Array(e.data);
+    return zipAsync(files);
+  }
+  const tar = writeTar(entries.map((e) => ({ name: e.name, data: new Uint8Array(e.data) })));
+  return kind === "tgz" ? gzipAsync(tar) : tar;
 }

@@ -1,6 +1,6 @@
 import "./app.css";
-import { gunzipSync, gzipSync } from "fflate";
-import { detectArchiveKind, readArchive, writeArchive } from "./core/archive";
+import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
+import { gunzipAsync, gzipAsync } from "./core/zip";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, encodeText, hasUtf16Bom, ENCODINGS } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
@@ -708,7 +708,7 @@ async function openBuffer(
   // re-compresses and writes foo.json.gz back, instead of a plain foo.json.
   if (lower.endsWith(".gz")) {
     try {
-      const inner = gunzipSync(new Uint8Array(buffer));
+      const inner = await gunzipAsync(new Uint8Array(buffer));
       const innerBuf = inner.buffer.slice(inner.byteOffset, inner.byteOffset + inner.byteLength) as ArrayBuffer;
       await openBuffer(innerBuf, filename.slice(0, -3), scheme, handle, undefined, filename);
       return;
@@ -962,7 +962,7 @@ async function saveFile(): Promise<void> {
   let name = session.filename;
   if (session.gzipName) {
     // Opened from a gzip wrapper: write back compressed, under the original .gz name.
-    bytes = gzipSync(bytes);
+    bytes = await gzipAsync(bytes);
     name = session.gzipName;
   }
   const handle = session.fileHandle;
@@ -1013,16 +1013,16 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
   // back in. .tar.gz/.tgz entries open as whole archives and stay compressed throughout.
   const entryData =
     a.path.endsWith(".gz") && !a.path.endsWith(".tar.gz")
-      ? gzipSync(new Uint8Array(entryBytes))
+      ? await gzipAsync(new Uint8Array(entryBytes))
       : new Uint8Array(entryBytes);
   let newArchive: Uint8Array;
   try {
     const kind = detectArchiveKind(a.archiveBytes);
-    const entries = readArchive(a.archiveBytes);
+    const entries = await readArchiveAsync(a.archiveBytes);
     const idx = entries.findIndex((e) => e.name === a.path);
     if (idx >= 0) entries[idx]!.data = entryData;
     else entries.push({ name: a.path, data: entryData });
-    newArchive = writeArchive(kind, entries);
+    newArchive = await writeArchiveAsync(kind, entries);
   } catch (e) {
     console.error("re-pack archive failed", e);
     engine.notificationSink.error(t("notify.saveFailed"));
