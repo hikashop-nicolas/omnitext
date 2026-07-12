@@ -681,6 +681,9 @@ function binaryFormatFor(filename: string): FormatDescriptor | null {
   return d?.manifest.binary ? d : null;
 }
 
+// The most recent open, to coalesce duplicate open triggers (see openBuffer).
+let lastOpen = { name: "", size: 0, at: 0 };
+
 async function openBuffer(
   buffer: ArrayBuffer,
   filename: string,
@@ -689,6 +692,15 @@ async function openBuffer(
   mime?: string,
   gzipName: string | null = null,
 ): Promise<void> {
+  // Guard against the same file being opened twice in quick succession (two open
+  // triggers firing for one user action): a second mount stacks a duplicate editor,
+  // which for the media player means a second video + audio decoder fighting the first.
+  console.info(`[omnitext] openBuffer name=${filename} scheme=${scheme} size=${buffer.byteLength}`);
+  if (scheme !== "archive" && filename === lastOpen.name && buffer.byteLength === lastOpen.size && Date.now() - lastOpen.at < 4000) {
+    console.warn(`[omnitext] ignoring duplicate open of ${filename} (${scheme})`);
+    return;
+  }
+  lastOpen = { name: filename, size: buffer.byteLength, at: Date.now() };
   // Opening a fresh file (anything but drilling into an archive entry) is a new nav root.
   if (scheme !== "archive") {
     navStack.length = 0;
