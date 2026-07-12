@@ -445,6 +445,7 @@ interface MountOpts {
 }
 
 async function mountDoc(opts: MountOpts): Promise<void> {
+  console.info(`[omnitext] mountDoc format=${opts.formatId} switch=${!!opts.isSwitch} force=${!!opts.forceFresh} fallback=${!!opts.fallbackMount}`);
   const binary = !!opts.binary;
   const text = opts.text ?? "";
   const bytes = opts.bytes ?? null;
@@ -529,13 +530,19 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     instance = cached.instance;
     cached.el.style.display = "";
   } else {
-    if (cached) {
+    // Dispose any existing instance under this id before replacing it. For a forced
+    // remount of a binary/read-only editor (e.g. a theme change) `cached` is undefined
+    // yet a live instance still sits in the map; without disposing it the old editor
+    // leaks and keeps running (a second media player, its AudioContext + decoder + subtitle
+    // worker all alive), overlapping the new one.
+    const stale = cached ?? liveEditors.get(targetId);
+    if (stale) {
       try {
-        cached.instance.dispose();
+        stale.instance.dispose();
       } catch {
         /* ignore */
       }
-      cached.el.remove();
+      stale.el.remove();
       liveEditors.delete(targetId);
     }
     mountEl = document.createElement("div");
@@ -1439,10 +1446,12 @@ const settingThemeEl = $("setting-theme") as HTMLSelectElement;
 function applyTheme(theme: "system" | "light" | "dark", remount = true): void {
   if (theme === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
-  if (remount && session?.editorId) void changeEditor(session.editorId, { force: true });
+  // Binary/read-only editors (media, image, PDF, …) draw their own chrome, not the app
+  // theme, so remounting them on a theme change is pointless (and restarts playback).
+  if (remount && session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
 }
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (getSettings().theme === "system" && session?.editorId) void changeEditor(session.editorId, { force: true });
+  if (getSettings().theme === "system" && session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
 });
 function openSettings(): void {
   modalReturnFocus = document.activeElement as HTMLElement | null;
