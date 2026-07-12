@@ -647,6 +647,10 @@ let autosaveBusy = false;
 let storageFullWarned = false;
 function scheduleAutosave(): void {
   clearTimeout(autosaveTimer);
+  // Read-only viewers (media/image/archive/…) have no unsaved state to recover, and
+  // snapshotting them stores the whole (possibly huge) file in IndexedDB, which crash
+  // recovery would then auto-reopen (a second media player fighting the user's own open).
+  if (session?.readOnly) return;
   // Binary snapshots run the editor's full export; give them a longer debounce.
   autosaveTimer = setTimeout(() => {
     if (autosaveBusy) {
@@ -1920,7 +1924,11 @@ async function start(): Promise<void> {
   } catch (e) {
     console.error("recovery load failed", e);
   }
-  if (last?.binary && last.bytes?.length) {
+  // A recovered read-only viewer (media/image/archive) has nothing to restore; skip it
+  // so it does not auto-reopen a large file that collides with the users own open.
+  const recDesc = last?.formatId ? engine.formats.byId(last.formatId) : null;
+  const recReadOnly = !!(recDesc && engine.resolve(recDesc)?.editor?.manifest?.readOnly);
+  if (last?.binary && last.bytes?.length && !recReadOnly) {
     session = { id: last.id } as Session;
     await mountDoc({
       bytes: last.bytes,
