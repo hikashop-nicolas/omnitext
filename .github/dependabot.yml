@@ -13,6 +13,10 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
     # Majors come as individual PRs so each breaking bump is reviewed and verified on its own.
+    ignore:
+      # Only pinned to satisfy the peer of the vanilla filerobot-image-editor (the package we
+      # import), which peers on ^4.7.0. Any 5.x here breaks npm install with ERESOLVE.
+      - dependency-name: "react-filerobot-image-editor"
 
   - package-ecosystem: "github-actions"
     directory: "/"
