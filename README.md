@@ -104,16 +104,21 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   re-encodes the raster (an animated GIF flattens to one frame).
 - **Viewers** (read-only): multi-page **TIFF** images
   ([UTIF.js](https://github.com/photopea/UTIF.js)) and **`.torrent`** metadata (name, size,
-  trackers, file tree, info-hash). **audio & video** — the common web formats plus `.mkv`, `.mov`,
-  `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a container directly, the
-  file is repackaged in memory ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded
-  on demand) and played without re-encoding. Text subtitles embedded in MKV/WebM (SRT, ASS,
-  WebVTT tracks; UTF-8 incl. CJK) are extracted and shown, with a CC menu to switch subtitle
-  tracks, load an external `.srt`/`.ass`/`.vtt` file (legacy encodings auto-detected), and
-  switch between the file's audio tracks. Latin-script ASS subtitles render fully styled via
-  [libass](https://github.com/libass/JavascriptSubtitlesOctopus) (WASM, loaded on demand);
-  CJK ASS uses the plain-text path so system fonts render the glyphs. Player shortcuts: space, F (fullscreen), M (mute),
-  S/D (speed, remembered across files), C (subtitles on/off), arrows (seek/volume).
+  trackers, file tree, info-hash). **audio & video** — via the standalone
+  [mediaplay](https://github.com/hikashop-nicolas/mediaplay) library: the common web formats
+  plus `.mkv`, `.mov`, `.mts`/`.m2ts`, `.3gp` and friends; when the browser can't play a
+  container directly, the file is repackaged in memory
+  ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded on demand) and played without
+  re-encoding, and Dolby **AC-3 / E-AC-3** audio (which no browser decodes) is decoded by a
+  bundled FFmpeg WASM decoder and played in sync with the video (DTS/TrueHD show a clear
+  notice). Text subtitles embedded in MKV/WebM (SRT, ASS, WebVTT tracks; UTF-8 incl. CJK) are
+  extracted and shown, with a CC menu to switch subtitle tracks, load an external
+  `.srt`/`.ass`/`.vtt` file (legacy encodings auto-detected), and switch between the file's
+  audio tracks. ASS subtitles render fully styled via
+  [libass](https://github.com/libass/JavascriptSubtitlesOctopus) (WASM, loaded on demand),
+  using the fonts embedded in the file — CJK signs and karaoke included. Player shortcuts:
+  space, F (fullscreen), M (mute), S/D (speed, remembered across files), C (subtitles
+  on/off), arrows (seek/volume); they keep working when the native controls have focus.
   And **archives** — `.zip`/`.jar`/`.cbz`,
   `.tar`, `.tar.gz`/`.tgz`, and `.gz` (via [fflate](https://github.com/101arrowz/fflate)),
   plus **7z, RAR, and tar.xz / tar.bz2** (via
