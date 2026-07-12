@@ -1,6 +1,7 @@
-# Keep the third-party npm packages and the GitHub Actions current. Dependabot cannot see the
-# in-house git dependencies (richdoc/pdfedit/geoedit/sheetedit are pinned by commit SHA, not a
-# registry version) or the xlsx CDN tarball; bump those with `npm run bump-libs` / by hand.
+# Keep the third-party npm packages and the GitHub Actions current. Dependabot DOES track the
+# in-house git dependencies (richdoc/pdfedit/geoedit/sheetedit/mediaplay) and opens a per-lib PR
+# when their `main` HEAD moves, so it also keeps those current; `npm run bump-libs` is now just a
+# manual "bump every lib at once" shortcut. The xlsx CDN tarball is still invisible; bump by hand.
 version: 2
 updates:
   - package-ecosystem: "npm"
