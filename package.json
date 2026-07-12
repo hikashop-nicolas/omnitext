@@ -17,8 +17,8 @@
     "bump-libs": "node scripts/bump-libs.mjs",
     "cap:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
-    "predev": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs",
-    "prebuild": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs",
+    "predev": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs && node scripts/copy-libav-assets.mjs",
+    "prebuild": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs && node scripts/copy-libav-assets.mjs",
     "postbuild": "node scripts/gen-sw.mjs"
   },
   "devDependencies": {
