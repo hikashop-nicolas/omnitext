@@ -445,7 +445,6 @@ interface MountOpts {
 }
 
 async function mountDoc(opts: MountOpts): Promise<void> {
-  console.info(`[omnitext] mountDoc format=${opts.formatId} switch=${!!opts.isSwitch} force=${!!opts.forceFresh} fallback=${!!opts.fallbackMount}`);
   const binary = !!opts.binary;
   const text = opts.text ?? "";
   const bytes = opts.bytes ?? null;
@@ -699,7 +698,6 @@ async function openBuffer(
   // Guard against the same file being opened twice in quick succession (two open
   // triggers firing for one user action): a second mount stacks a duplicate editor,
   // which for the media player means a second video + audio decoder fighting the first.
-  console.info(`[omnitext] openBuffer name=${filename} scheme=${scheme} size=${buffer.byteLength}`);
   if (scheme !== "archive" && filename === lastOpen.name && buffer.byteLength === lastOpen.size && Date.now() - lastOpen.at < 4000) {
     console.warn(`[omnitext] ignoring duplicate open of ${filename} (${scheme})`);
     return;
