@@ -9,7 +9,7 @@
 import { execSync } from "node:child_process";
 
 const OWNER = "hikashop-nicolas";
-const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit"];
+const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit", "mediaplay"];
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 
 for (const lib of LIBS) {
