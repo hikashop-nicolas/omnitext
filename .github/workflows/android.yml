@@ -83,7 +83,7 @@ jobs:
       # artifacts with: gh run download <run-id> -n play-aab
       - name: Upload AAB artifact (for Play Console)
         if: steps.apk.outputs.kind == 'signed release'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: play-aab
           path: omnitext.aab
