@@ -54,7 +54,7 @@ self.addEventListener("install", (event) => {
     const cache = await caches.open(CACHE);
     const oldKeys = (await caches.keys()).filter((k) => k !== CACHE);
     const old = oldKeys.length ? await caches.open(oldKeys[oldKeys.length - 1]) : null;
-    await Promise.all(ASSETS.map(async (url) => {
+    await Promise.allSettled(ASSETS.map(async (url) => {
       // Vite content-hashes everything under assets/, so an old cache entry
       // with the same name is byte-identical: copy it instead of refetching.
       if (old && url.startsWith("assets/")) {
@@ -62,7 +62,10 @@ self.addEventListener("install", (event) => {
         if (hit) { await cache.put(url, hit); return; }
       }
       const res = await fetch(url, { cache: "no-cache" });
-      if (!res.ok) throw new Error("precache failed: " + url);
+      // A rapid re-deploy can delete assets this build listed. Skip a missing one
+      // rather than failing the whole install, which would leave the OLD worker stuck
+      // serving now-404 chunks. Anything skipped is fetched from network on demand.
+      if (!res.ok) return;
       await cache.put(url, await sanitize(res));
     }));
   })());
