@@ -24,24 +24,6 @@ declare module "ini" {
   export function encode(obj: unknown, opts?: unknown): string;
 }
 
-// "@jellyfin/libass-wasm" (SubtitlesOctopus) ships no types; declare the bits we use.
-declare module "@jellyfin/libass-wasm" {
-  export default class SubtitlesOctopus {
-    constructor(options: {
-      video: HTMLVideoElement;
-      subContent: string;
-      workerUrl: string;
-      fallbackFont?: string;
-      fonts?: string[];
-      onReady?: () => void;
-      onError?: (error: unknown) => void;
-    });
-    dispose(): void;
-    freeTrack(): void;
-    setTrack(content: string): void;
-  }
-}
-
 // "geojs" ships no TypeScript types and is a large UMD bundle; type it loosely.
 declare module "geojs" {
   const geo: any;

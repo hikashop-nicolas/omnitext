@@ -83,7 +83,7 @@
     "libarchive-wasm": "^1.2.0",
     "libheif-js": "^1.19.8",
     "marked": "^18.0.5",
-    "mediabunny": "^1.50.7",
+    "mediaplay": "github:hikashop-nicolas/mediaplay",
     "notebookjs": "^0.8.3",
     "opentype.js": "^2.0.0",
     "pdf-lib": "^1.17.1",
