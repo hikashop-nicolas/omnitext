@@ -11,6 +11,7 @@ export const assFormat: FormatDescriptor = {
     mimeTypes: ["text/x-ass"],
     nativeEditor: "subtitle",
     defaultEditor: "subtitle",
+    blankInDefaultEditor: true,
   },
   // The "[Script Info]" header plus the "[V4+ Styles]" section mark ASS (v4+).
   detect({ sample }) {

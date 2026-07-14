@@ -100,6 +100,10 @@ export interface FormatManifest {
   /** Suppress the universal CodeMirror text fallback: the native editor is the only
    *  surface (e.g. geospatial files edited only on the interactive map). */
   soleEditor?: boolean;
+  /** Open a *new blank* document in this format's default editor rather than the usual
+   *  blank-in-CodeMirror. For formats whose native editor handles empty content well and
+   *  is the point of the format (e.g. subtitles open straight in the cue editor). */
+  blankInDefaultEditor?: boolean;
 }
 
 /**

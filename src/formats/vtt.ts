@@ -10,6 +10,7 @@ export const vttFormat: FormatDescriptor = {
     mimeTypes: ["text/vtt"],
     nativeEditor: "subtitle",
     defaultEditor: "subtitle",
+    blankInDefaultEditor: true,
   },
   // A VTT file begins with the "WEBVTT" signature line.
   detect({ sample }) {

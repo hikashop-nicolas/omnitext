@@ -1270,12 +1270,18 @@ async function createNewDocument(): Promise<void> {
   }
 
   // Text formats start blank in the text editor; the View switcher offers richer surfaces.
+  // Exception: formats that opt into blankInDefaultEditor (e.g. subtitles) open a new blank
+  // straight in their native editor, since that surface is the whole point of the format.
+  const blankEditor =
+    descriptor?.manifest.blankInDefaultEditor && descriptor.manifest.defaultEditor
+      ? descriptor.manifest.defaultEditor
+      : "codemirror";
   void mountDoc({
     text: "",
     filename: null,
     encoding: { label: "utf-8", bom: false },
     formatId,
-    editorId: "codemirror",
+    editorId: blankEditor,
   });
 }
 

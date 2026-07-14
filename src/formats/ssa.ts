@@ -10,6 +10,7 @@ export const ssaFormat: FormatDescriptor = {
     mimeTypes: ["text/x-ssa"],
     nativeEditor: "subtitle",
     defaultEditor: "subtitle",
+    blankInDefaultEditor: true,
   },
   // "[Script Info]" with a "[V4 Styles]" section (no plus) marks classic SSA v4.
   detect({ sample }) {

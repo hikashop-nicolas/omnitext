@@ -10,6 +10,7 @@ export const srtFormat: FormatDescriptor = {
     mimeTypes: ["application/x-subrip", "text/srt"],
     nativeEditor: "subtitle",
     defaultEditor: "subtitle",
+    blankInDefaultEditor: true,
   },
   // A digit index line, then a "HH:MM:SS,mmm --> HH:MM:SS,mmm" cue timing line.
   detect({ sample }) {
