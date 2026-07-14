@@ -87,6 +87,9 @@ import { srtFormat } from "./formats/srt";
 import { vttFormat } from "./formats/vtt";
 import { assFormat } from "./formats/ass";
 import { ssaFormat } from "./formats/ssa";
+import { microdvdFormat } from "./formats/microdvd";
+import { lrcFormat } from "./formats/lrc";
+import { ttmlFormat } from "./formats/ttml";
 import { shpFormat } from "./formats/shp";
 import { psdFormat } from "./formats/psd";
 import { aiFormat } from "./formats/ai";
@@ -210,6 +213,9 @@ const FORMATS: FormatDescriptor[] = [
   vttFormat,
   assFormat,
   ssaFormat,
+  microdvdFormat,
+  lrcFormat,
+  ttmlFormat,
   shpFormat,
   psdFormat,
   aiFormat,
