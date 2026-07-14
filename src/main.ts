@@ -95,6 +95,7 @@ import { samiFormat } from "./formats/sami";
 import { mpl2Format } from "./formats/mpl2";
 import { ytjsonFormat } from "./formats/ytjson";
 import { spruceFormat } from "./formats/spruce";
+import { ttxtSubFormat } from "./formats/ttxtsub";
 import { shpFormat } from "./formats/shp";
 import { psdFormat } from "./formats/psd";
 import { aiFormat } from "./formats/ai";
@@ -226,6 +227,7 @@ const FORMATS: FormatDescriptor[] = [
   mpl2Format,
   ytjsonFormat,
   spruceFormat,
+  ttxtSubFormat,
   shpFormat,
   psdFormat,
   aiFormat,
