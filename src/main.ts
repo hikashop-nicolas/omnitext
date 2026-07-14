@@ -90,6 +90,11 @@ import { ssaFormat } from "./formats/ssa";
 import { microdvdFormat } from "./formats/microdvd";
 import { lrcFormat } from "./formats/lrc";
 import { ttmlFormat } from "./formats/ttml";
+import { sbvFormat } from "./formats/sbv";
+import { samiFormat } from "./formats/sami";
+import { mpl2Format } from "./formats/mpl2";
+import { ytjsonFormat } from "./formats/ytjson";
+import { spruceFormat } from "./formats/spruce";
 import { shpFormat } from "./formats/shp";
 import { psdFormat } from "./formats/psd";
 import { aiFormat } from "./formats/ai";
@@ -216,6 +221,11 @@ const FORMATS: FormatDescriptor[] = [
   microdvdFormat,
   lrcFormat,
   ttmlFormat,
+  sbvFormat,
+  samiFormat,
+  mpl2Format,
+  ytjsonFormat,
+  spruceFormat,
   shpFormat,
   psdFormat,
   aiFormat,
