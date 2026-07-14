@@ -96,6 +96,7 @@
     "rtf.js": "^3.0.9",
     "sheetedit": "github:hikashop-nicolas/sheetedit",
     "sql.js": "^1.14.1",
+    "subedit": "github:hikashop-nicolas/subedit",
     "svgedit": "^7.4.2",
     "three": "^0.185.1",
     "toml": "^4.1.1",

@@ -143,8 +143,7 @@ const TEXT_FORMATS: TextFormat[] = [
   { id: "svelte", exts: [".svelte"] },
   { id: "astro", exts: [".astro"] },
   // .eml/.msg (email viewer), .vcf/.ics (PIM viewer) have dedicated formats now.
-  // Subtitles (plain for now; a timeline editor is a possible future)
-  { id: "subtitle", exts: [".srt", ".vtt", ".sub", ".ass", ".ssa"], mimes: ["text/vtt"] },
+  // Subtitles (.srt/.vtt/.ass/.ssa) route to the subedit cue editor via dedicated formats.
   // Logs and generic plain text
   { id: "log", exts: [".log", ".err", ".out"] },
   { id: "plaintext", exts: [".txt", ".text", ".nfo", ".me", ".1st", ".readme"], mimes: ["text/plain"] },

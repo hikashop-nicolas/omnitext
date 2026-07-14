@@ -56,6 +56,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   their properties and colours, measure distance/area, undo/redo, all spliced back into the
   file byte-for-byte. TopoJSON, WKT and Shapefiles (`.shp`) open read-only (export them to
   an editable format).
+- **Subtitles** — SRT, WebVTT, ASS and SSA open in a **subtitle editor**
+  ([subedit](https://github.com/hikashop-nicolas/subedit)): a cue list with per-cue timing
+  and text, a video/audio preview with a waveform timeline to retime cues, an ASS style
+  picker, and automatic transcription/translation, all byte-preserving your file. The raw
+  text is one click away in the View switcher.
 - **Design files** (read-only): **PSD** (Photoshop) renders the flattened composite and
   layer tree ([@webtoon/psd](https://github.com/webtoon/psd)); **AI** (Illustrator) renders
   its PDF-compatible artwork via pdf.js.

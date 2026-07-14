@@ -53,6 +53,7 @@ import { binaryEditor } from "./editors/binary";
 import { latexPreviewEditor } from "./editors/latexpreview";
 import { svgEditor } from "./editors/svgeditor";
 import { geoEditor } from "./editors/geoeditor";
+import { subtitleEditor } from "./editors/subtitle";
 import { psdViewer } from "./editors/psdviewer";
 import { aiViewer } from "./editors/aiviewer";
 import { fontViewer } from "./editors/fontviewer";
@@ -82,6 +83,10 @@ import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
+import { srtFormat } from "./formats/srt";
+import { vttFormat } from "./formats/vtt";
+import { assFormat } from "./formats/ass";
+import { ssaFormat } from "./formats/ssa";
 import { shpFormat } from "./formats/shp";
 import { psdFormat } from "./formats/psd";
 import { aiFormat } from "./formats/ai";
@@ -158,6 +163,7 @@ engine.registerEditor(archiveEditor);
 engine.registerEditor(latexPreviewEditor);
 engine.registerEditor(svgEditor);
 engine.registerEditor(geoEditor);
+engine.registerEditor(subtitleEditor);
 engine.registerEditor(psdViewer);
 engine.registerEditor(aiViewer);
 engine.registerEditor(fontViewer);
@@ -200,6 +206,10 @@ const FORMATS: FormatDescriptor[] = [
   gpxFormat,
   topojsonFormat,
   wktFormat,
+  srtFormat,
+  vttFormat,
+  assFormat,
+  ssaFormat,
   shpFormat,
   psdFormat,
   aiFormat,
