@@ -76,6 +76,7 @@
     "hyparquet": "^1.26.2",
     "hyparquet-compressors": "^1.1.1",
     "ical.js": "^2.2.1",
+    "imageview": "github:hikashop-nicolas/imageview",
     "ini": "^7.0.0",
     "js-yaml": "^5.2.1",
     "json5": "^2.2.3",
