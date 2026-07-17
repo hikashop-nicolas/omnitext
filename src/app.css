@@ -458,3 +458,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .palette-list li[aria-selected="true"], .palette-list li:hover { background: var(--accent-dim, rgba(110,123,255,0.18)); }
 .palette-hint { color: var(--muted); font-size: 12px; }
 .palette-none { color: var(--muted); padding: 10px; }
+
+/* Print / Save-as-PDF (Ctrl+P): drop the app chrome and let the editor surface flow
+   onto the page. Read-only previews (rich text, markdown, notebook, PDF) print best;
+   the code editor prints only what its virtualized viewport has rendered. */
+@media print {
+  header, #status, #panel, .toast, .modal, #dropzone { display: none !important; }
+  html, body, #app, #editor {
+    height: auto !important; min-height: 0 !important; overflow: visible !important;
+    background: #fff !important;
+  }
+  #app { position: static !important; }
+  #editor { flex: none !important; }
+}

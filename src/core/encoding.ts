@@ -21,6 +21,37 @@ export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
 /** Encodings offered by the "reopen with encoding" picker (TextDecoder built-ins). */
 export const ENCODINGS = ["utf-8", "windows-1252", "iso-8859-15", "shift_jis", "euc-jp", "gbk", "big5", "windows-1251", "koi8-r"] as const;
 
+export type LineEnding = "lf" | "crlf" | "cr" | "mixed" | "none";
+
+/** The dominant line ending in the bytes: LF (Unix), CRLF (Windows), CR (classic Mac),
+    "mixed" when more than one style is present, or "none" when there are no line breaks.
+    Scans a bounded prefix so a huge file does not stall the status bar. */
+export function detectLineEnding(bytes: Uint8Array): LineEnding {
+  const limit = Math.min(bytes.length, 1 << 20); // 1 MB is plenty to classify a text file
+  let crlf = 0;
+  let lf = 0;
+  let cr = 0;
+  for (let i = 0; i < limit; i++) {
+    const b = bytes[i]!;
+    if (b === 0x0d) {
+      if (bytes[i + 1] === 0x0a) {
+        crlf++;
+        i++; // consume the LF of this CRLF pair
+      } else {
+        cr++;
+      }
+    } else if (b === 0x0a) {
+      lf++;
+    }
+  }
+  const styles = (crlf > 0 ? 1 : 0) + (lf > 0 ? 1 : 0) + (cr > 0 ? 1 : 0);
+  if (styles === 0) return "none";
+  if (styles > 1) return "mixed";
+  if (crlf > 0) return "crlf";
+  if (cr > 0) return "cr";
+  return "lf";
+}
+
 export function decodeBytes(buffer: ArrayBuffer, forced?: string): DecodedText {
   const bytes = new Uint8Array(buffer);
 

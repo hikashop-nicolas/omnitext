@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { decodeBytes, encodeText, hasUtf16Bom } from "./encoding";
+import { decodeBytes, detectLineEnding, encodeText, hasUtf16Bom } from "./encoding";
+
+const eol = (s: string) => detectLineEnding(new TextEncoder().encode(s));
 
 function bytesOf(...nums: number[]): ArrayBuffer {
   return new Uint8Array(nums).buffer;
@@ -56,6 +58,16 @@ describe("encoding", () => {
     expect(d.lossyOnSave).toBe(true);
     const u = decodeBytes(new TextEncoder().encode("plain").buffer as ArrayBuffer, "utf-8");
     expect(u.lossyOnSave).toBe(false);
+  });
+
+  it("classifies line endings for the status-bar indicator", () => {
+    expect(eol("a\nb\nc")).toBe("lf");
+    expect(eol("a\r\nb\r\nc")).toBe("crlf");
+    expect(eol("a\rb\rc")).toBe("cr");
+    expect(eol("a\r\nb\nc")).toBe("mixed"); // CRLF and a lone LF
+    expect(eol("no breaks here")).toBe("none");
+    expect(eol("")).toBe("none");
+    expect(eol("trailing\r\n")).toBe("crlf"); // a CR at the very end has no following LF to peek
   });
 
   it("detects UTF-16 BOMs so the binary sniffer does not eat them", () => {

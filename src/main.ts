@@ -2,7 +2,7 @@ import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, encodeText, hasUtf16Bom, ENCODINGS } from "./core/encoding";
+import { decodeBytes, detectLineEnding, encodeText, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
@@ -127,8 +127,8 @@ import {
   makeGenericViewerFormats,
   makeViewerFormats,
 } from "./formats/binary-viewers";
-import { applyDom, initI18n, t } from "./i18n";
-import { getSettings, saveSettings } from "./settings";
+import { applyDom, initI18n, setLocale, t } from "./i18n";
+import { getSettings, saveSettings, type Locale } from "./settings";
 import type {
   EditorInstance,
   EditorResolution,
@@ -324,6 +324,10 @@ interface Session {
   gzipName: string | null;
   /** Text documents: the original bytes, kept so "reopen with encoding" can re-decode. */
   srcBytes: ArrayBuffer | null;
+  /** Text documents: the dominant line ending in the opened file (shown in the status bar). */
+  lineEnding?: LineEnding;
+  /** Why the current editor was chosen (native/view/fallback), for the reason pill. */
+  reason?: string;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
 }
@@ -414,6 +418,18 @@ function setFormatLabel(current: string | null): void {
   formatLabelEl.textContent = current ?? t("app.plainText");
 }
 
+// The small "<editor> · <why>" pill. Kept as a helper so a live language change can
+// rebuild it (it is set imperatively at mount, so applyDom does not reach it).
+function setReasonPill(editorId: string | null, reason: string | undefined): void {
+  if (!editorId || !reason) {
+    reasonEl.textContent = "";
+    return;
+  }
+  const key = `app.reason.${reason}`;
+  const label = t(key) === key ? reason : t(key);
+  reasonEl.textContent = `${editorLabel(editorId)} · ${label}`;
+}
+
 // The View switcher: an eye button (bottom-right). One view -> hidden; two -> a click
 // toggles directly; three+ -> a click opens a popover. Current choices are kept here.
 let viewChoices: EditorResolution[] = [];
@@ -434,11 +450,31 @@ function updateUI(): void {
   dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
   setFormatLabel(session?.formatId ?? null);
   if (session?.editorId) viewLabelEl.textContent = editorLabel(session.editorId);
-  // Encoding pill: only for text documents whose original bytes are re-decodable.
+  // Encoding pill: only for text documents whose original bytes are re-decodable. Shows
+  // the decode plus the file's BOM and line ending; clicking still reopens with an encoding.
   const encEl = document.getElementById("enc-btn");
   if (encEl) {
     encEl.hidden = !session || session.binary || !session.srcBytes;
-    encEl.textContent = session?.encoding.label ?? "";
+    if (session && !encEl.hidden) {
+      const parts = [session.encoding.label];
+      if (session.encoding.bom) parts.push("BOM");
+      const eol = lineEndingLabel(session.lineEnding);
+      if (eol) parts.push(eol);
+      encEl.textContent = parts.join(" · ");
+    } else {
+      encEl.textContent = "";
+    }
+  }
+}
+
+// Short status-bar label for a line ending; "none" (no line breaks) shows nothing.
+function lineEndingLabel(eol: LineEnding | undefined): string {
+  switch (eol) {
+    case "lf": return "LF";
+    case "crlf": return "CRLF";
+    case "cr": return "CR";
+    case "mixed": return t("app.lineEndingMixed");
+    default: return "";
   }
 }
 
@@ -595,6 +631,11 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
     srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
   };
+  // The opened file's line ending, for the status-bar indicator (text documents only).
+  if (!binary) {
+    const eol = session.srcBytes ? new Uint8Array(session.srcBytes) : new TextEncoder().encode(text);
+    session.lineEnding = detectLineEnding(eol);
+  }
 
   if (mountEl) {
     liveEditors.set(targetId, { instance, el: mountEl, text });
@@ -643,9 +684,8 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   }
   instance.focus();
 
-  const reasonKey = `app.reason.${chosen.reason}`;
-  const reasonText = t(reasonKey) === reasonKey ? chosen.reason : t(reasonKey);
-  reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${reasonText}`;
+  if (session) session.reason = chosen.reason;
+  setReasonPill(chosen.editor.manifest.id, chosen.reason);
   setFormatLabel(formatId);
   populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
@@ -1379,7 +1419,14 @@ document.addEventListener("keydown", (e) => {
   if (k === "s") { e.preventDefault(); void saveFile(); }
   else if (k === "o") { e.preventDefault(); void openFile(); }
   else if (k === "k") { e.preventDefault(); paletteEl.hidden ? openPalette() : closePalette(); }
+  else if (k === "p") { e.preventDefault(); printDoc(); }
 });
+
+// Print / Save-as-PDF: print CSS (app.css @media print) hides the app chrome and prints
+// only the editor surface, so the browser's print dialog can render or save it to PDF.
+function printDoc(): void {
+  window.print();
+}
 
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
@@ -1487,6 +1534,7 @@ const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 const settingThemeEl = $("setting-theme") as HTMLSelectElement;
+const settingLocaleEl = $("setting-locale") as HTMLSelectElement;
 
 // Apply a theme choice: attribute for the palette, then remount the active
 // editor so surfaces that sample colors at mount (CodeMirror and friends)
@@ -1508,6 +1556,7 @@ function openSettings(): void {
   settingPageSizeEl.value = s.pageSize;
   settingPaginatedEl.checked = s.paginated;
   settingThemeEl.value = s.theme;
+  settingLocaleEl.value = s.locale;
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -1519,14 +1568,30 @@ function closeSettings(): void {
 function saveSettingsDialog(): void {
   const theme = settingThemeEl.value === "light" ? "light" : settingThemeEl.value === "dark" ? "dark" : "system";
   const themeChanged = theme !== getSettings().theme;
+  const locale = (["auto", "en", "fr", "ja"].includes(settingLocaleEl.value) ? settingLocaleEl.value : "auto") as Locale;
+  const localeChanged = locale !== getSettings().locale;
   saveSettings({
     name: settingNameEl.value.trim(),
     pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
     paginated: settingPaginatedEl.checked,
     theme,
+    locale,
   });
   if (themeChanged) applyTheme(theme);
   closeSettings();
+  if (localeChanged) void applyLocaleChange(locale);
+}
+
+// Re-translate the UI in place after a manual language change: the declarative
+// [data-i18n] strings, plus the imperatively-set chrome (reason pill, resting status).
+// Editors keep their content; their own internal chrome refreshes on the next remount.
+async function applyLocaleChange(locale: Locale): Promise<void> {
+  await setLocale(locale);
+  applyDom();
+  updateUI();
+  setReasonPill(session?.editorId ?? null, session?.reason);
+  const where = isNative() ? t("status.onThisDevice") : t("status.inThisBrowser");
+  setStatus(t("status.ready", { where }));
 }
 $("btn-settings").addEventListener("click", openSettings);
 $("settings-cancel").addEventListener("click", closeSettings);
@@ -1574,6 +1639,7 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.newDocument"), run: () => openNewDialog() },
     { label: t("app.open"), hint: "Ctrl+O", run: () => void openFile() },
     { label: t("app.save"), hint: "Ctrl+S", run: () => void saveFile() },
+    { label: t("app.print"), hint: "Ctrl+P", run: () => printDoc() },
     { label: t("app.settings"), run: () => openSettings() },
   ];
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });
@@ -1933,7 +1999,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 }
 
 async function start(): Promise<void> {
-  await initI18n();
+  await initI18n(getSettings().locale);
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   void SessionStore.requestPersistent();
