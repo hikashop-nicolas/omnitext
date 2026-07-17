@@ -324,6 +324,9 @@ interface Session {
   gzipName: string | null;
   /** Text documents: the original bytes, kept so "reopen with encoding" can re-decode. */
   srcBytes: ArrayBuffer | null;
+  /** The on-disk Blob/File when the document was opened without loading its bytes (large
+      media/archives). Lets the archive viewer stream, and drill-in/back reuse the source. */
+  blob: Blob | null;
   /** Text documents: the dominant line ending in the opened file (shown in the status bar). */
   lineEnding?: LineEnding;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
@@ -331,7 +334,7 @@ interface Session {
 }
 
 interface ArchiveContext {
-  archiveBytes: Uint8Array; // the current archive (updated on each write-back); zip/tar/tgz
+  archiveBlob: Blob; // the current archive as a Blob (materialized to bytes only on save-back)
   path: string; // this entry's path inside the archive
   parentName: string; // the archive's filename (for saving)
   parentHandle: FsHandle | null; // the archive's file handle, for in-place save on the web
@@ -341,6 +344,8 @@ interface ArchiveContext {
 interface NavSnapshot {
   binary: boolean;
   bytes?: Uint8Array;
+  /** The archive's on-disk source, when it was opened by streaming (no full bytes). */
+  blob?: Blob;
   text?: string;
   filename: string | null;
   formatId: string | null;
@@ -473,6 +478,8 @@ function setStatus(msg: string): void {
 interface MountOpts {
   text?: string;
   bytes?: Uint8Array | null;
+  /** On-disk source for streaming binary viewers (archive), when bytes weren't loaded. */
+  blob?: Blob | null;
   binary?: boolean;
   filename: string | null;
   encoding: TextEncoding;
@@ -616,6 +623,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     readOnly: !!chosen.editor.manifest.readOnly,
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
     srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
+    blob: opts.blob ?? (opts.isSwitch ? (session?.blob ?? null) : null),
   };
   // The opened file's line ending, for the status-bar indicator (text documents only).
   if (!binary) {
@@ -629,6 +637,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       instance.mount(mountEl, {
       text,
       bytes,
+      blob: opts.blob ?? null,
       binary,
       mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
       filename: opts.filename ?? undefined,
@@ -737,6 +746,37 @@ function binaryFormatFor(filename: string): FormatDescriptor | null {
   if (dot < 0) return null;
   const d = engine.formats.byExtension(filename.slice(dot))[0];
   return d?.manifest.binary ? d : null;
+}
+
+// The archive format id for a file we can stream (list without loading it all), or null.
+// A bare single-file .gz is NOT an archive here (it is transparently decompressed instead).
+function archiveFormatForFile(name: string, mime?: string): string | null {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".tar.gz")) return "tar"; // trailing ext is .gz, so match by full name
+  const bin = binaryFormatFor(name); // .zip/.jar/.cbz/.tar/.tgz/.7z/.rar/.cbr/.xz/.txz/.bz2/.tbz2/.tbz
+  if (bin && bin.manifest.nativeEditor === "archive") return bin.manifest.id;
+  if (mime === "application/zip" || mime === "application/java-archive") return GENERIC_ARCHIVE;
+  return null;
+}
+
+// Open a File from disk. Archives stream from the Blob (the viewer lists entries without
+// loading the whole file); everything else reads its bytes as before.
+async function openLocalFile(file: File, scheme: string, handle: FsHandle | null): Promise<void> {
+  const arc = archiveFormatForFile(file.name, file.type);
+  if (arc) {
+    await mountDoc({
+      blob: file,
+      binary: true,
+      formatId: arc,
+      filename: file.name,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${file.name}`,
+      fileHandle: handle,
+      mime: file.type || undefined,
+    });
+    return;
+  }
+  await openBuffer(await file.arrayBuffer(), file.name, scheme, handle, file.type);
 }
 
 // The most recent open, to coalesce duplicate open triggers (see openBuffer).
@@ -942,7 +982,7 @@ async function openFile(): Promise<void> {
       const [handle] = await window.showOpenFilePicker();
       if (!handle) return;
       const file = await handle.getFile();
-      await openBuffer(await file.arrayBuffer(), file.name, "fs", handle, file.type);
+      await openLocalFile(file, "fs", handle);
     } catch (e) {
       if ((e as DOMException)?.name !== "AbortError") console.error(e);
     }
@@ -954,7 +994,7 @@ async function openFile(): Promise<void> {
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
-  await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
+  await openLocalFile(file, "upload", null);
   fileInput.value = "";
 });
 
@@ -988,7 +1028,7 @@ window.addEventListener("drop", async (e) => {
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
   if (!confirmDiscard()) return;
-  await openBuffer(await file.arrayBuffer(), file.name, "upload", null, file.type);
+  await openLocalFile(file, "upload", null);
 });
 
 // Installed-PWA "Open with" (desktop Chromium): the OS hands files declared in the
@@ -1002,7 +1042,7 @@ interface LaunchParamsLike {
   if (!handle) return;
   try {
     const file = await handle.getFile();
-    await openBuffer(await file.arrayBuffer(), file.name, "fs", handle, file.type);
+    await openLocalFile(file, "fs", handle);
   } catch (e) {
     console.error("launch queue open failed", e);
   }
@@ -1121,8 +1161,11 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
   }
   let newArchive: Uint8Array;
   try {
-    const kind = detectArchiveKind(a.archiveBytes);
-    const entries = await readArchiveAsync(a.archiveBytes);
+    // Re-packing needs every entry, so the archive is materialized here (only on save-back,
+    // not on browse). zip/tar/tgz only; libarchive formats have no write path.
+    const archiveBytes = new Uint8Array(await a.archiveBlob.arrayBuffer());
+    const kind = detectArchiveKind(archiveBytes);
+    const entries = await readArchiveAsync(archiveBytes);
     const idx = entries.findIndex((e) => e.name === a.path);
     if (idx >= 0) entries[idx]!.data = entryData;
     else entries.push({ name: a.path, data: entryData });
@@ -1147,10 +1190,14 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
     engine.notificationSink.error(t("notify.saveFailed"));
     return;
   }
-  // Keep the in-memory archive + the back-target current so a later edit or "back" sees it.
-  a.archiveBytes = newArchive;
+  // Keep the archive + the back-target current so a later edit or "back" sees it.
+  const updated = new Blob([newArchive as BlobPart]);
+  a.archiveBlob = updated;
   const top = navStack[navStack.length - 1];
-  if (top?.binary) top.bytes = newArchive;
+  if (top?.binary) {
+    top.blob = updated;
+    top.bytes = undefined;
+  }
   if (!session.binary) session.lastSavedText = session.editor.getText();
   session.dirty = false;
   updateUI();
@@ -1166,7 +1213,9 @@ async function goBack(): Promise<void> {
   await mountDoc(
     snap.binary
       ? {
-          bytes: snap.bytes ?? new Uint8Array(),
+          // An archive opened by streaming carries its Blob (no bytes); everything else has bytes.
+          blob: snap.blob ?? null,
+          bytes: snap.blob ? null : (snap.bytes ?? new Uint8Array()),
           binary: true,
           formatId: snap.formatId,
           filename: snap.filename,
@@ -1905,16 +1954,18 @@ const workspace: Workspace = {
     void (async () => {
       let archive: ArchiveContext | undefined;
       if (archivePath && session?.editor && session.binary) {
-        const archiveBytes = (await session.editor.getBytes?.()) ?? new Uint8Array();
+        // Prefer the streaming source; fall back to materializing bytes for an in-memory
+        // (nested) archive that was opened without a Blob.
+        const archiveBlob = session.blob ?? new Blob([((await session.editor.getBytes?.()) ?? new Uint8Array()) as BlobPart]);
         archive = {
-          archiveBytes,
+          archiveBlob,
           path: archivePath,
           parentName: session.filename ?? "archive",
           parentHandle: session.fileHandle,
         };
         navStack.push({
           binary: true,
-          bytes: archiveBytes,
+          blob: archiveBlob,
           filename: session.filename,
           formatId: session.formatId,
           encoding: session.encoding,

@@ -1,4 +1,5 @@
 import { readArchiveAsync, type ArchiveEntry } from "../core/archive";
+import { openArchiveStream, type ArchiveHandle } from "../core/archive-stream";
 import { extractWithLibarchive, isLibarchiveArchive } from "../core/libarchive";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 
@@ -40,36 +41,38 @@ class ArchiveInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
     this.bytes = ctx.bytes;
+    // Prefer the on-disk Blob so a large archive is listed without loading it all; fall back
+    // to wrapping in-memory bytes (a nested archive opened from inside another).
+    const blob = ctx.blob ?? (ctx.bytes ? new Blob([ctx.bytes as BlobPart]) : null);
     const wrap = document.createElement("div");
     wrap.className = "ot-arc";
     wrap.append(msg("Reading…"));
     container.appendChild(wrap);
     this.wrap = wrap;
-    void this.load(wrap, ctx.bytes, ctx.filename);
+    void this.load(wrap, blob, ctx.filename);
   }
 
-  private async load(
-    wrap: HTMLElement,
-    bytes: Uint8Array | null,
-    filename?: string,
-  ): Promise<void> {
-    let entries: ArchiveEntry[] = [];
+  private async load(wrap: HTMLElement, blob: Blob | null, filename?: string): Promise<void> {
+    let handle: ArchiveHandle | null = null;
     try {
-      entries = await getEntries(bytes, filename);
+      if (blob) handle = (await openArchiveStream(blob, filename)) ?? (await fullReadFallback(blob, filename));
     } catch {
+      handle = null;
+    }
+    if (wrap !== this.wrap) return; // disposed while reading
+    if (!handle) {
       wrap.textContent = "";
       wrap.append(msg("This archive could not be read."));
       return;
     }
-    if (wrap !== this.wrap) return; // disposed while extracting
     wrap.textContent = "";
 
+    const files = handle.entries.filter((e) => !e.dir).sort((a, b) => a.name.localeCompare(b.name));
     const head = document.createElement("div");
     head.className = "ot-arc-head";
-    head.textContent = `${entries.length} file${entries.length === 1 ? "" : "s"}`;
+    head.textContent = `${files.length} file${files.length === 1 ? "" : "s"}`;
     wrap.append(head);
-    entries.sort((a, b) => a.name.localeCompare(b.name));
-    for (const { name, data } of entries) {
+    for (const { name, size } of files) {
       const row = document.createElement("div");
       row.className = "ot-arc-row";
       const nm = document.createElement("span");
@@ -78,14 +81,22 @@ class ArchiveInstance implements EditorInstance {
       nm.title = name;
       const sz = document.createElement("span");
       sz.className = "ot-arc-size";
-      sz.textContent = fmtSize(data.length);
+      sz.textContent = fmtSize(size);
       const base = name.split("/").pop() || name;
-      const open = btn("Open", () => this.host.workspace.openFile?.(base, data, undefined, name));
-      const extract = btn("Extract", () => this.host.workspace.exportFile?.(base, data));
+      // The body is decompressed only now, for the one entry the user picked.
+      const withData = (use: (data: Uint8Array) => void) => async () => {
+        try {
+          use(await handle.read(name));
+        } catch {
+          /* a single unreadable entry shouldn't break the listing */
+        }
+      };
+      const open = btn("Open", withData((data) => this.host.workspace.openFile?.(base, data, undefined, name)));
+      const extract = btn("Extract", withData((data) => this.host.workspace.exportFile?.(base, data)));
       row.append(nm, sz, open, extract);
       wrap.append(row);
     }
-    if (entries.length === 0) wrap.append(msg("This archive is empty."));
+    if (files.length === 0) wrap.append(msg("This archive is empty."));
   }
 
   getText(): string {
@@ -110,14 +121,23 @@ class ArchiveInstance implements EditorInstance {
   }
 }
 
-// Pick the extractor by content: libarchive for 7z/RAR/xz/bzip2/zstd/lz4, else fflate.
-async function getEntries(bytes: Uint8Array | null, filename?: string): Promise<ArchiveEntry[]> {
-  if (!bytes) return [];
+// Fallback for input the streaming reader doesn't recognize: read the whole archive and
+// wrap it in an ArchiveHandle so the viewer stays on one code path. Rare (the streamer
+// covers zip/tar/tgz/7z/rar/xz/bzip2); this catches oddball or mis-detected inputs.
+async function fullReadFallback(blob: Blob, filename?: string): Promise<ArchiveHandle | null> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let entries: ArchiveEntry[];
   if (isLibarchiveArchive(bytes)) {
     const base = (filename?.split("/").pop() || "archive").replace(/\.[^.]+$/, "");
-    return (await extractWithLibarchive(bytes, base)).filter((e) => !e.name.endsWith("/"));
+    entries = await extractWithLibarchive(bytes, base);
+  } else {
+    entries = await readArchiveAsync(bytes);
   }
-  return (await readArchiveAsync(bytes)).filter((e) => !e.name.endsWith("/"));
+  const byName = new Map(entries.map((e) => [e.name, e.data]));
+  return {
+    entries: entries.filter((e) => !e.name.endsWith("/")).map((e) => ({ name: e.name, size: e.data.length, dir: false })),
+    read: (name) => Promise.resolve(byName.get(name) ?? new Uint8Array(0)),
+  };
 }
 
 function btn(label: string, onClick: () => void): HTMLButtonElement {

@@ -158,6 +158,10 @@ export interface EditorMountContext {
   text: string;
   /** Raw bytes for binary documents, else null. */
   bytes: Uint8Array | null;
+  /** The on-disk Blob/File, when the document was opened without materializing its bytes
+      (large media/archives). Editors that can stream from it (archive viewer) should prefer
+      this over `bytes`; it may be null when only in-memory bytes are available. */
+  blob?: Blob | null;
   /** Whether this is a binary document. */
   binary: boolean;
   /** The document's MIME type when known (used by the image/media viewers). */
