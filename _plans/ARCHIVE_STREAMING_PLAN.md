@@ -82,3 +82,12 @@ export async function openArchiveStream(blob: Blob, filename?: string): Promise<
   assert bytes match a full-decompress reference).
 - Browser: open a multi-hundred-MB zip; the list renders without a full decompress; Open on
   one entry pulls just that entry.
+
+## Status: DONE 2026-07-17
+
+All phases shipped. Streaming readers (zip/tar/tar.gz/libarchive) in core/archive-stream.ts
+(+ openLibarchiveStream in core/libarchive.ts), unit-tested for zip/tar/tgz; pipeline passes
+the Blob so archives are listed without full load; archive viewer lists lazily and extracts
+one entry on demand. Browser-verified for zip/tar/tar.gz (list + read-on-demand + drill-in +
+back). libarchive shares the existing extractor and is unit-parity only (no 7z CLI locally).
+Save-back still materializes bytes to re-pack (zip/tar/tgz), unchanged.
