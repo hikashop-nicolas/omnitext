@@ -1007,42 +1007,45 @@ async function saveFile(): Promise<void> {
     return;
   }
 
-  let bytes: Uint8Array;
+  // Serializing the document (getBytes / getText / encodeText / gzip) and writing it out
+  // both run under one try: an editor whose export throws must surface an error, not fail
+  // silently and leave the user re-clicking Save on a document that never gets written.
   let savedText = "";
-  if (session.binary) {
-    const b = await session.editor.getBytes?.();
-    if (!b) {
-      engine.notificationSink.error(t("notify.cannotSave"));
-      return;
-    }
-    bytes = b;
-  } else {
-    savedText = session.editor.getText();
-    const ctx = await engine.events.runHook("beforeSave", {
-      sessionId: session.id,
-      text: savedText,
-      cancel: false,
-    });
-    if (ctx.cancel) return;
-    bytes = encodeText(savedText, session.encoding);
-  }
-
-  // A document that never had a name: ask for one (with the format's extension), so a
-  // new DOCX/XLSX/PDF doesn't download binary bytes as "untitled.txt".
-  if (!session.filename) {
-    const input = window.prompt(t("app.saveAsPrompt"), suggestedName());
-    if (input === null) return; // cancelled: don't save
-    session.filename = input.trim() || suggestedName();
-    updateUI();
-  }
-  let name = session.filename;
-  if (session.gzipName) {
-    // Opened from a gzip wrapper: write back compressed, under the original .gz name.
-    bytes = await gzipAsync(bytes);
-    name = session.gzipName;
-  }
-  const handle = session.fileHandle;
   try {
+    let bytes: Uint8Array;
+    if (session.binary) {
+      const b = await session.editor.getBytes?.();
+      if (!b) {
+        engine.notificationSink.error(t("notify.cannotSave"));
+        return;
+      }
+      bytes = b;
+    } else {
+      savedText = session.editor.getText();
+      const ctx = await engine.events.runHook("beforeSave", {
+        sessionId: session.id,
+        text: savedText,
+        cancel: false,
+      });
+      if (ctx.cancel) return;
+      bytes = encodeText(savedText, session.encoding);
+    }
+
+    // A document that never had a name: ask for one (with the format's extension), so a
+    // new DOCX/XLSX/PDF doesn't download binary bytes as "untitled.txt".
+    if (!session.filename) {
+      const input = window.prompt(t("app.saveAsPrompt"), suggestedName());
+      if (input === null) return; // cancelled: don't save
+      session.filename = input.trim() || suggestedName();
+      updateUI();
+    }
+    let name = session.filename;
+    if (session.gzipName) {
+      // Opened from a gzip wrapper: write back compressed, under the original .gz name.
+      bytes = await gzipAsync(bytes);
+      name = session.gzipName;
+    }
+    const handle = session.fileHandle;
     if (isNative()) {
       // The app's WebView exposes the File System Access API, but writing back to a
       // picked document's content URI is denied by Android, so always route Save
@@ -1082,15 +1085,22 @@ function downloadBytes(bytes: Uint8Array, name: string): void {
 // archive back (in place via the handle on the web, else share/download).
 async function saveIntoArchive(a: ArchiveContext): Promise<void> {
   if (!session?.editor) return;
-  const entryBytes = session.binary
-    ? ((await session.editor.getBytes?.()) ?? new Uint8Array())
-    : encodeText(session.editor.getText(), session.encoding);
-  // A .gz entry was opened decompressed (openBuffer gunzips it): re-compress on the way
-  // back in. .tar.gz/.tgz entries open as whole archives and stay compressed throughout.
-  const entryData =
-    a.path.endsWith(".gz") && !a.path.endsWith(".tar.gz")
-      ? await gzipAsync(new Uint8Array(entryBytes))
-      : new Uint8Array(entryBytes);
+  let entryData: Uint8Array;
+  try {
+    const entryBytes = session.binary
+      ? ((await session.editor.getBytes?.()) ?? new Uint8Array())
+      : encodeText(session.editor.getText(), session.encoding);
+    // A .gz entry was opened decompressed (openBuffer gunzips it): re-compress on the way
+    // back in. .tar.gz/.tgz entries open as whole archives and stay compressed throughout.
+    entryData =
+      a.path.endsWith(".gz") && !a.path.endsWith(".tar.gz")
+        ? await gzipAsync(new Uint8Array(entryBytes))
+        : new Uint8Array(entryBytes);
+  } catch (e) {
+    console.error("serialize archive entry failed", e);
+    engine.notificationSink.error(t("notify.saveFailed"));
+    return;
+  }
   let newArchive: Uint8Array;
   try {
     const kind = detectArchiveKind(a.archiveBytes);
