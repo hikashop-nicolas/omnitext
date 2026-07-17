@@ -759,15 +759,29 @@ function archiveFormatForFile(name: string, mime?: string): string | null {
   return null;
 }
 
-// Open a File from disk. Archives stream from the Blob (the viewer lists entries without
-// loading the whole file); everything else reads its bytes as before.
+// The media format id for a video/audio file, or null. Media plays straight from the Blob
+// (mediaplay streams it), so it never needs its bytes loaded up front.
+function mediaFormatForFile(name: string, mime?: string): string | null {
+  const bin = binaryFormatFor(name);
+  if (bin && bin.manifest.nativeEditor === "media") return bin.manifest.id;
+  const cls = (mime ?? "").split("/")[0];
+  if (cls === "video" || cls === "audio") return GENERIC_MEDIA;
+  return null;
+}
+
+// Open a File from disk. Archives and media stream from the Blob (listed / played on demand
+// without loading the whole file); everything else reads its bytes as before.
 async function openLocalFile(file: File, scheme: string, handle: FsHandle | null): Promise<void> {
-  const arc = archiveFormatForFile(file.name, file.type);
-  if (arc) {
+  const streamFormat = archiveFormatForFile(file.name, file.type) ?? mediaFormatForFile(file.name, file.type);
+  if (streamFormat) {
+    // Coalesce a duplicate open (two triggers for one action), as openBuffer does, so a
+    // large video does not spin up a second player/decoder over the first.
+    if (file.name === lastOpen.name && file.size === lastOpen.size && Date.now() - lastOpen.at < 4000) return;
+    lastOpen = { name: file.name, size: file.size, at: Date.now() };
     await mountDoc({
       blob: file,
       binary: true,
-      formatId: arc,
+      formatId: streamFormat,
       filename: file.name,
       encoding: { label: "binary", bom: false },
       uri: `${scheme}://${file.name}`,

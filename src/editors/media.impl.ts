@@ -15,11 +15,12 @@ class MediaInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     setLocale(getLocale()); // match the app's active locale
     this.bytes = ctx.bytes;
-    this.handle = createMediaPlayer(container, {
-      bytes: ctx.bytes ?? new Uint8Array(0),
-      mime: ctx.mime,
-      filename: ctx.filename,
-    });
+    // Prefer the on-disk Blob so a multi-GB video streams from disk (mediaplay reads it for
+    // playback, remux and synced audio) instead of being held in memory. Only fall back to
+    // bytes for an in-memory source (e.g. media extracted from inside an archive).
+    this.handle = createMediaPlayer(container, ctx.blob
+      ? { blob: ctx.blob, mime: ctx.mime, filename: ctx.filename }
+      : { bytes: ctx.bytes ?? new Uint8Array(0), mime: ctx.mime, filename: ctx.filename });
   }
 
   getText(): string {
