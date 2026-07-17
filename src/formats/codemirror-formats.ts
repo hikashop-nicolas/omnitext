@@ -1,4 +1,4 @@
-import { StreamLanguage, type StreamParser } from "@codemirror/language";
+import type { StreamParser } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import type { FormatDescriptor, FormatModule, ParseResult } from "../core/types";
 
@@ -13,7 +13,11 @@ import type { FormatDescriptor, FormatModule, ParseResult } from "../core/types"
 // html, xml, py, sql, sh, toml, ini, md, csv, tsv, env, properties, and the binary ones).
 
 // Resolve a highlighting mode to a CodeMirror extension. Each case is its own lazy chunk.
+// StreamLanguage is imported here (not at module top) so this eagerly-registered table
+// does not drag @codemirror/language into the initial bundle for users who never open a
+// highlighted file.
 async function loadMode(mode: string): Promise<Extension | null> {
+  const { StreamLanguage } = await import("@codemirror/language");
   const sl = (p: StreamParser<unknown>) => StreamLanguage.define(p);
   switch (mode) {
     case "c": return sl((await import("@codemirror/legacy-modes/mode/clike")).c);
