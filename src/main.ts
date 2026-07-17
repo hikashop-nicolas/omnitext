@@ -127,8 +127,8 @@ import {
   makeGenericViewerFormats,
   makeViewerFormats,
 } from "./formats/binary-viewers";
-import { applyDom, initI18n, setLocale, t } from "./i18n";
-import { getSettings, saveSettings, type Locale } from "./settings";
+import { applyDom, initI18n, t } from "./i18n";
+import { getSettings, saveSettings } from "./settings";
 import type {
   EditorInstance,
   EditorResolution,
@@ -326,8 +326,6 @@ interface Session {
   srcBytes: ArrayBuffer | null;
   /** Text documents: the dominant line ending in the opened file (shown in the status bar). */
   lineEnding?: LineEnding;
-  /** Why the current editor was chosen (native/view/fallback), for the reason pill. */
-  reason?: string;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
 }
@@ -416,18 +414,6 @@ const newDirectionSel = $<HTMLSelectElement>("new-direction");
 // discard their bytes, so it is not offered inline.
 function setFormatLabel(current: string | null): void {
   formatLabelEl.textContent = current ?? t("app.plainText");
-}
-
-// The small "<editor> · <why>" pill. Kept as a helper so a live language change can
-// rebuild it (it is set imperatively at mount, so applyDom does not reach it).
-function setReasonPill(editorId: string | null, reason: string | undefined): void {
-  if (!editorId || !reason) {
-    reasonEl.textContent = "";
-    return;
-  }
-  const key = `app.reason.${reason}`;
-  const label = t(key) === key ? reason : t(key);
-  reasonEl.textContent = `${editorLabel(editorId)} · ${label}`;
 }
 
 // The View switcher: an eye button (bottom-right). One view -> hidden; two -> a click
@@ -684,8 +670,9 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   }
   instance.focus();
 
-  if (session) session.reason = chosen.reason;
-  setReasonPill(chosen.editor.manifest.id, chosen.reason);
+  const reasonKey = `app.reason.${chosen.reason}`;
+  const reasonText = t(reasonKey) === reasonKey ? chosen.reason : t(reasonKey);
+  reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${reasonText}`;
   setFormatLabel(formatId);
   populateEditorSelect(choices, chosen.editor.manifest.id);
   updateUI();
@@ -1534,7 +1521,6 @@ const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 const settingThemeEl = $("setting-theme") as HTMLSelectElement;
-const settingLocaleEl = $("setting-locale") as HTMLSelectElement;
 
 // Apply a theme choice: attribute for the palette, then remount the active
 // editor so surfaces that sample colors at mount (CodeMirror and friends)
@@ -1556,7 +1542,6 @@ function openSettings(): void {
   settingPageSizeEl.value = s.pageSize;
   settingPaginatedEl.checked = s.paginated;
   settingThemeEl.value = s.theme;
-  settingLocaleEl.value = s.locale;
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -1568,30 +1553,14 @@ function closeSettings(): void {
 function saveSettingsDialog(): void {
   const theme = settingThemeEl.value === "light" ? "light" : settingThemeEl.value === "dark" ? "dark" : "system";
   const themeChanged = theme !== getSettings().theme;
-  const locale = (["auto", "en", "fr", "ja"].includes(settingLocaleEl.value) ? settingLocaleEl.value : "auto") as Locale;
-  const localeChanged = locale !== getSettings().locale;
   saveSettings({
     name: settingNameEl.value.trim(),
     pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
     paginated: settingPaginatedEl.checked,
     theme,
-    locale,
   });
   if (themeChanged) applyTheme(theme);
   closeSettings();
-  if (localeChanged) void applyLocaleChange(locale);
-}
-
-// Re-translate the UI in place after a manual language change: the declarative
-// [data-i18n] strings, plus the imperatively-set chrome (reason pill, resting status).
-// Editors keep their content; their own internal chrome refreshes on the next remount.
-async function applyLocaleChange(locale: Locale): Promise<void> {
-  await setLocale(locale);
-  applyDom();
-  updateUI();
-  setReasonPill(session?.editorId ?? null, session?.reason);
-  const where = isNative() ? t("status.onThisDevice") : t("status.inThisBrowser");
-  setStatus(t("status.ready", { where }));
 }
 $("btn-settings").addEventListener("click", openSettings);
 $("settings-cancel").addEventListener("click", closeSettings);
@@ -2022,7 +1991,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 }
 
 async function start(): Promise<void> {
-  await initI18n(getSettings().locale);
+  await initI18n();
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   void SessionStore.requestPersistent();

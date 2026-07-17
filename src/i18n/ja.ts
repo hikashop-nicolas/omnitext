@@ -37,8 +37,6 @@ const ja: Dict = {
     themeSystem: "システム",
     themeLight: "ライト",
     themeDark: "ダーク",
-    language: "言語",
-    languageAuto: "自動",
     lineEndingMixed: "混在",
     yourName: "名前",
     yourNameHint: "追加するコメントや返信の作成者として使用されます。",

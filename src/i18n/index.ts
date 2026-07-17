@@ -31,38 +31,17 @@ export function detectLocale(): string {
   return "en";
 }
 
-/** The locales the manual switcher offers, in menu order (endonyms). "auto" follows the device. */
-export const LOCALES = ["auto", "en", "fr", "ja"] as const;
-
-async function applyLocale(code: string): Promise<void> {
-  if (code === "en" || !REGISTRY[code]) {
-    active = en;
-    activeCode = "en";
-    document.documentElement.lang = "en";
-    return;
-  }
+/** Load the detected (non-English) locale before the first render. Safe to await once. */
+export async function initI18n(): Promise<void> {
+  const code = detectLocale();
+  if (code === "en") return;
   try {
     active = (await REGISTRY[code]!()).default;
     activeCode = code;
     document.documentElement.lang = code;
   } catch {
-    active = en; // keep English on a load failure
-    activeCode = "en";
+    /* keep English */
   }
-}
-
-/**
- * Load the chosen locale before the first render. Pass a stored user override to force
- * it; pass nothing or "auto" to auto-detect from the browser. Safe to await once.
- */
-export async function initI18n(preferred?: string): Promise<void> {
-  const code = preferred && preferred !== "auto" && REGISTRY[preferred] ? preferred : detectLocale();
-  await applyLocale(code);
-}
-
-/** Switch locale at runtime (a manual pick in Settings); the caller re-renders the UI after. */
-export async function setLocale(code: string): Promise<void> {
-  await applyLocale(code === "auto" ? detectLocale() : code);
 }
 
 function lookup(dict: Dict, key: string): string | Dict | undefined {

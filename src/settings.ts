@@ -5,7 +5,6 @@ const KEY = "omnitext:settings";
 
 export type PageSize = "a4" | "letter";
 export type Theme = "system" | "light" | "dark";
-export type Locale = "auto" | "en" | "fr" | "ja";
 
 export interface Settings {
   name: string;
@@ -15,11 +14,9 @@ export interface Settings {
   paginated: boolean;
   /** Color theme: follow the OS, or force light/dark. */
   theme: Theme;
-  /** UI language: "auto" follows the device, else a forced locale code. */
-  locale: Locale;
 }
 
-const DEFAULTS: Settings = { name: "", pageSize: "a4", paginated: true, theme: "system", locale: "auto" };
+const DEFAULTS: Settings = { name: "", pageSize: "a4", paginated: true, theme: "system" };
 
 export function getSettings(): Settings {
   try {

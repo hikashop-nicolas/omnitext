@@ -37,8 +37,6 @@ const fr: Dict = {
     themeSystem: "Système",
     themeLight: "Clair",
     themeDark: "Sombre",
-    language: "Langue",
-    languageAuto: "Automatique",
     lineEndingMixed: "mixte",
     yourName: "Votre nom",
     yourNameHint: "Utilisé comme auteur des commentaires et réponses que vous ajoutez.",

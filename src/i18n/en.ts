@@ -37,8 +37,6 @@ const en: Dict = {
     themeSystem: "System",
     themeLight: "Light",
     themeDark: "Dark",
-    language: "Language",
-    languageAuto: "Automatic",
     lineEndingMixed: "mixed",
     yourName: "Your name",
     yourNameHint: "Used as the author of comments and replies you add.",
