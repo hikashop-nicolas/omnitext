@@ -1985,6 +1985,29 @@ document.addEventListener("keydown", (e) => {
 
 // --- startup: an "Open with" file, else crash recovery, else a blank doc ------
 
+// A file shared to the installed PWA via the OS share sheet: the service worker caught
+// the POST, stashed the file in a cache, and redirected here with a marker. Returns true
+// if one was opened. The marker is cleared from the URL either way so a reload does not
+// re-open the same file.
+async function maybeOpenSharedFile(): Promise<boolean> {
+  if (!location.search.includes("share-target") || typeof caches === "undefined") return false;
+  history.replaceState(null, "", location.pathname);
+  try {
+    const cache = await caches.open("omnitext-share");
+    const res = await cache.match("shared-file");
+    if (!res) return false;
+    await cache.delete("shared-file");
+    const buf = await res.arrayBuffer();
+    if (!buf.byteLength) return false;
+    const name = decodeURIComponent(res.headers.get("X-Filename") ?? "shared");
+    await openBuffer(buf, name, "intent", null, res.headers.get("Content-Type") ?? "");
+    return true;
+  } catch (e) {
+    console.error("shared file open failed", e);
+    return false;
+  }
+}
+
 // Open a file handed to us via the OS "Open with"; returns true if one was pending.
 let startupDone = false;
 async function maybeOpenPendingFile(): Promise<boolean> {
@@ -2010,7 +2033,12 @@ async function start(): Promise<void> {
     if (startupDone && document.visibilityState === "visible") void maybeOpenPendingFile();
   });
 
-  // A file the app was launched with via "Open with" wins over crash recovery.
+  // A file shared to the app, or one it was launched with via "Open with", wins over
+  // crash recovery.
+  if (await maybeOpenSharedFile()) {
+    startupDone = true;
+    return;
+  }
   if (await maybeOpenPendingFile()) {
     startupDone = true;
     return;
