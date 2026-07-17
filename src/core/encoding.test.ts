@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decodeBytes, detectLineEnding, encodeText, hasUtf16Bom } from "./encoding";
+import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, TEXT_DECODE_MAX_BYTES } from "./encoding";
 
 const eol = (s: string) => detectLineEnding(new TextEncoder().encode(s));
 
@@ -68,6 +68,14 @@ describe("encoding", () => {
     expect(eol("no breaks here")).toBe("none");
     expect(eol("")).toBe("none");
     expect(eol("trailing\r\n")).toBe("crlf"); // a CR at the very end has no following LF to peek
+  });
+
+  it("flags files over the limit so the open path avoids decoding them on the main thread", () => {
+    expect(exceedsTextDecodeLimit(0)).toBe(false);
+    expect(exceedsTextDecodeLimit(1024)).toBe(false);
+    expect(exceedsTextDecodeLimit(TEXT_DECODE_MAX_BYTES)).toBe(false); // exactly at the limit is fine
+    expect(exceedsTextDecodeLimit(TEXT_DECODE_MAX_BYTES + 1)).toBe(true);
+    expect(exceedsTextDecodeLimit(500 * 1024 * 1024)).toBe(true); // the 500 MB freeze case
   });
 
   it("detects UTF-16 BOMs so the binary sniffer does not eat them", () => {

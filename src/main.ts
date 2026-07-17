@@ -2,7 +2,7 @@ import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, detectLineEnding, encodeText, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
+import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
 import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
@@ -851,6 +851,24 @@ async function openBuffer(
       mime,
       gzipName,
     });
+    return;
+  }
+  // Too large to decode into one string and parse on the main thread without freezing the
+  // tab: open it read-only in the hex viewer instead. (Binary files of any size already went
+  // to their own viewers above; this catches only the text-decode path.)
+  if (exceedsTextDecodeLimit(buffer.byteLength)) {
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: GENERIC_BINARY,
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+      mime,
+      gzipName,
+    });
+    setStatus(t("status.tooLargeForText"));
     return;
   }
   const decoded = decodeBytes(buffer);

@@ -92,6 +92,7 @@ const en: Dict = {
     saved: "Saved.",
     savedToArchive: "Saved into {name}.",
     encodingUtf8: "Note: this file's encoding will be saved as UTF-8.",
+    tooLargeForText: "File too large to open as text; showing a read-only hex preview.",
   },
   notify: {
     formatLoadFailed: "Could not load the {format} format.",

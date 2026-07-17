@@ -90,6 +90,7 @@ const fr: Dict = {
     saved: "Enregistré.",
     savedToArchive: "Enregistré dans {name}.",
     encodingUtf8: "Remarque : l'encodage de ce fichier sera enregistré en UTF-8.",
+    tooLargeForText: "Fichier trop volumineux pour l'ouvrir en texte ; aperçu hexadécimal en lecture seule.",
   },
   notify: {
     formatLoadFailed: "Impossible de charger le format {format}.",

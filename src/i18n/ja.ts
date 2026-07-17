@@ -92,6 +92,7 @@ const ja: Dict = {
     saved: "保存しました。",
     savedToArchive: "{name}に保存しました。",
     encodingUtf8: "注：このファイルのエンコーディングは UTF-8 として保存されます。",
+    tooLargeForText: "テキストとして開くには大きすぎます。読み取り専用の16進プレビューを表示します。",
   },
   notify: {
     formatLoadFailed: "{format} 形式を読み込めませんでした。",

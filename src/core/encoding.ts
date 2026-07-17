@@ -21,6 +21,15 @@ export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
 /** Encodings offered by the "reopen with encoding" picker (TextDecoder built-ins). */
 export const ENCODINGS = ["utf-8", "windows-1252", "iso-8859-15", "shift_jis", "euc-jp", "gbk", "big5", "windows-1251", "koi8-r"] as const;
 
+/** Above this size, decoding the whole file into one JS string (roughly doubled in memory
+    as UTF-16) and parsing it on the main thread risks freezing or OOM-ing the tab, so the
+    open path routes the file to the read-only hex viewer instead. */
+export const TEXT_DECODE_MAX_BYTES = 64 * 1024 * 1024;
+
+export function exceedsTextDecodeLimit(byteLength: number): boolean {
+  return byteLength > TEXT_DECODE_MAX_BYTES;
+}
+
 export type LineEnding = "lf" | "crlf" | "cr" | "mixed" | "none";
 
 /** The dominant line ending in the bytes: LF (Unix), CRLF (Windows), CR (classic Mac),
