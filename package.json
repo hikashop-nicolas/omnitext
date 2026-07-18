@@ -84,6 +84,7 @@
     "latex.js": "^0.12.6",
     "libarchive-wasm": "^1.2.0",
     "libheif-js": "^1.19.8",
+    "localml": "github:hikashop-nicolas/localml",
     "marked": "^18.0.5",
     "mediaplay": "github:hikashop-nicolas/mediaplay",
     "notebookjs": "^0.8.3",
