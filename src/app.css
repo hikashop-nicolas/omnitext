@@ -61,7 +61,10 @@
   --rdoc-text: var(--text);
   --rdoc-muted: var(--muted);
   --rdoc-accent: var(--accent);
-  --rdoc-canvas: var(--canvas);
+  /* richdoc uses --rdoc-canvas as a TEXT colour on its chrome (menus, dialogs, find,
+     assist), never as a background, so it must map to the text colour, not the editor
+     canvas: mapping it to --canvas painted chrome text the background colour (invisible). */
+  --rdoc-canvas: var(--text);
   --rdoc-panel: var(--surface);
   --sheetedit-bg: var(--bg);
   --sheetedit-chrome: var(--chrome);
