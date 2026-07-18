@@ -47,7 +47,12 @@ Mirror the translate slice (driver + lazy worker + catalog + worker-common reuse
   model download is heavy, so real-inference verification is best-effort in the automation
   browser and otherwise done on the owner's machine).
 
-## Phase 2 - richdoc `feature/assist`
+## Phase 2 - richdoc `feature/assist`  [DONE 2026-07-18, richdoc 62bdc0d]
+
+Shipped as designed and browser-verified in richdoc's demo (WebGPU): toolbar control localizes,
+menu items gate on a selection, Translate downloaded m2m100 through richdoc's bundle, streamed a
+translation, and Accept replaced the selected paragraph + marked the doc edited. Spec below.
+
 
 - `richdoc` gains `localml` as a dependency, LAZY-imported inside the feature (dynamic
   `import("localml/generate")` / `import("localml/translate")`) so the base editor bundle is
@@ -64,7 +69,13 @@ Mirror the translate slice (driver + lazy worker + catalog + worker-common reuse
     changes handle it.
 - i18n keys in richdoc's locales (en/fr/ja...).
 
-## Phase 3 - Omnitext
+## Phase 3 - Omnitext  [DONE 2026-07-18]
+
+richdoc bumped (62bdc0d); localml pinned directly at 83b2f15 (the ./generate commit, a superset
+still shipping ocr + translate) so it dedupes to one copy for richdoc + subedit + imageview.
+Verified: the Assist control mounts in the docx editor and the lazy localml import resolves
+through Omnitext's own bundle. Issue #17 done.
+
 
 - Bump the richdoc pin; ensure `localml` resolves for richdoc (it's richdoc's dep, and
   Omnitext already depends on localml, so the worker-url trick + Vite bundling apply as they
