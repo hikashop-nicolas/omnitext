@@ -94,7 +94,15 @@ Modules:
 
 ## Phases (each independently verifiable)
 
-0. **Spike / de-risk (do first, small)**: (a) confirm @microsoft/powerquery-parser bundles
+0. **Spike / de-risk** - STATUS 2026-07-21: (a) DONE - parser bundles for the browser
+   (pure-JS deps) and the mlang demo evaluates in the production build; engine core +
+   Tier-0 stdlib live (mlang 5b0b309, 24 tests; note: dist needs explicit .js ESM imports
+   for node consumers). (b) qdeff reader DONE against per-spec synthetic payloads; REAL
+   Excel-authored workbook validation still pending (owner to supply files). (c) DONE -
+   sheetedit b11a618: PQ toolbar button + panel (list/M view/refresh), tables.ts write-back
+   resizing the table part, vitest integration test covering the whole pipeline INCLUDING
+   the save round trip, browser-verified on demo/pq-sales.xlsx; omnitext bumped (2d64665).
+   (d) PQTest oracle harness NOT STARTED (needs a Windows runner). Original spec: (a) confirm @microsoft/powerquery-parser bundles
    for the browser (no Node-only deps) and parses a real Section1.m; (b) qdeff READ of a real
    workbook; (c) minimal interpreter + Tier 0 running ONE real query
    (Excel.CurrentWorkbook -> filter/rename/type steps) inside the sheetedit demo, result
