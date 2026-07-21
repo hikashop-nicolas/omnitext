@@ -144,8 +144,8 @@ Modules:
    version skew appears). Verify in the deployed build.
 5. **Later / optional** - M EDITING DONE (mlang cad55e9 serializeDataMashup/
    writeWorkbookSectionM; sheetedit 619b486 editable M textarea + Save; browser-verified edit
-   -> save -> refresh -> save round trip, real-fixture write round trip). Remaining optional:
-   ods equivalents, more connectors that stay local
+   -> save -> refresh -> save round trip, real-fixture write round trip). Syntax-highlighted M editor DONE (sheetedit 095379e: overlay textarea +
+   never-throws lexical tokenizer). Remaining optional: ods equivalents, more connectors that stay local
    (e.g. user-picked local files via the host), syntax-highlighted editor via
    powerquery-language-services.
 
