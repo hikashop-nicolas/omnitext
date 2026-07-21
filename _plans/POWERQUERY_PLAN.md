@@ -97,8 +97,12 @@ Modules:
 0. **Spike / de-risk** - STATUS 2026-07-21: (a) DONE - parser bundles for the browser
    (pure-JS deps) and the mlang demo evaluates in the production build; engine core +
    Tier-0 stdlib live (mlang 5b0b309, 24 tests; note: dist needs explicit .js ESM imports
-   for node consumers). (b) qdeff reader DONE against per-spec synthetic payloads; REAL
-   Excel-authored workbook validation still pending (owner to supply files). (c) DONE -
+   for node consumers). (b) DONE - validated against a REAL Excel-toolchain workbook: the
+   MIT template embedded in microsoft/connected-workbooks (committed as a fixture in mlang
+   + sheetedit with attribution). It caught a genuine divergence: Excel writes the
+   DataMashup customXml item as UTF-16 LE with a BOM; the UTF-8-only decode never matched
+   (mlang ebccad4 decodeOoxmlText + sheetedit fb758a6 sniff fixed). More owner-supplied
+   real workbooks still welcome for Tier-1 scoping. (c) DONE -
    sheetedit b11a618: PQ toolbar button + panel (list/M view/refresh), tables.ts write-back
    resizing the table part, vitest integration test covering the whole pipeline INCLUDING
    the save round trip, browser-verified on demo/pq-sales.xlsx; omnitext bumped (2d64665).
