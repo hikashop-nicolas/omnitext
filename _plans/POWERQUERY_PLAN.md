@@ -20,6 +20,13 @@ other consumers (Omnitext, future tools) get it for free.
   open-source M evaluator anywhere, so the engine is a from-scratch reimplementation.
 - **Front-end reused**: @microsoft/powerquery-parser (MIT, TypeScript) for lex/parse -> AST.
   We only write the evaluator behind it.
+- **Connector status (2026-07-21)**: browser-reachable connectors DONE - Excel.Workbook
+  (pure), Csv/Json/Xml.Document, Xml.Tables, Html.Table, and host connectors
+  Web.Contents/Web.Page (fetch), File.Contents/Folder.Files (attached files),
+  OData.Feed (paged HTTP JSON). async via resolve-by-replay (evaluator stays sync).
+  Native-TCP DBs (Sql/Oracle/MySQL/PostgreSQL/Odbc) stay stubbed: a sandboxed page has
+  no raw socket (need a proxy or native-messaging helper - deferred). OAuth SaaS APIs
+  (SharePoint/Azure/Salesforce/GA) are HTTP-reachable but need per-service auth (stubbed).
 - **Refresh scope**: the full connector surface is IN scope, delivered through host
   bindings (a host supplies Web.Contents / File.Contents / Sql.Database exactly as sheetedit
   supplies Excel.CurrentWorkbook and returns an mlang binary/table). mlang stays
