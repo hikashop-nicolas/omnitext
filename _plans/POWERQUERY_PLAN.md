@@ -46,7 +46,7 @@ Modules:
   document), operator semantics per spec (null propagation, type coercion tables).
 - `src/stdlib/` - the library subset, one domain per file (table.ts, list.ts, text.ts,
   number.ts, date.ts, record.ts, type.ts, ...). Registry keyed by canonical name.
-- `src/connectors.ts` - the host-connector interface. mlang itself only ships inline data
+- `src/stdlib/connectors.ts` (DONE) - the host-connector interface. mlang ships inline data
   sources (`#table`, Csv.Document, Json.Document, Xml.Tables, Binary.* over provided bytes);
   the HOST injects `Excel.CurrentWorkbook` (sheetedit will back it with its live workbook
   model). Unknown/external connectors evaluate to a typed "ExternalSource" error the UI can
