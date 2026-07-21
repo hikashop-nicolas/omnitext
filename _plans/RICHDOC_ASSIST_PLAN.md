@@ -81,10 +81,13 @@ through Omnitext's own bundle. Issue #17 done.
   Omnitext already depends on localml, so the worker-url trick + Vite bundling apply as they
   do for subedit). Verify assist on a real .docx/.odt in Omnitext.
 
-## Future (owner "also thinking", not this pass)
+## Future (owner "also thinking")
 
-- sheetedit: "help build a formula" (natural-language -> a formula, chat engine with a
-  spreadsheet-formula system prompt).
+- sheetedit: "help build a formula". [DONE 2026-07-21, sheetedit d886e71] A formula-bar
+  sparkle opens a popover: NL request -> localml/generate (task "write" + a formula system
+  prompt, given the active cell + column headers) -> streamed into an EDITABLE field ->
+  Insert writes it to the active cell. Added GenerateOptions.system to localml (17c7a73) so
+  consumers specialise the assistant without a new task. Verified end-to-end.
 - subedit: per-line translate (already has localml/translate) + "help with ASS" (explain/fix
   ASS override tags via the chat engine).
 Keeping the localml `./generate` API generic (task + input + streamed text) so these consumers
