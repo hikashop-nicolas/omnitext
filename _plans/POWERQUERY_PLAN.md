@@ -142,8 +142,10 @@ Modules:
    round-trip acceptance test in Cypress (fixture workbook committed).
 4. **Omnitext**: bump sheetedit (mlang arrives transitively; pin directly like localml if a
    version skew appears). Verify in the deployed build.
-5. **Later / optional**: M EDITING (rewrite Section1.m + re-frame the qdeff package per
-   MS-QDEFF, validated by Excel reopening), ods equivalents, more connectors that stay local
+5. **Later / optional** - M EDITING DONE (mlang cad55e9 serializeDataMashup/
+   writeWorkbookSectionM; sheetedit 619b486 editable M textarea + Save; browser-verified edit
+   -> save -> refresh -> save round trip, real-fixture write round trip). Remaining optional:
+   ods equivalents, more connectors that stay local
    (e.g. user-picked local files via the host), syntax-highlighted editor via
    powerquery-language-services.
 
