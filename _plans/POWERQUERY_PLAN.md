@@ -106,7 +106,15 @@ Modules:
    sheetedit b11a618: PQ toolbar button + panel (list/M view/refresh), tables.ts write-back
    resizing the table part, vitest integration test covering the whole pipeline INCLUDING
    the save round trip, browser-verified on demo/pq-sales.xlsx; omnitext bumped (2d64665).
-   (d) PQTest oracle harness NOT STARTED (needs a Windows runner). Original spec: (a) confirm @microsoft/powerquery-parser bundles
+   (d) DONE (mlang 12a73fe) - .github/workflows/oracle.yml installs
+   Microsoft.PowerQuery.SdkTools on windows-latest and runs PQTest compare per case
+   (black-box; needs `--extension` even for plain M - a trivial empty connector section
+   satisfies it); 10 .pqout fixtures committed; src/oracle.test.ts parses the .pqout
+   serialization and compares every fixture against mlang. The oracle immediately caught
+   two real divergences, both fixed: 1/0 = #infinity (NOT an error) and Text.From(true) =
+   "true" lowercase; also spec-fixed bare try wrapping success as {HasError=false, Value}.
+   Confirmed matching: null equality/propagation, three-valued logic, nulls-first sort,
+   Number.From("1,234"), lazy let, full spike chain. PHASE 0 COMPLETE. Original spec: (a) confirm @microsoft/powerquery-parser bundles
    for the browser (no Node-only deps) and parses a real Section1.m; (b) qdeff READ of a real
    workbook; (c) minimal interpreter + Tier 0 running ONE real query
    (Excel.CurrentWorkbook -> filter/rename/type steps) inside the sheetedit demo, result
