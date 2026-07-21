@@ -20,9 +20,14 @@ other consumers (Omnitext, future tools) get it for free.
   open-source M evaluator anywhere, so the engine is a from-scratch reimplementation.
 - **Front-end reused**: @microsoft/powerquery-parser (MIT, TypeScript) for lex/parse -> AST.
   We only write the evaluator behind it.
-- **Refresh scope**: sources that live in (or with) the workbook. External connectors
-  (Web/Sql/OData/Folder/...) are preserved but not refreshable in the browser, by design
-  (privacy-first, no server); refreshing those shows "external source, refresh in Excel".
+- **Refresh scope**: the full connector surface is IN scope, delivered through host
+  bindings (a host supplies Web.Contents / File.Contents / Sql.Database exactly as sheetedit
+  supplies Excel.CurrentWorkbook and returns an mlang binary/table). mlang stays
+  deterministic; the host decides what a connector does. Where a host provides no
+  implementation for a connector a query uses, that step surfaces a typed "no host
+  implementation" error the UI can explain (and offer "refresh in Excel"), NOT a
+  privacy/scope exclusion. Binary connectors compose with the Binary.*/Csv/Json functions
+  already shipped.
 
 ## New library: `mlang`
 
