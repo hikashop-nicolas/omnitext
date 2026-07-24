@@ -88,7 +88,7 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   via a dedicated standalone library:
   - **PDF** — [pdfedit](https://github.com/hikashop-nicolas/pdfedit)
   - **DOCX / ODT** — [richdoc](https://github.com/hikashop-nicolas/richdoc)
-  - **XLSX / ODS** (formula-aware) — [sheetedit](https://github.com/hikashop-nicolas/sheetedit)
+  - **XLSX / ODS** (formula-aware, with chart and pivot-table create/edit and a Power Query editor) — [sheetedit](https://github.com/hikashop-nicolas/sheetedit)
   - legacy **XLS** via a SheetJS-backed grid
 - **RTF** — Rich Text Format documents rendered read-only via
   [rtf.js](https://github.com/tbluemel/rtf.js) (view only, no editing).
