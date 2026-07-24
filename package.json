@@ -103,7 +103,7 @@
     "subedit": "github:hikashop-nicolas/subedit",
     "svgedit": "^7.4.2",
     "three": "^0.185.1",
-    "toml": "^4.1.1",
+    "toml": "^5.0.0",
     "utif": "^3.1.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
