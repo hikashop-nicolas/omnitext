@@ -1,0 +1,12 @@
+New in this update:
+
+• Edit legacy Word (.doc) files
+• Spreadsheets: charts, pivot tables, Power Query, conditional formatting
+• Subtitle editor (SRT, VTT, ASS and more)
+• Media player with subtitles and surround audio
+• New viewers: PowerPoint, ebooks, 3D models, fonts, SQLite, email and more
+• Images with on-device OCR and translation
+• Map editor for GeoJSON, KML and GPX
+• Command palette and light/dark themes
+
+Still fully offline, nothing leaves your device.

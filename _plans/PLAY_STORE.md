@@ -65,17 +65,36 @@ as early as possible.
 **Full description** (draft):
 > Omnitext is a private, offline editor that adapts to whatever file you open: code and
 > data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF,
-> Word (.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors,
-> all on your device.
+> Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated
+> editors, all on your device.
 >
 > Everything runs locally. Your files are never uploaded, there is no account, no
 > tracking, and no ads. Open a file, edit it, and save it back, entirely offline.
 >
 > - Edit PDFs: change text in place, add text and images, pinch to zoom.
-> - Edit Word, OpenDocument and spreadsheets, preserving the parts you do not touch.
+> - Edit Word (including legacy .doc), OpenDocument and spreadsheets, preserving the
+>   parts you do not touch.
+> - Spreadsheets with charts, pivot tables, Power Query, conditional formatting and more.
 > - Code and data editor with syntax highlighting for many formats.
-> - Version history so you can roll back changes.
+> - Edit subtitles (SRT, VTT, ASS and more) and play video and audio with subtitles.
+> - Edit maps (GeoJSON, KML, GPX) and view many more formats: PowerPoint, ebooks,
+>   3D models, fonts, SQLite databases, email and images (with on-device OCR).
+> - Command palette, light and dark themes, and version history to roll back changes.
 > - Private by design: nothing leaves your device.
+
+## Releases
+
+Each push to `main` builds a fresh signed AAB (version code = the CI run number, so it
+always increases). `versionName` lives in `android/app/build.gradle`; bump it per release.
+
+| versionName | Notes file | Summary |
+|---|---|---|
+| 1.0 | (initial) | First closed-test build (2026-07-09). |
+| 1.1 | `store-assets/whats-new-1.1.txt` | .doc editing, spreadsheet charts/pivots/Power Query, subtitle editor, media player, many new viewers, map editor, command palette, themes. |
+
+To ship a release: push to `main`, wait for the "Build Android APK" run, then
+`gh run download <run-id> -n play-aab` to get `omnitext.aab`, upload it to the Play
+Console track, and paste the matching `whats-new-*.txt` as the release notes.
 
 ## Data safety summary (for the console form)
 
