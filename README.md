@@ -88,7 +88,8 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   via a dedicated standalone library:
   - **PDF** — [pdfedit](https://github.com/hikashop-nicolas/pdfedit)
   - **DOCX / ODT** — [richdoc](https://github.com/hikashop-nicolas/richdoc)
-  - **XLSX / ODS** (formula-aware, with chart and pivot-table create/edit and a Power Query editor) — [sheetedit](https://github.com/hikashop-nicolas/sheetedit)
+  - **XLSX / ODS / XLSM** (formula-aware, with chart and pivot-table create/edit, a Power Query
+    editor, and **VBA macros that run and can be edited**) — [sheetedit](https://github.com/hikashop-nicolas/sheetedit)
   - legacy **XLS** via a SheetJS-backed grid
 - **RTF** — Rich Text Format documents rendered read-only via
   [rtf.js](https://github.com/tbluemel/rtf.js) (view only, no editing).
@@ -161,7 +162,11 @@ and every file can always fall back to the text editor. Binary formats delegate 
 round-trip to a dedicated editor. The core imports no parser and no DOM editor widget.
 
 The dedicated editor libraries live in their own MIT repos (pdfedit, richdoc, sheetedit,
-geoedit) and are consumed here as git dependencies, so each is reusable on its own.
+geoedit, subedit, imageview, mediaplay) and are consumed here as git dependencies, so each is
+reusable on its own. Those libraries have their own libraries in turn: sheetedit's Power Query
+engine ([mlang](https://github.com/hikashop-nicolas/mlang)) and VBA engine
+([vbalang](https://github.com/hikashop-nicolas/vbalang)), and the shared on-device OCR and
+translation models ([localml](https://github.com/hikashop-nicolas/localml)).
 Read-only surfaces (preview, rtf, image/media/archive/hex viewers) carry a `readOnly` flag, so
 the app hides Save for them. Switching the View keeps the previous editor alive, so its undo
 history survives a round-trip. Third-party editors are loaded on demand: [svgedit](https://github.com/SVG-Edit/svgedit)
