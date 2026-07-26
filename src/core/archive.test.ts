@@ -32,6 +32,9 @@ describe("archive codec", () => {
     it(`off-thread (async) round-trips ${kind} identically to sync`, async () => {
       const packed = await writeArchiveAsync(kind, ENTRIES);
       expect(Array.from(packed)).toEqual(Array.from(writeArchive(kind, ENTRIES)));
+      // Same input, same bytes, whenever it runs: gzip would otherwise stamp the current time into
+      // its header and this comparison would fail whenever the two packs straddled a second.
+      expect(Array.from(await writeArchiveAsync(kind, ENTRIES))).toEqual(Array.from(packed));
       const out = (await readArchiveAsync(packed)).filter((e) => !e.name.endsWith("/"));
       expect(out.map((e) => e.name).sort()).toEqual(["dir/data.json", "hello.txt"]);
       expect(dec(out.find((e) => e.name === "dir/data.json")!.data)).toBe('{"a":1}');

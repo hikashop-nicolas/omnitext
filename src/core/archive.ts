@@ -9,6 +9,13 @@ import { gunzipAsync, gzipAsync, unzipAsync, zipAsync } from "./zip";
 
 export type ArchiveKind = "zip" | "tar" | "tgz";
 
+/**
+ * gzip stamps the current time into its header unless told otherwise, which makes the same input
+ * produce different bytes from one second to the next. Zero means "no timestamp" per the gzip
+ * spec, so a .tgz written from the same entries is always byte-identical.
+ */
+export const GZIP_OPTS = { mtime: 0 } as const;
+
 export interface ArchiveEntry {
   name: string;
   data: Uint8Array;
@@ -39,7 +46,7 @@ export function writeArchive(kind: ArchiveKind, entries: ArchiveEntry[]): Uint8A
     return zipSync(files);
   }
   const tar = writeTar(entries.map((e) => ({ name: e.name, data: new Uint8Array(e.data) })));
-  return kind === "tgz" ? gzipSync(tar) : tar;
+  return kind === "tgz" ? gzipSync(tar, GZIP_OPTS) : tar;
 }
 
 // Same as readArchive / writeArchive, but the zip/gzip runs off the main thread. Used on the

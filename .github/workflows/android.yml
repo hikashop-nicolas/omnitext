@@ -24,7 +24,18 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
+      # npm ci reaches out to the registry and to GitHub for the git-hosted libs, and a timeout
+      # there has been the single biggest cause of failed runs. Retry before giving up, so a
+      # transient network blip does not fail a build that has nothing wrong with it.
+      - name: Install dependencies
+        run: |
+          for attempt in 1 2 3; do
+            npm ci && exit 0
+            echo "npm ci failed (attempt $attempt), retrying in $((attempt * 15))s"
+            sleep $((attempt * 15))
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
       - run: npm run test # don't ship an APK from a bundle whose tests fail
       - run: npm run build # the same web build GitHub Pages uses
 

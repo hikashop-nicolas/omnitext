@@ -14,7 +14,9 @@ export function unzipAsync(bytes: Uint8Array): Promise<Unzipped> {
 }
 
 export function gzipAsync(bytes: Uint8Array): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => gzip(bytes, (err, data) => (err ? reject(err) : resolve(data))));
+  // mtime 0 for the same reason as the sync path: a timestamp in the header would make the bytes
+  // differ between two packs of the same input. See GZIP_OPTS in archive.ts.
+  return new Promise((resolve, reject) => gzip(bytes, { mtime: 0 }, (err, data) => (err ? reject(err) : resolve(data))));
 }
 
 export function gunzipAsync(bytes: Uint8Array): Promise<Uint8Array> {
