@@ -10,13 +10,23 @@
 import { execSync } from "node:child_process";
 
 const OWNER = "hikashop-nicolas";
-const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit", "mediaplay"];
+/** Libraries this app depends on directly. */
+const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit", "mediaplay", "subedit", "imageview"];
+/**
+ * Libraries reached THROUGH those, which `npm install github:...` on the parent does not move:
+ * the lockfile already holds a commit that satisfies the parent's unpinned spec, so npm keeps it.
+ * That is how an Android build broke once, on a sheetedit that needed a vbalang export the pinned
+ * commit did not have yet. `npm update` re-resolves them to their current HEAD.
+ */
+const NESTED = ["mlang", "vbalang", "localml"];
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 
 for (const lib of LIBS) {
   console.log(`\n=== bumping ${lib} ===`);
   run(`npm install github:${OWNER}/${lib}`);
 }
+console.log(`\n=== bumping the nested libs (${NESTED.join(", ")}) ===`);
+run(`npm update ${NESTED.join(" ")}`);
 
 console.log("\n=== typecheck ===");
 run("npm run typecheck");
