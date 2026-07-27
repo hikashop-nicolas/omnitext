@@ -1,0 +1,41 @@
+name: CI
+
+# Runs the suite and the build on every pull request, so a change is judged BEFORE it reaches
+# main. Deploy and the APK build only fire on push, which meant a dependency bump was tested
+# for the first time on its way to the live site: a toml major that flagged valid files as
+# broken merged with a green tick and no checks reported at all.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per pull request; pushing again to a branch cancels the run still going for it.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      # npm ci reaches out to the registry and to GitHub for the git-hosted libs, and a timeout
+      # there has been the single biggest cause of failed runs. Retry before giving up, so a
+      # transient network blip does not fail a build that has nothing wrong with it.
+      - name: Install dependencies
+        run: |
+          for attempt in 1 2 3; do
+            npm ci && exit 0
+            echo "npm ci failed (attempt $attempt), retrying in $((attempt * 15))s"
+            sleep $((attempt * 15))
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
+      - run: npm run test
+      - run: npm run build # typechecks too, since build is tsc --noEmit then vite build
