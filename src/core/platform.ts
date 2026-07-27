@@ -7,14 +7,21 @@ export function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-// Native "Open with": the FileOpener plugin (android/.../FileOpenerPlugin.java) reads the
-// file the OS handed us (a content:// URI the WebView itself cannot read) and stashes its
-// bytes. We pull them via getPendingFile() on startup and on resume (a pull model avoids
-// the race where an onNewIntent fires before JS has a listener).
+// Native "Open with": the FileOpener plugin (android/.../FileOpenerPlugin.java) copies the
+// file the OS handed us (a content:// URI the WebView itself cannot read) into the app cache
+// and reports where. We pull that via getPendingFile() on startup and on resume (a pull model
+// avoids the race where an onNewIntent fires before JS has a listener), then fetch it as a
+// Blob so it takes the same streaming path a dropped file does.
+//
+// It used to come across as base64 in the bridge message. That cannot carry a video: the file
+// is held in memory whole, a third larger encoded, as one JSON string - and when it failed the
+// app opened an empty document, with nothing said about the file that had been asked for.
 interface OpenedPayload {
   name?: string;
   mime?: string;
-  data?: string; // base64
+  /** An http URL the WebView can fetch, pointing at the staged copy. */
+  url?: string;
+  size?: number;
 }
 interface FileOpenerPlugin {
   getPendingFile(): Promise<OpenedPayload>;
@@ -22,27 +29,47 @@ interface FileOpenerPlugin {
 const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
 
 export interface OpenedFile {
+  /** The file itself, streamed from the staged copy rather than copied through the bridge. */
+  file: File;
   name: string;
-  bytes: Uint8Array;
   mime?: string;
 }
 
-function bytesFromBase64(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+/** Raised when the OS asked us to open something and we could not: better said than swallowed. */
+export class OpenedFileError extends Error {
+  constructor(readonly filename: string, cause?: unknown) {
+    super(`could not read ${filename}`, cause === undefined ? undefined : { cause });
+    this.name = "OpenedFileError";
+  }
 }
 
-/** A file opened via "Open with", if one is pending (null on the web or a normal launch). */
+/**
+ * A file opened via "Open with", if one is pending (null on the web or a normal launch).
+ * Throws OpenedFileError when one WAS pending and could not be read, so the caller can say so
+ * instead of quietly showing a blank document.
+ */
 export async function getOpenedFile(): Promise<OpenedFile | null> {
   if (!isNative()) return null;
+  let p: OpenedPayload;
   try {
-    const p = await FileOpener.getPendingFile();
-    if (!p?.data || !p.name) return null;
-    return { name: p.name, bytes: bytesFromBase64(p.data), mime: p.mime || undefined };
+    p = await FileOpener.getPendingFile();
   } catch {
     return null;
+  }
+  if (!p?.name) return null;
+  if (!p.url) throw new OpenedFileError(p.name);
+  try {
+    const res = await fetch(p.url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const mime = p.mime || blob.type || undefined;
+    return {
+      file: new File([blob], p.name, mime ? { type: mime } : {}),
+      name: p.name,
+      ...(mime ? { mime } : {}),
+    };
+  } catch (e) {
+    throw new OpenedFileError(p.name, e);
   }
 }
 

@@ -3,7 +3,7 @@ import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/a
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
-import { getOpenedFile, isNative, saveBytesNative } from "./core/platform";
+import { getOpenedFile, isNative, OpenedFileError, saveBytesNative } from "./core/platform";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
@@ -2059,10 +2059,13 @@ async function maybeOpenSharedFile(): Promise<boolean> {
     const res = await cache.match("shared-file");
     if (!res) return false;
     await cache.delete("shared-file");
-    const buf = await res.arrayBuffer();
-    if (!buf.byteLength) return false;
+    const blob = await res.blob();
+    if (!blob.size) return false;
     const name = decodeURIComponent(res.headers.get("X-Filename") ?? "shared");
-    await openBuffer(buf, name, "intent", null, res.headers.get("Content-Type") ?? "");
+    const type = res.headers.get("Content-Type") ?? "";
+    // As a File through openLocalFile, so a shared video or archive streams from the blob
+    // rather than being read into memory whole.
+    await openLocalFile(new File([blob], name, type ? { type } : {}), "intent", null);
     return true;
   } catch (e) {
     console.error("shared file open failed", e);
@@ -2071,15 +2074,23 @@ async function maybeOpenSharedFile(): Promise<boolean> {
 }
 
 // Open a file handed to us via the OS "Open with"; returns true if one was pending.
+// It goes through openLocalFile, the same path a dropped file takes, so a video or an archive
+// streams from the staged copy instead of being read into memory whole.
 let startupDone = false;
 async function maybeOpenPendingFile(): Promise<boolean> {
-  const file = await getOpenedFile();
-  if (!file) return false;
-  const buf = file.bytes.buffer.slice(
-    file.bytes.byteOffset,
-    file.bytes.byteOffset + file.bytes.byteLength,
-  ) as ArrayBuffer;
-  await openBuffer(buf, file.name, "intent", null, file.mime);
+  let opened;
+  try {
+    opened = await getOpenedFile();
+  } catch (e) {
+    // The OS did ask us to open something. Say that it failed rather than showing a blank
+    // document and letting it look as though nothing had been asked for.
+    const name = e instanceof OpenedFileError ? e.filename : "";
+    console.error("opened-file read failed", e);
+    engine.notificationSink.error(t("notify.readFailed", { what: name || t("notify.documentWord") }));
+    return false;
+  }
+  if (!opened) return false;
+  await openLocalFile(opened.file, "intent", null);
   return true;
 }
 
