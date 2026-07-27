@@ -51,3 +51,10 @@ describe("toml validation", () => {
     expect(diags.length).toBe(1);
   });
 });
+
+// Temporary: proves the pull-request check actually fails a bad change. Removed before merge.
+describe("ci self-test", () => {
+  it("deliberately fails", () => {
+    expect(1).toBe(2);
+  });
+});
