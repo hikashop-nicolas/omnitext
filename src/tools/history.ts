@@ -89,6 +89,10 @@ function stateChangeCount(state: unknown): number {
 export async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
   const doc = host.workspace.getActiveDocument();
   if (!doc) return;
+  // A viewer's document cannot change, so every snapshot would be the file itself: for a
+  // video opened out of an archive that means storing the whole thing in IndexedDB to offer
+  // a restore of what is already on screen.
+  if (doc.readOnly) return;
   if (doc.binary) {
     // Editors that expose a lossless session snapshot (PDF) store that, so restore re-renders
     // the pristine document and replays edits rather than re-opening the lossy export.
@@ -240,6 +244,7 @@ export const historyTool: ToolModule = {
       host.ui.addToolbarButton({
         id: "history",
         title: t("app.history"),
+        hideWhenReadOnly: true, // nothing to version on a document that cannot be edited
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>`,
         onClick: () => openPanel(host, store),
       }),

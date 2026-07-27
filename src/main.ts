@@ -393,7 +393,10 @@ const editorEl = $("editor");
 const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const saveBtn = $("btn-save");
+const newBtn = $("btn-new");
 const backBtn = $<HTMLButtonElement>("btn-back");
+// Tool buttons that asked to be hidden on a read-only document (see addToolbarButton).
+const readOnlyHiddenTools = new Set<HTMLElement>();
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
 const formatLabelEl = $("format-label");
@@ -432,10 +435,15 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
 
 function updateUI(): void {
   filenameEl.textContent = session?.filename ?? t("app.untitled");
-  // Read-only surfaces (Preview, viewers) cannot save: hide Save and the dirty dot.
+  // Read-only surfaces (Preview, viewers) cannot save: hide Save and the dirty dot. New
+  // belongs to a document being authored, and tools that act on edits (history) opt out
+  // the same way, so a video is not framed by controls that do nothing to it. The command
+  // palette still offers New for anyone who wants it here.
   const readOnly = !!session?.readOnly;
   saveBtn.hidden = readOnly;
   dirtyEl.hidden = readOnly;
+  newBtn.hidden = readOnly;
+  for (const b of readOnlyHiddenTools) b.hidden = readOnly;
   const modified = !!session?.dirty;
   dirtyEl.classList.toggle("is-modified", modified);
   dirtyEl.title = modified ? t("app.unsavedChanges") : t("app.allSaved");
@@ -687,7 +695,13 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   updateUI();
   engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
   const where = isNative() ? t("status.onThisDevice") : t("status.inThisBrowser");
-  setStatus(opts.recovered ? t("status.recovered") : t("status.ready", { where }));
+  // A viewer keeps no edits and is never autosaved, so promising that edits are kept and
+  // offering Save (which is hidden) describes a document the user does not have.
+  setStatus(
+    opts.recovered ? t("status.recovered")
+    : session.readOnly ? t("status.readOnly")
+    : t("status.ready", { where }),
+  );
 }
 
 async function snapshot(): Promise<DocSnapshot | null> {
@@ -1905,6 +1919,7 @@ const workspace: Workspace = {
       formatId: session.formatId,
       text: session.binary ? "" : session.editor.getText(),
       binary: session.binary,
+      readOnly: session.readOnly,
     };
   },
   async getActiveBytes() {
@@ -2012,8 +2027,17 @@ const ui: UIContributions = {
       b.textContent = btn.title;
     }
     b.addEventListener("click", btn.onClick);
+    if (btn.hideWhenReadOnly) {
+      readOnlyHiddenTools.add(b);
+      b.hidden = !!session?.readOnly; // a tool can be registered while a document is open
+    }
     toolsEl.appendChild(b);
-    return { dispose: () => b.remove() };
+    return {
+      dispose: () => {
+        readOnlyHiddenTools.delete(b);
+        b.remove();
+      },
+    };
   },
   openPanel(panel) {
     ui.closePanels();

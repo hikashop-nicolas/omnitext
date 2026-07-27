@@ -325,6 +325,8 @@ export interface ActiveDocument {
   text: string;
   /** True for binary documents (PDF/DOCX/ODT/XLSX/ODS): use the bytes API instead of text. */
   binary: boolean;
+  /** A view-only surface (media/image/archive viewers): it has no edits to track or store. */
+  readOnly: boolean;
 }
 
 export interface Workspace {
@@ -352,6 +354,8 @@ export interface ToolbarButton {
   title: string;
   /** Optional inline SVG markup; when set the button is icon-only (title becomes the label). */
   icon?: string;
+  /** Hide the button on a read-only document, for tools that act on edits (e.g. history). */
+  hideWhenReadOnly?: boolean;
   onClick(): void;
 }
 

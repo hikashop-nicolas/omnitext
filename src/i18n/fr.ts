@@ -84,6 +84,7 @@ const fr: Dict = {
   },
   status: {
     ready: "Prêt. Vos modifications sont conservées {where} ; utilisez Enregistrer pour écrire le fichier.",
+    readOnly: "Lecture seule : ce fichier est affiché tel quel, rien n'est conservé.",
     onThisDevice: "sur cet appareil",
     inThisBrowser: "dans ce navigateur",
     recovered: "Travail non enregistré récupéré depuis une session précédente. Utilisez Enregistrer pour écrire le fichier.",

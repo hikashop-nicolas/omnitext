@@ -86,6 +86,7 @@ const en: Dict = {
   },
   status: {
     ready: "Ready. Your edits are kept {where}; use Save to write out the file.",
+    readOnly: "Read-only: this file is shown as it is, and nothing is stored.",
     onThisDevice: "on this device",
     inThisBrowser: "in this browser",
     recovered: "Recovered unsaved work from a previous session. Use Save to write out the file.",

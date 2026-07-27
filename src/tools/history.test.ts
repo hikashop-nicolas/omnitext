@@ -49,6 +49,7 @@ describe("history snapshot for binary documents", () => {
         formatId: "pdf",
         text: "", // binary editors report empty text
         binary: true,
+        readOnly: false,
       }),
       getActiveBytes: () => Promise.resolve(bytes),
     });
@@ -71,6 +72,7 @@ describe("history snapshot for binary documents", () => {
         formatId: "pdf",
         text: "",
         binary: true,
+        readOnly: false,
       }),
       getActiveBytes: () => Promise.resolve(current),
     });
@@ -93,6 +95,7 @@ describe("history snapshot for binary documents", () => {
         formatId: "pdf",
         text: "",
         binary: true,
+        readOnly: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
@@ -119,6 +122,7 @@ describe("history snapshot for editors with a session state (PDF)", () => {
         formatId: "pdf",
         text: "",
         binary: true,
+        readOnly: false,
       }),
       getActiveState: () => st,
       getActiveBytes: () => Promise.resolve(null),
@@ -155,6 +159,7 @@ describe("history snapshot for text documents", () => {
         formatId: "text",
         text,
         binary: false,
+        readOnly: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
@@ -178,10 +183,40 @@ describe("history snapshot for text documents", () => {
         formatId: null,
         text: "   \n  ",
         binary: false,
+        readOnly: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
     await snapshot(host, store, "Auto");
     expect(store.rows).toHaveLength(0);
+  });
+});
+
+describe("history snapshot for read-only documents", () => {
+  it("stores nothing for a viewer, however big the file behind it is", async () => {
+    // A video opened out of an archive reaches the editor as bytes, so without this guard
+    // "Opened" would put the whole file in IndexedDB to offer a restore of what is already
+    // on screen, for a document that has no way to change.
+    const store = fakeStore();
+    let bytesRead = false;
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1",
+        key: "file://clip.mp4",
+        uri: "file://clip.mp4",
+        filename: "clip.mp4",
+        formatId: "mp4",
+        text: "",
+        binary: true,
+        readOnly: true,
+      }),
+      getActiveBytes: () => {
+        bytesRead = true; // the export is what costs; it must not even be asked for
+        return Promise.resolve(new Uint8Array([0, 0, 0, 24]));
+      },
+    });
+    await snapshot(host, store, "Opened");
+    expect(store.rows).toHaveLength(0);
+    expect(bytesRead).toBe(false);
   });
 });
