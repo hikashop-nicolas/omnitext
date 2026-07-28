@@ -118,7 +118,7 @@ const en: Dict = {
     bytes: "{n} bytes",
     chars: "{n} chars",
     changes: { one: "{n} change", other: "{n} changes" },
-    label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto" },
+    label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto", beforerestore: "Before restore" },
   },
   viewer: {
     rendering: "Rendering…",

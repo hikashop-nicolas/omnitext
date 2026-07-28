@@ -1,4 +1,4 @@
-import { isQuotaError, staleVersionKeys, versionIdsToDrop } from "../core/retention";
+import { isQuotaError, staleVersionKeys, versionIdsToDrop, VERSIONS_PER_KEY } from "../core/retention";
 
 // Version snapshots for the history tool. Kept in its own IndexedDB database so it
 // stays decoupled from the crash-recovery store. Snapshots are keyed by a stable
@@ -22,6 +22,8 @@ export interface Version {
   state?: unknown;
   /** Signature of `state`, for skipping unchanged snapshots without deep-comparing it. */
   stateSig?: string;
+  /** How many edits `state` holds, counted by the editor that owns its shape. */
+  stateChanges?: number;
 }
 
 const DB_NAME = "omnitext-history";
@@ -73,7 +75,11 @@ export class VersionStore {
   }
 
   /** Cap one document's history, dropping Auto/Opened snapshots first. */
-  async pruneKey(key: string, cap?: number): Promise<void> {
+  async pruneKey(key: string, cap = VERSIONS_PER_KEY): Promise<void> {
+    // Count before loading: reading the records means deserialising every stored byte
+    // buffer, and a document under its cap (the normal case, on every single snapshot)
+    // has nothing to drop anyway.
+    if ((await this.countByKey(key)) <= cap) return;
     const versions = await this.listByKey(key);
     const ids = versionIdsToDrop(versions, cap);
     if (!ids.length) return;
@@ -98,6 +104,36 @@ export class VersionStore {
     const newest = new Map<string, number>();
     for (const v of all) newest.set(v.key, Math.max(newest.get(v.key) ?? 0, v.ts));
     for (const key of staleVersionKeys(newest, Date.now())) await this.deleteByKey(key);
+  }
+
+  /**
+   * The newest version for a key, or undefined. Reads one record rather than the whole
+   * history: this runs on every snapshot only to answer "did anything change", and
+   * listByKey would deserialise every stored byte buffer to do it.
+   *
+   * Ids are auto-increment, so the highest id for a key is also its newest snapshot.
+   */
+  async latestByKey(key: string): Promise<Version | undefined> {
+    const db = await this.db();
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(STORE, "readonly")
+        .objectStore(STORE)
+        .index("key")
+        .openCursor(IDBKeyRange.only(key), "prev");
+      req.onsuccess = () => resolve(req.result?.value as Version | undefined);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /** How many versions a key holds, without reading any of them. */
+  async countByKey(key: string): Promise<number> {
+    const db = await this.db();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(STORE, "readonly").objectStore(STORE).index("key").count(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
   }
 
   /** Versions for a key, newest first. */

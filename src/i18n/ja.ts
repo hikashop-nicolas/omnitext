@@ -118,7 +118,7 @@ const ja: Dict = {
     bytes: "{n} バイト",
     chars: "{n} 文字",
     changes: { one: "{n} 件の変更", other: "{n} 件の変更" },
-    label: { manual: "手動", opened: "開いた時", saved: "保存時", auto: "自動" },
+    label: { manual: "手動", opened: "開いた時", saved: "保存時", auto: "自動", beforerestore: "復元前" },
   },
   viewer: {
     rendering: "描画中…",

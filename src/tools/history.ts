@@ -14,7 +14,11 @@ const labelText = (label: string): string => {
 // against the current text, and restore one. Diffs use jsdiff, loaded lazily.
 
 const STYLE_ID = "omnitext-history-style";
+/** Quiet period after the last edit before an automatic snapshot. */
 const AUTO_SNAPSHOT_MS = 45_000;
+/** Longest an uninterrupted editing run may go without one. A debounce alone never fires
+    while someone keeps typing, so a long steady session produced no snapshots at all. */
+const AUTO_SNAPSHOT_MAX_MS = 180_000;
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -81,11 +85,6 @@ export function stateSig(state: unknown): string {
   }
 }
 
-function stateChangeCount(state: unknown): number {
-  const s = state as { edits?: unknown[]; boxes?: unknown[]; images?: unknown[] } | null;
-  return (s?.edits?.length ?? 0) + (s?.boxes?.length ?? 0) + (s?.images?.length ?? 0);
-}
-
 export async function snapshot(host: HostAPI, store: VersionStore, label: string): Promise<void> {
   const doc = host.workspace.getActiveDocument();
   if (!doc) return;
@@ -99,23 +98,37 @@ export async function snapshot(host: HostAPI, store: VersionStore, label: string
     const state = host.workspace.getActiveState();
     if (state) {
       const sig = stateSig(state);
-      const existing = await store.listByKey(doc.key);
-      if (existing[0]?.stateSig === sig) return; // unchanged since last snapshot
-      await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: "", binary: true, state, stateSig: sig });
+      const latest = await store.latestByKey(doc.key);
+      if (latest?.stateSig === sig) return; // unchanged since last snapshot
+      // The editor counts its own edits: only it knows what its state holds.
+      const stateChanges = host.workspace.countActiveStateChanges?.(state) ?? undefined;
+      await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: "", binary: true, state, stateSig: sig, stateChanges });
       return;
     }
     // Other binary editors (XLSX/ODS/DOCX/ODT) edit in place; their bytes re-import cleanly.
     const bytes = await host.workspace.getActiveBytes();
     if (!bytes || bytes.length === 0) return;
-    const existing = await store.listByKey(doc.key);
-    if (bytesEqual(existing[0]?.bytes, bytes)) return; // unchanged since last snapshot
+    const latest = await store.latestByKey(doc.key);
+    if (bytesEqual(latest?.bytes, bytes)) return; // unchanged since last snapshot
     await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: "", binary: true, bytes });
     return;
   }
   if (doc.text.trim() === "") return;
-  const existing = await store.listByKey(doc.key);
-  if (existing[0]?.text === doc.text) return; // skip if unchanged since last snapshot
+  const latest = await store.latestByKey(doc.key);
+  if (latest?.text === doc.text) return; // skip if unchanged since last snapshot
   await store.add({ key: doc.key, ts: Date.now(), formatId: doc.formatId, label, text: doc.text });
+}
+
+/**
+ * Put a stored version back into the editor, capturing what is on screen first.
+ * Without that capture, restoring silently discards every edit made since the last
+ * snapshot: automatic ones are minutes apart, so there would be nothing to go back to.
+ */
+export async function restoreVersion(host: HostAPI, store: VersionStore, v: Version): Promise<void> {
+  await snapshot(host, store, "BeforeRestore");
+  if (v.state) host.workspace.setActiveState(v.state);
+  else if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
+  else host.workspace.setActiveText(v.text);
 }
 
 async function renderDiff(area: HTMLElement, fromText: string, toText: string): Promise<void> {
@@ -139,6 +152,7 @@ function renderList(
   list: HTMLElement,
   versions: Version[],
   host: HostAPI,
+  store: VersionStore,
   refresh: () => void,
 ): void {
   list.textContent = "";
@@ -149,7 +163,7 @@ function renderList(
   for (const v of versions) {
     const row = el("div", "ot-hist-row");
     const meta = el("div", "ot-hist-meta");
-    const cnt = stateChangeCount(v.state);
+    const cnt = v.stateChanges ?? 0;
     const size = v.state
       ? t("history.changes", { n: cnt, count: cnt })
       : v.binary
@@ -179,11 +193,10 @@ function renderList(
     const restoreBtn = button(
       t("history.restore"),
       () => {
-        if (v.state) host.workspace.setActiveState(v.state);
-        else if (v.binary && v.bytes) host.workspace.setActiveBytes(v.bytes);
-        else host.workspace.setActiveText(v.text);
-        host.notifications.info(t("history.restored", { time: new Date(v.ts).toLocaleString(getLocale()) }));
-        refresh();
+        void restoreVersion(host, store, v).then(() => {
+          host.notifications.info(t("history.restored", { time: new Date(v.ts).toLocaleString(getLocale()) }));
+          refresh();
+        });
       },
       "ot-mini primary",
     );
@@ -208,7 +221,7 @@ function openPanel(host: HostAPI, store: VersionStore): void {
       const list = el("div", "ot-hist-list");
       const refresh = (): void => {
         list.textContent = t("history.loading");
-        void store.listByKey(doc.key).then((versions) => renderList(list, versions, host, refresh));
+        void store.listByKey(doc.key).then((versions) => renderList(list, versions, host, store, refresh));
       };
       bar.append(
         button(t("history.snapshotNow"), () => {
@@ -222,20 +235,65 @@ function openPanel(host: HostAPI, store: VersionStore): void {
   });
 }
 
+/**
+ * When to take an automatic snapshot. A plain debounce answers "the user stopped typing",
+ * but never fires while they keep going, so it must be paired with a deadline that does.
+ *
+ * Timers are tied to the session that armed them: snapshot() reads whatever document is
+ * active, so one left over from a document the user has navigated away from would capture
+ * the wrong one. Exported so the policy is testable without a browser.
+ */
+export class AutoSnapshotTimer {
+  private quiet: ReturnType<typeof setTimeout> | undefined;
+  private deadline: ReturnType<typeof setTimeout> | undefined;
+  private sessionId: string | null = null;
+
+  constructor(
+    private readonly fire: () => void,
+    private readonly quietMs = AUTO_SNAPSHOT_MS,
+    private readonly maxMs = AUTO_SNAPSHOT_MAX_MS,
+  ) {}
+
+  /** A document was edited: restart the quiet period, and start the deadline if idle. */
+  noteChange(sessionId: string): void {
+    if (sessionId !== this.sessionId) this.reset(sessionId);
+    clearTimeout(this.quiet);
+    this.quiet = setTimeout(() => this.run(), this.quietMs);
+    this.deadline ??= setTimeout(() => this.run(), this.maxMs);
+  }
+
+  /** A different document became active: anything pending was for the old one. */
+  reset(sessionId: string | null): void {
+    this.cancel();
+    this.sessionId = sessionId;
+  }
+
+  cancel(): void {
+    clearTimeout(this.quiet);
+    clearTimeout(this.deadline);
+    this.quiet = this.deadline = undefined;
+  }
+
+  private run(): void {
+    this.cancel();
+    this.fire();
+  }
+}
+
 export const historyTool: ToolModule = {
   manifest: { kind: "tool", id: "history", capabilities: ["history", "diff"] },
   activate(host: HostAPI): Disposable {
     const store = new VersionStore();
     void store.pruneStale().catch(() => undefined); // months-old histories go at boot
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    const auto = new AutoSnapshotTimer(() => void snapshot(host, store, "Auto"));
     const disposables = [
       // Baseline: snapshot the pristine document on open so the original is always restorable.
-      host.events.on("documentOpened", () => void snapshot(host, store, "Opened")),
-      host.events.on("documentSaved", () => void snapshot(host, store, "Saved")),
-      host.events.on("contentChanged", () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => void snapshot(host, store, "Auto"), AUTO_SNAPSHOT_MS);
+      host.events.on("documentOpened", ({ sessionId }) => {
+        auto.reset(sessionId);
+        void snapshot(host, store, "Opened");
       }),
+      host.events.on("documentSaved", () => void snapshot(host, store, "Saved")),
+      host.events.on("contentChanged", ({ sessionId }) => auto.noteChange(sessionId)),
       host.commands.register({
         id: "history.open",
         title: t("history.title"),
@@ -251,7 +309,7 @@ export const historyTool: ToolModule = {
     ];
     return {
       dispose() {
-        clearTimeout(timer);
+        auto.cancel();
         for (const d of disposables) d.dispose();
       },
     };

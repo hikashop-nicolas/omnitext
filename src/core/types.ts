@@ -191,6 +191,9 @@ export interface EditorInstance {
   getState?(): unknown;
   /** Restore a snapshot from getState (re-render + replay edits, in place). */
   setState?(state: unknown): void;
+  /** How many edits a getState snapshot holds, for tools that describe one. Only this
+   *  editor knows the shape, so only it can count. */
+  countStateChanges?(state: unknown): number;
   /** Future collaboration hook: apply a remote change from a CRDT binding. */
   applyRemote?(change: unknown): void;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
@@ -341,6 +344,8 @@ export interface Workspace {
   getActiveState(): unknown;
   /** Restore an editing-session snapshot from getActiveState. */
   setActiveState(state: unknown): void;
+  /** Ask the active editor how many edits a state snapshot holds, or null if it cannot say. */
+  countActiveStateChanges?(state: unknown): number | null;
   /** Open a new document from in-memory bytes (e.g. an entry from an archive). When
    *  archivePath is set, the new document is an entry of the current archive at that path,
    *  so saving it writes back into the archive and a back button returns to it. */

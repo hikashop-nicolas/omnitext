@@ -1,24 +1,35 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { HostAPI, Workspace } from "../core/types";
-import { bytesEqual, snapshot, stateSig } from "./history";
+import { AutoSnapshotTimer, bytesEqual, restoreVersion, snapshot, stateSig } from "./history";
 import type { Version, VersionStore } from "./version-store";
 
 // A minimal in-memory stand-in for VersionStore (the real one is IndexedDB-backed,
-// which isn't available in the node test environment).
-function fakeStore(seed: Version[] = []): VersionStore & { rows: Version[] } {
+// which isn't available in the node test environment). `listCalls` is counted because
+// snapshotting must NOT read the whole history: listByKey deserialises every stored byte
+// buffer, and the snapshot path only ever wants the newest record.
+function fakeStore(seed: Version[] = []): VersionStore & { rows: Version[]; listCalls: number } {
   const rows = [...seed];
-  return {
+  const store = {
     rows,
+    listCalls: 0,
     async add(v: Version) {
       rows.unshift(v); // newest first, matching listByKey's ordering
     },
     async listByKey(key: string) {
+      store.listCalls++;
       return rows.filter((r) => r.key === key).sort((a, b) => b.ts - a.ts);
+    },
+    async latestByKey(key: string) {
+      return rows.filter((r) => r.key === key).sort((a, b) => b.ts - a.ts)[0];
+    },
+    async countByKey(key: string) {
+      return rows.filter((r) => r.key === key).length;
     },
     async deleteByKey(key: string) {
       for (let i = rows.length - 1; i >= 0; i--) if (rows[i].key === key) rows.splice(i, 1);
     },
-  } as unknown as VersionStore & { rows: Version[] };
+  };
+  return store as unknown as VersionStore & { rows: Version[]; listCalls: number };
 }
 
 function fakeHost(workspace: Partial<Workspace>): HostAPI {
@@ -189,6 +200,163 @@ describe("history snapshot for text documents", () => {
     });
     await snapshot(host, store, "Auto");
     expect(store.rows).toHaveLength(0);
+  });
+});
+
+describe("history snapshot cost", () => {
+  it("reads only the newest version to decide whether anything changed", async () => {
+    // A document with a long history holds many megabytes; listByKey would deserialise all
+    // of them on every automatic snapshot just to compare against the most recent one.
+    const seed: Version[] = Array.from({ length: 40 }, (_, i) => ({
+      key: "k", ts: i, formatId: "xlsx", label: "Auto", text: "", binary: true,
+      bytes: new Uint8Array([i]),
+    }));
+    const store = fakeStore(seed);
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1", key: "k", uri: null, filename: "a.xlsx", formatId: "xlsx",
+        text: "", binary: true, readOnly: false,
+      }),
+      getActiveBytes: () => Promise.resolve(new Uint8Array([99])),
+    });
+    await snapshot(host, store, "Auto");
+    expect(store.rows).toHaveLength(41);
+    expect(store.listCalls).toBe(0);
+  });
+});
+
+describe("history state change count", () => {
+  it("stores the count the editor reports, since only it knows its state's shape", async () => {
+    const store = fakeStore();
+    const state = { edits: [1], boxes: [], images: [], whiteouts: [2, 3] };
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1", key: "k", uri: null, filename: "a.pdf", formatId: "pdf",
+        text: "", binary: true, readOnly: false,
+      }),
+      getActiveState: () => state,
+      getActiveBytes: () => Promise.resolve(null),
+      countActiveStateChanges: (s) => {
+        const st = s as typeof state;
+        return st.edits.length + st.boxes.length + st.images.length + st.whiteouts.length;
+      },
+    });
+    await snapshot(host, store, "Manual");
+    expect(store.rows[0].stateChanges).toBe(3);
+  });
+
+  it("leaves the count unset when the editor cannot say", async () => {
+    const store = fakeStore();
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1", key: "k", uri: null, filename: "a.pdf", formatId: "pdf",
+        text: "", binary: true, readOnly: false,
+      }),
+      getActiveState: () => ({ anything: true }),
+      getActiveBytes: () => Promise.resolve(null),
+    });
+    await snapshot(host, store, "Manual");
+    expect(store.rows[0].stateChanges).toBeUndefined();
+  });
+});
+
+describe("history restore", () => {
+  it("snapshots what is on screen before replacing it", async () => {
+    // Automatic snapshots are minutes apart, so without this the restore throws away
+    // everything typed since the last one with no way back.
+    const store = fakeStore();
+    let current = "work in progress";
+    const restored: string[] = [];
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1", key: "k", uri: null, filename: "a.txt", formatId: "text",
+        text: current, binary: false, readOnly: false,
+      }),
+      getActiveBytes: () => Promise.resolve(null),
+      setActiveText: (text: string) => {
+        restored.push(text);
+        current = text;
+      },
+    });
+    await restoreVersion(host, store, {
+      key: "k", ts: 1, formatId: "text", label: "Saved", text: "an older draft",
+    });
+    expect(restored).toEqual(["an older draft"]);
+    expect(store.rows.map((r) => [r.label, r.text])).toEqual([["BeforeRestore", "work in progress"]]);
+  });
+
+  it("captures a binary document's bytes before restoring over them", async () => {
+    const store = fakeStore();
+    const host = fakeHost({
+      getActiveDocument: () => ({
+        sessionId: "s1", key: "k", uri: null, filename: "a.xlsx", formatId: "xlsx",
+        text: "", binary: true, readOnly: false,
+      }),
+      getActiveBytes: () => Promise.resolve(new Uint8Array([7, 7, 7])),
+      setActiveBytes: () => {},
+    });
+    await restoreVersion(host, store, {
+      key: "k", ts: 1, formatId: "xlsx", label: "Saved", text: "", binary: true,
+      bytes: new Uint8Array([1]),
+    });
+    expect(store.rows[0].label).toBe("BeforeRestore");
+    expect(store.rows[0].bytes).toEqual(new Uint8Array([7, 7, 7]));
+  });
+});
+
+describe("AutoSnapshotTimer", () => {
+  it("fires after the quiet period once editing stops", () => {
+    vi.useFakeTimers();
+    const fired: number[] = [];
+    const timer = new AutoSnapshotTimer(() => fired.push(Date.now()), 1000, 5000);
+    timer.noteChange("s1");
+    vi.advanceTimersByTime(999);
+    expect(fired).toHaveLength(0);
+    vi.advanceTimersByTime(1);
+    expect(fired).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("still fires while typing never stops, which a plain debounce never did", () => {
+    // The bug this exists for: a debounce reset on every keystroke means a long
+    // uninterrupted editing session produced no automatic snapshot at all.
+    vi.useFakeTimers();
+    let fired = 0;
+    const timer = new AutoSnapshotTimer(() => fired++, 1000, 5000);
+    for (let elapsed = 0; elapsed < 12_000; elapsed += 100) {
+      timer.noteChange("s1"); // a keystroke every 100ms, never a 1s pause
+      vi.advanceTimersByTime(100);
+    }
+    expect(fired).toBe(2); // one per 5s deadline, not zero
+    vi.useRealTimers();
+  });
+
+  it("drops a pending snapshot when another document becomes active", () => {
+    // snapshot() reads whatever document is active, so a timer armed by the previous one
+    // would capture the wrong document under the wrong key.
+    vi.useFakeTimers();
+    let fired = 0;
+    const timer = new AutoSnapshotTimer(() => fired++, 1000, 5000);
+    timer.noteChange("s1");
+    vi.advanceTimersByTime(900);
+    timer.reset("s2"); // the user opened a different file
+    vi.advanceTimersByTime(10_000);
+    expect(fired).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("restarts cleanly when changes arrive for a new session without a reset", () => {
+    vi.useFakeTimers();
+    let fired = 0;
+    const timer = new AutoSnapshotTimer(() => fired++, 1000, 5000);
+    timer.noteChange("s1");
+    vi.advanceTimersByTime(900);
+    timer.noteChange("s2"); // different document: the old quiet period must not carry over
+    vi.advanceTimersByTime(900);
+    expect(fired).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(fired).toBe(1);
+    vi.useRealTimers();
   });
 });
 

@@ -35,6 +35,19 @@ describe("VersionStore", () => {
     expect([...(v?.bytes ?? [])]).toEqual([9, 8, 7]);
   });
 
+  it("reads the newest version, and the count, without loading the history", async () => {
+    const store = new VersionStore();
+    await store.add(ver("doc", 1, "Saved"));
+    await store.add(ver("doc", 2, "Auto"));
+    await store.add(ver("other", 5, "Auto"));
+
+    expect((await store.latestByKey("doc"))?.ts).toBe(2);
+    expect((await store.latestByKey("other"))?.ts).toBe(5);
+    expect(await store.latestByKey("missing")).toBeUndefined();
+    expect(await store.countByKey("doc")).toBe(2);
+    expect(await store.countByKey("missing")).toBe(0);
+  });
+
   it("caps a key at the default limit, dropping the oldest and keeping the newest", async () => {
     const store = new VersionStore();
     for (let ts = 1; ts <= 102; ts++) await store.add(ver("doc", ts, "Auto"));

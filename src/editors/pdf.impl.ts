@@ -53,6 +53,17 @@ class PdfInstance implements EditorInstance {
     return this.editor?.getState() ?? null;
   }
 
+  // Every kind of edit a session can hold, so history can say how big a snapshot is.
+  countStateChanges(state: unknown): number {
+    const st = state as Partial<PdfEditState> | null;
+    return (
+      (st?.edits?.length ?? 0) +
+      (st?.boxes?.length ?? 0) +
+      (st?.images?.length ?? 0) +
+      (st?.whiteouts?.length ?? 0)
+    );
+  }
+
   // Restore re-renders the pristine document and replays the edits, in place.
   setState(state: unknown): void {
     if (!this.container || !state) return;

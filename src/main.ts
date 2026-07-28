@@ -1930,6 +1930,9 @@ const workspace: Workspace = {
     if (!session?.editor) return null;
     return session.editor.getState?.() ?? null;
   },
+  countActiveStateChanges(state) {
+    return session?.editor?.countStateChanges?.(state) ?? null;
+  },
   setActiveState(state) {
     if (!session?.editor?.setState || !state) return;
     // Restore happens in place (the editor re-renders the pristine doc and replays the edits);

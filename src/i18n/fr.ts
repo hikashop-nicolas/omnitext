@@ -116,7 +116,7 @@ const fr: Dict = {
     bytes: "{n} octets",
     chars: "{n} caractères",
     changes: { one: "{n} modification", other: "{n} modifications" },
-    label: { manual: "Manuel", opened: "Ouvert", saved: "Enregistré", auto: "Auto" },
+    label: { manual: "Manuel", opened: "Ouvert", saved: "Enregistré", auto: "Auto", beforerestore: "Avant restauration" },
   },
   viewer: {
     rendering: "Rendu en cours…",
