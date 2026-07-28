@@ -252,7 +252,7 @@ room and drops everyone who has not been given the new one.
 | Phase | Work | Gate before starting |
 |---|---|---|
 | 0 | Transport spike: Yjs + WebRTC provider, room from fragment, two tabs, no editor | Confirm the provider choice is maintained (the founding review flagged Trystero for exactly this) |
-| 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | Phase 0 syncs reliably between two machines, not just two tabs |
+| 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | Phase 0 syncs reliably between two different browsers (see below) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | Phase 1 survives a real two-person editing session |
 | 3 | sheetedit binding, cell content only; structural edits disabled for guests | Phase 2 shipped and used |
 | 4 | sheetedit structural operations, host-arbitrated | Phase 3 shows people actually hit the limitation |
@@ -260,6 +260,20 @@ room and drops everyone who has not been given the new one.
 
 Phases 3 and 5 each carry a prerequisite body of work in another repository. Those are
 not incidental; budget them as their own tasks.
+
+## 7a. How to test two peers
+
+Two different browsers on one machine, not two tabs and not two machines.
+
+Two browsers exercise what the spike is for: the signalling path through the real relay,
+the data channel, the base-file transfer, presence, and two separate IndexedDB stores.
+Chrome and Firefox together also test interop between two WebRTC implementations, which is
+where this usually breaks. Two tabs in one browser share too much to prove anything.
+
+What one machine cannot test is NAT traversal: both peers connect over loopback and never
+need a STUN or relay candidate. That is a deployment risk rather than an architectural one,
+so it gates shipping to users, not the spike. The cheap version is a laptop on wifi and a
+phone on cellular, which is a genuinely different network path.
 
 ## 8. What this will not do
 
