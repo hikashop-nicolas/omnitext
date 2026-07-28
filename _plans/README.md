@@ -8,6 +8,9 @@
 - **PLAY_STORE.md** — Google Play publication checklist. In progress; long pole is
   the 12-tester / 14-day closed test. Store assets (icon, feature graphic,
   screenshots) still to generate.
+- **COLLABORATION_PLAN.md** — draft, not started: live multi-peer editing with no
+  server, targeting sheetedit, richdoc and subedit rather than text alone. Binds per
+  editor; shares logical edits over an immutable base file. Phased with go/no-go gates.
 - **TAURI_PLAN.md** — deferred: desktop app (Windows/Linux/macOS) via Tauri with OS
   file association. Pick up after web polish.
 - **FORMAT_COVERAGE_REPORT.md** — 2026-07-10 gap analysis and library survey that
