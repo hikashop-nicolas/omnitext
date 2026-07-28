@@ -5,9 +5,9 @@
 - **AUDIT_2026-07.md** — living tracker of OPEN items across omnitext + richdoc +
   pdfedit + sheetedit. Fixed items move out to `archive/AUDIT_2026-07_SHIPPED.md`.
   This is the main "what to do next" list.
-- **PLAY_STORE.md** — Google Play publication checklist. In progress; long pole is
-  the 12-tester / 14-day closed test. Store assets (icon, feature graphic,
-  screenshots) still to generate.
+- **PLAY_STORE.md** — published. Standing runbook for shipping a release, plus the
+  console answers and listing copy. The publication checklist itself is done and
+  archived.
 - **COLLABORATION_PLAN.md** — draft, not started: live multi-peer editing with no
   server, targeting sheetedit, richdoc and subedit rather than text alone. Binds per
   editor; shares logical edits over an immutable base file. Phased with go/no-go gates.
@@ -24,3 +24,4 @@
   A-J all shipped.
 - `ANDROID_PLAN.md` — Capacitor Android build; shipped (CI publishes signed APK).
 - `AUDIT_2026-07_SHIPPED.md` — companion shipped-log for AUDIT_2026-07.md.
+- `PLAY_STORE_PUBLICATION.md` — the Google Play publication checklist, completed.
