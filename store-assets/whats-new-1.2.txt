@@ -1,0 +1,9 @@
+New in this update:
+
+• Spreadsheets: run and edit VBA macros, working buttons and drop-downs, printing, sheet protection, freeze and split panes, row grouping
+• Word (.doc): proper lists, table headers, inline images, comments
+• Play Apple Lossless (ALAC) audio
+• "Open with" now opens a video in the player instead of the text editor
+• Version history no longer loses unsaved work when you restore
+
+Still fully offline, nothing leaves your device.

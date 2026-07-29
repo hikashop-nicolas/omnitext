@@ -23,6 +23,7 @@ policy declarations, the first production submission) is done and archived in
 |---|---|---|
 | 1.0 | (initial) | First closed-test build (2026-07-09). |
 | 1.1 | `store-assets/whats-new-1.1.txt` | .doc editing, spreadsheet charts/pivots/Power Query, subtitle editor, media player, many new viewers, map editor, command palette, themes. |
+| 1.2 | `store-assets/whats-new-1.2.txt` | Spreadsheet VBA macros, form/ActiveX controls, printing, protection, freeze/split panes, outline grouping; richer .doc editing; ALAC audio; the Android "Open with" fix for large files; version-history fixes. |
 
 ## Store assets
 
@@ -51,7 +52,8 @@ Privacy policy URL: https://hikashop-nicolas.github.io/omnitext/privacy.html
 > - Edit PDFs: change text in place, add text and images, pinch to zoom.
 > - Edit Word (including legacy .doc), OpenDocument and spreadsheets, preserving the
 >   parts you do not touch.
-> - Spreadsheets with charts, pivot tables, Power Query, conditional formatting and more.
+> - Spreadsheets with charts, pivot tables, Power Query, conditional formatting, printing,
+>   freeze and split panes, form controls and VBA macros that run.
 > - Code and data editor with syntax highlighting for many formats.
 > - Edit subtitles (SRT, VTT, ASS and more) and play video and audio with subtitles.
 > - Edit maps (GeoJSON, KML, GPX) and view many more formats: PowerPoint, ebooks,

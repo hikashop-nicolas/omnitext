@@ -36,7 +36,8 @@ save it back, all in your browser.
 — Omnitext also runs as an Android app (Capacitor), bundling the same editor offline, and
 registers in Android's **"Open with"** chooser so you can hand it files from any app. The APK
 is rebuilt automatically from `main`; sideload it (Android will warn about installing from an
-unknown source). Not distributed through Google Play yet.
+unknown source). Omnitext is also **[on Google Play](https://play.google.com/store/apps/details?id=app.omnitext)**,
+which is the easier route if you just want to install it.
 
 ## What it does
 

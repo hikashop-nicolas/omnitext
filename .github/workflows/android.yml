@@ -88,7 +88,8 @@ jobs:
           body: |
             Android APK built automatically from the latest `main` (${{ steps.apk.outputs.kind }}).
             Sideload it to try Omnitext on Android; Android may warn about installing from an
-            unknown source. Not distributed through Google Play.
+            unknown source. For the released version instead, Omnitext is on Google Play:
+            https://play.google.com/store/apps/details?id=app.omnitext
 
       # The AAB is for the Play Console (testers/production); download it from this run's
       # artifacts with: gh run download <run-id> -n play-aab
