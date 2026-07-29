@@ -117,7 +117,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   ([mediabunny](https://github.com/Vanilagy/mediabunny), loaded on demand) and played without
   re-encoding, and Dolby **AC-3 / E-AC-3** audio (which no browser decodes) is decoded by a
   bundled FFmpeg WASM decoder and played in sync with the video (DTS/TrueHD show a clear
-  notice). Text subtitles embedded in MKV/WebM (SRT, ASS, WebVTT tracks; UTF-8 incl. CJK) are
+  notice). **Apple Lossless (ALAC)**, which only Safari plays, is decoded by a 21 KB WASM
+  build of Apple's own decoder, fetched only when a file turns out to be ALAC. Text
+  subtitles embedded in MKV/WebM (SRT, ASS, WebVTT tracks; UTF-8 incl. CJK) are
   extracted and shown, with a CC menu to switch subtitle tracks, load an external
   `.srt`/`.ass`/`.vtt` file (legacy encodings auto-detected), and switch between the file's
   audio tracks. ASS subtitles render fully styled via
