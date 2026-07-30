@@ -36,6 +36,11 @@ function ensureStyles(): void {
     .ot-collab-peers li { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border);
       border-radius: 999px; padding: 2px 10px; }
     .ot-collab-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .ot-collab-kick {
+      border: none; background: none; color: var(--muted); cursor: pointer; padding: 0 0 0 2px;
+      font: inherit; line-height: 1; margin-left: 2px;
+    }
+    .ot-collab-kick:hover { color: #e5484d; }
     .ot-collab-muted { color: var(--muted); }
     .ot-collab-warn { border: 1px solid var(--border); border-left: 3px solid #d29922;
       border-radius: 6px; padding: 8px 10px; color: var(--muted); font-size: 12px; }
@@ -117,6 +122,18 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
       host.notifications.warn(message);
     },
 
+    /**
+     * Removed from the session: the document closes, leaving nothing of the shared copy
+     * behind. Nothing is lost to the group, since every other peer still holds the edits
+     * this side contributed. History from before the session is that person's own earlier
+     * data and is left alone.
+     */
+    onEvicted() {
+      state.session = null;
+      state.repaint?.();
+      host.workspace.closeActive?.();
+    },
+
     onChange() {
       state.repaint?.();
     },
@@ -151,7 +168,7 @@ async function leaveSession(host: HostAPI, state: ToolState, store: VersionStore
   state.repaint?.();
 }
 
-function renderPeers(into: HTMLElement, peers: Peer[]): void {
+function renderPeers(into: HTMLElement, peers: Peer[], onRemove: (peer: Peer) => void): void {
   into.textContent = "";
   if (!peers.length) {
     into.appendChild(el("li", "ot-collab-muted", "nobody else yet"));
@@ -162,8 +179,32 @@ function renderPeers(into: HTMLElement, peers: Peer[]): void {
     const dot = el("span", "ot-collab-dot");
     dot.style.background = peer.colour;
     li.append(dot, document.createTextNode(peer.name));
+    if (peer.peerId) {
+      const kick = el("button", "ot-collab-kick", "×");
+      kick.title = `Remove ${peer.name}`;
+      kick.setAttribute("aria-label", `Remove ${peer.name}`);
+      kick.addEventListener("click", () => onRemove(peer));
+      li.appendChild(kick);
+    }
     into.appendChild(li);
   }
+}
+
+async function removePeer(host: HostAPI, state: ToolState, peer: Peer): Promise<void> {
+  const session = state.session;
+  if (!session || !peer.peerId) return;
+  const { stranded } = await session.remove(peer.peerId);
+  host.notifications.info(
+    `${peer.name} was removed and everyone else moved to a new link. ` +
+      `${peer.name} keeps whatever they had already seen.`,
+  );
+  if (stranded.length) {
+    host.notifications.warn(
+      `Could not move ${stranded.map((p) => p.name).join(", ")}: ` +
+        `they were only reachable through ${peer.name}. Send them the new link to bring them back.`,
+    );
+  }
+  state.repaint?.();
 }
 
 function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
@@ -241,8 +282,16 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           const who = el("section");
           who.appendChild(el("h4", undefined, "People"));
           const list = el("ul", "ot-collab-peers");
-          renderPeers(list, session.peers());
+          renderPeers(list, session.peers(), (peer) => void removePeer(host, state, peer));
           who.appendChild(list);
+          who.appendChild(
+            el(
+              "div",
+              "ot-collab-muted",
+              "Removing someone moves everyone else to a new link and closes their copy." +
+                " They keep whatever they have already seen.",
+            ),
+          );
           root.appendChild(who);
         }
 
@@ -256,7 +305,8 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
         );
         const points = el("ul");
         for (const line of [
-          "The link is the key. Anyone who ever sees it can join, and there is no way to remove them.",
+          "The link is the key: anyone who sees it can join. You can remove someone, which" +
+            " moves everyone else to a new link, but they keep whatever they already saw.",
           "Links leak: through synced browser history, screen sharing, and copy and paste.",
           "The others can see your IP address, and anyone you invite can change the document.",
         ]) {

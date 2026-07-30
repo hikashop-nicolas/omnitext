@@ -11,6 +11,39 @@ import { trysteroTransport, type CollabTransport } from "./transport";
 // than through HostAPI, so the whole lifecycle is testable with no browser, no network
 // and no editor.
 
+// Removing someone from a session.
+//
+// Closing their connection would be theatre: they still hold the link, and a Trystero
+// identity is fresh on every page load, so there is nothing to blocklist them by. What
+// works is re-keying. Everyone else is told the new room over the connections that
+// already exist; the person being removed is not, and is left holding a key to a room
+// nobody is in.
+//
+// The new key travels hop by hop, each peer forwarding to its own peers except the sender
+// and except the person being removed. That reuses the relay rule the sync channel
+// already needs, and it matters here for a specific reason: the mesh is not guaranteed
+// complete, so a peer the host cannot see directly still gets the key from whoever can
+// see it. Only someone whose every path runs through the removed peer is stranded, and
+// the session reports that rather than losing them quietly.
+const CONTROL = { rekey: 1, evicted: 2 } as const;
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+const controlFrame = (kind: number, value: unknown): Uint8Array => {
+  const body = textEncoder.encode(JSON.stringify(value));
+  const out = new Uint8Array(body.length + 1);
+  out[0] = kind;
+  out.set(body, 1);
+  return out;
+};
+
+interface RekeyMessage {
+  room: RoomKey;
+  /** The peer this re-key is hiding from, so every hop can leave it out. */
+  exclude: string;
+}
+
 export interface SessionHost {
   /** The document this session is built on, for the host to serve. Null if none is open. */
   currentDoc(): Promise<BaseDoc | null>;
@@ -22,6 +55,8 @@ export interface SessionHost {
   binding(): CollabBinding | null;
   /** Anything the person needs told. */
   notify(message: string): void;
+  /** We were removed from the session: close the document, per the product decision. */
+  onEvicted?(): void;
   /** Called whenever the peer list or connection state changes, for the UI. */
   onChange?(): void;
 }
@@ -36,36 +71,43 @@ export interface SessionOptions {
   readOnly?: boolean;
   /** Test seam. */
   makeTransport?(key: RoomKey): CollabTransport;
+  /** How long to wait for the others to follow a re-key before reporting who did not. */
+  followMs?: number;
 }
 
 export class CollabSession {
-  readonly key: RoomKey;
+  private currentKey: RoomKey;
   /** True for the peer that started the room: the only one that seeds the shared doc. */
   readonly isHost: boolean;
   readonly readOnly: boolean;
   readonly provider: CollabProvider;
-  private readonly transport: CollabTransport;
   private readonly base: BaseTransfer;
   private readonly host: SessionHost;
+  private readonly makeTransport: (key: RoomKey) => CollabTransport;
   private binding: CollabBinding | null = null;
   private bound = false;
   private closed = false;
   private unsupported = false;
+  private readonly me: { name: string; colour: string };
+  /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
+  private readonly seenRooms = new Set<string>();
+  private readonly followMs: number;
 
   constructor(host: SessionHost, opts: SessionOptions) {
     this.host = host;
     this.isHost = !opts.key;
-    this.key = opts.key ?? newRoomKey();
+    this.currentKey = opts.key ?? newRoomKey();
     this.readOnly = opts.readOnly ?? false;
+    this.me = { name: opts.name, colour: opts.colour };
+    this.followMs = opts.followMs ?? 2_000;
+    this.makeTransport =
+      opts.makeTransport ?? ((k) => trysteroTransport({ roomId: k.roomId, secret: k.secret }));
 
-    this.transport = (opts.makeTransport ?? ((k) => trysteroTransport({ roomId: k.roomId, secret: k.secret })))(
-      this.key,
-    );
-    this.provider = new CollabProvider(this.transport);
-    this.provider.setPresence({ name: opts.name, colour: opts.colour });
+    this.provider = new CollabProvider(this.makeTransport(this.currentKey));
+    this.announce();
 
     this.base = new BaseTransfer(
-      (payload, peerId) => this.transport.send("base", payload, peerId),
+      (payload, peerId) => this.provider.sendOn("base", payload, peerId),
       {
         local: () => this.host.localState(),
         serve: () => this.host.currentDoc(),
@@ -76,12 +118,20 @@ export class CollabSession {
       },
     );
 
-    this.transport.onMessage((channel, payload, peerId) => {
-      if (channel === "base") void this.base.receive(payload, peerId);
-    });
+    this.provider.onChannel("base", (payload, peerId) => void this.base.receive(payload, peerId));
+    this.provider.onChannel("control", (payload, peerId) => void this.onControl(payload, peerId));
     // Only the peer that started the room serves the base; joiners never offer theirs.
-    if (this.isHost) this.transport.onPeerJoin((peerId) => void this.base.offerTo(peerId));
+    if (this.isHost) this.provider.onPeerJoined((peerId) => void this.base.offerTo(peerId));
     this.provider.onPeersChanged(() => this.host.onChange?.());
+  }
+
+  get key(): RoomKey {
+    return this.currentKey;
+  }
+
+  /** Presence carries our transport id, which is how another peer can name us to remove us. */
+  private announce(): void {
+    this.provider.setPresence({ ...this.me, peerId: this.provider.selfId });
   }
 
   /**
@@ -137,8 +187,73 @@ export class CollabSession {
     return this.provider.peers();
   }
 
+  /**
+   * Remove someone. Re-keys the room, tells everyone else the new key over the connections
+   * that already exist, and tells the removed peer to close its copy.
+   *
+   * Two things this cannot do, and the UI says so: it cannot recall what they have already
+   * seen, and it cannot reach a peer whose only route to us ran through them. The return
+   * value names anyone who did not make it across, so they can be re-invited.
+   */
+  async remove(peerId: string): Promise<{ stranded: Peer[] }> {
+    if (this.closed) return { stranded: [] };
+
+    const expected = this.provider.peers().filter((p) => p.peerId && p.peerId !== peerId);
+    const next = newRoomKey();
+    this.seenRooms.add(this.currentKey.roomId);
+
+    // Order matters: the new key goes out over the old room while everyone is still
+    // reachable, and only then does anybody move.
+    const others = this.provider.connectedPeers().filter((id) => id !== peerId);
+    this.provider.sendOn("control", controlFrame(CONTROL.rekey, { room: next, exclude: peerId }), others);
+    this.provider.sendOn("control", controlFrame(CONTROL.evicted, {}), peerId);
+
+    await this.moveTo(next);
+
+    // Give the others a moment to follow, then say who did not.
+    await new Promise((r) => setTimeout(r, this.followMs));
+    const arrived = new Set(this.provider.peers().map((p) => p.peerId));
+    return { stranded: expected.filter((p) => !arrived.has(p.peerId)) };
+  }
+
+  private async moveTo(room: RoomKey): Promise<void> {
+    this.seenRooms.add(this.currentKey.roomId);
+    this.currentKey = room;
+    await this.provider.moveTo(this.makeTransport(room));
+    this.announce(); // our transport id changed with the room
+    this.host.onChange?.();
+  }
+
+  private async onControl(payload: Uint8Array, from: string): Promise<void> {
+    const kind = payload[0];
+    const body = payload.subarray(1);
+
+    if (kind === CONTROL.evicted) {
+      // Only from someone we are actually connected to, and never from ourselves.
+      if (from === this.provider.selfId) return;
+      this.host.notify("You were removed from the session.");
+      await this.leave();
+      this.host.onEvicted?.();
+      return;
+    }
+
+    if (kind !== CONTROL.rekey) return;
+    const message = JSON.parse(textDecoder.decode(body)) as RekeyMessage;
+    if (!message.room?.roomId || this.seenRooms.has(message.room.roomId)) return;
+    if (message.room.roomId === this.currentKey.roomId) return;
+
+    // Pass it on before moving, so a peer that can only be reached through us still gets
+    // it. Never back to the sender, and never to the peer being removed.
+    const onward = this.provider
+      .connectedPeers()
+      .filter((id) => id !== from && id !== message.exclude);
+    this.provider.sendOn("control", controlFrame(CONTROL.rekey, message), onward);
+
+    await this.moveTo(message.room);
+  }
+
   get connected(): boolean {
-    return this.transport.peers().length > 0;
+    return this.provider.connectedPeers().length > 0;
   }
 
   /** True once this peer is mirroring the shared document. */

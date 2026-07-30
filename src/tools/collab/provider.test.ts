@@ -28,7 +28,7 @@ class FakeNetwork {
   private readonly nodes = new Map<string, Node>();
   private queue: (() => void)[] = [];
   /** Sends seen, per channel, for the no-echo test. */
-  readonly sent: Record<Channel, number> = { sync: 0, awareness: 0, base: 0 };
+  readonly sent: Record<Channel, number> = { sync: 0, awareness: 0, base: 0, control: 0 };
   /** Set to drop every sync message, to prove the assertions have teeth. */
   partitioned = false;
   /** Pairs that never manage to connect, for the partial-mesh tests. */

@@ -1927,6 +1927,15 @@ const workspace: Workspace = {
   activeCollabBinding() {
     return session?.editor?.collab?.() ?? null;
   },
+  closeActive() {
+    // Deleting the crash-recovery snapshot is the part that makes this a close rather
+    // than a hide: without it a reload brings the document straight back.
+    const id = session?.id;
+    void (async () => {
+      if (id) await store.remove(id).catch(() => undefined);
+      await mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } });
+    })();
+  },
   async getActiveBytes() {
     if (!session?.editor || !session.binary) return null;
     return (await session.editor.getBytes?.()) ?? null;

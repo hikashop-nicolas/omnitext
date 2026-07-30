@@ -89,6 +89,12 @@ export class SessionStore {
     for (const id of ids) await tx(db, "readwrite", (s) => s.delete(id));
   }
 
+  /** Forget a document entirely, so a reload does not bring it back. */
+  async remove(id: string): Promise<void> {
+    const db = await this.db();
+    await tx(db, "readwrite", (s) => s.delete(id));
+  }
+
   async get(id: string): Promise<DocSnapshot | undefined> {
     const db = await this.db();
     return tx<DocSnapshot | undefined>(db, "readonly", (s) => s.get(id));

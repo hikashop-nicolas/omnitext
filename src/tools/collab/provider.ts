@@ -26,6 +26,8 @@ import type { Channel, CollabTransport } from "./transport";
 export interface Presence {
   name: string;
   colour: string;
+  /** This peer's transport id. It is how one peer can name another to remove it. */
+  peerId?: string;
   /** Whatever the editor's binding wants to publish. Opaque here, by design. */
   selection?: unknown;
 }
@@ -46,8 +48,12 @@ export const SYNC_WAIT_MS = 8_000;
 export class CollabProvider {
   readonly doc: Y.Doc;
   readonly awareness: Awareness;
-  private readonly transport: CollabTransport;
+  /** Mutable: a session can move to a new room, which swaps the network under it. */
+  private transport: CollabTransport;
   private readonly peersHandlers = new Set<PeersHandler>();
+  /** Subscribers to channels the provider carries but does not interpret. */
+  private readonly channelHandlers = new Map<Channel, Set<(payload: Uint8Array, peerId: string) => void>>();
+  private readonly joinHandlers = new Set<(peerId: string) => void>();
   private closed = false;
   /** The peer an update is currently arriving from, so it is not relayed straight back. */
   private applyingFrom: string | null = null;
@@ -55,6 +61,8 @@ export class CollabProvider {
   private readonly firstContent: Promise<void>;
   private markSynced: () => void = () => undefined;
   private hasContent = false;
+  /** Set while pruning presence locally, so the clean-up is not broadcast. */
+  private quietAwareness = false;
 
   constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc(), resyncMs: number = RESYNC_MS) {
     this.doc = doc;
@@ -64,9 +72,7 @@ export class CollabProvider {
       this.markSynced = resolve;
     });
 
-    transport.onMessage((channel, payload, peerId) => this.receive(channel, payload, peerId));
-    transport.onPeerJoin((peerId) => this.greet(peerId));
-    transport.onPeerLeave(() => this.emitPeers());
+    this.wire(transport);
 
     this.doc.on("update", this.onDocUpdate);
     this.awareness.on("update", this.onAwarenessUpdate);
@@ -74,6 +80,79 @@ export class CollabProvider {
     this.ticker = setInterval(() => this.requestResync(), resyncMs);
     // Node only, and only so a test process is not held open by the interval.
     (this.ticker as { unref?: () => void }).unref?.();
+  }
+
+  private wire(t: CollabTransport): void {
+    t.onMessage((channel, payload, peerId) => this.receive(channel, payload, peerId));
+    t.onPeerJoin((peerId) => {
+      this.greet(peerId);
+      for (const h of this.joinHandlers) h(peerId);
+    });
+    t.onPeerLeave(() => this.emitPeers());
+  }
+
+  /** This peer's transport id, which is how the others address it. */
+  get selfId(): string {
+    return this.transport.selfId;
+  }
+
+  /** Who we are connected to right now, by transport id. */
+  connectedPeers(): string[] {
+    return this.transport.peers();
+  }
+
+  /**
+   * Send on a channel the provider carries but does not interpret: the base file, and the
+   * session's own control messages. Routed through here so a move to a new room does not
+   * leave a caller holding a closed transport.
+   */
+  sendOn(channel: Channel, payload: Uint8Array, target: string | string[] | null): void {
+    if (this.closed) return;
+    if (Array.isArray(target) && !target.length) return;
+    this.transport.send(channel, payload, target);
+  }
+
+  onChannel(
+    channel: Channel,
+    handler: (payload: Uint8Array, peerId: string) => void,
+  ): { dispose(): void } {
+    const set = this.channelHandlers.get(channel) ?? new Set();
+    this.channelHandlers.set(channel, set);
+    set.add(handler);
+    return { dispose: () => set.delete(handler) };
+  }
+
+  onPeerJoined(handler: (peerId: string) => void): { dispose(): void } {
+    this.joinHandlers.add(handler);
+    return { dispose: () => this.joinHandlers.delete(handler) };
+  }
+
+  /**
+   * Move to a different room, keeping the document, the presence channel and whatever the
+   * editor has bound to. Only the network underneath is replaced, so nothing is re-seeded
+   * and no content is re-sent from scratch.
+   */
+  async moveTo(next: CollabTransport): Promise<void> {
+    if (this.closed) return;
+    const previous = this.transport;
+    this.transport = next;
+    this.wire(next);
+
+    // Whoever was in the old room is not here, and should not linger for the awareness
+    // timeout. Anyone who followed us re-announces on connecting. This clean-up is purely
+    // local: broadcasting it would tell the new room to forget peers that are in it.
+    const others = [...this.awareness.getStates().keys()].filter((id) => id !== this.doc.clientID);
+    if (others.length) {
+      this.quietAwareness = true;
+      try {
+        removeAwarenessStates(this.awareness, others, "moved");
+      } finally {
+        this.quietAwareness = false;
+      }
+    }
+
+    await previous.close().catch(() => undefined);
+    this.emitPeers();
   }
 
   /**
@@ -102,7 +181,12 @@ export class CollabProvider {
   }
 
   private receive(channel: Channel, payload: Uint8Array, peerId: string): void {
-    if (this.closed || channel === "base") return; // the base file is the session's business, not the CRDT's
+    if (this.closed) return;
+    // The base file and the control messages belong to the session, not the CRDT.
+    if (channel === "base" || channel === "control") {
+      for (const h of this.channelHandlers.get(channel) ?? []) h(payload, peerId);
+      return;
+    }
     if (channel === "sync") {
       const enc = encoding.createEncoder();
       // Applying runs the doc-update handler synchronously, which reads this to know
@@ -125,7 +209,12 @@ export class CollabProvider {
         this.transport.send("sync", encoding.toUint8Array(enc), peerId);
       }
     } else {
-      applyAwarenessUpdate(this.awareness, payload, this);
+      this.applyingFrom = peerId;
+      try {
+        applyAwarenessUpdate(this.awareness, payload, this);
+      } finally {
+        this.applyingFrom = null;
+      }
     }
   }
 
@@ -151,9 +240,18 @@ export class CollabProvider {
     changes: { added: number[]; updated: number[]; removed: number[] },
     origin: unknown,
   ): void => {
-    if (origin !== this) {
-      const changed = [...changes.added, ...changes.updated, ...changes.removed];
-      this.transport.send("awareness", encodeAwarenessUpdate(this.awareness, changed), null);
+    const changed = [...changes.added, ...changes.updated, ...changes.removed];
+    if (!this.quietAwareness && changed.length) {
+      const update = encodeAwarenessUpdate(this.awareness, changed);
+      if (origin !== this) {
+        this.transport.send("awareness", update, null); // ours: tell everyone
+      } else {
+        // Arrived from a peer and genuinely changed something, so pass it on: without
+        // this, a partial mesh leaves people invisible to each other, and you cannot
+        // remove someone you cannot see. Stale updates change nothing, so it dies out.
+        const onward = this.transport.peers().filter((p) => p !== this.applyingFrom);
+        if (onward.length) this.transport.send("awareness", update, onward);
+      }
     }
     this.emitPeers();
   };
@@ -201,7 +299,7 @@ export class CollabProvider {
       if (clientId === this.doc.clientID) continue;
       const s = state as Partial<Presence>;
       if (!s || typeof s.name !== "string") continue; // a peer that has not introduced itself yet
-      out.push({ clientId, name: s.name, colour: s.colour ?? "#888", selection: s.selection });
+      out.push({ clientId, name: s.name, colour: s.colour ?? "#888", peerId: s.peerId, selection: s.selection });
     }
     return out.sort((a, b) => a.clientId - b.clientId);
   }

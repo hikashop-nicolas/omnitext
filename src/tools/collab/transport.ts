@@ -8,7 +8,7 @@ import { joinRoom, selfId, type MessageAction, type Room } from "trystero";
 // mqtt, or a self-hosted relay) touches this file and nothing else.
 
 /** The message streams a session needs, kept apart so none has to carry a type tag. */
-export type Channel = "sync" | "awareness" | "base";
+export type Channel = "sync" | "awareness" | "base" | "control";
 
 export type MessageHandler = (channel: Channel, payload: Uint8Array, peerId: string) => void;
 export type PeerHandler = (peerId: string) => void;
@@ -26,7 +26,12 @@ export interface CollabTransport {
 }
 
 /** Action namespaces. Trystero encodes these into every frame, so keep them short. */
-const NAMESPACE: Record<Channel, string> = { sync: "ysync", awareness: "yaware", base: "ybase" };
+const NAMESPACE: Record<Channel, string> = {
+  sync: "ysync",
+  awareness: "yaware",
+  base: "ybase",
+  control: "yctl",
+};
 const CHANNELS = Object.keys(NAMESPACE) as Channel[];
 
 /** Namespaces the rooms so an id cannot collide with another Trystero app's. */

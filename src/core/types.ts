@@ -406,6 +406,9 @@ export interface Workspace {
   exportFile?(name: string, bytes: Uint8Array): void;
   /** The active editor's collaboration binding, or null when it has none. */
   activeCollabBinding?(): CollabBinding | null;
+  /** Close the active document, leaving an empty one and no crash-recovery copy.
+   *  Used when this peer is removed from a collaboration session. */
+  closeActive?(): void;
 }
 
 export interface ToolbarButton {
