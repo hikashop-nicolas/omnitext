@@ -174,7 +174,9 @@ async function join(
     name: id,
     colour: "#123456",
     key: opts.key,
-    followMs: 5,
+    // Long enough for a re-key to relay a hop or two on a loaded CI runner. Too tight and
+    // a peer that did follow is reported as stranded, which is a flaky test, not a bug.
+    followMs: 300,
     makeTransport: (key) => mesh.transport(id, key.roomId),
   });
   await session.start();
