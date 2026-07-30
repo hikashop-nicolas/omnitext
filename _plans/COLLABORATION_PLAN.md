@@ -454,6 +454,33 @@ and 26 seconds to pair two peers, and it varies. A 25-second timeout looked like
 transport regression until the unchanged spike page connected in 26. Bisect against the
 spike before believing a regression.
 
+## 7d. Phase 3 (sheetedit), and the gap it exposed
+
+The shape and the library API are built and tested. Cells are keyed by `"r,c!Sheet"` in a
+`Y.Map` of the **inputs people typed**, never the computed values: the formula engine is
+deterministic, so every peer recalculates the same results, and the shared state stays
+small. Volatile functions (NOW, TODAY, RAND) already differ between peers and will keep
+differing; that is stated rather than hidden. sheetedit gained `cellInputs`,
+`onCellsChanged` and `applyRemoteCells`, with 8 e2e tests; the shared shape has 13.
+
+**Two things the live run found that no test would have.**
+
+1. **An untitled document travelled under a name with no extension**, so the receiving
+   side's format detection made a shared spreadsheet into plain text and the grid was
+   never offered. Fixed: an unnamed base now travels as `untitled` plus its format's
+   extension.
+
+2. **A binding belongs to an editor, and nothing checks that two peers are using the same
+   one.** A CSV opens in the text editor by default and in the grid on request. If one
+   person is in the grid and the other in the text view, one binds `sheet.cells` and the
+   other binds `codemirror`, so they sit in a session that reports itself connected while
+   neither ever sees the other's edits. This is the worst failure mode available: it looks
+   exactly like working.
+
+   The fix is for the session to carry which editor the shared document is bound to, and
+   for a joiner whose editor differs to be told plainly rather than left to discover it.
+   Until that exists, Phase 3 is not finished, and this is the next thing to build.
+
 ## 8. What this will not do
 
 - Merge two divergent *files*. Collaboration is live, on one agreed base. Reconciling two

@@ -131,6 +131,18 @@ function refreshBadge(state: ToolState): void {
   paintBadge(Math.max(0, total - state.readCount));
 }
 
+/**
+ * What to call the file we send. An untitled document has no name, and sending it as
+ * "document" strips the extension, which is how the other side decides what it is: a
+ * shared spreadsheet arrived as plain text and opened in the text editor, with no way to
+ * reach the grid. So an unnamed document travels under its format's extension.
+ */
+function baseName(host: HostAPI, filename: string | null, formatId: string | null): string {
+  if (filename) return filename;
+  const ext = formatId ? host.formats.byId(formatId)?.manifest.extensions?.[0] : undefined;
+  return ext ? `untitled${ext.startsWith(".") ? ext : `.${ext}`}` : "document";
+}
+
 function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): SessionHost {
   return {
     async currentDoc(): Promise<BaseDoc | null> {
@@ -140,7 +152,7 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
         ? await host.workspace.getActiveBytes()
         : new TextEncoder().encode(doc.text);
       if (!bytes) return null;
-      return { name: doc.filename ?? "document", bytes, hash: await hashBytes(bytes) };
+      return { name: baseName(host, doc.filename, doc.formatId), bytes, hash: await hashBytes(bytes) };
     },
 
     localState() {
