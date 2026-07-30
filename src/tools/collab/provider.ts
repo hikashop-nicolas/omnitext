@@ -13,9 +13,15 @@ import type { CollabTransport } from "./transport";
 // A Yjs provider over any CollabTransport: it carries the Yjs sync protocol and the
 // awareness protocol between peers, and owns nothing else.
 //
-// Trystero connects every peer to every other one, so an update reaches everyone
-// directly and this never relays what it receives. That is the whole reason the
-// origin check below is a plain equality test rather than a routing table.
+// It does NOT assume the mesh is complete. Trystero rooms are reported to leave pairs
+// unconnected (dmotz/trystero#161, #151): A sees C, B sees C, A and B never see each
+// other. So two things guard against divergence, and the tests cover both:
+//
+//   1. A remote update that changed our document is passed on to every peer except the
+//      one it came from, which carries it across a hole in the mesh.
+//   2. State vectors are exchanged periodically. Relaying cannot help with a message
+//      lost on a working link, because Yjs updates are deltas and nobody notices a gap;
+//      comparing state vectors heals it whatever the cause.
 
 export interface Presence {
   name: string;
@@ -30,14 +36,20 @@ export interface Peer extends Presence {
 
 export type PeersHandler = (peers: Peer[]) => void;
 
+/** How often peers compare state vectors. Cheap: a state vector is small, and a match costs nothing. */
+export const RESYNC_MS = 15_000;
+
 export class CollabProvider {
   readonly doc: Y.Doc;
   readonly awareness: Awareness;
   private readonly transport: CollabTransport;
   private readonly peersHandlers = new Set<PeersHandler>();
   private closed = false;
+  /** The peer an update is currently arriving from, so it is not relayed straight back. */
+  private applyingFrom: string | null = null;
+  private readonly ticker: ReturnType<typeof setInterval>;
 
-  constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc()) {
+  constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc(), resyncMs: number = RESYNC_MS) {
     this.doc = doc;
     this.awareness = new Awareness(doc);
     this.transport = transport;
@@ -48,6 +60,22 @@ export class CollabProvider {
 
     this.doc.on("update", this.onDocUpdate);
     this.awareness.on("update", this.onAwarenessUpdate);
+
+    this.ticker = setInterval(() => this.requestResync(), resyncMs);
+    // Node only, and only so a test process is not held open by the interval.
+    (this.ticker as { unref?: () => void }).unref?.();
+  }
+
+  /**
+   * Ask every peer for whatever this document is missing. It is a pull, not a push: it
+   * repairs the caller. That is enough because every peer runs the same timer, so a gap
+   * in either direction closes within one interval.
+   */
+  requestResync(): void {
+    if (this.closed || !this.transport.peers().length) return;
+    const enc = encoding.createEncoder();
+    writeSyncStep1(enc, this.doc);
+    this.transport.send("sync", encoding.toUint8Array(enc), null);
   }
 
   /** A peer arrived: ask what it already has, and tell it we are here. */
@@ -67,7 +95,14 @@ export class CollabProvider {
     if (this.closed) return;
     if (channel === "sync") {
       const enc = encoding.createEncoder();
-      readSyncMessage(decoding.createDecoder(payload), enc, this.doc, this);
+      // Applying runs the doc-update handler synchronously, which reads this to know
+      // where the update came from.
+      this.applyingFrom = peerId;
+      try {
+        readSyncMessage(decoding.createDecoder(payload), enc, this.doc, this);
+      } finally {
+        this.applyingFrom = null;
+      }
       // A step-1 is answered with a step-2; anything else leaves the encoder empty.
       if (encoding.length(enc) > 0) {
         this.transport.send("sync", encoding.toUint8Array(enc), peerId);
@@ -77,12 +112,22 @@ export class CollabProvider {
     }
   }
 
-  /** `this` as the origin marks an update as arrived-from-a-peer, so it is not echoed back. */
+  /** `this` as the origin marks an update as arrived-from-a-peer rather than made here. */
   private readonly onDocUpdate = (update: Uint8Array, origin: unknown): void => {
-    if (origin === this || this.closed) return;
+    if (this.closed) return;
     const enc = encoding.createEncoder();
     writeUpdate(enc, update);
-    this.transport.send("sync", encoding.toUint8Array(enc), null);
+    const payload = encoding.toUint8Array(enc);
+
+    if (origin !== this) {
+      this.transport.send("sync", payload, null); // our own edit: tell everyone
+      return;
+    }
+    // A remote update that genuinely changed the document: pass it on, in case a peer we
+    // can see cannot see the sender. Yjs ignores an update it already has, so this dies
+    // out rather than circulating.
+    const onward = this.transport.peers().filter((p) => p !== this.applyingFrom);
+    if (onward.length) this.transport.send("sync", payload, onward);
   };
 
   private readonly onAwarenessUpdate = (
@@ -130,6 +175,7 @@ export class CollabProvider {
     // awareness timeout.
     removeAwarenessStates(this.awareness, [this.doc.clientID], "local");
     this.closed = true;
+    clearInterval(this.ticker);
     this.doc.off("update", this.onDocUpdate);
     this.awareness.off("update", this.onAwarenessUpdate);
     this.awareness.destroy();

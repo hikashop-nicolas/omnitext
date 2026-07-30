@@ -16,8 +16,8 @@ export type PeerHandler = (peerId: string) => void;
 export interface CollabTransport {
   /** The id this peer is known by to the others. */
   readonly selfId: string;
-  /** Send to one peer, or to every peer when peerId is null. */
-  send(channel: Channel, payload: Uint8Array, peerId: string | null): void;
+  /** Send to one peer, to a chosen set, or to every peer when target is null. */
+  send(channel: Channel, payload: Uint8Array, target: string | string[] | null): void;
   onMessage(handler: MessageHandler): void;
   onPeerJoin(handler: PeerHandler): void;
   onPeerLeave(handler: PeerHandler): void;
@@ -83,10 +83,11 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
 
   return {
     selfId,
-    send(channel, payload, peerId) {
+    send(channel, payload, target) {
+      if (Array.isArray(target) && !target.length) return;
       // Fire and forget: a peer that vanished mid-send is a normal event, not an error,
       // and the sync protocol recovers on the next connection.
-      void actions[channel].send(payload, peerId ? { target: peerId } : undefined)
+      void actions[channel].send(payload, target ? { target } : undefined)
         .catch(() => undefined);
     },
     onMessage: (handler) => void handlers.push(handler),

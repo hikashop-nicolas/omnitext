@@ -346,6 +346,38 @@ the failure and say plainly that these two networks cannot be joined. Silently s
 encrypted with a key derived from the link secret. They are not, and the honest version
 is now written there.
 
+### The mesh is not complete, and the provider no longer assumes it is
+
+Trystero issues [#161](https://github.com/dmotz/trystero/issues/161) (peer-assisted
+signalling) and [#151](https://github.com/dmotz/trystero/issues/151) both report the same
+thing from different users: in a room of three or more, some pairs never connect. A sees C,
+B sees C, A and B never see each other.
+
+The first version of the provider assumed a full mesh and therefore did not relay anything
+it received. A test with one pair unlinked showed what that costs: **A's edits never
+reached B, and the two diverged in silence.** That is the worst failure this system can
+have, since both peers look connected and both look correct.
+
+Two mechanisms now guard it, and each was verified by removing it and watching the right
+tests fail:
+
+1. **Relay.** A remote update that genuinely changed our document is passed on to every
+   peer except the sender. Yjs discards an update it already holds, so this dies out
+   instead of circulating. In a two-peer room it sends nothing at all.
+2. **Periodic state-vector exchange**, every 15s and on demand via `requestResync()`.
+   Relaying cannot fix a message lost on a *working* link, because Yjs updates are deltas
+   and nobody notices a gap. Comparing state vectors heals it whatever the cause: a
+   dropped frame, a reconnection, a peer that was briefly unreachable. Note it is a pull,
+   so it repairs the peer that asks; every peer running the same timer is what makes it
+   symmetric.
+
+**On issue #161 specifically:** it would help, but not with NAT. Peer-assisted signalling
+carries *signalling* through a third peer so two peers can complete a handshake they would
+otherwise miss. It cannot help two peers whose networks cannot be joined; that is what TURN
+is for. It is worth having, and worth watching, but it is an open issue with no
+implementation, and the two mechanisms above make the Yjs layer converge regardless of
+topology. We do not depend on it.
+
 ## 8. What this will not do
 
 - Merge two divergent *files*. Collaboration is live, on one agreed base. Reconciling two

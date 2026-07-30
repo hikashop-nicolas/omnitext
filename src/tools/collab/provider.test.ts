@@ -31,26 +31,44 @@ class FakeNetwork {
   readonly sent: Record<Channel, number> = { sync: 0, awareness: 0 };
   /** Set to drop every sync message, to prove the assertions have teeth. */
   partitioned = false;
+  /** Pairs that never manage to connect, for the partial-mesh tests. */
+  private readonly unlinked = new Set<string>();
+
+  private static pair(a: string, b: string): string {
+    return [a, b].sort().join("|");
+  }
+
+  /** Two peers that cannot see each other, as Trystero rooms are reported to do. */
+  unlink(a: string, b: string): void {
+    this.unlinked.add(FakeNetwork.pair(a, b));
+  }
+
+  private linked(a: string, b: string): boolean {
+    return !this.unlinked.has(FakeNetwork.pair(a, b));
+  }
 
   connect(id: string): CollabTransport {
     const node: Node = { id, message: [], join: [], leave: [], open: true };
     for (const other of this.nodes.values()) {
-      if (!other.open) continue;
+      if (!other.open || !this.linked(id, other.id)) continue;
       this.queue.push(() => other.join.forEach((h) => h(id)));
       this.queue.push(() => node.join.forEach((h) => h(other.id)));
     }
     this.nodes.set(id, node);
 
+    const visible = (): string[] =>
+      [...this.nodes.values()].filter((n) => n.open && n.id !== id && this.linked(id, n.id)).map((n) => n.id);
+
     return {
       selfId: id,
-      send: (channel, payload, peerId) => {
+      send: (channel, payload, target) => {
         this.sent[channel]++;
         if (this.partitioned && channel === "sync") return;
         const copy = payload.slice(); // the encoder reuses its buffer
-        const targets = peerId ? [peerId] : [...this.nodes.keys()].filter((k) => k !== id);
-        for (const target of targets) {
+        const requested = target === null ? visible() : Array.isArray(target) ? target : [target];
+        for (const to of requested.filter((t) => this.linked(id, t))) {
           this.queue.push(() => {
-            const n = this.nodes.get(target);
+            const n = this.nodes.get(to);
             if (n?.open) n.message.forEach((h) => h(channel, copy, id));
           });
         }
@@ -58,7 +76,7 @@ class FakeNetwork {
       onMessage: (h) => void node.message.push(h),
       onPeerJoin: (h) => void node.join.push(h),
       onPeerLeave: (h) => void node.leave.push(h),
-      peers: () => [...this.nodes.values()].filter((n) => n.open && n.id !== id).map((n) => n.id),
+      peers: visible,
       close: async () => {
         node.open = false;
         this.nodes.delete(id);
@@ -137,6 +155,106 @@ describe("CollabProvider", () => {
     const [first] = peers.map(text);
     for (const p of peers) expect(text(p)).toBe(first);
     expect(first).toHaveLength(3);
+  });
+
+  // Trystero rooms do not reliably form a full mesh. Two open reports say so
+  // (dmotz/trystero#161 and #151): in a room of three, A and C connect, B and C connect,
+  // and A and B never do. So an update must reach everyone the sender cannot see, by
+  // going through whoever can see both.
+  it("converges when the mesh is partial", async () => {
+    const net = new FakeNetwork();
+    net.unlink("a", "b");
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    const c = new CollabProvider(net.connect("c"));
+    await net.settle();
+
+    expect(a.doc.clientID).not.toBe(b.doc.clientID);
+    a.doc.getText("t").insert(0, "from A");
+    await net.settle();
+
+    expect(text(c)).toBe("from A"); // directly
+    expect(text(b)).toBe("from A"); // only reachable through C
+  });
+
+  it("converges when a partial mesh is also edited from the far side", async () => {
+    const net = new FakeNetwork();
+    net.unlink("a", "b");
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    const c = new CollabProvider(net.connect("c"));
+    await net.settle();
+
+    a.doc.getText("t").insert(0, "AAA");
+    b.doc.getText("t").insert(0, "BBB");
+    await net.settle();
+
+    expect(text(a)).toBe(text(b));
+    expect(text(b)).toBe(text(c));
+    expect(text(a)).toHaveLength(6);
+  });
+
+  // Relaying is not enough on its own: a message lost on a working link is never resent,
+  // because Yjs updates are deltas and nobody notices the gap. Exchanging state vectors
+  // heals it whatever the cause. A resync is a pull, so it is the peer that fell behind
+  // whose request repairs it; in a real session every peer runs the same timer.
+  it("heals a dropped update when the peers compare notes again", async () => {
+    const net = new FakeNetwork();
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    await net.settle();
+
+    net.partitioned = true;
+    a.doc.getText("t").insert(0, "lost in transit");
+    await net.settle();
+    expect(text(b)).toBe("");
+
+    net.partitioned = false;
+    b.requestResync();
+    await net.settle();
+    expect(text(b)).toBe("lost in transit");
+  });
+
+  it("heals in whichever direction the gap is, once every peer has ticked", async () => {
+    const net = new FakeNetwork();
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    await net.settle();
+
+    net.partitioned = true;
+    a.doc.getText("t").insert(0, "A wrote this");
+    b.doc.getText("t").insert(0, "B wrote this");
+    await net.settle();
+    expect(text(a)).not.toBe(text(b));
+
+    net.partitioned = false;
+    a.requestResync();
+    b.requestResync();
+    await net.settle();
+
+    expect(text(a)).toBe(text(b));
+    expect(text(a)).toContain("A wrote this");
+    expect(text(a)).toContain("B wrote this");
+  });
+
+  it("resyncs on its own timer, with no help from the caller", async () => {
+    const net = new FakeNetwork();
+    const a = new CollabProvider(net.connect("a"), new Y.Doc(), 5);
+    const b = new CollabProvider(net.connect("b"), new Y.Doc(), 5);
+    await net.settle();
+
+    net.partitioned = true;
+    a.doc.getText("t").insert(0, "dropped");
+    await net.settle();
+    expect(text(b)).toBe("");
+
+    net.partitioned = false;
+    await new Promise((r) => setTimeout(r, 30)); // let the 5ms tickers fire
+    await net.settle();
+
+    expect(text(b)).toBe("dropped");
+    await a.destroy();
+    await b.destroy();
   });
 
   it("does not echo a remote update back onto the network", async () => {
