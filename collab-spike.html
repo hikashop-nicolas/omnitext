@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collaboration transport spike</title>
+    <style>
+      :root { color-scheme: light dark; --border: #8884; --muted: #8889; }
+      body {
+        font: 14px/1.55 system-ui, -apple-system, sans-serif;
+        margin: 0; padding: 20px; max-width: 820px; margin-inline: auto;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 18px; }
+      fieldset { border: 1px solid var(--border); border-radius: 8px; margin: 0 0 14px; padding: 12px 14px; }
+      legend { padding: 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+      #link { width: 100%; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 6px;
+              border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; }
+      #pad { width: 100%; min-height: 190px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+             padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; }
+      #peers { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+      #peers li { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border);
+                  border-radius: 999px; padding: 3px 11px; font-size: 13px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+      .empty { color: var(--muted); }
+      #log { margin: 0; max-height: 190px; overflow: auto; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+             white-space: pre-wrap; color: var(--muted); }
+      #state { font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Collaboration transport spike</h1>
+    <p class="sub">
+      Phase 0 of the collaboration plan: Yjs over Trystero, room and secret from the URL
+      fragment, no editor. Open the link below in a second browser.
+    </p>
+
+    <fieldset>
+      <legend>Room</legend>
+      <input id="link" readonly />
+      <p style="margin: 8px 0 0">
+        <button id="copy">Copy link</button>
+        <button id="fresh">New room</button>
+        <span id="state" style="margin-left: 10px">starting ...</span>
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Peers</legend>
+      <ul id="peers"><li class="empty">nobody else yet</li></ul>
+    </fieldset>
+
+    <fieldset>
+      <legend>Shared text</legend>
+      <textarea id="pad" spellcheck="false" autofocus placeholder="Type here. It should appear in the other browser."></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Log</legend>
+      <pre id="log"></pre>
+    </fieldset>
+
+    <script type="module" src="/src/tools/collab/spike.ts"></script>
+  </body>
+</html>

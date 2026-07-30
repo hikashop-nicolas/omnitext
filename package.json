@@ -82,6 +82,7 @@
     "js-yaml": "^5.2.2",
     "json5": "^2.2.3",
     "latex.js": "^0.12.6",
+    "lib0": "^0.2.117",
     "libarchive-wasm": "^1.2.0",
     "libheif-js": "^1.19.8",
     "localml": "github:hikashop-nicolas/localml",
@@ -104,8 +105,11 @@
     "svgedit": "^7.4.2",
     "three": "^0.185.1",
     "toml": "^5.0.0",
+    "trystero": "^0.25.3",
     "utif": "^3.1.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.31"
   },
   "overrides": {
     "react": "18.3.1",

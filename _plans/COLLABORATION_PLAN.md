@@ -1,6 +1,6 @@
 # Collaboration plan
 
-Draft, 2026-07-28. Not started.
+Drafted 2026-07-28. **Phase 0 done 2026-07-30** (see section 7b); phases 1 to 5 open.
 
 Goal: two or more people editing the same document at the same time, with no server,
 no accounts, and no loss of the round-trip fidelity every format in this project is
@@ -42,9 +42,9 @@ and what they save is correct. Nobody's save is authoritative over anyone else's
 
 - **Session lifecycle.** Start a session (become host), join one from a link, leave.
   One session at a time, tied to the active document.
-- **Transport.** Yjs `Y.Doc` + a WebRTC provider. Room id and secret live in the URL
-  fragment, never sent to the static host; payloads are encrypted with a key derived
-  from the secret.
+- **Transport.** Yjs `Y.Doc` + a WebRTC provider (Trystero; see section 7b for why, and
+  `src/tools/collab/`). Room id and secret live in the URL fragment, so the static host
+  never sees either. What the secret protects is stated precisely in section 6.
 - **Base transfer.** On join, the host sends the base bytes over the data channel,
   chunked, with a hash. See section 4.
 - **Presence.** Yjs awareness: peer name (self-chosen, no identity), colour, and an
@@ -234,6 +234,12 @@ is what makes collaboration tolerable to ship.
 The threat model in `archive/plan.md` still holds and still applies; it is not repeated
 here. The essentials, which must appear in the UI and not only in the docs:
 
+- **What the secret actually does**, corrected from the first draft, which said payloads
+  are encrypted with a key derived from it. They are not. The secret is Trystero's room
+  password: it encrypts the session descriptions passing through the relay (AES-GCM), so
+  someone who learns the room id but not the secret cannot complete a handshake. Document
+  traffic is then encrypted by WebRTC's own DTLS, peer to peer. The end-to-end claim
+  holds and no relay ever sees content, but it is DTLS doing that work, not the link.
 - The link is the key. Anyone who ever sees it is in, forever. There is no identity, no
   revocation and no forward secrecy.
 - The fragment leaks through synced browser history, copy and paste, screen sharing, and
@@ -251,7 +257,7 @@ room and drops everyone who has not been given the new one.
 
 | Phase | Work | Gate before starting |
 |---|---|---|
-| 0 | Transport spike: Yjs + WebRTC provider, room from fragment, two tabs, no editor | Confirm the provider choice is maintained (the founding review flagged Trystero for exactly this) |
+| 0 | **Done.** Transport spike: Yjs + WebRTC provider, room from fragment, no editor | Provider confirmed maintained, and the answer inverted the review's guess (7b) |
 | 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | Phase 0 syncs reliably between two different browsers (see below) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | Phase 1 survives a real two-person editing session |
 | 3 | sheetedit binding, cell content only; structural edits disabled for guests | Phase 2 shipped and used |
@@ -274,6 +280,52 @@ What one machine cannot test is NAT traversal: both peers connect over loopback 
 need a STUN or relay candidate. That is a deployment risk rather than an architectural one,
 so it gates shipping to users, not the spike. The cheap version is a laptop on wifi and a
 phone on cellular, which is a genuinely different network path.
+
+## 7b. Phase 0 result (2026-07-30)
+
+**The provider gate resolved the other way round.** The founding review flagged Trystero
+as the maintenance risk. The registry says the opposite, and it is not close:
+
+| | last release | releases in 24 months | repo last pushed |
+|---|---|---|---|
+| y-webrtc | 2023-12 | 0 of 34 | 2024-04 |
+| simple-peer (y-webrtc's transport) | 2022-02 | 0 | 2024-06, 128 open issues |
+| Trystero | 2026-07 | 20 of 78 | 2026-07, 7 open issues |
+
+So the spike is built on **Trystero** (nostr strategy, 42 KB), and the y-webrtc route was
+declined: it is two years dormant on top of a four-year-dormant WebRTC wrapper. Trystero
+is not a Yjs provider, so we write that layer, which turns out to be a feature rather than
+a cost. `src/tools/collab/`:
+
+- `transport.ts` - the `CollabTransport` interface plus the Trystero adapter. The provider
+  is written against the interface, never against Trystero. That is what lets the tests
+  run with no network, and it means changing strategy (nostr to mqtt, or a self-hosted
+  relay) touches one file.
+- `provider.ts` - Yjs sync + awareness over a transport, and nothing else.
+- `link.ts` - room id and secret, generated and parsed, fragment only.
+- `spike.ts` + `/collab-spike.html` - the probe. Dev-server only: Vite's build takes
+  `index.html` alone, so this ships nowhere, and the shipped bundle gained zero bytes
+  (nothing in the app imports any of it yet).
+
+**What was proven.** 33 tests, and each one checked by breaking the thing it guards:
+removing the origin check, dropping the sync handshake, skipping the departure notice and
+reverting the peer-hook fan-out each failed exactly the test meant to catch it. The suite
+includes a partition test that asserts peers do *not* converge when sync is dropped, so
+the convergence assertions cannot pass vacuously against two empty documents.
+
+Then the real gate, Chrome and Safari on one machine, which is a sterner pairing than the
+Chrome/Firefox the plan asked for since WebKit's WebRTC is the most divergent of the
+three: connected through the public relay in a few seconds and synced **both ways**. The
+spike publishes a digest of its own text through awareness, so either browser shows
+whether the other has genuinely converged rather than merely staying quiet.
+
+**What was not proven, and still gates shipping rather than Phase 1:** NAT traversal. Both
+peers were on loopback and never needed a STUN or relay candidate. The cheap real test
+stays what section 7a says: a laptop on wifi and a phone on cellular.
+
+**One correction fell out of this**, in section 6: the draft claimed payloads are
+encrypted with a key derived from the link secret. They are not, and the honest version
+is now written there.
 
 ## 8. What this will not do
 
