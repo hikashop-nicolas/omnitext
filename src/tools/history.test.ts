@@ -61,6 +61,7 @@ describe("history snapshot for binary documents", () => {
         text: "", // binary editors report empty text
         binary: true,
         readOnly: false,
+        dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(bytes),
     });
@@ -84,6 +85,7 @@ describe("history snapshot for binary documents", () => {
         text: "",
         binary: true,
         readOnly: false,
+        dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(current),
     });
@@ -107,6 +109,7 @@ describe("history snapshot for binary documents", () => {
         text: "",
         binary: true,
         readOnly: false,
+        dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
@@ -134,6 +137,7 @@ describe("history snapshot for editors with a session state (PDF)", () => {
         text: "",
         binary: true,
         readOnly: false,
+        dirty: false,
       }),
       getActiveState: () => st,
       getActiveBytes: () => Promise.resolve(null),
@@ -171,6 +175,7 @@ describe("history snapshot for text documents", () => {
         text,
         binary: false,
         readOnly: false,
+        dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
@@ -195,6 +200,7 @@ describe("history snapshot for text documents", () => {
         text: "   \n  ",
         binary: false,
         readOnly: false,
+        dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
     });
@@ -215,7 +221,7 @@ describe("history snapshot cost", () => {
     const host = fakeHost({
       getActiveDocument: () => ({
         sessionId: "s1", key: "k", uri: null, filename: "a.xlsx", formatId: "xlsx",
-        text: "", binary: true, readOnly: false,
+        text: "", binary: true, readOnly: false, dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(new Uint8Array([99])),
     });
@@ -232,7 +238,7 @@ describe("history state change count", () => {
     const host = fakeHost({
       getActiveDocument: () => ({
         sessionId: "s1", key: "k", uri: null, filename: "a.pdf", formatId: "pdf",
-        text: "", binary: true, readOnly: false,
+        text: "", binary: true, readOnly: false, dirty: false,
       }),
       getActiveState: () => state,
       getActiveBytes: () => Promise.resolve(null),
@@ -250,7 +256,7 @@ describe("history state change count", () => {
     const host = fakeHost({
       getActiveDocument: () => ({
         sessionId: "s1", key: "k", uri: null, filename: "a.pdf", formatId: "pdf",
-        text: "", binary: true, readOnly: false,
+        text: "", binary: true, readOnly: false, dirty: false,
       }),
       getActiveState: () => ({ anything: true }),
       getActiveBytes: () => Promise.resolve(null),
@@ -270,7 +276,7 @@ describe("history restore", () => {
     const host = fakeHost({
       getActiveDocument: () => ({
         sessionId: "s1", key: "k", uri: null, filename: "a.txt", formatId: "text",
-        text: current, binary: false, readOnly: false,
+        text: current, binary: false, readOnly: false, dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(null),
       setActiveText: (text: string) => {
@@ -290,7 +296,7 @@ describe("history restore", () => {
     const host = fakeHost({
       getActiveDocument: () => ({
         sessionId: "s1", key: "k", uri: null, filename: "a.xlsx", formatId: "xlsx",
-        text: "", binary: true, readOnly: false,
+        text: "", binary: true, readOnly: false, dirty: false,
       }),
       getActiveBytes: () => Promise.resolve(new Uint8Array([7, 7, 7])),
       setActiveBytes: () => {},
@@ -377,6 +383,7 @@ describe("history snapshot for read-only documents", () => {
         text: "",
         binary: true,
         readOnly: true,
+        dirty: false,
       }),
       getActiveBytes: () => {
         bytesRead = true; // the export is what costs; it must not even be asked for

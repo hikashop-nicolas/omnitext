@@ -335,3 +335,25 @@ describe("CollabProvider", () => {
     expect(text(b)).toBe("from the caller's doc");
   });
 });
+
+describe("presence shape", () => {
+  // Off-the-shelf Yjs editor bindings look for `user.name` and `user.color` specifically.
+  // Without them, y-codemirror.next labels every remote cursor "Anonymous", which is what
+  // it did the first time this ran in the app.
+  it("publishes the user field the editor bindings read", async () => {
+    const net = new FakeNetwork();
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    await net.settle();
+
+    a.setPresence({ name: "Ada", colour: "#e5484d" });
+    await net.settle();
+
+    const seen = b.awareness.getStates().get(a.doc.clientID) as
+      | { user?: { name?: string; color?: string } }
+      | undefined;
+    expect(seen?.user).toEqual({ name: "Ada", color: "#e5484d" });
+    // And our own shape still works, so the peer list is unaffected.
+    expect(b.peers().map((p) => p.name)).toEqual(["Ada"]);
+  });
+});

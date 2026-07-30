@@ -380,6 +380,8 @@ export interface ActiveDocument {
   binary: boolean;
   /** A view-only surface (media/image/archive viewers): it has no edits to track or store. */
   readOnly: boolean;
+  /** Unsaved changes. Collaboration refuses to replace a dirty document with a host's. */
+  dirty: boolean;
 }
 
 export interface Workspace {
@@ -402,6 +404,8 @@ export interface Workspace {
   openFile?(name: string, bytes: Uint8Array, mime?: string, archivePath?: string): void;
   /** Save/share in-memory bytes as a file (native share sheet, else browser download). */
   exportFile?(name: string, bytes: Uint8Array): void;
+  /** The active editor's collaboration binding, or null when it has none. */
+  activeCollabBinding?(): CollabBinding | null;
 }
 
 export interface ToolbarButton {

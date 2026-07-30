@@ -53,6 +53,8 @@ export interface BaseTransferOptions {
   serve(): Promise<BaseDoc | null>;
   /** A verified base arrived: open it. */
   accept(doc: BaseDoc): void;
+  /** The offer matched what we already hold, so there is nothing to transfer. */
+  alreadyHave?(): void;
   /** Anything the person needs told, refusals included. */
   report(message: string): void;
   maxBytes?: number;
@@ -94,8 +96,12 @@ export class BaseTransfer {
   private onOffer(offer: Offer, peerId: string): void {
     const mine = this.opts.local();
 
-    // Already the same file. This is the common case when both people were sent it.
-    if (mine && mine.hash === offer.hash) return;
+    // Already the same file, the common case when both people were sent it. Nothing to
+    // fetch, but the session still has to be told, or a joiner would never bind.
+    if (mine && mine.hash === offer.hash) {
+      this.opts.alreadyHave?.();
+      return;
+    }
 
     if (mine?.dirty) {
       const reason = "it has unsaved changes to a different document";

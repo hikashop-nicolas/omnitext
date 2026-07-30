@@ -38,6 +38,10 @@ export type PeersHandler = (peers: Peer[]) => void;
 
 /** How often peers compare state vectors. Cheap: a state vector is small, and a match costs nothing. */
 export const RESYNC_MS = 15_000;
+/** y-protocols sync message types; only step 1 carries no content. */
+const SYNC_STEP_1 = 0;
+/** How long a joiner waits to hear the session's contents before giving up on waiting. */
+export const SYNC_WAIT_MS = 8_000;
 
 export class CollabProvider {
   readonly doc: Y.Doc;
@@ -48,11 +52,17 @@ export class CollabProvider {
   /** The peer an update is currently arriving from, so it is not relayed straight back. */
   private applyingFrom: string | null = null;
   private readonly ticker: ReturnType<typeof setInterval>;
+  private readonly firstContent: Promise<void>;
+  private markSynced: () => void = () => undefined;
+  private hasContent = false;
 
   constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc(), resyncMs: number = RESYNC_MS) {
     this.doc = doc;
     this.awareness = new Awareness(doc);
     this.transport = transport;
+    this.firstContent = new Promise<void>((resolve) => {
+      this.markSynced = resolve;
+    });
 
     transport.onMessage((channel, payload, peerId) => this.receive(channel, payload, peerId));
     transport.onPeerJoin((peerId) => this.greet(peerId));
@@ -98,10 +108,17 @@ export class CollabProvider {
       // Applying runs the doc-update handler synchronously, which reads this to know
       // where the update came from.
       this.applyingFrom = peerId;
+      let kind = SYNC_STEP_1;
       try {
-        readSyncMessage(decoding.createDecoder(payload), enc, this.doc, this);
+        kind = readSyncMessage(decoding.createDecoder(payload), enc, this.doc, this);
       } finally {
         this.applyingFrom = null;
+      }
+      // A step-1 is only a question. Content arrives as a step-2 or an update, and that
+      // is the moment a joiner may safely adopt the shared document.
+      if (kind !== SYNC_STEP_1 && !this.hasContent) {
+        this.hasContent = true;
+        this.markSynced();
       }
       // A step-1 is answered with a step-2; anything else leaves the encoder empty.
       if (encoding.length(enc) > 0) {
@@ -141,9 +158,40 @@ export class CollabProvider {
     this.emitPeers();
   };
 
-  /** Publish who we are and what we have selected. */
+  /**
+   * Publish who we are and what we have selected.
+   *
+   * The `user` field is duplication with a reason: every off-the-shelf Yjs editor binding
+   * (y-codemirror.next among them) looks for exactly `user.name` and `user.color`, and
+   * labels remote cursors "Anonymous" without it.
+   */
   setPresence(presence: Presence): void {
-    this.awareness.setLocalState({ ...presence });
+    this.awareness.setLocalState({
+      ...presence,
+      user: { name: presence.name, color: presence.colour },
+    });
+  }
+
+  /** True once something from a peer has actually been applied to this document. */
+  get synced(): boolean {
+    return this.hasContent;
+  }
+
+  /**
+   * Resolves once the session's contents have arrived, or after a timeout if nobody
+   * answers. A joiner must wait for this before adopting the shared document: adopting an
+   * empty one would blank the file it already had open.
+   */
+  whenSynced(ms: number = SYNC_WAIT_MS): Promise<void> {
+    if (this.hasContent) return Promise.resolve();
+    let timer: ReturnType<typeof setTimeout>;
+    return Promise.race([
+      this.firstContent,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, ms);
+        (timer as { unref?: () => void }).unref?.();
+      }),
+    ]).then(() => clearTimeout(timer));
   }
 
   /** Everyone but us, as the awareness protocol currently sees them. */

@@ -117,6 +117,7 @@ import { dicomFormat } from "./formats/dicom";
 import { arrowFormat } from "./formats/arrow";
 import { rawFormat } from "./formats/raw";
 import { historyTool } from "./tools/history";
+import { collabTool } from "./tools/collab";
 import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
 import { blankTemplate, BLANK_BINARY_FORMATS, PAPER_FORMATS, type Paper } from "./formats/blank-templates";
 import {
@@ -1920,7 +1921,11 @@ const workspace: Workspace = {
       text: session.binary ? "" : session.editor.getText(),
       binary: session.binary,
       readOnly: session.readOnly,
+      dirty: !!session.dirty,
     };
+  },
+  activeCollabBinding() {
+    return session?.editor?.collab?.() ?? null;
   },
   async getActiveBytes() {
     if (!session?.editor || !session.binary) return null;
@@ -2125,6 +2130,7 @@ async function start(): Promise<void> {
   await initI18n();
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
+  engine.registerTool(collabTool);
   void SessionStore.requestPersistent();
   void store.prune(session?.id ?? null).catch(() => undefined); // old crash-recovery snapshots go at boot
 
