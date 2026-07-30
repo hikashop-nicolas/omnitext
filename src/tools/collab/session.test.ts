@@ -472,4 +472,29 @@ describe("two peers in different editors", () => {
     await session.leave();
     expect(session.pinsEditor).toBe(false);
   });
+
+  // The pin and the mismatch message have to agree: being told to switch view while the
+  // switch is refused is a dead end, and that is what shipped for an hour.
+  it("does not pin the editor for a peer that is in the wrong one", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    j.api.editorId = () => "codemirror";
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("mismatch");
+    expect(joiner.pinsEditor, "they must be able to switch to the right view").toBe(false);
+  });
 });

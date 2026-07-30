@@ -4,6 +4,7 @@ import type { CollabBinding } from "../../core/types";
 import { BaseTransfer, type BaseDoc } from "./base";
 import { newRoomKey, type RoomKey } from "./link";
 import { CollabProvider, type Peer } from "./provider";
+import { localTransport } from "./local-transport";
 import { trysteroTransport, type CollabTransport } from "./transport";
 
 // One live collaboration session: a room, a shared document, the base file, and the
@@ -100,6 +101,19 @@ export interface SessionOptions {
   followMs?: number;
 }
 
+/**
+ * Same-browser tabs pair instantly over BroadcastChannel; everyone else goes through the
+ * relay. Opt-in rather than automatic on localhost, because the local path does not
+ * exercise WebRTC at all: making it the default there would hide exactly the failures the
+ * real transport is there to surface.
+ */
+export function localModeRequested(search: string = typeof location === "undefined" ? "" : location.search): boolean {
+  return new URLSearchParams(search).get("collab") === "local";
+}
+
+const defaultTransport = (key: RoomKey): CollabTransport =>
+  localModeRequested() ? localTransport(key.roomId) : trysteroTransport({ roomId: key.roomId, secret: key.secret });
+
 export class CollabSession {
   private currentKey: RoomKey;
   /** True for the peer that started the room: the only one that seeds the shared doc. */
@@ -126,8 +140,7 @@ export class CollabSession {
     this.readOnly = opts.readOnly ?? false;
     this.me = { name: opts.name, colour: opts.colour };
     this.followMs = opts.followMs ?? 2_000;
-    this.makeTransport =
-      opts.makeTransport ?? ((k) => trysteroTransport({ roomId: k.roomId, secret: k.secret }));
+    this.makeTransport = opts.makeTransport ?? defaultTransport;
 
     this.provider = new CollabProvider(this.makeTransport(this.currentKey));
     this.announce();
@@ -238,7 +251,10 @@ export class CollabSession {
    * what is on its screen. Neither is recoverable, and neither announces itself.
    */
   get pinsEditor(): boolean {
-    return !this.closed;
+    // Only once actually bound. A peer told it is in the wrong editor has to be able to
+    // switch to the right one, and pinning before binding forbade the very thing the
+    // mismatch message asks for.
+    return !this.closed && this.bound;
   }
 
   peers(): Peer[] {
