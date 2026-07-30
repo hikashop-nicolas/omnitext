@@ -1,4 +1,5 @@
 import type { Disposable, HostAPI, ToolModule } from "../core/types";
+import { t } from "../i18n";
 import { VersionStore } from "./version-store";
 import { snapshot } from "./history";
 import { hashBytes, type BaseDoc } from "./collab/base";
@@ -114,7 +115,7 @@ function paintBadge(unread: number): void {
     button.appendChild(badge);
   }
   badge.textContent = unread > 9 ? "9+" : String(unread);
-  badge.title = `${unread} unread message${unread === 1 ? "" : "s"}`;
+  badge.title = t("collab.unread", { n: unread, count: unread });
 }
 
 function refreshBadge(state: ToolState): void {
@@ -206,7 +207,7 @@ async function startSession(
   if (state.session) return;
   const doc = host.workspace.getActiveDocument();
   if (!doc) {
-    host.notifications.warn("Open a document before starting a session.");
+    host.notifications.warn(t("collab.openDocFirst"));
     return;
   }
   await snapshot(host, store, key ? "BeforeJoin" : "BeforeShare").catch(() => undefined);
@@ -228,7 +229,7 @@ async function leaveSession(host: HostAPI, state: ToolState, store: VersionStore
 function renderPeers(into: HTMLElement, peers: Peer[], onRemove: (peer: Peer) => void): void {
   into.textContent = "";
   if (!peers.length) {
-    into.appendChild(el("li", "ot-collab-muted", "nobody else yet"));
+    into.appendChild(el("li", "ot-collab-muted", t("collab.nobodyElse")));
     return;
   }
   for (const peer of peers) {
@@ -238,8 +239,9 @@ function renderPeers(into: HTMLElement, peers: Peer[], onRemove: (peer: Peer) =>
     li.append(dot, document.createTextNode(peer.name));
     if (peer.peerId) {
       const kick = el("button", "ot-collab-kick", "×");
-      kick.title = `Remove ${peer.name}`;
-      kick.setAttribute("aria-label", `Remove ${peer.name}`);
+      const label = t("collab.remove", { name: peer.name });
+      kick.title = label;
+      kick.setAttribute("aria-label", label);
       kick.addEventListener("click", () => onRemove(peer));
       li.appendChild(kick);
     }
@@ -251,14 +253,10 @@ async function removePeer(host: HostAPI, state: ToolState, peer: Peer): Promise<
   const session = state.session;
   if (!session || !peer.peerId) return;
   const { stranded } = await session.remove(peer.peerId);
-  host.notifications.info(
-    `${peer.name} was removed and everyone else moved to a new link. ` +
-      `${peer.name} keeps whatever they had already seen.`,
-  );
+  host.notifications.info(t("collab.removed", { name: peer.name }));
   if (stranded.length) {
     host.notifications.warn(
-      `Could not move ${stranded.map((p) => p.name).join(", ")}: ` +
-        `they were only reachable through ${peer.name}. Send them the new link to bring them back.`,
+      t("collab.stranded", { names: stranded.map((p) => p.name).join(", "), name: peer.name }),
     );
   }
   state.repaint?.();
@@ -270,14 +268,14 @@ const clock = (at: number): string =>
 /** The chat: a scrolling log and a composer. */
 function renderChat(session: CollabSession, state: ToolState): HTMLElement {
   const chat = el("section", "ot-collab-chat");
-  chat.appendChild(el("h4", undefined, "Chat"));
+  chat.appendChild(el("h4", undefined, t("collab.chat")));
 
   const log = el("div", "ot-collab-log");
   const draw = (): void => {
     const messages = session.messages();
     log.textContent = "";
     if (!messages.length) {
-      log.appendChild(el("div", "ot-collab-muted", "No messages yet."));
+      log.appendChild(el("div", "ot-collab-muted", t("collab.noMessages")));
     }
     for (const m of messages) {
       const row = el("div", "ot-collab-msg");
@@ -293,9 +291,9 @@ function renderChat(session: CollabSession, state: ToolState): HTMLElement {
 
   const compose = el("div", "ot-collab-compose");
   const input = document.createElement("input");
-  input.placeholder = "Message the others";
-  input.setAttribute("aria-label", "Chat message");
-  const send = button("Send", true);
+  input.placeholder = t("collab.messagePlaceholder");
+  input.setAttribute("aria-label", t("collab.chatLabel"));
+  const send = button(t("collab.send"), true);
   const submit = (): void => {
     if (!input.value.trim()) return;
     session.sendMessage(input.value);
@@ -323,7 +321,7 @@ function renderChat(session: CollabSession, state: ToolState): HTMLElement {
 function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
   ensureStyles();
   host.ui.openPanel({
-    title: "Collaborate",
+    title: t("collab.title"),
     render(container) {
       const root = el("div", "ot-collab");
       container.appendChild(root);
@@ -333,11 +331,11 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
         const session = state.session;
 
         const status = el("section");
-        status.appendChild(el("h4", undefined, "Session"));
+        status.appendChild(el("h4", undefined, t("collab.session")));
         if (!session) {
-          status.appendChild(el("div", "ot-collab-muted", "Not sharing this document."));
+          status.appendChild(el("div", "ot-collab-muted", t("collab.notSharing")));
           const row = el("div", "ot-collab-row");
-          const share = button("Share this document", true);
+          const share = button(t("collab.share"), true);
           share.onclick = () => void startSession(host, state, store);
           row.appendChild(share);
           status.appendChild(row);
@@ -348,22 +346,17 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
               "div",
               "ot-collab-state",
               peers.length
-                ? `Connected to ${peers.length} ${peers.length === 1 ? "person" : "people"}`
-                : "Waiting for someone to join",
+                ? t("collab.connected", { n: peers.length, count: peers.length })
+                : t("collab.waiting"),
             ),
           );
           if (session.status === "unsupported") {
             status.appendChild(
-              el(
-                "div",
-                "ot-collab-muted",
-                "This editor cannot edit together yet, so others see the document but your" +
-                  " changes stay local. Plain text files work today.",
-              ),
+              el("div", "ot-collab-muted", t("collab.unsupported")),
             );
           } else if (session.status === "waiting") {
             status.appendChild(
-              el("div", "ot-collab-muted", "Not editing together yet: waiting for the document."),
+              el("div", "ot-collab-muted", t("collab.waitingDoc")),
             );
           }
         }
@@ -371,7 +364,7 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
 
         if (session) {
           const link = el("section");
-          link.appendChild(el("h4", undefined, "Invitation link"));
+          link.appendChild(el("h4", undefined, t("collab.invitation")));
           const input = document.createElement("input");
           input.className = "ot-collab-link";
           input.readOnly = true;
@@ -379,31 +372,26 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           link.appendChild(input);
 
           const row = el("div", "ot-collab-row");
-          const copy = button("Copy link", true);
+          const copy = button(t("collab.copyLink"), true);
           copy.onclick = () => {
             void navigator.clipboard.writeText(input.value).then(
-              () => host.notifications.info("Link copied."),
+              () => host.notifications.info(t("collab.linkCopied")),
               () => input.select(),
             );
           };
-          const leave = button("Leave session");
+          const leave = button(t("collab.leave"));
           leave.onclick = () => void leaveSession(host, state, store);
           row.append(copy, leave);
           link.appendChild(row);
           root.appendChild(link);
 
           const who = el("section");
-          who.appendChild(el("h4", undefined, "People"));
+          who.appendChild(el("h4", undefined, t("collab.people")));
           const list = el("ul", "ot-collab-peers");
           renderPeers(list, session.peers(), (peer) => void removePeer(host, state, peer));
           who.appendChild(list);
           who.appendChild(
-            el(
-              "div",
-              "ot-collab-muted",
-              "Removing someone moves everyone else to a new link and closes their copy." +
-                " They keep whatever they have already seen.",
-            ),
+            el("div", "ot-collab-muted", t("collab.removeHint")),
           );
           root.appendChild(who);
         }
@@ -415,23 +403,13 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
         const about = document.createElement("details");
         about.className = "ot-collab-about";
         const summary = document.createElement("summary");
-        summary.textContent = "About sharing, and what it does not protect";
+        summary.textContent = t("collab.aboutSummary");
         about.appendChild(summary);
         const box = el("div", "ot-collab-warn");
-        box.appendChild(
-          document.createTextNode(
-            "No server, and the traffic is encrypted between browsers. It is not secure, though:",
-          ),
-        );
+        box.appendChild(document.createTextNode(t("collab.aboutIntro")));
         const points = el("ul");
-        for (const line of [
-          "The link is the key: anyone who sees it can join. You can remove someone, which" +
-            " moves everyone else to a new link and closes their copy, but they keep whatever" +
-            " they already saw.",
-          "Links leak: through synced browser history, screen sharing, and copy and paste.",
-          "The others can see your IP address, and anyone you invite can change the document.",
-          "The chat is not saved with the file, and it is not private from anyone in the room.",
-        ]) {
+        for (const key of ["aboutLink", "aboutLeak", "aboutPeers", "aboutChat"]) {
+          const line = t(`collab.${key}`);
           points.appendChild(el("li", undefined, line));
         }
         box.appendChild(points);
@@ -508,12 +486,12 @@ export const collabTool: ToolModule = {
       }),
       host.commands.register({
         id: "collab.share",
-        title: "Collaborate",
+        title: t("app.collaborate"),
         run: toggle,
       }),
       host.ui.addToolbarButton({
         id: "collab",
-        title: "Collaborate",
+        title: t("app.collaborate"),
         hideWhenReadOnly: true, // nothing to share on a surface that cannot be edited
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
         onClick: toggle,

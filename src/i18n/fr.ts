@@ -23,6 +23,7 @@ const fr: Dict = {
     renameTitle: "Renommer",
     encodingTitle: "Rouvrir avec un autre encodage",
     history: "Historique",
+    collaborate: "Collaborer",
     newDocument: "Nouveau document",
     plainTextOption: "Texte brut",
     formatSearch: "Rechercher un format…",
@@ -117,6 +118,61 @@ const fr: Dict = {
     chars: "{n} caractères",
     changes: { one: "{n} modification", other: "{n} modifications" },
     label: { manual: "Manuel", opened: "Ouvert", saved: "Enregistré", auto: "Auto", beforerestore: "Avant restauration" },
+  },
+  collab: {
+    title: "Collaborer",
+    session: "Session",
+    notSharing: "Ce document n'est pas partagé.",
+    share: "Partager ce document",
+    openDocFirst: "Ouvrez un document avant de démarrer une session.",
+    waiting: "En attente d'un participant",
+    connected: { one: "Connecté à {n} personne", other: "Connecté à {n} personnes" },
+    unsupported:
+      "Cet éditeur ne permet pas encore l'édition simultanée : les autres voient le document, mais vos modifications restent locales. Les fichiers texte fonctionnent déjà.",
+    waitingDoc: "Pas encore d'édition commune : le document est en attente.",
+    invitation: "Lien d'invitation",
+    copyLink: "Copier le lien",
+    linkCopied: "Lien copié.",
+    leave: "Quitter la session",
+    people: "Participants",
+    nobodyElse: "personne d'autre pour l'instant",
+    removeHint:
+      "Exclure quelqu'un déplace tous les autres vers un nouveau lien et ferme sa copie. Il conserve ce qu'il a déjà vu.",
+    remove: "Exclure {name}",
+    removed:
+      "{name} a été exclu et les autres sont passés à un nouveau lien. {name} conserve ce qu'il avait déjà vu.",
+    stranded:
+      "Impossible de déplacer {names} : seul {name} pouvait les joindre. Envoyez-leur le nouveau lien pour les faire revenir.",
+    chat: "Discussion",
+    noMessages: "Aucun message pour l'instant.",
+    messagePlaceholder: "Écrire aux autres",
+    send: "Envoyer",
+    chatLabel: "Message de discussion",
+    unread: { one: "{n} message non lu", other: "{n} messages non lus" },
+    cannotCollaborate:
+      "Cet éditeur ne permet pas encore la collaboration : la session est en lecture seule pour vous.",
+    evicted:
+      "Vous avez été exclu de la session et ce document a été fermé. Les autres conservent les modifications que vous avez faites.",
+    aboutSummary: "À propos du partage, et ce qu'il ne protège pas",
+    aboutIntro:
+      "Aucun serveur, et le trafic est chiffré entre les navigateurs. Ce n'est pas sécurisé pour autant :",
+    aboutLink:
+      "Le lien est la clé : quiconque le voit peut rejoindre. Vous pouvez exclure quelqu'un, ce qui déplace les autres vers un nouveau lien et ferme sa copie, mais il conserve ce qu'il a déjà vu.",
+    aboutLeak:
+      "Les liens fuitent : historique de navigation synchronisé, partage d'écran, copier-coller.",
+    aboutPeers:
+      "Les autres voient votre adresse IP, et toute personne invitée peut modifier le document.",
+    aboutChat:
+      "La discussion n'est pas enregistrée avec le fichier, et elle n'est pas privée pour les personnes présentes.",
+    declineDirty:
+      "Cette session concerne « {name} », mais vous avez des modifications non enregistrées sur un autre document. Enregistrez-le ou fermez-le d'abord ; rien n'a été remplacé.",
+    declineTooLarge: "« {name} » est trop volumineux pour être partagé (limite {limit} Mo).",
+    fetching: "Récupération de « {name} » ({size} Mo) ; cela peut prendre un moment.",
+    damaged: "« {name} » est arrivé endommagé et a été ignoré.",
+    unsolicited: "Un document non demandé a été reçu ; il est ignoré.",
+    otherDeclined: "L'autre partie n'a pas pu accepter ce document : {reason}",
+    reasonDirty: "il comporte des modifications non enregistrées sur un autre document",
+    reasonTooLarge: "il pèse {size} Mo, au-delà de la limite",
   },
   viewer: {
     rendering: "Rendu en cours…",

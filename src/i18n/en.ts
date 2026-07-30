@@ -23,6 +23,7 @@ const en: Dict = {
     renameTitle: "Rename",
     encodingTitle: "Reopen with a different encoding",
     history: "History",
+    collaborate: "Collaborate",
     newDocument: "New document",
     plainTextOption: "Plain text",
     formatSearch: "Search formats…",
@@ -119,6 +120,58 @@ const en: Dict = {
     chars: "{n} chars",
     changes: { one: "{n} change", other: "{n} changes" },
     label: { manual: "Manual", opened: "Opened", saved: "Saved", auto: "Auto", beforerestore: "Before restore" },
+  },
+  collab: {
+    title: "Collaborate",
+    session: "Session",
+    notSharing: "Not sharing this document.",
+    share: "Share this document",
+    openDocFirst: "Open a document before starting a session.",
+    waiting: "Waiting for someone to join",
+    connected: { one: "Connected to {n} person", other: "Connected to {n} people" },
+    unsupported:
+      "This editor cannot edit together yet, so others see the document but your changes stay local. Plain text files work today.",
+    waitingDoc: "Not editing together yet: waiting for the document.",
+    invitation: "Invitation link",
+    copyLink: "Copy link",
+    linkCopied: "Link copied.",
+    leave: "Leave session",
+    people: "People",
+    nobodyElse: "nobody else yet",
+    removeHint:
+      "Removing someone moves everyone else to a new link and closes their copy. They keep whatever they have already seen.",
+    remove: "Remove {name}",
+    removed:
+      "{name} was removed and everyone else moved to a new link. {name} keeps whatever they had already seen.",
+    stranded:
+      "Could not move {names}: they were only reachable through {name}. Send them the new link to bring them back.",
+    chat: "Chat",
+    noMessages: "No messages yet.",
+    messagePlaceholder: "Message the others",
+    send: "Send",
+    chatLabel: "Chat message",
+    unread: { one: "{n} unread message", other: "{n} unread messages" },
+    cannotCollaborate: "This editor cannot collaborate yet, so the session is view-only for you.",
+    evicted:
+      "You were removed from the session, and this document has been closed. The others keep the changes you made.",
+    aboutSummary: "About sharing, and what it does not protect",
+    aboutIntro:
+      "No server, and the traffic is encrypted between browsers. It is not secure, though:",
+    aboutLink:
+      "The link is the key: anyone who sees it can join. You can remove someone, which moves everyone else to a new link and closes their copy, but they keep whatever they already saw.",
+    aboutLeak: "Links leak: through synced browser history, screen sharing, and copy and paste.",
+    aboutPeers:
+      "The others can see your IP address, and anyone you invite can change the document.",
+    aboutChat: "The chat is not saved with the file, and it is not private from anyone in the room.",
+    declineDirty:
+      "This session is for “{name}”, but you have unsaved changes to a different document. Save or close it first; nothing has been replaced.",
+    declineTooLarge: "“{name}” is too large to share (limit {limit} MB).",
+    fetching: "Fetching “{name}” ({size} MB); this may take a while.",
+    damaged: "“{name}” arrived damaged and was discarded.",
+    unsolicited: "Received a document nobody asked for; ignoring it.",
+    otherDeclined: "The other side could not take this document: {reason}",
+    reasonDirty: "it has unsaved changes to a different document",
+    reasonTooLarge: "it is {size} MB, over the limit",
   },
   viewer: {
     rendering: "Rendering…",

@@ -23,6 +23,7 @@ const ja: Dict = {
     renameTitle: "名前の変更",
     encodingTitle: "別のエンコーディングで開き直す",
     history: "履歴",
+    collaborate: "共同編集",
     newDocument: "新しい文書",
     plainTextOption: "プレーンテキスト",
     formatSearch: "形式を検索…",
@@ -119,6 +120,58 @@ const ja: Dict = {
     chars: "{n} 文字",
     changes: { one: "{n} 件の変更", other: "{n} 件の変更" },
     label: { manual: "手動", opened: "開いた時", saved: "保存時", auto: "自動", beforerestore: "復元前" },
+  },
+  collab: {
+    title: "共同編集",
+    session: "セッション",
+    notSharing: "この文書は共有されていません。",
+    share: "この文書を共有",
+    openDocFirst: "セッションを開始する前に文書を開いてください。",
+    waiting: "参加者を待っています",
+    connected: { one: "{n} 人と接続中", other: "{n} 人と接続中" },
+    unsupported:
+      "このエディターはまだ同時編集に対応していません。相手には文書が見えますが、あなたの変更はこの端末に留まります。プレーンテキストのファイルは対応済みです。",
+    waitingDoc: "まだ共同編集は始まっていません。文書の受信を待っています。",
+    invitation: "招待リンク",
+    copyLink: "リンクをコピー",
+    linkCopied: "リンクをコピーしました。",
+    leave: "セッションを退出",
+    people: "参加者",
+    nobodyElse: "ほかにはまだ誰もいません",
+    removeHint:
+      "参加者を退出させると、ほかの全員が新しいリンクへ移動し、その人の文書は閉じられます。すでに見た内容はその人の手元に残ります。",
+    remove: "{name} を退出させる",
+    removed:
+      "{name} を退出させ、ほかの全員が新しいリンクへ移動しました。{name} にはすでに見た内容が残ります。",
+    stranded:
+      "{names} を移動できませんでした。{name} 経由でしか到達できなかったためです。新しいリンクを送れば戻れます。",
+    chat: "チャット",
+    noMessages: "メッセージはまだありません。",
+    messagePlaceholder: "ほかの参加者にメッセージ",
+    send: "送信",
+    chatLabel: "チャットメッセージ",
+    unread: { one: "未読 {n} 件", other: "未読 {n} 件" },
+    cannotCollaborate:
+      "このエディターはまだ共同編集に対応していないため、このセッションは閲覧のみになります。",
+    evicted:
+      "セッションから退出させられ、この文書は閉じられました。あなたが加えた変更はほかの参加者に残っています。",
+    aboutSummary: "共有について、および保護されない点",
+    aboutIntro: "サーバーは使わず、通信はブラウザー間で暗号化されます。ただし安全とは言えません。",
+    aboutLink:
+      "リンクが鍵です。リンクを見た人は誰でも参加できます。参加者を退出させることはでき、ほかの全員が新しいリンクへ移動してその人の文書は閉じられますが、すでに見た内容は残ります。",
+    aboutLeak:
+      "リンクは漏れます。同期されたブラウザー履歴、画面共有、コピー＆ペーストなどから漏れます。",
+    aboutPeers: "ほかの参加者にはあなたの IP アドレスが見え、招いた人は文書を変更できます。",
+    aboutChat: "チャットはファイルには保存されず、同じ部屋にいる人に対して非公開でもありません。",
+    declineDirty:
+      "このセッションは「{name}」のものですが、別の文書に未保存の変更があります。先に保存または閉じてください。何も置き換えられていません。",
+    declineTooLarge: "「{name}」は共有するには大きすぎます（上限 {limit} MB）。",
+    fetching: "「{name}」（{size} MB）を取得しています。時間がかかる場合があります。",
+    damaged: "「{name}」は破損して届いたため破棄しました。",
+    unsolicited: "要求していない文書を受信したため無視しました。",
+    otherDeclined: "相手はこの文書を受け取れませんでした：{reason}",
+    reasonDirty: "別の文書に未保存の変更があります",
+    reasonTooLarge: "{size} MB で上限を超えています",
   },
   viewer: {
     rendering: "描画中…",

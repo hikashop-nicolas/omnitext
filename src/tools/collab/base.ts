@@ -1,3 +1,5 @@
+import { t } from "../../i18n";
+
 // The base file: one immutable document, agreed at the start of a session.
 //
 // A session shares logical edits, not the document, so every peer needs its own copy of
@@ -14,6 +16,17 @@ export const WARN_BYTES = 8 * 1024 * 1024;
 export const MAX_BYTES = 50 * 1024 * 1024;
 
 const KIND = { offer: 0, request: 1, data: 2, decline: 3 } as const;
+
+/**
+ * A refusal travels as a code, not as a sentence. The two peers may be running in
+ * different languages, so the side that displays the reason is the side that must word it.
+ */
+type Decline = { code: "dirty" } | { code: "tooLarge"; size: number };
+
+const declineText = (d: Decline): string =>
+  d.code === "dirty" ? t("collab.reasonDirty") : t("collab.reasonTooLarge", { size: d.size });
+
+const mb = (bytes: number): number => Math.round(bytes / 1024 / 1024);
 
 export interface BaseDoc {
   name: string;
@@ -88,8 +101,8 @@ export class BaseTransfer {
     if (kind === KIND.request) return this.onRequest(peerId);
     if (kind === KIND.data) return this.onData(body);
     if (kind === KIND.decline) {
-      const { reason } = JSON.parse(textDec.decode(body)) as { reason: string };
-      this.opts.report(`The other side could not take this document: ${reason}`);
+      const decline = JSON.parse(textDec.decode(body)) as Decline;
+      this.opts.report(t("collab.otherDeclined", { reason: declineText(decline) }));
     }
   }
 
@@ -104,24 +117,22 @@ export class BaseTransfer {
     }
 
     if (mine?.dirty) {
-      const reason = "it has unsaved changes to a different document";
-      this.send(frameJson(KIND.decline, { reason }), peerId);
-      this.opts.report(
-        `This session is for "${offer.name}", but you have unsaved changes to a different` +
-          ` document. Save or close it first; nothing has been replaced.`,
-      );
+      this.send(frameJson(KIND.decline, { code: "dirty" } satisfies Decline), peerId);
+      this.opts.report(t("collab.declineDirty", { name: offer.name }));
       return;
     }
 
     if (offer.size > this.limit) {
-      const reason = `it is ${Math.round(offer.size / 1024 / 1024)} MB, over the limit`;
-      this.send(frameJson(KIND.decline, { reason }), peerId);
-      this.opts.report(`"${offer.name}" is too large to share (limit ${Math.round(this.limit / 1024 / 1024)} MB).`);
+      this.send(
+        frameJson(KIND.decline, { code: "tooLarge", size: mb(offer.size) } satisfies Decline),
+        peerId,
+      );
+      this.opts.report(t("collab.declineTooLarge", { name: offer.name, limit: mb(this.limit) }));
       return;
     }
 
     if (offer.size > WARN_BYTES) {
-      this.opts.report(`Fetching "${offer.name}" (${Math.round(offer.size / 1024 / 1024)} MB); this may take a while.`);
+      this.opts.report(t("collab.fetching", { name: offer.name, size: mb(offer.size) }));
     }
 
     this.expecting = offer;
@@ -137,7 +148,7 @@ export class BaseTransfer {
   private async onData(bytes: Uint8Array): Promise<void> {
     const offer = this.expecting;
     if (!offer) {
-      this.opts.report("Received a document nobody asked for; ignoring it.");
+      this.opts.report(t("collab.unsolicited"));
       return;
     }
     this.expecting = null;
@@ -146,7 +157,7 @@ export class BaseTransfer {
     const copy = new Uint8Array(bytes);
     const hash = await hashBytes(copy);
     if (hash !== offer.hash) {
-      this.opts.report(`"${offer.name}" arrived damaged and was discarded.`);
+      this.opts.report(t("collab.damaged", { name: offer.name }));
       return;
     }
     this.opts.accept({ name: offer.name, bytes: copy, hash });

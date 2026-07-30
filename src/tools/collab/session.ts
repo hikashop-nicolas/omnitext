@@ -1,4 +1,5 @@
 import type * as Y from "yjs";
+import { t } from "../../i18n";
 import type { CollabBinding } from "../../core/types";
 import { BaseTransfer, type BaseDoc } from "./base";
 import { newRoomKey, type RoomKey } from "./link";
@@ -166,7 +167,7 @@ export class CollabSession {
     const binding = this.host.binding();
     if (!binding) {
       this.unsupported = true;
-      this.host.notify("This editor cannot collaborate yet, so the session is view-only for you.");
+      this.host.notify(t("collab.cannotCollaborate"));
       this.host.onChange?.();
       return;
     }
@@ -282,10 +283,7 @@ export class CollabSession {
     if (kind === CONTROL.evicted) {
       // Only from someone we are actually connected to, and never from ourselves.
       if (from === this.provider.selfId) return;
-      this.host.notify(
-        "You were removed from the session, and this document has been closed." +
-          " The others keep the changes you made.",
-      );
+      this.host.notify(t("collab.evicted"));
       await this.leave();
       this.host.onEvicted?.();
       return;
