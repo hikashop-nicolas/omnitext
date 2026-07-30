@@ -145,6 +145,10 @@ const en: Dict = {
       "{name} was removed and everyone else moved to a new link. {name} keeps whatever they had already seen.",
     stranded:
       "Could not move {names}: they were only reachable through {name}. Send them the new link to bring them back.",
+    viewOnly: "View-only link",
+    viewOnlyHint:
+      "Asks their app not to publish edits. The standard app honours it; it is a request, not a lock.",
+    readOnlyHere: "You joined with a view-only link, so your edits stay local.",
     chat: "Chat",
     noMessages: "No messages yet.",
     messagePlaceholder: "Message the others",

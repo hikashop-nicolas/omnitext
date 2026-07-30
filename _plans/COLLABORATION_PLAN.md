@@ -253,13 +253,40 @@ Two mitigations worth building in from the start rather than bolting on: a **vie
 link** (the binding simply does not write), and **rotate the link**, which re-keys the
 room and drops everyone who has not been given the new one.
 
+## 6a. Removing someone (built 2026-07-30)
+
+"Rotate the link" turned out to be most useful shaped as "remove this person", so that is
+what it is. The distinction that matters:
+
+- **Closing their connection would be theatre.** They still hold the link, and a Trystero
+  identity is fresh on every page load, so there is nothing to blocklist them by.
+- **Re-keying is enforceable.** Everyone else is told the new room over the connections
+  that already exist. The removed peer is not, and is left holding a key to a room nobody
+  is in. A test asserts exactly this: a squatter who ignores the eviction and sits in the
+  old room sees nothing further.
+
+The new key travels **hop by hop**, each peer forwarding to its own peers except the sender
+and except the one being removed. That is not gold-plating: the mesh is not complete, so a
+peer the host cannot see still gets the key from whoever can see it. Where no path avoids
+the removed peer, `remove()` reports who was stranded so they can be re-invited, instead of
+losing them silently.
+
+**Their copy also closes**, and the crash-recovery snapshot is deleted so a reload does not
+bring it back. This is a courtesy, not a boundary: a modified app could ignore it, and the
+UI says so. It costs nothing to be wrong about, because nothing is lost to the group -
+every other peer still holds the edits that side contributed. History from before the
+session is that person's own earlier data and is left alone.
+
+**What removal cannot do**, and the panel says this rather than implying otherwise: recall
+what they have already seen. If they saved a copy, it is theirs.
+
 ## 7. Phases and gates
 
 | Phase | Work | Gate before starting |
 |---|---|---|
 | 0 | **Done.** Transport spike: Yjs + WebRTC provider, room from fragment, no editor | Provider confirmed maintained, and the answer inverted the review's guess (7b) |
-| 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | **Met.** Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
-| 2 | subedit binding, plus its per-cue mutation API and scoped undo | Phase 1 survives a real two-person editing session |
+| 1 | **Done.** Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding, chat, removal | Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
+| 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
 | 3 | sheetedit binding, cell content only; structural edits disabled for guests | Phase 2 shipped and used |
 | 4 | sheetedit structural operations, host-arbitrated | Phase 3 shows people actually hit the limitation |
 | 5 | richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
@@ -377,6 +404,55 @@ otherwise miss. It cannot help two peers whose networks cannot be joined; that i
 is for. It is worth having, and worth watching, but it is an open issue with no
 implementation, and the two mechanisms above make the Yjs layer converge regardless of
 topology. We do not depend on it.
+
+## 7c. Phase 1 result (2026-07-30)
+
+Two people edit one text file in Omnitext: `src/tools/collab.ts` (the Tool) and
+`src/tools/collab/session.ts` (the lifecycle). The session takes what it needs through a
+`SessionHost` interface rather than `HostAPI`, so the whole lifecycle is tested with no
+browser, no network and no editor.
+
+**Where this departed from the draft, and why.**
+
+- **The binding interface is two methods, not four.** The draft had `bind`, `unbind`,
+  `localSelection` and `renderPeers`. Handing the binding the *awareness* object makes the
+  last two unnecessary: y-codemirror.next draws remote cursors from it directly, and an
+  editor that wants to render presence itself can read the same object. So `CollabContext`
+  carries the document, awareness, `seed` and `readOnly`, and that is all.
+- **Presence relays**, like document updates. Without it a partial mesh leaves people
+  invisible to each other, and you cannot remove someone you cannot see.
+- **Chat**, not in the draft at all. It rides in the shared document as a `Y.Array`, which
+  buys ordering, history for late joiners and the partial-mesh handling for nothing. Its
+  order is CRDT order: the same for everyone, and NOT sorted by timestamp, because peers'
+  clocks are not synchronised and sorting by them would show different people a different
+  conversation.
+- **"Rotate the link" became "remove someone"**, which is the useful shape of it. See
+  section 6a.
+
+**Four bugs came out of running it in the app, none of which the tests would have found.**
+They are recorded because they are all the same shape: the seams between the session and
+the application.
+
+1. A joiner already holding the same file transferred nothing and so never bound, because
+   "nothing to do" had no signal.
+2. `openFile` mounts the editor asynchronously, so `openBase` returned early and the
+   session bound to the editor being *replaced*. For a recovered document that editor may
+   not collaborate at all, which is exactly what happened.
+3. Pasting an invitation into a tab that already has Omnitext open changes only the
+   fragment, which does not reload the page, so the commonest way to accept an invitation
+   did nothing.
+4. Presence lacked the `user.name` / `user.color` field every off-the-shelf Yjs binding
+   reads, so every remote cursor was labelled "Anonymous".
+
+**One thing CI caught that local runs did not:** an assertion that chat messages appear in
+send order. Yjs orders concurrent inserts by client id, so two people typing at the same
+moment can land either way round. It passed locally only because the first message had
+already propagated.
+
+**Worth knowing for the next live test.** The public nostr relays take between roughly 13
+and 26 seconds to pair two peers, and it varies. A 25-second timeout looked like a
+transport regression until the unchanged spike page connected in 26. Bisect against the
+spike before believing a regression.
 
 ## 8. What this will not do
 

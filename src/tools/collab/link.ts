@@ -10,12 +10,28 @@ const ID_BYTES = 8;
 const SECRET_BYTES = 16;
 
 const KEY = "collab";
+/**
+ * View-only is a third segment of our own parameter rather than a fragment parameter of
+ * its own. A separate `view=` would collide with the app's existing fragment parameters,
+ * and stripping the room would then quietly delete one of them.
+ */
+const VIEW_FLAG = "v";
 /** Not in the base64url alphabet, so it cannot occur inside either half. */
 const SEP = ".";
 
 export interface RoomKey {
   roomId: string;
   secret: string;
+}
+
+export interface Invite {
+  key: RoomKey;
+  /**
+   * A request, not a restriction. It asks the joining app not to publish edits, and the
+   * stock app honours it; a modified one need not. Same class of protection as closing a
+   * removed peer's document.
+   */
+  viewOnly: boolean;
 }
 
 function base64url(bytes: Uint8Array): string {
@@ -44,20 +60,37 @@ export function parseRoomKey(hash: string): RoomKey | null {
     const eq = part.indexOf("=");
     if (eq < 0 || part.slice(0, eq) !== KEY) continue;
     const [roomId, secret, ...rest] = part.slice(eq + 1).split(SEP);
-    if (rest.length || !roomId || !secret) return null;
+    if (!roomId || !secret) return null;
+    if (rest.length > 1 || (rest.length === 1 && rest[0] !== VIEW_FLAG)) return null;
     if (!VALID.test(roomId) || !VALID.test(secret)) return null;
     return { roomId, secret };
   }
   return null;
 }
 
+/** Parse a whole invitation, room and view-only flag together. */
+export function parseInvite(hash: string): Invite | null {
+  const key = parseRoomKey(hash);
+  if (!key) return null;
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
+  const viewOnly = raw
+    .split("&")
+    .some((p) => p.startsWith(`${KEY}=`) && p.endsWith(`${SEP}${VIEW_FLAG}`));
+  return { key, viewOnly };
+}
+
 /** The link to hand to someone else. Keeps any fragment parameters already present. */
-export function roomLink(key: RoomKey, href: string = location.href): string {
+export function roomLink(
+  key: RoomKey,
+  href: string = location.href,
+  opts: { viewOnly?: boolean } = {},
+): string {
   const url = new URL(href);
   const others = (url.hash.startsWith("#") ? url.hash.slice(1) : url.hash)
     .split("&")
     .filter((p) => p && !p.startsWith(`${KEY}=`));
-  url.hash = [...others, `${KEY}=${key.roomId}${SEP}${key.secret}`].join("&");
+  const flag = opts.viewOnly ? `${SEP}${VIEW_FLAG}` : "";
+  url.hash = [...others, `${KEY}=${key.roomId}${SEP}${key.secret}${flag}`].join("&");
   return url.toString();
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRoomKey, parseRoomKey, roomLink, withoutRoom } from "./link";
+import { newRoomKey, parseInvite, parseRoomKey, roomLink, withoutRoom } from "./link";
 
 const BASE = "https://example.org/omnitext/";
 
@@ -63,5 +63,42 @@ describe("collaboration link", () => {
     // 16 random bytes, base64url: 22 characters and no padding.
     const { secret } = newRoomKey();
     expect(secret).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  });
+});
+
+describe("view-only invitations", () => {
+  it("round-trips the view-only flag", () => {
+    const key = newRoomKey();
+    const link = roomLink(key, BASE, { viewOnly: true });
+    const invite = parseInvite(new URL(link).hash);
+    expect(invite).toEqual({ key, viewOnly: true });
+  });
+
+  it("defaults to editable", () => {
+    const key = newRoomKey();
+    expect(parseInvite(new URL(roomLink(key, BASE)).hash)?.viewOnly).toBe(false);
+  });
+
+  it("does not add the flag twice when a link is regenerated", () => {
+    const key = { roomId: "r", secret: "s" };
+    const once = roomLink(key, BASE, { viewOnly: true });
+    const twice = roomLink(key, once, { viewOnly: true });
+    expect(new URL(twice).hash).toBe("#collab=r.s.v");
+  });
+
+  it("drops the flag when the link is regenerated as editable", () => {
+    const key = { roomId: "r", secret: "s" };
+    const viewOnly = roomLink(key, BASE, { viewOnly: true });
+    expect(new URL(roomLink(key, viewOnly)).hash).toBe("#collab=r.s");
+  });
+
+  it("strips the flag along with the room, so it does not linger", () => {
+    const cleaned = withoutRoom(`${BASE}#collab=r.s.v&other=keep`);
+    expect(new URL(cleaned).hash).toBe("#other=keep");
+    expect(parseInvite(new URL(cleaned).hash)).toBeNull();
+  });
+
+  it("is null when there is no room, flag or not", () => {
+    expect(parseInvite("#view=split")).toBeNull();
   });
 });

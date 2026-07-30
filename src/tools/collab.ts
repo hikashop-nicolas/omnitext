@@ -3,7 +3,7 @@ import { t } from "../i18n";
 import { VersionStore } from "./version-store";
 import { snapshot } from "./history";
 import { hashBytes, type BaseDoc } from "./collab/base";
-import { newRoomKey, parseRoomKey, roomLink, withoutRoom } from "./collab/link";
+import { newRoomKey, parseInvite, roomLink, withoutRoom } from "./collab/link";
 import { CollabSession, type SessionHost } from "./collab/session";
 import type { Peer } from "./collab/provider";
 
@@ -46,6 +46,7 @@ function ensureStyles(): void {
     .ot-collab-warn { border: 1px solid var(--border); border-left: 3px solid #d29922;
       border-radius: 6px; padding: 8px 10px; color: var(--muted); font-size: 12px; }
     .ot-collab-warn ul { margin: 5px 0 0; padding-left: 17px; }
+    .ot-collab-viewonly { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
     .ot-collab-about summary { cursor: pointer; color: var(--muted); font-size: 12px; }
     .ot-collab-about[open] summary { margin-bottom: 6px; }
 
@@ -99,6 +100,8 @@ interface ToolState {
   /** Messages already seen, so the badge counts only what arrived while closed. */
   readCount: number;
   chatSub: { dispose(): void } | null;
+  /** Show the view-only variant of the invitation. Host-side display choice only. */
+  offerViewOnly: boolean;
 }
 
 /** Unread count on the toolbar button; the tool owns the badge inside its own button. */
@@ -203,6 +206,7 @@ async function startSession(
   state: ToolState,
   store: VersionStore,
   key?: { roomId: string; secret: string },
+  readOnly = false,
 ): Promise<void> {
   if (state.session) return;
   const doc = host.workspace.getActiveDocument();
@@ -211,7 +215,11 @@ async function startSession(
     return;
   }
   await snapshot(host, store, key ? "BeforeJoin" : "BeforeShare").catch(() => undefined);
-  const session = new CollabSession(sessionHostFor(host, state, store), { ...state.me, key });
+  const session = new CollabSession(sessionHostFor(host, state, store), {
+    ...state.me,
+    key,
+    readOnly,
+  });
   state.session = session;
   await session.start();
   state.repaint?.();
@@ -350,6 +358,9 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
                 : t("collab.waiting"),
             ),
           );
+          if (session.readOnly) {
+            status.appendChild(el("div", "ot-collab-muted", t("collab.readOnlyHere")));
+          }
           if (session.status === "unsupported") {
             status.appendChild(
               el("div", "ot-collab-muted", t("collab.unsupported")),
@@ -368,7 +379,7 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           const input = document.createElement("input");
           input.className = "ot-collab-link";
           input.readOnly = true;
-          input.value = roomLink(session.key);
+          input.value = roomLink(session.key, location.href, { viewOnly: state.offerViewOnly });
           link.appendChild(input);
 
           const row = el("div", "ot-collab-row");
@@ -383,6 +394,18 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           leave.onclick = () => void leaveSession(host, state, store);
           row.append(copy, leave);
           link.appendChild(row);
+
+          const viewRow = el("label", "ot-collab-viewonly");
+          const box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = state.offerViewOnly;
+          box.addEventListener("change", () => {
+            state.offerViewOnly = box.checked;
+            input.value = roomLink(session.key, location.href, { viewOnly: box.checked });
+          });
+          viewRow.append(box, document.createTextNode(t("collab.viewOnly")));
+          link.appendChild(viewRow);
+          link.appendChild(el("div", "ot-collab-muted", t("collab.viewOnlyHint")));
           root.appendChild(link);
 
           const who = el("section");
@@ -446,6 +469,7 @@ export const collabTool: ToolModule = {
       panelOpen: false,
       readCount: 0,
       chatSub: null,
+      offerViewOnly: false,
     };
 
     /** Slide the panel in or out, rather than only ever opening it. */
@@ -456,19 +480,20 @@ export const collabTool: ToolModule = {
 
     // Arriving on a link. The room comes out of the address bar at once, so the secret
     // stops sitting where a screen share or a synced browser history would pick it up.
-    let invited: { roomId: string; secret: string } | null = null;
+    let invited: { key: { roomId: string; secret: string }; viewOnly: boolean } | null = null;
 
-    const takeInvite = (): { roomId: string; secret: string } | null => {
-      const key = parseRoomKey(location.hash);
-      if (key) history.replaceState(null, "", withoutRoom());
-      return key;
+    const takeInvite = (): typeof invited => {
+      const invite = parseInvite(location.hash);
+      if (invite) history.replaceState(null, "", withoutRoom());
+      return invite;
     };
 
     /** Join now if a document is open, otherwise as soon as the first one is. */
-    const accept = (key: { roomId: string; secret: string } | null): void => {
-      if (!key || state.session) return;
-      if (host.workspace.getActiveDocument()) void startSession(host, state, store, key);
-      else invited = key;
+    const accept = (invite: typeof invited): void => {
+      if (!invite || state.session) return;
+      if (host.workspace.getActiveDocument()) {
+        void startSession(host, state, store, invite.key, invite.viewOnly);
+      } else invited = invite;
     };
 
     // Pasting a link into a tab that already has Omnitext open changes only the fragment,
@@ -480,9 +505,9 @@ export const collabTool: ToolModule = {
 
     const disposables = [
       host.events.on("documentOpened", () => {
-        const key = invited;
+        const invite = invited;
         invited = null;
-        accept(key);
+        accept(invite);
       }),
       host.commands.register({
         id: "collab.share",

@@ -143,6 +143,10 @@ const fr: Dict = {
       "{name} a été exclu et les autres sont passés à un nouveau lien. {name} conserve ce qu'il avait déjà vu.",
     stranded:
       "Impossible de déplacer {names} : seul {name} pouvait les joindre. Envoyez-leur le nouveau lien pour les faire revenir.",
+    viewOnly: "Lien en lecture seule",
+    viewOnlyHint:
+      "Demande à leur application de ne pas publier de modifications. L'application standard le respecte ; c'est une demande, pas un verrou.",
+    readOnlyHere: "Vous avez rejoint avec un lien en lecture seule : vos modifications restent locales.",
     chat: "Discussion",
     noMessages: "Aucun message pour l'instant.",
     messagePlaceholder: "Écrire aux autres",
