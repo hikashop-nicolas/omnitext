@@ -8,6 +8,7 @@ import type {
   EditorMountContext,
 } from "../core/types";
 import { isEmpty, readCues, seedCues, sharedTypes, writeCues } from "./subtitle-collab";
+import { publishPosition, watchPeers } from "./peer-presence";
 
 // subedit reads the format from the filename extension. A new blank document has no
 // filename, so map the format's MIME (always set by the host) to a synthetic name, else
@@ -39,7 +40,10 @@ class SubtitleInstance implements EditorInstance {
   private readonly origin = { subtitle: this };
   private undoManager: Y.UndoManager | null = null;
   private unwatch: (() => void) | null = null;
+  private unwatchPeers: (() => void) | null = null;
   private applyingRemote = false;
+  /** Set while a session runs, so a selection change can be published. */
+  private publishSelection: ((cueId: string | null) => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.handle = createSubtitleEditor(
@@ -50,6 +54,7 @@ class SubtitleInstance implements EditorInstance {
           this.publish();
           ctx.onChange();
         },
+        onSelectionChanged: (cueId) => this.publishSelection?.(cueId),
         showSave: false,
       },
     );
@@ -97,6 +102,14 @@ class SubtitleInstance implements EditorInstance {
           order.unobserve(onChange);
         };
 
+        // Presence: publish which cue we are on, and mark the cues the others are on.
+        this.publishSelection = (cueId) => publishPosition(ctx.awareness, { cueId });
+        this.unwatchPeers = watchPeers<{ cueId: string | null }>(ctx.awareness, (peers) => {
+          handle.setPeerCues(
+            peers.map((p) => ({ id: p.id, colour: p.colour, name: p.name, cueId: p.at?.cueId ?? null })),
+          );
+        });
+
         // Undo has to be ours alone. subedit's own undo restores a whole-model snapshot,
         // which would take back a peer's edits along with this peer's; scoping the manager
         // to our origin undoes only what we did.
@@ -118,6 +131,10 @@ class SubtitleInstance implements EditorInstance {
       unbind: () => {
         this.unwatch?.();
         this.unwatch = null;
+        this.unwatchPeers?.();
+        this.unwatchPeers = null;
+        this.publishSelection = null;
+        this.handle?.setPeerCues([]);
         this.undoManager?.destroy();
         this.undoManager = null;
         this.handle?.setUndoHandler(null);
@@ -143,6 +160,7 @@ class SubtitleInstance implements EditorInstance {
 
   dispose(): void {
     this.unwatch?.();
+    this.unwatchPeers?.();
     this.undoManager?.destroy();
     this.handle?.destroy();
     this.handle = null;

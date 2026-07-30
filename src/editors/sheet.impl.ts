@@ -8,6 +8,7 @@ import type {
   EditorMountContext,
 } from "../core/types";
 import { changedCells, isEmpty, readCells, seedCells, sharedType, writeCells } from "./sheet-collab";
+import { publishPosition, watchPeers } from "./peer-presence";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
 // with formula recalculation and in-place preservation) as an Omnitext editor module.
@@ -25,6 +26,9 @@ class SheetInstance implements EditorInstance {
   private readonly origin = { sheet: this };
   private undoManager: Y.UndoManager | null = null;
   private unwatch: (() => void) | null = null;
+  private unwatchPeers: (() => void) | null = null;
+  /** Set while a session runs, so a selection change can be published. */
+  private publishSelection: ((at: { sheet: string; r: number; c: number }) => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
@@ -35,6 +39,7 @@ class SheetInstance implements EditorInstance {
     void createSheetEditorAsync(container, this.bytes, {
       onChange: ctx.onChange,
       onCellsChanged: (changes) => this.publish(changes),
+      onSelectionChanged: (at) => this.publishSelection?.(at),
       formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",
       fileName: ctx.filename,
       onConvert: (bytes, name) => {
@@ -83,6 +88,16 @@ class SheetInstance implements EditorInstance {
         map.observe(onChange);
         this.unwatch = () => map.unobserve(onChange);
 
+        // Presence: publish which cell we are on, and outline the ones the others are on.
+        this.publishSelection = (at) => publishPosition(ctx.awareness, at);
+        this.unwatchPeers = watchPeers<{ sheet: string; r: number; c: number }>(ctx.awareness, (peers) => {
+          editor.setPeerCells(
+            peers
+              .filter((p) => p.at && typeof p.at.sheet === "string")
+              .map((p) => ({ id: p.id, colour: p.colour, name: p.name, ...p.at })),
+          );
+        });
+
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
         if (!ctx.readOnly) {
           const { UndoManager } = await import("yjs");
@@ -93,6 +108,10 @@ class SheetInstance implements EditorInstance {
       unbind: () => {
         this.unwatch?.();
         this.unwatch = null;
+        this.unwatchPeers?.();
+        this.unwatchPeers = null;
+        this.publishSelection = null;
+        this.editor?.setPeerCells([]);
         this.undoManager?.destroy();
         this.undoManager = null;
         this.shared = null;
@@ -118,6 +137,7 @@ class SheetInstance implements EditorInstance {
   dispose(): void {
     this.disposed = true;
     this.unwatch?.();
+    this.unwatchPeers?.();
     this.undoManager?.destroy();
     this.shared = null;
     this.editor?.destroy();
