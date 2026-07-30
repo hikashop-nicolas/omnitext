@@ -119,6 +119,7 @@ function host(over: Partial<SessionHost> & { editor?: ReturnType<typeof fakeEdit
     localState: over.localState ?? (() => null),
     openBase: over.openBase ?? ((d) => void opened.push(d)),
     binding: over.binding ?? (() => over.editor?.binding ?? null),
+    editorId: () => "codemirror",
     notify: (m) => notes.push(m),
   };
   return { api, notes, opened };
@@ -379,6 +380,7 @@ describe("CollabSession binding after a base transfer", () => {
         opened = true;
       },
       binding: () => (opened ? replacement.binding : null),
+      editorId: () => "codemirror",
       notify: () => undefined,
     };
     const joiner = new CollabSession(joinHost, {
@@ -393,5 +395,82 @@ describe("CollabSession binding after a base transfer", () => {
     expect(replacement.contexts).toHaveLength(1);
     expect(replacement.contexts[0].seed).toBe(false);
     expect(replacement.content).toBe("host text");
+  });
+});
+
+describe("two peers in different editors", () => {
+  // The worst failure this system can have: a session that reports itself connected while
+  // neither side ever sees the other's edits, because a binding belongs to one editor and
+  // the two people are in different ones. It has to be said, not discovered.
+  it("refuses to bind, and says why, when the session is shared through another editor", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+
+    const hostEditor = fakeEditor("a,b");
+    const h = host({ editor: hostEditor, currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const joinEditor = fakeEditor("");
+    const j = host({ editor: joinEditor, localState: () => null });
+    j.api.editorId = () => "codemirror"; // the same file, opened in the text view
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("mismatch");
+    expect(joiner.editing).toBe(false);
+    expect(joinEditor.contexts, "it must not bind a binding that syncs nothing").toEqual([]);
+    expect(j.notes.join(" ")).toMatch(/different editor/i);
+    expect(joiner.sharedEditorId).toBe("sheet");
+  });
+
+  it("binds when both are in the same editor", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    j.api.editorId = () => "sheet";
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("editing");
+  });
+
+  // Switching view replaces the editor, so the binding has to follow it or collaboration
+  // stops without a word.
+  it("re-attaches to the editor that replaced the old one", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "text");
+    const first = fakeEditor("text");
+    const h = host({ editor: first, currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+    expect(first.contexts).toHaveLength(1);
+
+    const second = fakeEditor("text");
+    h.api.binding = () => second.binding;
+    await session.rebind();
+
+    expect(first.binding.unbind).toHaveBeenCalled();
+    expect(second.contexts, "the new editor is bound").toHaveLength(1);
+    expect(session.status).toBe("editing");
   });
 });

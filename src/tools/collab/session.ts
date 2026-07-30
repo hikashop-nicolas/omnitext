@@ -62,6 +62,9 @@ export interface ChatMessage {
 
 /** Where the chat lives in the shared document. Separate from anything the editor binds. */
 const CHAT = "chat";
+/** Session facts the core owns, as opposed to anything an editor binds. */
+const META = "collab.meta";
+const META_EDITOR = "editor";
 
 export interface SessionHost {
   /** The document this session is built on, for the host to serve. Null if none is open. */
@@ -72,6 +75,9 @@ export interface SessionHost {
   openBase(doc: BaseDoc): Promise<void> | void;
   /** The active editor's binding, or null when this editor cannot collaborate. */
   binding(): CollabBinding | null;
+  /** Which editor is showing the document. A binding belongs to one, so two peers in
+   *  different editors would sync nothing while looking connected. */
+  editorId(): string | null;
   /** Anything the person needs told. */
   notify(message: string): void;
   /** We were removed from the session: close the document, per the product decision. */
@@ -107,6 +113,7 @@ export class CollabSession {
   private bound = false;
   private closed = false;
   private unsupported = false;
+  private wrongEditor = false;
   private readonly me: { name: string; colour: string };
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
@@ -172,6 +179,25 @@ export class CollabSession {
       return;
     }
     this.unsupported = false;
+
+    // A binding belongs to an editor. If the seeder shared through a different one, the
+    // two would sit in a session that reports itself connected while neither ever sees the
+    // other's edits, which looks exactly like working. Say so instead.
+    const meta = this.provider.doc.getMap<string>(META);
+    const mine = this.host.editorId();
+    if (this.isHost) {
+      if (mine) meta.set(META_EDITOR, mine);
+    } else {
+      const theirs = meta.get(META_EDITOR);
+      if (theirs && mine && theirs !== mine) {
+        this.wrongEditor = true;
+        this.host.notify(t("collab.wrongEditor"));
+        this.host.onChange?.();
+        return;
+      }
+    }
+    this.wrongEditor = false;
+
     this.binding = binding;
     this.bound = true;
     await binding.bind({
@@ -199,6 +225,19 @@ export class CollabSession {
     if (this.bound || this.closed) return;
     await this.provider.whenSynced();
     if (this.closed) return;
+    await this.attach();
+  }
+
+  /**
+   * The editor was replaced (someone switched view). The old binding is attached to an
+   * editor that is gone, so collaboration would silently stop; re-attach to the new one.
+   */
+  async rebind(): Promise<void> {
+    if (this.closed) return;
+    this.binding?.unbind();
+    this.binding = null;
+    this.bound = false;
+    this.wrongEditor = false;
     await this.attach();
   }
 
@@ -317,9 +356,15 @@ export class CollabSession {
    * Why this peer is not editing together, so the UI can say which it is rather than
    * guessing. Two very different situations look identical from outside.
    */
-  get status(): "editing" | "unsupported" | "waiting" {
+  get status(): "editing" | "unsupported" | "mismatch" | "waiting" {
     if (this.bound) return "editing";
+    if (this.wrongEditor) return "mismatch";
     return this.unsupported ? "unsupported" : "waiting";
+  }
+
+  /** The editor this session is being shared through, when we are not in it. */
+  get sharedEditorId(): string | null {
+    return this.provider.doc.getMap<string>(META).get(META_EDITOR) ?? null;
   }
 
   async leave(): Promise<void> {

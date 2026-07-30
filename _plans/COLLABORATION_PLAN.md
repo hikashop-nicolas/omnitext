@@ -287,7 +287,7 @@ what they have already seen. If they saved a copy, it is theirs.
 | 0 | **Done.** Transport spike: Yjs + WebRTC provider, room from fragment, no editor | Provider confirmed maintained, and the answer inverted the review's guess (7b) |
 | 1 | **Done.** Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding, chat, removal | Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
-| 3 | sheetedit binding, cell content only; structural edits disabled for guests | Phase 2 shipped and used |
+| 3 | **Done.** sheetedit binding, cell content only; structural edits still local | Phase 2 shipped and used |
 | 4 | sheetedit structural operations, host-arbitrated | Phase 3 shows people actually hit the limitation |
 | 5 | richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
 
@@ -477,9 +477,11 @@ differing; that is stated rather than hidden. sheetedit gained `cellInputs`,
    neither ever sees the other's edits. This is the worst failure mode available: it looks
    exactly like working.
 
-   The fix is for the session to carry which editor the shared document is bound to, and
-   for a joiner whose editor differs to be told plainly rather than left to discover it.
-   Until that exists, Phase 3 is not finished, and this is the next thing to build.
+   **Fixed.** The seeder records its editor in a core-owned `collab.meta` map, and a
+   joiner whose editor differs refuses to bind and says which view the session is being
+   shared through. Switching view also re-attaches the session to the editor that replaced
+   the old one, since otherwise collaboration stopped without a word the moment anyone
+   changed views.
 
 ## 8. What this will not do
 

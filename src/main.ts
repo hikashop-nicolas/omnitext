@@ -1922,6 +1922,7 @@ const workspace: Workspace = {
       binary: session.binary,
       readOnly: session.readOnly,
       dirty: !!session.dirty,
+      editorId: session.editorId ?? null,
     };
   },
   activeCollabBinding() {

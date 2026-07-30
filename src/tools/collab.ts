@@ -191,6 +191,10 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
       return host.workspace.activeCollabBinding?.() ?? null;
     },
 
+    editorId() {
+      return host.workspace.getActiveDocument()?.editorId ?? null;
+    },
+
     notify(message) {
       host.notifications.warn(message);
     },
@@ -373,7 +377,15 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           if (session.readOnly) {
             status.appendChild(el("div", "ot-collab-muted", t("collab.readOnlyHere")));
           }
-          if (session.status === "unsupported") {
+          if (session.status === "mismatch") {
+            status.appendChild(
+              el(
+                "div",
+                "ot-collab-muted",
+                t("collab.wrongEditorHint", { editor: session.sharedEditorId ?? "?" }),
+              ),
+            );
+          } else if (session.status === "unsupported") {
             status.appendChild(
               el("div", "ot-collab-muted", t("collab.unsupported")),
             );
@@ -516,6 +528,9 @@ export const collabTool: ToolModule = {
     accept(takeInvite());
 
     const disposables = [
+      // Switching view replaces the editor, and with it the binding. Without this the
+      // session stays "connected" while nothing syncs any more.
+      host.events.on("editorChanged", () => void state.session?.rebind().then(() => state.repaint?.())),
       host.events.on("documentOpened", () => {
         const invite = invited;
         invited = null;

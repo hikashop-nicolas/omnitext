@@ -167,6 +167,7 @@ async function join(
     localState: () => null,
     openBase: () => undefined,
     binding: () => editor.binding,
+    editorId: () => "codemirror",
     notify: (m) => state.notes.push(m),
     onEvicted: () => void (state.evicted = true),
   };

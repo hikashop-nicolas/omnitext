@@ -149,6 +149,9 @@ const en: Dict = {
     viewOnlyHint:
       "Asks their app not to publish edits. The standard app honours it; it is a request, not a lock.",
     readOnlyHere: "You joined with a view-only link, so your edits stay local.",
+    wrongEditor:
+      "This document is being shared through a different editor, so your changes would not reach anyone. Switch to the same view to join in.",
+    wrongEditorHint: "Shared through the \u201c{editor}\u201d view. Switch to it to edit together.",
     chat: "Chat",
     noMessages: "No messages yet.",
     messagePlaceholder: "Message the others",

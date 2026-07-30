@@ -147,6 +147,9 @@ const fr: Dict = {
     viewOnlyHint:
       "Demande à leur application de ne pas publier de modifications. L'application standard le respecte ; c'est une demande, pas un verrou.",
     readOnlyHere: "Vous avez rejoint avec un lien en lecture seule : vos modifications restent locales.",
+    wrongEditor:
+      "Ce document est partagé via un autre éditeur : vos modifications ne parviendraient à personne. Basculez sur la même vue pour participer.",
+    wrongEditorHint: "Partagé via la vue « {editor} ». Basculez dessus pour éditer ensemble.",
     chat: "Discussion",
     noMessages: "Aucun message pour l'instant.",
     messagePlaceholder: "Écrire aux autres",

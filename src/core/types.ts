@@ -382,6 +382,9 @@ export interface ActiveDocument {
   readOnly: boolean;
   /** Unsaved changes. Collaboration refuses to replace a dirty document with a host's. */
   dirty: boolean;
+  /** Which editor is rendering it. A collaboration binding belongs to one, so both peers
+   *  must be in the same editor for a session to mean anything. */
+  editorId: string | null;
 }
 
 export interface Workspace {
