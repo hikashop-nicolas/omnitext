@@ -1,0 +1,109 @@
+import type * as Y from "yjs";
+
+// The shared shape for collaborating on subtitles, kept apart from the DOM so it can be
+// tested with two Y.Docs and no editor.
+//
+// Cues are held as a map from cue id to the cue, plus an array of ids giving the order.
+// A plain Y.Array of cues would have been simpler to write and wrong to use: changing a
+// cue means replacing an element, and replacing element 2 while someone else inserts at 1
+// loses one of the two. Keying by id means two people editing different cues never touch
+// the same thing, and order changes are array operations Yjs already merges.
+//
+// Within one cue it is last-writer-wins. Two people typing in the same cue at the same
+// moment is a real conflict with no good automatic answer, and it is rare; two people
+// working on different cues is the common case, and that merges.
+
+export const CUES = "subedit.cues";
+export const ORDER = "subedit.order";
+
+/**
+ * All this module needs of a cue: an id. Everything else travels untouched, so adding a
+ * field to subedit's cue does not need a change here. Generic rather than an indexed type
+ * because subedit's Cue is an interface, and TypeScript will not assign one of those to an
+ * index signature.
+ */
+export interface CueLike {
+  id: string;
+}
+
+type Stored = Record<string, unknown>;
+
+const cueMap = (doc: Y.Doc): Y.Map<Stored> => doc.getMap<Stored>(CUES);
+const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(ORDER);
+
+/** Field-by-field equality, which is all a cue needs: its values are JSON scalars and small objects. */
+function same(a: Stored | undefined, b: Stored): boolean {
+  if (!a) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** The shared cue list, in order. Ids in the order with no cue behind them are skipped. */
+export function readCues<T extends CueLike>(doc: Y.Doc): T[] {
+  const cues = cueMap(doc);
+  const out: T[] = [];
+  for (const id of orderArray(doc).toArray()) {
+    const cue = cues.get(id);
+    if (cue) out.push({ ...cue } as unknown as T);
+  }
+  return out;
+}
+
+/**
+ * Put the local cue list into the shared document, writing only what actually differs.
+ *
+ * Writing everything every time would work and would be a bad idea: every keystroke would
+ * produce an update naming every cue, so the traffic and the undo steps would be
+ * proportional to the file rather than to the edit.
+ */
+export function writeCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], origin: unknown): void {
+  const map = cueMap(doc);
+  const order = orderArray(doc);
+  const nextIds = cues.map((c) => c.id);
+  const prevIds = order.toArray();
+
+  const changed = cues.filter((c) => !same(map.get(c.id), c as unknown as Stored));
+  const wanted = new Set(nextIds);
+  const dropped = [...map.keys()].filter((id) => !wanted.has(id));
+  const orderChanged = prevIds.length !== nextIds.length || prevIds.some((id, i) => id !== nextIds[i]);
+
+  if (!changed.length && !dropped.length && !orderChanged) return; // nothing to say
+
+  doc.transact(() => {
+    for (const cue of changed) map.set(cue.id, { ...(cue as unknown as Stored) });
+    for (const id of dropped) map.delete(id);
+    if (orderChanged) spliceOrder(order, prevIds, nextIds);
+  }, origin);
+}
+
+/**
+ * Replace the id order with the smallest delete and insert that explains it, so inserting
+ * one cue is one small operation rather than a rewrite of the whole list.
+ */
+function spliceOrder(order: Y.Array<string>, prev: string[], next: string[]): void {
+  let start = 0;
+  while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
+  let endPrev = prev.length;
+  let endNext = next.length;
+  while (endPrev > start && endNext > start && prev[endPrev - 1] === next[endNext - 1]) {
+    endPrev--;
+    endNext--;
+  }
+  if (endPrev > start) order.delete(start, endPrev - start);
+  if (endNext > start) order.insert(start, next.slice(start, endNext));
+}
+
+/** Seed an empty shared document from the local cues. Exactly one peer may do this. */
+export function seedCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], origin: unknown): void {
+  if (orderArray(doc).length > 0 || cueMap(doc).size > 0) return;
+  writeCues(doc, cues, origin);
+}
+
+/** True when the shared document has nothing in it yet. */
+export function isEmpty(doc: Y.Doc): boolean {
+  return orderArray(doc).length === 0 && cueMap(doc).size === 0;
+}
+
+/** The shared types a session watches, and that an UndoManager should track. */
+export function sharedTypes(doc: Y.Doc): [Y.Map<Stored>, Y.Array<string>] {
+  return [cueMap(doc), orderArray(doc)];
+}
