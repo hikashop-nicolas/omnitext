@@ -477,11 +477,18 @@ differing; that is stated rather than hidden. sheetedit gained `cellInputs`,
    neither ever sees the other's edits. This is the worst failure mode available: it looks
    exactly like working.
 
-   **Fixed.** The seeder records its editor in a core-owned `collab.meta` map, and a
-   joiner whose editor differs refuses to bind and says which view the session is being
-   shared through. Switching view also re-attaches the session to the editor that replaced
-   the old one, since otherwise collaboration stopped without a word the moment anyone
-   changed views.
+   **Fixed, in two parts.** The seeder records its editor in a core-owned `collab.meta`
+   map, and a joiner whose editor differs refuses to bind, saying which view the session is
+   being shared through.
+
+   The second part corrects a wrong first attempt. Switching view mid-session was made to
+   re-attach the binding to whatever the person switched to, which is obliging and unsafe:
+   the shared shape belongs to the editor, so the new binding finds its own shape empty.
+   A seeder would write a second shape into the same document while everyone else stayed
+   on the first and saw nothing; a joiner would adopt an empty shape and blank its own
+   screen. Neither announces itself. **A running session now pins the editor** and the
+   switch is refused through the existing `willChangeEditor` hook, with leaving the session
+   as the way to change view.
 
 ## 8. What this will not do
 

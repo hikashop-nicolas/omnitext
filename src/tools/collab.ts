@@ -528,9 +528,14 @@ export const collabTool: ToolModule = {
     accept(takeInvite());
 
     const disposables = [
-      // Switching view replaces the editor, and with it the binding. Without this the
-      // session stays "connected" while nothing syncs any more.
-      host.events.on("editorChanged", () => void state.session?.rebind().then(() => state.repaint?.())),
+      // A session pins the editor: see CollabSession.pinsEditor for why re-binding to
+      // whatever someone switched to would corrupt the shared document rather than follow
+      // them. Leaving the session first is the way to change view.
+      host.events.hook("willChangeEditor", (ctx) => {
+        if (!state.session?.pinsEditor) return;
+        ctx.cancel = true;
+        host.notifications.warn(t("collab.editorPinned"));
+      }),
       host.events.on("documentOpened", () => {
         const invite = invited;
         invited = null;

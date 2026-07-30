@@ -152,6 +152,7 @@ const en: Dict = {
     wrongEditor:
       "This document is being shared through a different editor, so your changes would not reach anyone. Switch to the same view to join in.",
     wrongEditorHint: "Shared through the \u201c{editor}\u201d view. Switch to it to edit together.",
+    editorPinned: "Leave the session before switching view: everyone is editing through this one.",
     chat: "Chat",
     noMessages: "No messages yet.",
     messagePlaceholder: "Message the others",

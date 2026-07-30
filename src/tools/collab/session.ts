@@ -229,16 +229,16 @@ export class CollabSession {
   }
 
   /**
-   * The editor was replaced (someone switched view). The old binding is attached to an
-   * editor that is gone, so collaboration would silently stop; re-attach to the new one.
+   * A running session pins the editor.
+   *
+   * Re-attaching to whatever the person switched to looks obliging and is unsafe: the
+   * shared shape belongs to the editor, so the new binding would find its own shape empty.
+   * The seeder would then write a second shape into the same document, leaving everyone
+   * else on the first and seeing nothing; a joiner adopting an empty shape would blank
+   * what is on its screen. Neither is recoverable, and neither announces itself.
    */
-  async rebind(): Promise<void> {
-    if (this.closed) return;
-    this.binding?.unbind();
-    this.binding = null;
-    this.bound = false;
-    this.wrongEditor = false;
-    await this.attach();
+  get pinsEditor(): boolean {
+    return !this.closed;
   }
 
   peers(): Peer[] {

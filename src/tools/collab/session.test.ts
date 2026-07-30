@@ -453,24 +453,23 @@ describe("two peers in different editors", () => {
     expect(joiner.status).toBe("editing");
   });
 
-  // Switching view replaces the editor, so the binding has to follow it or collaboration
-  // stops without a word.
-  it("re-attaches to the editor that replaced the old one", async () => {
+  /**
+   * A session pins the editor, and the reason is not tidiness. The shared shape belongs to
+   * the editor: re-binding to whatever someone switched to would have the new binding find
+   * its own shape empty, so a seeder would write a second shape into the same document
+   * while everyone else stayed on the first, and a joiner would adopt an empty one and
+   * blank its screen. Neither announces itself, so the switch is refused instead.
+   */
+  it("pins the editor while a session is running, and releases it on leave", async () => {
     const net = new Net();
     const base = await doc("notes.txt", "text");
-    const first = fakeEditor("text");
-    const h = host({ editor: first, currentDoc: async () => base });
+    const h = host({ editor: fakeEditor("text"), currentDoc: async () => base });
     const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
     await session.start();
     await net.settle();
-    expect(first.contexts).toHaveLength(1);
 
-    const second = fakeEditor("text");
-    h.api.binding = () => second.binding;
-    await session.rebind();
-
-    expect(first.binding.unbind).toHaveBeenCalled();
-    expect(second.contexts, "the new editor is bound").toHaveLength(1);
-    expect(session.status).toBe("editing");
+    expect(session.pinsEditor).toBe(true);
+    await session.leave();
+    expect(session.pinsEditor).toBe(false);
   });
 });
