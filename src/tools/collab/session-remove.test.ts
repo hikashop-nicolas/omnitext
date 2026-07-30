@@ -319,7 +319,9 @@ describe("removing a peer", () => {
 });
 
 describe("chat", () => {
-  it("carries messages between peers, with history for whoever joins later", async () => {
+  // A reply that was sent after seeing the question keeps that order, because it is
+  // causally later and the CRDT preserves causality.
+  it("keeps the order of a reply to a message already received", async () => {
     const mesh = new Mesh();
     const base = await baseDoc("notes.txt", "start");
     const host = await join(mesh, "host", "start", { base });
@@ -328,6 +330,7 @@ describe("chat", () => {
     await mesh.settle();
 
     host.session.sendMessage("are you seeing this?");
+    await mesh.settle();
     guest.session.sendMessage("yes");
     await mesh.settle();
 
@@ -339,6 +342,35 @@ describe("chat", () => {
     const late = await join(mesh, "late", "", { key: host.session.key });
     await mesh.settle();
     expect(late.session.messages().map((m) => m.text)).toEqual(["are you seeing this?", "yes"]);
+  });
+
+  /**
+   * Two people typing at the same moment is the case with no right answer. Yjs orders
+   * concurrent inserts by client id, not by wall clock, so the sequence may not match who
+   * pressed Enter first. What must hold, and what a chat actually needs, is that everyone
+   * sees the SAME sequence. Sorting by timestamp instead would break exactly that, since
+   * peers' clocks are not synchronised.
+   */
+  it("shows concurrent messages in the same order to everyone", async () => {
+    const mesh = new Mesh();
+    const base = await baseDoc("notes.txt", "start");
+    const host = await join(mesh, "host", "start", { base });
+    await mesh.settle();
+    const guest = await join(mesh, "guest", "", { key: host.session.key });
+    await mesh.settle();
+
+    host.session.sendMessage("from the host");
+    guest.session.sendMessage("from the guest"); // neither has seen the other
+    await mesh.settle();
+
+    const seen = host.session.messages().map((m) => m.text);
+    expect(seen).toHaveLength(2);
+    expect([...seen].sort()).toEqual(["from the guest", "from the host"]);
+    expect(guest.session.messages().map((m) => m.text)).toEqual(seen);
+
+    const late = await join(mesh, "late", "", { key: host.session.key });
+    await mesh.settle();
+    expect(late.session.messages().map((m) => m.text)).toEqual(seen);
   });
 
   it("ignores blank messages and trims what it keeps", async () => {

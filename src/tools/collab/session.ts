@@ -50,7 +50,12 @@ export interface ChatMessage {
   author: string;
   colour: string;
   text: string;
-  /** Sender's clock. Only for display: peers' clocks are not synchronised. */
+  /**
+   * Sender's clock, for display only. It is deliberately NOT what the log is ordered by:
+   * peers' clocks are not synchronised, so sorting by it would show different people a
+   * different conversation. The log keeps CRDT order, which is the same for everyone and
+   * preserves causality; two messages sent at the same instant may appear in either order.
+   */
   at: number;
 }
 
