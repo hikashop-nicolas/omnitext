@@ -258,7 +258,7 @@ room and drops everyone who has not been given the new one.
 | Phase | Work | Gate before starting |
 |---|---|---|
 | 0 | **Done.** Transport spike: Yjs + WebRTC provider, room from fragment, no editor | Provider confirmed maintained, and the answer inverted the review's guess (7b) |
-| 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | Phase 0 syncs reliably between two different browsers (see below) |
+| 1 | Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding | **Met.** Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | Phase 1 survives a real two-person editing session |
 | 3 | sheetedit binding, cell content only; structural edits disabled for guests | Phase 2 shipped and used |
 | 4 | sheetedit structural operations, host-arbitrated | Phase 3 shows people actually hit the limitation |
@@ -277,9 +277,10 @@ Chrome and Firefox together also test interop between two WebRTC implementations
 where this usually breaks. Two tabs in one browser share too much to prove anything.
 
 What one machine cannot test is NAT traversal: both peers connect over loopback and never
-need a STUN or relay candidate. That is a deployment risk rather than an architectural one,
-so it gates shipping to users, not the spike. The cheap version is a laptop on wifi and a
-phone on cellular, which is a genuinely different network path.
+need a STUN or relay candidate. The laptop-on-wifi / phone-on-cellular version was run on
+2026-07-30 and passed; section 7b has the method and the caveat. Serve the page over
+`adb reverse` rather than the LAN, otherwise the HTTP path hands the two peers a shared
+network and the test proves nothing.
 
 ## 7b. Phase 0 result (2026-07-30)
 
@@ -319,9 +320,27 @@ three: connected through the public relay in a few seconds and synced **both way
 spike publishes a digest of its own text through awareness, so either browser shows
 whether the other has genuinely converged rather than merely staying quiet.
 
-**What was not proven, and still gates shipping rather than Phase 1:** NAT traversal. Both
-peers were on loopback and never needed a STUN or relay candidate. The cheap real test
-stays what section 7a says: a laptop on wifi and a phone on cellular.
+**NAT traversal, then tested for real the same day, and it works.** Mac on home wifi behind
+the household NAT, Android phone with wifi switched off so cellular was its only route.
+The page itself was served over the USB cable (`adb reverse tcp:5173`), which keeps the
+HTTP path from quietly giving the two a shared network: the only thing they had in common
+was the public internet.
+
+The phone's sole address was `100.114.200.62`, inside `100.64.0.0/10`, so it was behind
+**carrier-grade NAT** - the awkward case, and usually symmetric. They connected in **2
+seconds** and synced both ways, verified by typing on each end and reading the other.
+
+That result is stronger than it looks, because Trystero's default `rtcConfig` carries only
+STUN (Cloudflare and Google) and no TURN at all. With no relay configured, a relayed path
+was not available: the connection was necessarily direct, through STUN-discovered
+candidates, straight through CGNAT.
+
+**The remaining risk is the inverse of the good news.** One carrier, one NAT, one moment
+is not every carrier, and some symmetric NATs genuinely cannot be traversed. Because there
+is no TURN configured, such a pair does not fall back, it simply fails. Trystero accepts a
+`turnConfig`, so before this ships widely the choice is to offer a TURN server or to detect
+the failure and say plainly that these two networks cannot be joined. Silently spinning on
+"connecting" is the one outcome to avoid.
 
 **One correction fell out of this**, in section 6: the draft claimed payloads are
 encrypted with a key derived from the link secret. They are not, and the honest version
