@@ -45,6 +45,31 @@ function ensureStyles(): void {
     .ot-collab-warn { border: 1px solid var(--border); border-left: 3px solid #d29922;
       border-radius: 6px; padding: 8px 10px; color: var(--muted); font-size: 12px; }
     .ot-collab-warn ul { margin: 5px 0 0; padding-left: 17px; }
+    .ot-collab-about summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+    .ot-collab-about[open] summary { margin-bottom: 6px; }
+
+    /* Chat fills the rest of the panel, with the composer pinned under it. */
+    .ot-collab { display: flex; flex-direction: column; height: 100%; }
+    .ot-collab-chat { display: flex; flex-direction: column; flex: 1; min-height: 140px; }
+    .ot-collab-log {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 7px;
+      border: 1px solid var(--border); border-radius: 7px; padding: 8px; min-height: 90px;
+    }
+    .ot-collab-msg { display: flex; flex-direction: column; gap: 1px; }
+    .ot-collab-who { font-size: 11px; font-weight: 600; }
+    .ot-collab-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .ot-collab-compose { display: flex; gap: 6px; margin-top: 7px; }
+    .ot-collab-compose input {
+      flex: 1; min-width: 0; font: inherit; padding: 5px 8px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface); color: var(--text);
+    }
+    /* Unread count on the toolbar button. */
+    #toolbtn-collab { position: relative; }
+    .ot-collab-badge {
+      position: absolute; top: 1px; right: 1px; min-width: 15px; height: 15px; padding: 0 3px;
+      border-radius: 999px; background: #e5484d; color: #fff; font: 600 10px/15px system-ui, sans-serif;
+      text-align: center; pointer-events: none;
+    }
   `;
   document.head.appendChild(s);
 }
@@ -68,6 +93,38 @@ interface ToolState {
   session: CollabSession | null;
   me: { name: string; colour: string };
   repaint: (() => void) | null;
+  /** Open, so the toolbar button can toggle rather than always open. */
+  panelOpen: boolean;
+  /** Messages already seen, so the badge counts only what arrived while closed. */
+  readCount: number;
+  chatSub: { dispose(): void } | null;
+}
+
+/** Unread count on the toolbar button; the tool owns the badge inside its own button. */
+function paintBadge(unread: number): void {
+  const button = document.getElementById("toolbtn-collab");
+  if (!button) return;
+  let badge = button.querySelector<HTMLElement>(".ot-collab-badge");
+  if (!unread) {
+    badge?.remove();
+    return;
+  }
+  if (!badge) {
+    badge = el("span", "ot-collab-badge");
+    button.appendChild(badge);
+  }
+  badge.textContent = unread > 9 ? "9+" : String(unread);
+  badge.title = `${unread} unread message${unread === 1 ? "" : "s"}`;
+}
+
+function refreshBadge(state: ToolState): void {
+  const total = state.session?.messages().length ?? 0;
+  if (state.panelOpen) {
+    state.readCount = total;
+    paintBadge(0);
+    return;
+  }
+  paintBadge(Math.max(0, total - state.readCount));
 }
 
 function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): SessionHost {
@@ -207,6 +264,62 @@ async function removePeer(host: HostAPI, state: ToolState, peer: Peer): Promise<
   state.repaint?.();
 }
 
+const clock = (at: number): string =>
+  new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+/** The chat: a scrolling log and a composer. */
+function renderChat(session: CollabSession, state: ToolState): HTMLElement {
+  const chat = el("section", "ot-collab-chat");
+  chat.appendChild(el("h4", undefined, "Chat"));
+
+  const log = el("div", "ot-collab-log");
+  const draw = (): void => {
+    const messages = session.messages();
+    log.textContent = "";
+    if (!messages.length) {
+      log.appendChild(el("div", "ot-collab-muted", "No messages yet."));
+    }
+    for (const m of messages) {
+      const row = el("div", "ot-collab-msg");
+      const who = el("div", "ot-collab-who", `${m.author} · ${clock(m.at)}`);
+      who.style.color = m.colour;
+      row.append(who, el("div", "ot-collab-body", m.text));
+      log.appendChild(row);
+    }
+    log.scrollTop = log.scrollHeight; // newest is what you want to see
+  };
+  draw();
+  chat.appendChild(log);
+
+  const compose = el("div", "ot-collab-compose");
+  const input = document.createElement("input");
+  input.placeholder = "Message the others";
+  input.setAttribute("aria-label", "Chat message");
+  const send = button("Send", true);
+  const submit = (): void => {
+    if (!input.value.trim()) return;
+    session.sendMessage(input.value);
+    input.value = "";
+  };
+  send.onclick = submit;
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  });
+  compose.append(input, send);
+  chat.appendChild(compose);
+
+  // Redraw on any change without repainting the whole panel, so typing is not interrupted.
+  state.chatSub?.dispose();
+  state.chatSub = session.onMessages(() => {
+    draw();
+    refreshBadge(state);
+  });
+  return chat;
+}
+
 function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
   ensureStyles();
   host.ui.openPanel({
@@ -295,8 +408,15 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           root.appendChild(who);
         }
 
-        const warn = el("section");
-        warn.appendChild(el("h4", undefined, "What this is"));
+        if (session) root.appendChild(renderChat(session, state));
+
+        // The warnings still have to be here: they are the honest description of what a
+        // link is. Folded away rather than dropped, so the panel is mostly chat.
+        const about = document.createElement("details");
+        about.className = "ot-collab-about";
+        const summary = document.createElement("summary");
+        summary.textContent = "About sharing, and what it does not protect";
+        about.appendChild(summary);
         const box = el("div", "ot-collab-warn");
         box.appendChild(
           document.createTextNode(
@@ -306,21 +426,32 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
         const points = el("ul");
         for (const line of [
           "The link is the key: anyone who sees it can join. You can remove someone, which" +
-            " moves everyone else to a new link, but they keep whatever they already saw.",
+            " moves everyone else to a new link and closes their copy, but they keep whatever" +
+            " they already saw.",
           "Links leak: through synced browser history, screen sharing, and copy and paste.",
           "The others can see your IP address, and anyone you invite can change the document.",
+          "The chat is not saved with the file, and it is not private from anyone in the room.",
         ]) {
           points.appendChild(el("li", undefined, line));
         }
         box.appendChild(points);
-        warn.appendChild(box);
-        root.appendChild(warn);
+        about.appendChild(box);
+        root.appendChild(about);
       };
 
+      state.panelOpen = true;
       state.repaint = paint;
       paint();
+      refreshBadge(state); // opening the panel is reading the chat
       return () => {
+        state.panelOpen = false;
         state.repaint = null;
+        state.chatSub?.dispose();
+        state.chatSub = null;
+        // Keep watching while closed, or the badge would never light up.
+        if (state.session) {
+          state.chatSub = state.session.onMessages(() => refreshBadge(state));
+        }
       };
     },
   });
@@ -334,6 +465,15 @@ export const collabTool: ToolModule = {
       session: null,
       me: { name: pick(NAMES), colour: pick(COLOURS) },
       repaint: null,
+      panelOpen: false,
+      readCount: 0,
+      chatSub: null,
+    };
+
+    /** Slide the panel in or out, rather than only ever opening it. */
+    const toggle = (): void => {
+      if (state.panelOpen) host.ui.closePanels();
+      else openPanel(host, state, store);
     };
 
     // Arriving on a link. The room comes out of the address bar at once, so the secret
@@ -369,20 +509,21 @@ export const collabTool: ToolModule = {
       host.commands.register({
         id: "collab.share",
         title: "Collaborate",
-        run: () => openPanel(host, state, store),
+        run: toggle,
       }),
       host.ui.addToolbarButton({
         id: "collab",
         title: "Collaborate",
         hideWhenReadOnly: true, // nothing to share on a surface that cannot be edited
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-        onClick: () => openPanel(host, state, store),
+        onClick: toggle,
       }),
     ];
 
     return {
       dispose() {
         window.removeEventListener("hashchange", onHashChange);
+        state.chatSub?.dispose();
         void state.session?.leave();
         for (const d of disposables) d.dispose();
       },

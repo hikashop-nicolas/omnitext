@@ -213,6 +213,7 @@ describe("removing a peer", () => {
     expect(guest.session.key.roomId).toBe(host.session.key.roomId);
     expect(pest.evicted).toBe(true);
     expect(pest.notes.join(" ")).toMatch(/removed from the session/i);
+    expect(pest.notes.join(" ")).toMatch(/others keep the changes you made/i);
     expect(result.stranded).toEqual([]);
   });
 
@@ -314,5 +315,88 @@ describe("removing a peer", () => {
     expect(result.stranded.map((p) => p.name)).toEqual(["far"]);
     expect(relay.session.key.roomId).toBe(host.session.key.roomId);
     expect(far.session.key.roomId).not.toBe(host.session.key.roomId);
+  });
+});
+
+describe("chat", () => {
+  it("carries messages between peers, with history for whoever joins later", async () => {
+    const mesh = new Mesh();
+    const base = await baseDoc("notes.txt", "start");
+    const host = await join(mesh, "host", "start", { base });
+    await mesh.settle();
+    const guest = await join(mesh, "guest", "", { key: host.session.key });
+    await mesh.settle();
+
+    host.session.sendMessage("are you seeing this?");
+    guest.session.sendMessage("yes");
+    await mesh.settle();
+
+    expect(host.session.messages().map((m) => m.text)).toEqual(["are you seeing this?", "yes"]);
+    expect(guest.session.messages().map((m) => m.text)).toEqual(["are you seeing this?", "yes"]);
+    expect(host.session.messages()[1].author).toBe("guest");
+
+    // Someone arriving now gets the conversation so far, because it rides in the CRDT.
+    const late = await join(mesh, "late", "", { key: host.session.key });
+    await mesh.settle();
+    expect(late.session.messages().map((m) => m.text)).toEqual(["are you seeing this?", "yes"]);
+  });
+
+  it("ignores blank messages and trims what it keeps", async () => {
+    const mesh = new Mesh();
+    const base = await baseDoc("notes.txt", "start");
+    const host = await join(mesh, "host", "start", { base });
+    await mesh.settle();
+
+    host.session.sendMessage("   ");
+    host.session.sendMessage("");
+    host.session.sendMessage("  spaced  ");
+    await mesh.settle();
+
+    expect(host.session.messages().map((m) => m.text)).toEqual(["spaced"]);
+  });
+
+  it("notifies subscribers so the unread badge can count", async () => {
+    const mesh = new Mesh();
+    const base = await baseDoc("notes.txt", "start");
+    const host = await join(mesh, "host", "start", { base });
+    await mesh.settle();
+    const guest = await join(mesh, "guest", "", { key: host.session.key });
+    await mesh.settle();
+
+    const counts: number[] = [];
+    const sub = host.session.onMessages((m) => counts.push(m.length));
+    guest.session.sendMessage("one");
+    guest.session.sendMessage("two");
+    await mesh.settle();
+
+    expect(counts.at(-1)).toBe(2);
+    sub.dispose();
+    guest.session.sendMessage("three");
+    await mesh.settle();
+    expect(counts.at(-1)).toBe(2); // unsubscribed
+  });
+
+  it("survives a re-key, since the log lives in the shared document", async () => {
+    const mesh = new Mesh();
+    const base = await baseDoc("notes.txt", "start");
+    const host = await join(mesh, "host", "start", { base });
+    await mesh.settle();
+    const guest = await join(mesh, "guest", "", { key: host.session.key });
+    const pest = await join(mesh, "pest", "", { key: host.session.key });
+    void pest;
+    await mesh.settle();
+
+    host.session.sendMessage("before the removal");
+    await mesh.settle();
+    await host.session.remove(idOf(host, "pest"));
+    await mesh.settle();
+
+    host.session.sendMessage("after the removal");
+    await mesh.settle();
+
+    expect(guest.session.messages().map((m) => m.text)).toEqual([
+      "before the removal",
+      "after the removal",
+    ]);
   });
 });

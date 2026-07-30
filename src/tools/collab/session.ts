@@ -1,3 +1,4 @@
+import type * as Y from "yjs";
 import type { CollabBinding } from "../../core/types";
 import { BaseTransfer, type BaseDoc } from "./base";
 import { newRoomKey, type RoomKey } from "./link";
@@ -43,6 +44,18 @@ interface RekeyMessage {
   /** The peer this re-key is hiding from, so every hop can leave it out. */
   exclude: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  author: string;
+  colour: string;
+  text: string;
+  /** Sender's clock. Only for display: peers' clocks are not synchronised. */
+  at: number;
+}
+
+/** Where the chat lives in the shared document. Separate from anything the editor binds. */
+const CHAT = "chat";
 
 export interface SessionHost {
   /** The document this session is built on, for the host to serve. Null if none is open. */
@@ -187,6 +200,39 @@ export class CollabSession {
     return this.provider.peers();
   }
 
+  // Chat rides in the shared document rather than on its own channel, which gives it
+  // ordering, history for anyone who joins late, and the partial-mesh handling already
+  // built, at no extra cost. It is never written to the file.
+
+  private get chatLog(): Y.Array<ChatMessage> {
+    return this.provider.doc.getArray<ChatMessage>(CHAT);
+  }
+
+  messages(): ChatMessage[] {
+    return this.chatLog.toArray();
+  }
+
+  sendMessage(text: string): void {
+    const body = text.trim();
+    if (!body || this.closed) return;
+    this.chatLog.push([
+      {
+        id: crypto.randomUUID(),
+        author: this.me.name,
+        colour: this.me.colour,
+        text: body,
+        at: Date.now(),
+      },
+    ]);
+  }
+
+  /** Fires on every change to the log, local or remote. */
+  onMessages(handler: (messages: ChatMessage[]) => void): { dispose(): void } {
+    const listener = (): void => handler(this.messages());
+    this.chatLog.observe(listener);
+    return { dispose: () => this.chatLog.unobserve(listener) };
+  }
+
   /**
    * Remove someone. Re-keys the room, tells everyone else the new key over the connections
    * that already exist, and tells the removed peer to close its copy.
@@ -231,7 +277,10 @@ export class CollabSession {
     if (kind === CONTROL.evicted) {
       // Only from someone we are actually connected to, and never from ourselves.
       if (from === this.provider.selfId) return;
-      this.host.notify("You were removed from the session.");
+      this.host.notify(
+        "You were removed from the session, and this document has been closed." +
+          " The others keep the changes you made.",
+      );
       await this.leave();
       this.host.onEvicted?.();
       return;
