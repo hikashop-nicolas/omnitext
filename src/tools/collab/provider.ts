@@ -8,7 +8,7 @@ import {
   removeAwarenessStates,
 } from "y-protocols/awareness";
 import { readSyncMessage, writeSyncStep1, writeUpdate } from "y-protocols/sync";
-import type { CollabTransport } from "./transport";
+import type { Channel, CollabTransport } from "./transport";
 
 // A Yjs provider over any CollabTransport: it carries the Yjs sync protocol and the
 // awareness protocol between peers, and owns nothing else.
@@ -91,8 +91,8 @@ export class CollabProvider {
     this.emitPeers();
   }
 
-  private receive(channel: "sync" | "awareness", payload: Uint8Array, peerId: string): void {
-    if (this.closed) return;
+  private receive(channel: Channel, payload: Uint8Array, peerId: string): void {
+    if (this.closed || channel === "base") return; // the base file is the session's business, not the CRDT's
     if (channel === "sync") {
       const enc = encoding.createEncoder();
       // Applying runs the doc-update handler synchronously, which reads this to know

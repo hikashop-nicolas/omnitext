@@ -180,6 +180,56 @@ export interface EditorMountContext {
   onChange(): void;
 }
 
+// ---------------------------------------------------------------------------
+// Collaboration: a session is core-owned, a binding is editor-owned
+// ---------------------------------------------------------------------------
+
+/**
+ * What the core hands an editor when a session starts.
+ *
+ * There is no generic "apply this remote change" call, because a CRDT binds to the
+ * editing surface's own model and our surfaces have nothing in common: a character
+ * sequence, a list of cues, an address-keyed grid, a contenteditable body. So the core
+ * supplies the shared document and the presence channel, and each editor decides what to
+ * mirror into them.
+ */
+export interface CollabContext {
+  /** The shared document. Typed loosely so the core does not depend on Yjs at runtime. */
+  doc: YDocLike;
+  /** The presence channel (a y-protocols Awareness), for names, colours and cursors. */
+  awareness: AwarenessLike;
+  /** True for exactly one peer: the one that started the session. Joiners must not seed,
+   *  or the document doubles. */
+  seed: boolean;
+  /** A view-only session: mirror remote edits in, publish nothing out. */
+  readOnly: boolean;
+}
+
+/** The shape of a Y.Doc the core needs to know about; bindings cast to the real type. */
+export interface YDocLike {
+  clientID: number;
+  getText(name: string): unknown;
+  getMap(name: string): unknown;
+  getArray(name: string): unknown;
+  transact<T>(fn: () => T, origin?: unknown): T;
+}
+
+/** The shape of an Awareness the core needs to know about. */
+export interface AwarenessLike {
+  clientID: number;
+  getStates(): Map<number, Record<string, unknown>>;
+  setLocalStateField(field: string, value: unknown): void;
+  on(event: "update", handler: (changes: unknown, origin: unknown) => void): void;
+  off(event: "update", handler: (changes: unknown, origin: unknown) => void): void;
+}
+
+export interface CollabBinding {
+  /** Mirror local edits into the shared document, and remote ones back into the editor.
+   *  May be async: a binding is free to load its CRDT adapter only when a session starts. */
+  bind(ctx: CollabContext): void | Promise<void>;
+  unbind(): void;
+}
+
 export interface EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void;
   /** Current content as canonical text (used for save and editor switching). */
@@ -194,8 +244,8 @@ export interface EditorInstance {
   /** How many edits a getState snapshot holds, for tools that describe one. Only this
    *  editor knows the shape, so only it can count. */
   countStateChanges?(state: unknown): number;
-  /** Future collaboration hook: apply a remote change from a CRDT binding. */
-  applyRemote?(change: unknown): void;
+  /** How this editor joins a collaboration session, or null if it cannot yet. */
+  collab?(): CollabBinding | null;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

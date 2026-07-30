@@ -7,8 +7,8 @@ import { joinRoom, selfId, type MessageAction, type Room } from "trystero";
 // in-memory transport and no network at all, and changing signalling strategy (nostr for
 // mqtt, or a self-hosted relay) touches this file and nothing else.
 
-/** The two message streams a session needs, kept apart so neither carries a type tag. */
-export type Channel = "sync" | "awareness";
+/** The message streams a session needs, kept apart so none has to carry a type tag. */
+export type Channel = "sync" | "awareness" | "base";
 
 export type MessageHandler = (channel: Channel, payload: Uint8Array, peerId: string) => void;
 export type PeerHandler = (peerId: string) => void;
@@ -25,9 +25,9 @@ export interface CollabTransport {
   close(): Promise<void>;
 }
 
-/** Namespaces the two actions. Trystero encodes these into every frame, so keep them short. */
-const SYNC = "ysync";
-const AWARE = "yaware";
+/** Action namespaces. Trystero encodes these into every frame, so keep them short. */
+const NAMESPACE: Record<Channel, string> = { sync: "ysync", awareness: "yaware", base: "ybase" };
+const CHANNELS = Object.keys(NAMESPACE) as Channel[];
 
 /** Namespaces the rooms so an id cannot collide with another Trystero app's. */
 export const APP_ID = "omnitext-collab";
@@ -60,10 +60,9 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
     opts.roomId,
   );
 
-  const actions: Record<Channel, MessageAction<Wire>> = {
-    sync: room.makeAction<Wire>(SYNC),
-    awareness: room.makeAction<Wire>(AWARE),
-  };
+  const actions = Object.fromEntries(
+    CHANNELS.map((c) => [c, room.makeAction<Wire>(NAMESPACE[c])]),
+  ) as Record<Channel, MessageAction<Wire>>;
 
   // Every hook fans out to a list. Trystero's own onPeerJoin/onPeerLeave are single
   // slots, so assigning them directly would let a second subscriber silently unhook the
@@ -72,7 +71,7 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
   const joined: PeerHandler[] = [];
   const left: PeerHandler[] = [];
 
-  for (const channel of ["sync", "awareness"] as const) {
+  for (const channel of CHANNELS) {
     actions[channel].onMessage = (data, { peerId }) => {
       const payload = asBytes(data);
       for (const h of handlers) h(channel, payload, peerId);

@@ -1,9 +1,12 @@
 import { basicSetup } from "codemirror";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type Diagnostic as CmDiagnostic, linter, lintGutter } from "@codemirror/lint";
 import { oneDark } from "@codemirror/theme-one-dark";
+import type * as Y from "yjs"; // types only: the adapter itself is loaded on demand
 import type {
+  CollabBinding,
+  CollabContext,
   EditorInstance,
   EditorModule,
   EditorMountContext,
@@ -12,6 +15,9 @@ import type {
 // The universal text editor (lazy-loaded). It consumes the "text" view, so it is the
 // fallback for any format. It pulls optional syntax highlighting and diagnostics from
 // the active format, keeping CodeMirror entirely out of the core.
+
+/** The shared document's field name. Every peer must agree on it, so it is fixed here. */
+const SHARED_TEXT = "codemirror";
 
 // Comfortable typography and spacing, applied in both themes.
 const baseTheme = EditorView.theme({
@@ -33,13 +39,18 @@ const prefersDark = (): boolean =>
 
 class CodeMirrorInstance implements EditorInstance {
   private view: EditorView | null = null;
+  /** Holds the collaboration extension, so a session can start and end after mount. */
+  private readonly collabSlot = new Compartment();
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     const extensions: Extension[] = [
       basicSetup,
       baseTheme,
       EditorView.lineWrapping,
+      this.collabSlot.of([]),
       EditorView.updateListener.of((u) => {
+        // Remote edits arrive as ordinary document changes, which is what we want: they
+        // mark the document dirty and drive autosave exactly as typing does.
         if (u.docChanged) ctx.onChange();
       }),
     ];
@@ -77,6 +88,40 @@ class CodeMirrorInstance implements EditorInstance {
 
   selection(): unknown {
     return this.view ? this.view.state.selection.main : null;
+  }
+
+  /**
+   * Collaboration, via y-codemirror.next: a Y.Text mirrors the document and remote
+   * cursors come from awareness. Loaded on demand, so a session's cost is paid only by
+   * someone who starts one.
+   */
+  collab(): CollabBinding {
+    return {
+      bind: async (ctx: CollabContext) => {
+        const view = this.view;
+        if (!view) return;
+        const { yCollab } = await import("y-codemirror.next");
+        const ytext = ctx.doc.getText(SHARED_TEXT) as Y.Text;
+
+        if (ctx.seed) {
+          // Exactly one peer populates the shared document, from what is on screen.
+          if (ytext.length === 0) ytext.insert(0, view.state.doc.toString());
+        } else {
+          // A joiner adopts the session's text wholesale. Done before the extension is
+          // attached, so this replacement is not mirrored back as an edit of its own.
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: ytext.toString() },
+          });
+        }
+
+        const extensions: Extension[] = [yCollab(ytext, ctx.awareness as never)];
+        if (ctx.readOnly) extensions.push(EditorView.editable.of(false));
+        view.dispatch({ effects: this.collabSlot.reconfigure(extensions) });
+      },
+      unbind: () => {
+        this.view?.dispatch({ effects: this.collabSlot.reconfigure([]) });
+      },
+    };
   }
 
   focus(): void {
