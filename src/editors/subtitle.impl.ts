@@ -104,6 +104,7 @@ class SubtitleInstance implements EditorInstance {
 
         // Presence: publish which cue we are on, and mark the cues the others are on.
         this.publishSelection = (cueId) => publishPosition(ctx.awareness, { cueId });
+        this.publishSelection(handle.selectedCueId()); // visible now, not once we next move
         this.unwatchPeers = watchPeers<{ cueId: string | null }>(ctx.awareness, (peers) => {
           handle.setPeerCues(
             peers.map((p) => ({ id: p.id, colour: p.colour, name: p.name, cueId: p.at?.cueId ?? null })),

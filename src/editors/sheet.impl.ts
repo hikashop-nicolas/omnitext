@@ -90,6 +90,8 @@ class SheetInstance implements EditorInstance {
 
         // Presence: publish which cell we are on, and outline the ones the others are on.
         this.publishSelection = (at) => publishPosition(ctx.awareness, at);
+        const at = editor.selectedCell();
+        if (at) this.publishSelection(at); // visible now, not once we next move
         this.unwatchPeers = watchPeers<{ sheet: string; r: number; c: number }>(ctx.awareness, (peers) => {
           editor.setPeerCells(
             peers
