@@ -289,10 +289,35 @@ what they have already seen. If they saved a copy, it is theirs.
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
 | 3 | **Done.** sheetedit binding, cell content only; structural edits refused during a session | Phase 2 shipped and used |
 | 4 | **Done and verified in two tabs.** sheetedit structural operations, host-arbitrated | Phase 3 refused them outright, so everyone hit it |
-| 5 | richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
+| 5 | **Done, with presence outstanding.** richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
 
 Phases 3 and 5 each carry a prerequisite body of work in another repository. Those are
 not incidental; budget them as their own tasks.
+
+### What phase 5 came out as (2026-07-31)
+
+Built as designed in 3.4, with three things worth writing down.
+
+**Block reporting is a subscription, not an option.** Working out which blocks changed
+walks every block on every keystroke. As a constructor option that was paid by every
+document, including the overwhelming majority nobody shares; `setBlockReporter` also fixes
+the diff baseline at the moment of subscribing, which is the correct instant.
+
+**Structured blocks are stored as a plain string, not a Y.Text.** The plan said last writer
+wins for tables, images and `data-docx-xml` passthroughs, and a Y.Text cannot express that:
+two peers who each clear one and insert their own version converge on both versions, one
+after the other, which is exactly the nonsense being avoided. A Y.Map entry set to a string
+resolves to one of the two. A block changes type when it changes kind, so pasting an image
+into a paragraph stops it merging and deleting one starts it again. A test found this; the
+first implementation was wrong in the way the plan's own reasoning warned about.
+
+**Presence publishes nothing.** A caret in a rich document is an offset inside a block, and
+richdoc does not expose one. Publishing an empty position is honest; the peer list still
+shows who is here, and nothing is drawn in the document. This is the outstanding piece of
+phase 5, and it needs a caret API in richdoc before it can be anything else.
+
+`applyRemoteBlocks` keeps the caret when only block content changed, which is the ordinary
+case. Blocks added, removed or moved rebuild the body and the caret does not survive it.
 
 ### Pair tests, added before phase 5
 

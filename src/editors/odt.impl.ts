@@ -1,5 +1,6 @@
 import { createOdtEditorAsync, initLocale, type OdtEditor } from "richdoc";
-import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 
@@ -51,6 +52,11 @@ class OdtInstance implements EditorInstance {
 
   selection(): unknown {
     return null;
+  }
+
+  collab(): CollabBinding {
+    // The editor may still be inflating when a session starts; the binding checks.
+    return richdocBinding({ handle: () => this.editor });
   }
 
   focus(): void {}
