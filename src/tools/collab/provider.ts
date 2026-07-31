@@ -9,6 +9,7 @@ import {
 } from "y-protocols/awareness";
 import { readSyncMessage, writeSyncStep1, writeUpdate } from "y-protocols/sync";
 import type { Channel, CollabTransport } from "./transport";
+import { DebugTally, debug } from "../../core/debug";
 
 // A Yjs provider over any CollabTransport: it carries the Yjs sync protocol and the
 // awareness protocol between peers, and owns nothing else.
@@ -63,6 +64,8 @@ export class CollabProvider {
   private hasContent = false;
   /** Set while pruning presence locally, so the clean-up is not broadcast. */
   private quietAwareness = false;
+  /** Sync traffic is per keystroke: a line each drowns the console, so it is counted. */
+  private readonly tally = new DebugTally("wire");
 
   constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc(), resyncMs: number = RESYNC_MS) {
     this.doc = doc;
@@ -85,10 +88,15 @@ export class CollabProvider {
   private wire(t: CollabTransport): void {
     t.onMessage((channel, payload, peerId) => this.receive(channel, payload, peerId));
     t.onPeerJoin((peerId) => {
+      debug("collab", "peer joined", () => peerId);
+      this.tally.report("wire totals so far");
       this.greet(peerId);
       for (const h of this.joinHandlers) h(peerId);
     });
-    t.onPeerLeave(() => this.emitPeers());
+    t.onPeerLeave((peerId) => {
+      debug("collab", "peer left", () => peerId);
+      this.emitPeers();
+    });
   }
 
   /** This peer's transport id, which is how the others address it. */
@@ -108,6 +116,7 @@ export class CollabProvider {
    */
   sendOn(channel: Channel, payload: Uint8Array, target: string | string[] | null): void {
     if (this.closed) return;
+    debug("wire", `sending on ${channel}`, () => ({ bytes: payload.length, target }));
     if (Array.isArray(target) && !target.length) return;
     this.transport.send(channel, payload, target);
   }
@@ -182,6 +191,10 @@ export class CollabProvider {
 
   private receive(channel: Channel, payload: Uint8Array, peerId: string): void {
     if (this.closed) return;
+    this.tally.add(`in:${channel}`);
+    if (channel !== "sync" && channel !== "awareness") {
+      debug("wire", `received on ${channel}`, () => ({ bytes: payload.length, from: peerId }));
+    }
     // The base file and the control messages belong to the session, not the CRDT.
     if (channel === "base" || channel === "control") {
       for (const h of this.channelHandlers.get(channel) ?? []) h(payload, peerId);

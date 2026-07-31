@@ -10,6 +10,7 @@ import type {
 import { changedCells, isEmpty, readCells, seedCells, sharedType, writeCells } from "./sheet-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
 import { OpSequencer, shiftCells, type StructuralOp } from "./sheet-structure";
+import { debug } from "../core/debug";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
 // with formula recalculation and in-place preservation) as an Omnitext editor module.
@@ -75,7 +76,9 @@ class SheetInstance implements EditorInstance {
 
   /** Mirror local cell edits into the shared workbook, if a session is running. */
   private publish(changes: SheetCellInput[]): void {
-    if (this.shared) writeCells(this.shared, changes, this.origin);
+    if (!this.shared) return;
+    debug("wire", "publishing cells", () => changes);
+    writeCells(this.shared, changes, this.origin);
   }
 
   collab(): CollabBinding {
@@ -97,7 +100,9 @@ class SheetInstance implements EditorInstance {
         const map = sharedType(doc);
         const onChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction): void => {
           if (transaction.origin === this.origin) return; // our own edit, already on screen
-          editor.applyRemoteCells(changedCells(doc, event.keysChanged));
+          const cells = changedCells(doc, event.keysChanged);
+          debug("wire", "applying cells from a peer", () => cells);
+          editor.applyRemoteCells(cells);
         };
         map.observe(onChange);
         this.unwatch = () => map.unobserve(onChange);
@@ -118,8 +123,12 @@ class SheetInstance implements EditorInstance {
         // order. The host also rewrites the shared cell map, once, in the same step: if
         // every peer shifted it themselves the same move would be written many times over.
         if (ctx.ordered) {
-          this.propose = (op) => ctx.ordered!.propose(op);
+          this.propose = (op) => {
+          debug("collab", "proposing a structural edit", () => op);
+          ctx.ordered!.propose(op);
+        };
           const sequencer = new OpSequencer((op) => {
+            debug("collab", `applying structural operation ${op.seq}`, () => op);
             if (ctx.seed) writeCells(doc, shiftCells(readCells(doc), op), this.origin);
             editor.applyRemoteStructural(op);
           });

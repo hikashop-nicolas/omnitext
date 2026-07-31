@@ -9,6 +9,7 @@ import type {
 } from "../core/types";
 import { isEmpty, readCues, seedCues, sharedTypes, writeCues } from "./subtitle-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
+import { debug } from "../core/debug";
 
 // subedit reads the format from the filename extension. A new blank document has no
 // filename, so map the format's MIME (always set by the host) to a synthetic name, else
@@ -63,6 +64,7 @@ class SubtitleInstance implements EditorInstance {
   /** Mirror the local cue list into the shared document, if a session is running. */
   private publish(): void {
     if (!this.shared || !this.handle || this.applyingRemote) return;
+    debug("wire", "publishing cues", () => this.handle?.cueSnapshot().length);
     writeCues(this.shared, this.handle.cueSnapshot(), this.origin);
   }
 

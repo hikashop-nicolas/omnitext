@@ -1,5 +1,6 @@
 import type * as Y from "yjs";
 import { t } from "../../i18n";
+import { debug } from "../../core/debug";
 import type { CollabBinding } from "../../core/types";
 import { BaseTransfer, type BaseDoc } from "./base";
 import { newRoomKey, type RoomKey } from "./link";
@@ -183,6 +184,10 @@ export class CollabSession {
     this.followMs = opts.followMs ?? 2_000;
     this.makeTransport = opts.makeTransport ?? defaultTransport;
 
+    debug("collab", this.isHost ? "starting a room" : "joining a room", () => ({
+      room: this.currentKey.roomId,
+      readOnly: this.readOnly,
+    }));
     this.provider = new CollabProvider(this.makeTransport(this.currentKey));
     this.announce();
 
@@ -285,6 +290,7 @@ export class CollabSession {
     } else {
       const theirs = meta.get(META_EDITOR);
       if (theirs && mine && theirs !== mine) {
+        debug("collab", "refusing to bind: different editor", () => ({ mine, theirs }));
         this.wrongEditor = true;
         this.host.notify(t("collab.wrongEditor"));
         this.host.onChange?.();
@@ -363,6 +369,7 @@ export class CollabSession {
   /** Host only: stamp an operation and give it to everyone, ourselves included. */
   private publishOrdered(op: unknown): void {
     const seq = this.nextSeq++;
+    debug("collab", `ordering operation ${seq}`, () => op);
     this.provider.sendOn("control", controlFrame(CONTROL.ordered, { op, seq }), null);
     for (const h of this.orderedHandlers) h(op, seq);
   }
@@ -464,6 +471,7 @@ export class CollabSession {
     }
     if (kind === CONTROL.ordered) {
       const { op, seq } = JSON.parse(textDecoder.decode(body)) as { op: unknown; seq: number };
+      debug("collab", `received ordered operation ${seq}`, () => op);
       for (const h of this.orderedHandlers) h(op, seq);
       return;
     }

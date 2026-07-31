@@ -1,4 +1,5 @@
 import type { AwarenessLike } from "../core/types";
+import { debug } from "../core/debug";
 
 // Reading and writing "where is everyone" through the presence channel.
 //
@@ -55,7 +56,11 @@ export function watchPeers<P = Position>(
   awareness: AwarenessLike,
   render: (peers: PeerAt<P>[]) => void,
 ): () => void {
-  const update = (): void => render(peersAt<P>(awareness));
+  const update = (): void => {
+    const peers = peersAt<P>(awareness);
+    debug("peers", `${peers.length} other peer(s)`, () => peers);
+    render(peers);
+  };
   awareness.on("update", update);
   update();
   return () => awareness.off("update", update);
