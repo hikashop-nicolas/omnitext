@@ -8,7 +8,7 @@ import { joinRoom, selfId, type MessageAction, type Room } from "trystero";
 // mqtt, or a self-hosted relay) touches this file and nothing else.
 
 /** The message streams a session needs, kept apart so none has to carry a type tag. */
-export type Channel = "sync" | "awareness" | "base" | "control";
+export type Channel = "sync" | "awareness" | "base" | "blob" | "control";
 
 export type MessageHandler = (channel: Channel, payload: Uint8Array, peerId: string) => void;
 export type PeerHandler = (peerId: string) => void;
@@ -30,6 +30,7 @@ const NAMESPACE: Record<Channel, string> = {
   sync: "ysync",
   awareness: "yaware",
   base: "ybase",
+  blob: "yblob",
   control: "yctl",
 };
 const CHANNELS = Object.keys(NAMESPACE) as Channel[];
