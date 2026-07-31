@@ -163,6 +163,7 @@ const en: Dict = {
     readOnlyHere: "You joined with a view-only link, so your edits stay local.",
     wrongEditor:
       "This document is being shared through a different editor, so your changes would not reach anyone. Switch to the same view to join in.",
+    wrongBuild: "The other person is running a different version of Omnitext, so editing together would not be safe. Both of you reload the page to get the current version.",
     wrongEditorHint: "Shared through the \u201c{editor}\u201d view. Switch to it to edit together.",
     editorPinned: "Leave the session before switching view: everyone is editing through this one.",
     nameHint: "What the others see. Saved for next time, and used to sign comments too.",

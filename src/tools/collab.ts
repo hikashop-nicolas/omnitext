@@ -414,7 +414,9 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           } else if (session.reachability === "unreachable") {
             status.appendChild(el("div", "ot-collab-warn", t("collab.reachFailed")));
           }
-          if (session.status === "mismatch") {
+          if (session.status === "oldBuild") {
+            status.appendChild(el("div", "ot-collab-warn", t("collab.wrongBuild")));
+          } else if (session.status === "mismatch") {
             status.appendChild(
               el(
                 "div",

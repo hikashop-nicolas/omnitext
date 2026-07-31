@@ -1,6 +1,7 @@
 import type * as Y from "yjs";
 import { t } from "../../i18n";
 import { debug } from "../../core/debug";
+import { BUILD_ID } from "../../build-id";
 import type { CollabBinding } from "../../core/types";
 import { BaseTransfer, type BaseDoc } from "./base";
 import { newRoomKey, type RoomKey } from "./link";
@@ -69,6 +70,8 @@ const CHAT = "chat";
 /** Session facts the core owns, as opposed to anything an editor binds. */
 const META = "collab.meta";
 const META_EDITOR = "editor";
+/** Which build of the app started the session. See BUILD_ID for why this is checked. */
+const META_BUILD = "build";
 
 export interface SessionHost {
   /** The document this session is built on, for the host to serve. Null if none is open. */
@@ -188,6 +191,7 @@ export class CollabSession {
   private closed = false;
   private unsupported = false;
   private wrongEditor = false;
+  private wrongBuild = false;
   private me: { name: string; colour: string };
   /** True while the name is one we picked, so it may be renumbered as peers appear. */
   private autoName: boolean;
@@ -323,6 +327,7 @@ export class CollabSession {
     const mine = this.host.editorId();
     if (this.isHost) {
       if (mine) meta.set(META_EDITOR, mine);
+      meta.set(META_BUILD, BUILD_ID);
     } else {
       const theirs = meta.get(META_EDITOR);
       if (theirs && mine && theirs !== mine) {
@@ -332,8 +337,22 @@ export class CollabSession {
         this.host.onChange?.();
         return;
       }
+      // Same code on both sides, or edits keyed by position mean different things. The one
+      // that matters most is the PDF editor, whose paragraph numbering comes from a
+      // heuristic that a different build may run differently, so "paragraph 3" would land
+      // somewhere else. Refusing is the honest answer: the alternative is two documents
+      // that quietly disagree.
+      const theirBuild = meta.get(META_BUILD);
+      if (theirBuild && theirBuild !== BUILD_ID) {
+        debug("collab", "refusing to bind: different build", () => ({ mine: BUILD_ID, theirs: theirBuild }));
+        this.wrongBuild = true;
+        this.host.notify(t("collab.wrongBuild"));
+        this.host.onChange?.();
+        return;
+      }
     }
     this.wrongEditor = false;
+    this.wrongBuild = false;
 
     this.binding = binding;
     this.bound = true;
@@ -555,9 +574,10 @@ export class CollabSession {
     this.host.onChange?.();
   }
 
-  get status(): "editing" | "unsupported" | "mismatch" | "waiting" {
+  get status(): "editing" | "unsupported" | "mismatch" | "oldBuild" | "waiting" {
     if (this.bound) return "editing";
     if (this.wrongEditor) return "mismatch";
+    if (this.wrongBuild) return "oldBuild";
     return this.unsupported ? "unsupported" : "waiting";
   }
 

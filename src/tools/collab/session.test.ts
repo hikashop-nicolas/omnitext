@@ -127,6 +127,62 @@ function host(over: Partial<SessionHost> & { editor?: ReturnType<typeof fakeEdit
 
 const me = { name: "Ada", colour: "#f00" };
 
+describe("different builds", () => {
+  // Edits are keyed by position in several editors, and the PDF one numbers paragraphs
+  // from a heuristic another build may run differently, so "paragraph 3" would land
+  // somewhere else. The app's commit pins every editor library through the lockfile, so
+  // one check covers all of them. Refusing beats two documents that quietly disagree.
+  it("refuses to bind a joiner whose app is a different build", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "shared");
+    const h = host({ editor: fakeEditor("shared"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+    // Stand in for the other side having been built from a different commit.
+    (session.provider.doc.getMap("collab.meta") as { set(k: string, v: string): void }).set(
+      "build",
+      "some-other-commit",
+    );
+    await net.settle();
+
+    const joinEditor = fakeEditor("shared");
+    const j = host({ editor: joinEditor, localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status, "reported, not bound").toBe("oldBuild");
+    expect(joiner.editing, "and not editing").toBe(false);
+    expect(joinEditor.contexts, "the binding was never given the document").toHaveLength(0);
+    expect(j.notes.length, "and the person was told why").toBeGreaterThan(0);
+  });
+
+  it("binds normally when both sides are the same build", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "shared");
+    const h = host({ editor: fakeEditor("shared"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor("shared"), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("editing");
+  });
+});
+
 describe("reachability", () => {
   // There is no relay for the document, so two peers whose networks cannot be joined never
   // connect and nothing fails on its own. Trystero cannot tell us that has happened, so it

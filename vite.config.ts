@@ -1,9 +1,29 @@
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
+
+/**
+ * What build this is, so two peers can tell whether they are running the same code.
+ *
+ * The commit, because that is what pins every editor library in the lockfile. Two peers on
+ * the same commit parse a PDF into the same paragraphs, which is what makes an edit keyed
+ * by paragraph index mean the same thing on both sides. A dev server reports "dev": two
+ * developers can differ while both saying so, and that is a known hole rather than a
+ * pretence of safety.
+ */
+function buildId(): string {
+  if (process.env.NODE_ENV !== "production") return "dev";
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 // Static-site build for GitHub Pages. base is "./" so the app works from any
 // repo-subpath without rewriting asset URLs.
 export default defineConfig({
   base: "./",
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
   // the browser; alias it to a tiny stub so the ~3MB dep is not bundled.
