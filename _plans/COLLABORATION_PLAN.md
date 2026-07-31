@@ -450,6 +450,21 @@ half its credentials. Both otherwise fail at connection time, minutes later, wit
 pointing at the field that was wrong. The credentials sit in localStorage in plain text
 like every other setting, and the panel says so rather than leaving it to be discovered.
 
+**Verified end to end against a real relay.** A local coturn (loopback, throwaway
+credentials, `allow-loopback-peers` since both peers were tabs on one machine), and both
+browsers patched from the test side to force `iceTransportPolicy: "relay"`, so no direct
+path was available and a session that worked could only have gone through the relay. It
+worked: both ends chose `typ relay` candidates in coturn's configured port range, the docx
+transferred, and an edit crossed. coturn's own log agreed, with 41 authenticated
+allocations and about 390 kB relayed.
+
+Two checks made that result mean something. A deliberately wrong password produced `401
+Unauthorized` and no candidate at all, so a relay candidate proves an authenticated
+allocation rather than a server that accepts anything. And the config the app handed to
+`RTCPeerConnection` carried four default STUN servers **plus** the relay, which is the
+`turnConfig` decision above holding in practice: configuring a relay adds to the discovery
+that makes most connections work rather than replacing it.
+
 **One correction fell out of this**, in section 6: the draft claimed payloads are
 encrypted with a key derived from the link secret. They are not, and the honest version
 is now written there.
