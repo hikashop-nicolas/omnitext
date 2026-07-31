@@ -87,10 +87,30 @@ export interface SessionHost {
   onChange?(): void;
 }
 
+/** The default name, when the person has not set one. */
+export const GUEST = "Guest";
+
+/**
+ * The lowest "Guest n" not already in use. Two people who have both left the name unset
+ * would otherwise be Guest 1 twice, which is worse than no name at all: the peer list, the
+ * badges and the chat would all name two different people identically.
+ */
+export function freeGuestName(taken: readonly string[]): string {
+  const used = new Set(
+    taken
+      .map((n) => new RegExp(`^${GUEST} (\\d+)$`).exec(n)?.[1])
+      .filter((n): n is string => !!n)
+      .map(Number),
+  );
+  let n = 1;
+  while (used.has(n)) n++;
+  return `${GUEST} ${n}`;
+}
+
 export interface SessionOptions {
   /** Omit to start a new room; pass the key from a link to join one. */
   key?: RoomKey;
-  /** Self-chosen, no identity attached. */
+  /** Self-chosen, no identity attached. Empty means "call me Guest n". */
   name: string;
   colour: string;
   /** A view-only session: mirror edits in, publish none out. */
@@ -129,6 +149,8 @@ export class CollabSession {
   private unsupported = false;
   private wrongEditor = false;
   private me: { name: string; colour: string };
+  /** True while the name is one we picked, so it may be renumbered as peers appear. */
+  private autoName: boolean;
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
   private readonly followMs: number;
@@ -138,7 +160,8 @@ export class CollabSession {
     this.isHost = !opts.key;
     this.currentKey = opts.key ?? newRoomKey();
     this.readOnly = opts.readOnly ?? false;
-    this.me = { name: opts.name, colour: opts.colour };
+    this.autoName = !opts.name.trim();
+    this.me = { name: opts.name.trim() || `${GUEST} 1`, colour: opts.colour };
     this.followMs = opts.followMs ?? 2_000;
     this.makeTransport = opts.makeTransport ?? defaultTransport;
 
@@ -161,15 +184,45 @@ export class CollabSession {
     this.provider.onChannel("control", (payload, peerId) => void this.onControl(payload, peerId));
     // Only the peer that started the room serves the base; joiners never offer theirs.
     if (this.isHost) this.provider.onPeerJoined((peerId) => void this.base.offerTo(peerId));
-    this.provider.onPeersChanged(() => this.host.onChange?.());
+    this.provider.onPeersChanged(() => {
+      this.renumber();
+      this.host.onChange?.();
+    });
   }
 
   get key(): RoomKey {
     return this.currentKey;
   }
 
+  /**
+   * Take the lowest free "Guest n" once the other peers are known. Only while the name is
+   * still one we chose: renaming someone who typed their own name would be rude and would
+   * also fight them every time a peer joined.
+   */
+  private renumber(): void {
+    if (!this.autoName || this.closed) return;
+    const peers = this.provider.peers();
+
+    // Only move on an actual clash, and only one side of it. Renumbering to "the lowest
+    // free" unconditionally had both peers start as Guest 1, both see the other as Guest 1,
+    // and swap numbers forever. The lower client id keeps the name; everyone else moves.
+    const clash = peers.filter((p) => p.name === this.me.name);
+    if (!clash.length) return;
+    if (clash.every((p) => p.clientId > this.doc.clientID)) return; // we were here first
+
+    const wanted = freeGuestName([...peers.map((p) => p.name), this.me.name]);
+    if (wanted === this.me.name) return;
+    this.me = { ...this.me, name: wanted };
+    this.announce();
+  }
+
+  private get doc(): { clientID: number } {
+    return this.provider.doc;
+  }
+
   /** Change the name the others see, without interrupting the session. */
   setName(name: string): void {
+    this.autoName = false; // theirs now, so stop renumbering it
     this.me = { ...this.me, name };
     this.announce();
     this.host.onChange?.();

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CollabBinding, CollabContext } from "../../core/types";
 import { hashBytes, type BaseDoc } from "./base";
-import { CollabSession, type SessionHost } from "./session";
+import { CollabSession, freeGuestName, type SessionHost } from "./session";
 import type { Channel, CollabTransport, MessageHandler, PeerHandler } from "./transport";
 
 // Session lifecycle: who seeds, who waits, who refuses.
@@ -526,5 +526,73 @@ describe("the name others see", () => {
     expect(joiner.peers().map((p) => p.name)).toEqual(["Ada Lovelace"]);
     // And the peer id is unchanged, so a rename is not a new person.
     expect(joiner.peers()[0].peerId).toBe("host");
+  });
+});
+
+describe("default names", () => {
+  it("numbers guests from one", () => {
+    expect(freeGuestName([])).toBe("Guest 1");
+    expect(freeGuestName(["Guest 1"])).toBe("Guest 2");
+    expect(freeGuestName(["Guest 1", "Guest 2"])).toBe("Guest 3");
+    // Gaps are filled, so leaving and rejoining does not push the numbers up forever.
+    expect(freeGuestName(["Guest 1", "Guest 3"])).toBe("Guest 2");
+    // Real names are not guest numbers.
+    expect(freeGuestName(["Ada", "Guest 1"])).toBe("Guest 2");
+  });
+
+  it("gives two unnamed peers different numbers", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "text");
+    const h = host({ editor: fakeEditor("text"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, {
+      name: "",
+      colour: "#f00",
+      makeTransport: () => net.connect("host"),
+    });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      name: "",
+      colour: "#0f0",
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    // Which of the two keeps "Guest 1" is not fixed: the tie is broken on the Yjs client
+    // id, which is random. What must hold is that they differ and that each sees the
+    // other's actual name.
+    expect(session.myName).not.toBe(joiner.myName);
+    expect([session.myName, joiner.myName].sort()).toEqual(["Guest 1", "Guest 2"]);
+    expect(session.peers().map((p) => p.name)).toEqual([joiner.myName]);
+    expect(joiner.peers().map((p) => p.name)).toEqual([session.myName]);
+  });
+
+  it("never renumbers a name someone typed", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "text");
+    const h = host({ editor: fakeEditor("text"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, {
+      name: "Nicolas",
+      colour: "#f00",
+      makeTransport: () => net.connect("host"),
+    });
+    await session.start();
+    await net.settle();
+
+    const joiner = new CollabSession(host({ editor: fakeEditor(""), localState: () => null }).api, {
+      name: "",
+      colour: "#0f0",
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(session.myName).toBe("Nicolas");
+    expect(joiner.myName).toBe("Guest 1"); // Nicolas is not a guest number
   });
 });

@@ -40,7 +40,7 @@ const en: Dict = {
     themeDark: "Dark",
     lineEndingMixed: "mixed",
     yourName: "Your name",
-    yourNameHint: "Used as the author of comments and replies you add.",
+    yourNameHint: "Shown to the others when you share a document, and used as the author of comments and replies you add. Left blank, a shared session calls you Guest.",
     pageSize: "Page size",
     pageSizeA4: "A4",
     pageSizeA3: "A3",

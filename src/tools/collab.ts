@@ -16,7 +16,6 @@ import type { Peer } from "./collab/provider";
 
 const STYLE_ID = "omnitext-collab-style";
 
-const NAMES = ["Ada", "Grace", "Alan", "Edsger", "Barbara", "Ken", "Radia", "Margaret", "Linus", "Hedy"];
 const COLOURS = ["#e5484d", "#3fb950", "#4c8dff", "#d29922", "#a371f7", "#00b3a4", "#f778ba"];
 const pick = <T>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
 
@@ -514,10 +513,11 @@ export const collabTool: ToolModule = {
     const store = new VersionStore();
     const state: ToolState = {
       session: null,
-      // The name from Settings, which is the same one comments are signed with. Only when
-      // it is unset does a pseudonym stand in: collaboration needs something to show, and
-      // demanding a name before sharing would be an account by another route.
-      me: { name: userName() ?? pick(NAMES), colour: pick(COLOURS) },
+      // The name from Settings, which is the same one comments are signed with. Left empty
+      // the session calls you "Guest n": a plausible first name would have been a small
+      // lie about who is in the room, and demanding a real one before sharing would be an
+      // account arriving by another route.
+      me: { name: userName() ?? "", colour: pick(COLOURS) },
       repaint: null,
       panelOpen: false,
       readCount: 0,

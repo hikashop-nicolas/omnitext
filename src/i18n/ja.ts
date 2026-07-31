@@ -40,7 +40,7 @@ const ja: Dict = {
     themeDark: "ダーク",
     lineEndingMixed: "混在",
     yourName: "名前",
-    yourNameHint: "追加するコメントや返信の作成者として使用されます。",
+    yourNameHint: "文書を共有したときにほかの参加者に表示され、追加するコメントや返信の作成者としても使用されます。空欄のままだと、共有セッションでは Guest と表示されます。",
     pageSize: "ページサイズ",
     pageSizeA4: "A4",
     pageSizeA3: "A3",
