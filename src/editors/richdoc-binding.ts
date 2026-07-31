@@ -3,10 +3,13 @@ import type { CollabBinding, CollabContext } from "../core/types";
 import { debug } from "../core/debug";
 import { publishPosition, watchPeers } from "./peer-presence";
 import {
+  dataUrlsIn,
+  fromBlobRefs,
   isEmpty,
   readAsChanges,
   seedBlocks,
   sharedTypes,
+  toBlobRefs,
   writeBlocks,
   type BlockChanges,
   type BlockState,
@@ -65,6 +68,51 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
   let unwatch: (() => void) | null = null;
   let unwatchPeers: (() => void) | null = null;
   let undoManager: Y.UndoManager | null = null;
+  let blobs: CollabContext["blobs"] | undefined;
+  /** data: URL to its hash, so the same picture is not hashed on every keystroke. */
+  const shaByUrl = new Map<string, string>();
+  /** Payloads we have asked for and not yet received. */
+  const awaiting = new Set<string>();
+
+  /**
+   * Lift image payloads out of the markup and into the blob store.
+   *
+   * The whole data: URL is what gets stored, not the decoded bytes. Restoring it is then
+   * exact rather than reassembled from a mime type and base64, which matters here: richdoc
+   * claims an untouched part of a document comes back byte for byte, and an image put back
+   * together slightly differently would quietly break that.
+   */
+  const liftImages = async (blocks: BlockState[]): Promise<BlockState[]> => {
+    if (!blobs) return blocks;
+    for (const block of blocks) {
+      for (const url of dataUrlsIn(block.html)) {
+        if (shaByUrl.has(url)) continue;
+        shaByUrl.set(url, await blobs.put(new TextEncoder().encode(url)));
+      }
+    }
+    return blocks.map((b) => ({ ...b, html: toBlobRefs(b.html, (url) => shaByUrl.get(url)) }));
+  };
+
+  /** Put the payloads back, and fetch any this peer has not got yet. */
+  const dropImagesIn = (blocks: BlockState[], onArrived: () => void): BlockState[] =>
+    blocks.map((block) => {
+      const { html, missing } = fromBlobRefs(block.html, (sha) => {
+        const held = blobs?.get(sha);
+        if (!held) return undefined;
+        const url = new TextDecoder().decode(held);
+        shaByUrl.set(url, sha); // so republishing it does not hash it again
+        return url;
+      });
+      for (const sha of missing) {
+        if (!blobs || awaiting.has(sha)) continue;
+        awaiting.add(sha);
+        void blobs.fetch(sha).then((got) => {
+          awaiting.delete(sha);
+          if (got) onArrived();
+        });
+      }
+      return { ...block, html };
+    });
 
   const publish = (changes: BlockChanges): void => {
     if (!shared || applyingRemote) return;
@@ -75,16 +123,27 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       changed: changes.changed.length,
       removed: changes.removed.length,
     }));
-    writeBlocks(shared, changes, origin);
+    const doc = shared;
+    void liftImages(changes.changed).then((lifted) => {
+      // Re-checked after the await: a session can end while a payload is being hashed.
+      if (shared !== doc || applyingRemote) return;
+      writeBlocks(doc, { ...changes, changed: lifted }, origin);
+    });
   };
 
   /** Put the shared body on screen without treating it as a local edit. */
   const applyRemote = (doc: Y.Doc): void => {
     const handle = host.handle();
     if (!handle) return;
+    const incoming = readAsChanges(doc);
     applyingRemote = true;
     try {
-      handle.applyRemoteBlocks(readAsChanges(doc));
+      handle.applyRemoteBlocks({
+        ...incoming,
+        changed: dropImagesIn(incoming.changed, () => {
+          if (shared === doc) applyRemote(doc); // the payload landed; draw it now
+        }),
+      });
     } finally {
       applyingRemote = false;
     }
@@ -97,13 +156,14 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       if (!handle) return; // construction failed, and the failure was already reported
       const doc = ctx.doc as unknown as Y.Doc;
       shared = doc;
+      blobs = ctx.blobs;
       viewOnly = ctx.readOnly;
 
       // Subscribe before seeding, so nothing this peer does from here on is missed.
       handle.setBlockReporter(publish);
 
       if (ctx.seed) {
-        seedBlocks(doc, handle.blockSnapshot(), origin);
+        seedBlocks(doc, await liftImages(handle.blockSnapshot()), origin);
       } else if (!isEmpty(doc)) {
         // Adopt the session's body. Only when there is one: adopting an empty shared
         // document would blank the file this peer already had open.
@@ -155,6 +215,8 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       unwatchPeers = null;
       undoManager?.destroy();
       undoManager = null;
+      awaiting.clear();
+      blobs = undefined;
       const handle = host.handle();
       handle?.setBlockReporter(null); // stop paying for the diff once nobody wants it
       handle?.setSelectionReporter(null);

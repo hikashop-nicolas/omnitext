@@ -672,10 +672,12 @@ how likely a user is to hit it.
 
 **richdoc**
 
-- Images: currently *technically* shared, but wrongly. A block containing one is stored in
-  the CRDT as a plain string with the `data:` URL inline, so the bytes sit in the session
-  for its whole life (plus 33% for base64) and the block cannot merge two people's edits.
-  Both problems go away by moving the payload to the blob store.
+- ~~Images: currently *technically* shared, but wrongly.~~ **Fixed 2026-08-01.** Payloads
+  are lifted into the blob store and the markup keeps a short `rdoc-blob:` reference, so
+  the bytes are out of the CRDT and a paragraph holding a picture merges as prose again.
+  The whole `data:` URL is what gets stored, not the decoded bytes, so restoring it is
+  exact rather than reassembled: richdoc claims an untouched part comes back byte for
+  byte, and an image put back together slightly differently would quietly break that.
 - Headers and footers, footnotes and endnotes
 - Comments and tracked changes
 - Named styles, page geometry

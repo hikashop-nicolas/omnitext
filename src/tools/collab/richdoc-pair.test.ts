@@ -317,6 +317,53 @@ describe("two peers on a rich document", () => {
     expect(b.editor.peerCarets[0]).toMatchObject({ blockId: "b3", offset: 4 });
   });
 
+  // The image fix. Bytes in the CRDT stay there for the life of the session even after the
+  // picture is deleted, and they make the block too binary to merge, so two people editing
+  // the text around a picture lose one of the two edits. Both go away by moving the payload
+  // to the blob store and leaving a short reference behind.
+  describe("images in a block", () => {
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    it("carries the picture to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.type("b2", `Look: <img src="${png}"> there.`);
+      await settle(400);
+
+      expect(b.editor.html("b2"), "the payload arrived, restored exactly").toBe(
+        `Look: <img src="${png}"> there.`,
+      );
+    });
+
+    it("keeps the payload out of the shared document", async () => {
+      const { a, b } = await connected();
+
+      a.editor.type("b2", `Look: <img src="${png}"> there.`);
+      await settle(400);
+
+      const shared = new TextDecoder("utf-8", { fatal: false }).decode(
+        (await import("yjs")).encodeStateAsUpdate(b.session.provider.doc),
+      );
+      expect(shared, "no base64 in the document").not.toContain("iVBORw0KGgo");
+      expect(shared, "a reference instead").toContain("rdoc-blob:");
+    });
+
+    it("still merges two people editing the text around a picture", async () => {
+      const { a, b } = await connected();
+      a.editor.type("b2", `start <img src="${png}"> finish`);
+      await settle(400);
+
+      a.editor.type("b2", `the start <img src="${png}"> finish`);
+      b.editor.type("b2", `start <img src="${png}"> the finish`);
+      await settle(400);
+
+      const merged = a.editor.html("b2") ?? "";
+      expect(merged, "Ada's word survives").toContain("the start");
+      expect(merged, "and so does Bo's").toContain("the finish");
+      expect(b.editor.html("b2"), "and both hold the same paragraph").toBe(merged);
+    });
+  });
+
   it("gives undo, the reporter and the carets back when the session ends", async () => {
     const { a, b } = await connected();
     a.editor.click("b1", 0);

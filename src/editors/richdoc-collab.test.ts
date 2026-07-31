@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
+  dataUrlsIn,
+  fromBlobRefs,
+  toBlobRefs,
   editText,
   isEmpty,
   isStructured,
@@ -107,9 +110,15 @@ describe("the shared rich-document shape", () => {
   describe("structured blocks", () => {
     it("recognises the ones that cannot merge", () => {
       expect(isStructured("<table><tr><td>x</td></tr></table>")).toBe(true);
-      expect(isStructured('<p><img src="data:image/png;base64,AAAA"></p>')).toBe(true);
       expect(isStructured('<p data-docx-xml="..."></p>')).toBe(true);
       expect(isStructured("<p>Ordinary prose.</p>")).toBe(false);
+    });
+
+    // An image used to make its whole block unmergeable, which cost two people editing
+    // the text around a picture one of their edits. Once the payload is a short reference
+    // the block is ordinary prose again.
+    it("no longer treats a paragraph as unmergeable just for holding an image", () => {
+      expect(isStructured('<p>Words <img src="rdoc-blob:9f86d0"> more words.</p>')).toBe(false);
     });
 
     // Last writer wins, deliberately. Merging character edits inside a table produces
@@ -132,20 +141,21 @@ describe("the shared rich-document shape", () => {
       );
     });
 
-    // A block changes kind when someone pastes an image in or deletes one. The stored type
-    // has to follow, or a paragraph that became a table would keep merging character edits.
+    // A block changes kind when a paragraph becomes a table or stops being one. The stored
+    // type has to follow, or a paragraph that became a table would keep merging character
+    // edits inside markup where that means nothing.
     it("follows a block from prose to structure and back", () => {
       const doc = new Y.Doc();
       seedBlocks(doc, [para("b1", "Just words.")], LOCAL);
       const [blocks] = sharedTypes(doc);
       expect(blocks.get("b1"), "prose starts mergeable").toBeInstanceOf(Y.Text);
 
-      writeBlocks(doc, body(para("b1", '<p><img src="data:image/png;base64,AA"></p>')), LOCAL);
+      writeBlocks(doc, body(para("b1", "<table><tr><td>now a table</td></tr></table>")), LOCAL);
       expect(typeof blocks.get("b1"), "a structure is not").toBe("string");
-      expect(readBlocks(doc)[0].html).toContain("<img");
+      expect(readBlocks(doc)[0].html).toContain("<table");
 
       writeBlocks(doc, body(para("b1", "Words again.")), LOCAL);
-      expect(blocks.get("b1"), "and back to mergeable when the image goes").toBeInstanceOf(Y.Text);
+      expect(blocks.get("b1"), "and back to mergeable when the table goes").toBeInstanceOf(Y.Text);
       expect(readBlocks(doc)[0].html).toBe("Words again.");
     });
   });
@@ -231,5 +241,40 @@ describe("the shared rich-document shape", () => {
       expect(roundTrip("x😀y", "xy")).toBe("xy");
       expect(roundTrip("héllo 😀", "héllo 😀 world")).toBe("héllo 😀 world");
     });
+  });
+});
+
+describe("image payloads", () => {
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==";
+
+  it("finds every payload once, however often it appears", () => {
+    const html = `<p><img src="${png}"> and again <img src="${png}"></p>`;
+    expect(dataUrlsIn(html)).toEqual([png]);
+  });
+
+  it("swaps a payload for its reference and back, exactly", () => {
+    const html = `<p>Before <img src="${png}" width="20"> after.</p>`;
+    const refs = toBlobRefs(html, () => "abc123");
+    expect(refs, "the payload is gone from the markup").not.toContain("base64");
+    expect(refs).toContain('src="rdoc-blob:abc123"');
+    expect(refs, "and everything else is untouched").toContain('width="20"');
+
+    const back = fromBlobRefs(refs, () => png);
+    expect(back.html, "restored byte for byte").toBe(html);
+    expect(back.missing).toEqual([]);
+  });
+
+  // A reference with no payload means the image has not arrived, not that it was deleted.
+  // Blanking it would render an empty box that looks exactly like a deletion.
+  it("leaves a reference alone when the payload has not arrived, and says which", () => {
+    const html = '<p><img src="rdoc-blob:deadbeef"></p>';
+    const { html: out, missing } = fromBlobRefs(html, () => undefined);
+    expect(out, "left as it was rather than blanked").toBe(html);
+    expect(missing).toEqual(["deadbeef"]);
+  });
+
+  it("leaves a payload alone when it has no reference yet", () => {
+    const html = `<p><img src="${png}"></p>`;
+    expect(toBlobRefs(html, () => undefined)).toBe(html);
   });
 });

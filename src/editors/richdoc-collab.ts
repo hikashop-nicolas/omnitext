@@ -59,7 +59,54 @@ const htmlOf = (value: Stored | undefined): string | undefined =>
  * and the cost of merging one that could not is markup neither of them wrote.
  */
 export function isStructured(html: string): boolean {
-  return /<table|<img|data-docx-xml/i.test(html);
+  return /<table|data-docx-xml/i.test(html);
+}
+
+/**
+ * How an image payload is named once it has been lifted out of a block.
+ *
+ * A `data:` URL inside block markup is the worst of both worlds: it puts the bytes in the
+ * CRDT, where they stay for the life of the session even after the image is deleted, and
+ * it makes the block too big and too binary to merge, so two people editing the paragraph
+ * around the image lose one of the two edits. Replacing the payload with a short reference
+ * fixes both at once.
+ */
+export const BLOB_SCHEME = "rdoc-blob:";
+
+/** Every `data:` URL in this markup, in order of appearance and without duplicates. */
+export function dataUrlsIn(html: string): string[] {
+  const found = new Set<string>();
+  for (const m of html.matchAll(/src="(data:[^"]+)"/g)) found.add(m[1]);
+  return [...found];
+}
+
+/** Swap each `data:` URL for its reference. Anything unmapped is left exactly as it was. */
+export function toBlobRefs(html: string, shaOf: (url: string) => string | undefined): string {
+  return html.replace(/src="(data:[^"]+)"/g, (whole, url: string) => {
+    const sha = shaOf(url);
+    return sha ? `src="${BLOB_SCHEME}${sha}"` : whole;
+  });
+}
+
+/**
+ * Swap each reference back for its payload, and report the ones we do not hold.
+ *
+ * A reference with no payload is left in place rather than blanked: the image is not gone,
+ * it has not arrived, and the caller fetches it and comes back. Blanking would render an
+ * empty box that looks exactly like an image somebody deleted.
+ */
+export function fromBlobRefs(
+  html: string,
+  urlOf: (sha: string) => string | undefined,
+): { html: string; missing: string[] } {
+  const missing: string[] = [];
+  const out = html.replace(new RegExp(`src="${BLOB_SCHEME}([a-f0-9]+)"`, "g"), (whole, sha: string) => {
+    const url = urlOf(sha);
+    if (url) return `src="${url}"`;
+    missing.push(sha);
+    return whole;
+  });
+  return { html: out, missing };
 }
 
 /** The shared body, in order. Ids with no block behind them are skipped. */
