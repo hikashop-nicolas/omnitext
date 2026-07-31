@@ -23,7 +23,22 @@ export interface RichHandle {
   blockSnapshot(): BlockState[];
   applyRemoteBlocks(changes: BlockChanges): void;
   setBlockReporter(handler: ((changes: BlockChanges) => void) | null): void;
+  setSelectionReporter(handler: ((at: BlockPosition | null) => void) | null): void;
+  setPeerCarets(carets: readonly PeerCaretState[]): void;
   setUndoHandler(handler: { undo(): void; redo(): void; canUndo(): boolean; canRedo(): boolean } | null): void;
+}
+
+/** Where a caret is, as richdoc describes it. */
+export interface BlockPosition {
+  blockId: string;
+  offset: number;
+}
+
+/** Another person's cursor, as richdoc draws it. */
+export interface PeerCaretState extends BlockPosition {
+  id: string;
+  name: string;
+  colour: string;
 }
 
 /** How the binding reaches the editor, which may not exist yet when a session starts. */
@@ -107,11 +122,15 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
         order.unobserve(onChange);
       };
 
-      // Presence: publish nothing about position yet. A caret in a rich document is an
-      // offset into a block, and drawing someone else's needs the editor to expose one;
-      // until it does, an empty position is honest and a guessed one would not be.
-      unwatchPeers = watchPeers(ctx.awareness, () => undefined);
-      publishPosition(ctx.awareness, null);
+      // Presence: publish where this caret is, and draw everyone else's.
+      handle.setSelectionReporter((at) => publishPosition(ctx.awareness, at));
+      unwatchPeers = watchPeers<BlockPosition | null>(ctx.awareness, (peers) => {
+        handle.setPeerCarets(
+          peers
+            .filter((p): p is typeof p & { at: BlockPosition } => !!p.at && typeof p.at.blockId === "string")
+            .map((p) => ({ id: p.id, name: p.name, colour: p.colour, ...p.at })),
+        );
+      });
 
       // Undo has to be ours alone. richdoc's own undo restores a whole-body snapshot,
       // which would take back a peer's edits along with this peer's; scoping the manager
@@ -136,8 +155,11 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       unwatchPeers = null;
       undoManager?.destroy();
       undoManager = null;
-      host.handle()?.setBlockReporter(null); // stop paying for the diff once nobody wants it
-      host.handle()?.setUndoHandler(null);
+      const handle = host.handle();
+      handle?.setBlockReporter(null); // stop paying for the diff once nobody wants it
+      handle?.setSelectionReporter(null);
+      handle?.setPeerCarets([]); // nobody is here any more, so nobody is drawn
+      handle?.setUndoHandler(null);
       shared = null;
       viewOnly = false;
     },

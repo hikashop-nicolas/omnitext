@@ -311,13 +311,27 @@ resolves to one of the two. A block changes type when it changes kind, so pastin
 into a paragraph stops it merging and deleting one starts it again. A test found this; the
 first implementation was wrong in the way the plan's own reasoning warned about.
 
-**Presence publishes nothing.** A caret in a rich document is an offset inside a block, and
-richdoc does not expose one. Publishing an empty position is honest; the peer list still
-shows who is here, and nothing is drawn in the document. This is the outstanding piece of
-phase 5, and it needs a caret API in richdoc before it can be anything else.
+**Presence is a block id and an offset into that block**, the same pair the history module
+already records to restore a caret. Nothing else survives: a DOM node does not outlive a
+repagination, and a document-wide offset moves whenever anyone types above it. Peers'
+carets are drawn in an overlay, never inserted into the body, or they would land in the
+undo history, in the saved file, and in the next per-block diff.
 
-`applyRemoteBlocks` keeps the caret when only block content changed, which is the ordinary
-case. Blocks added, removed or moved rebuild the body and the caret does not survive it.
+**Two bugs here were only findable in a browser**, and both made the feature useless while
+every test passed:
+
+1. A joiner never bound at all. richdoc's editor is inflated off the main thread, so it
+   does not exist when the base file arrives, which is exactly when a joiner binds. `bind`
+   found no editor and returned. The pair test's mock resolved immediately, which is the
+   one timing the real app never has; it now takes 30ms.
+2. Every remote edit threw the local caret to the top of the document. Replacing a block's
+   element breaks a selection inside it, and Chrome collapses the selection to the start of
+   the body even when the caret was elsewhere. `applyRemoteBlocks` now saves and restores
+   the caret. jsdom does not reproduce Chrome's collapse, so the test covers only the
+   narrower case and says so.
+
+Blocks added, removed or moved still rebuild the body, and the caret survives that too, but
+the scroll position does not.
 
 ### Pair tests, added before phase 5
 

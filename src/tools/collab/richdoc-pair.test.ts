@@ -19,6 +19,15 @@ interface BlockChanges {
   removed: string[];
   order: string[];
 }
+interface BlockPosition {
+  blockId: string;
+  offset: number;
+}
+interface PeerCaretState extends BlockPosition {
+  id: string;
+  name: string;
+  colour: string;
+}
 interface UndoHandler {
   undo(): void;
   redo(): void;
@@ -37,6 +46,8 @@ class StubRich {
   blocks: BlockState[] = [];
   undoHandler: UndoHandler | null = null;
   reporter: ((changes: BlockChanges) => void) | null = null;
+  selectionReporter: ((at: BlockPosition | null) => void) | null = null;
+  peerCarets: PeerCaretState[] = [];
   /** How many times a peer's body was put on screen, to catch an edit echoing round. */
   applied = 0;
 
@@ -53,6 +64,12 @@ class StubRich {
   setBlockReporter(handler: ((changes: BlockChanges) => void) | null): void {
     this.reporter = handler;
   }
+  setSelectionReporter(handler: ((at: BlockPosition | null) => void) | null): void {
+    this.selectionReporter = handler;
+  }
+  setPeerCarets(carets: readonly PeerCaretState[]): void {
+    this.peerCarets = [...carets];
+  }
   setUndoHandler(handler: UndoHandler | null): void {
     this.undoHandler = handler;
   }
@@ -65,6 +82,10 @@ class StubRich {
     const block = this.blocks.find((b) => b.id === id);
     if (block) block.html = html;
     this.reporter?.({ changed: block ? [{ ...block }] : [], removed: [], order: this.blocks.map((b) => b.id) });
+  }
+  /** Move the caret, the way clicking into a paragraph does. */
+  click(blockId: string, offset: number): void {
+    this.selectionReporter?.({ blockId, offset });
   }
   /** Add a block after the given one. */
   insertAfter(afterId: string, block: BlockState): void {
@@ -268,16 +289,49 @@ describe("two peers on a rich document", () => {
     expect(b.editor.html("b3"), "A's edit survives it").toBe("Ada typed this.");
   });
 
-  it("gives undo and the reporter back when the session ends", async () => {
-    const { b } = await connected();
+  it("shows each peer where the other's cursor is, by name and colour", async () => {
+    const { a, b } = await connected();
+
+    a.editor.click("b2", 7);
+    await settle(200);
+
+    expect(b.editor.peerCarets).toHaveLength(1);
+    expect(b.editor.peerCarets[0]).toMatchObject({
+      name: "Ada",
+      colour: "#f00",
+      blockId: "b2",
+      offset: 7,
+    });
+    expect(a.editor.peerCarets, "and A is not shown its own").toHaveLength(0);
+  });
+
+  it("moves a peer's cursor rather than adding another", async () => {
+    const { a, b } = await connected();
+
+    a.editor.click("b1", 1);
+    await settle(150);
+    a.editor.click("b3", 4);
+    await settle(150);
+
+    expect(b.editor.peerCarets).toHaveLength(1);
+    expect(b.editor.peerCarets[0]).toMatchObject({ blockId: "b3", offset: 4 });
+  });
+
+  it("gives undo, the reporter and the carets back when the session ends", async () => {
+    const { a, b } = await connected();
+    a.editor.click("b1", 0);
+    await settle(150);
     expect(b.editor.undoHandler).not.toBeNull();
     expect(b.editor.reporter).not.toBeNull();
+    expect(b.editor.peerCarets).toHaveLength(1);
 
     await b.session.leave();
     await settle();
 
     expect(b.editor.undoHandler, "its own undo again").toBeNull();
     expect(b.editor.reporter, "and no longer paying for the diff").toBeNull();
+    expect(b.editor.selectionReporter, "nor for the caret").toBeNull();
+    expect(b.editor.peerCarets, "and nobody is drawn any more").toEqual([]);
   });
 
   it("adopts the session's document rather than seeding its own", async () => {
