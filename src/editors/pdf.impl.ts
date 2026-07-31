@@ -1,6 +1,7 @@
 import workerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createPdfEditor, type PdfEditor, type PdfEditState } from "pdfedit";
-import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { pdfBinding } from "./pdf-binding";
 
 // Unicode fallback font for PDF exports: characters the document's own fonts and the
 // standard fonts can't encode (Cyrillic, Greek, CJK, ...) are drawn with this instead
@@ -42,6 +43,10 @@ class PdfInstance implements EditorInstance {
 
   getText(): string {
     return "";
+  }
+
+  collab(): CollabBinding {
+    return pdfBinding({ handle: () => this.editor });
   }
 
   getBytes(): Promise<Uint8Array> {

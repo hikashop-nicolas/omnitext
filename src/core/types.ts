@@ -203,6 +203,19 @@ export interface CollabContext {
   seed: boolean;
   /** A view-only session: mirror remote edits in, publish nothing out. */
   readOnly: boolean;
+  /**
+   * Content-addressed bytes, for edits that carry a payload rather than text.
+   *
+   * An image belongs here and not in the CRDT: a CRDT never forgets, so one pasted and
+   * then deleted would weigh on the session for as long as it lasts. Put the bytes, share
+   * the hash, fetch by hash on the other side.
+   */
+  blobs?: {
+    put(bytes: Uint8Array): Promise<string>;
+    get(sha: string): Uint8Array | undefined;
+    has(sha: string): boolean;
+    fetch(sha: string): Promise<Uint8Array | null>;
+  };
   /** For operations that cannot be merged and must be put in one order for everyone.
    *  Absent when the session does not offer it. */
   ordered?: {

@@ -9,6 +9,7 @@ import { CollabProvider, type Peer } from "./provider";
 import { localTransport } from "./local-transport";
 import { trysteroTransport, type CollabTransport } from "./transport";
 import { turnServers } from "./turn";
+import { BlobStore } from "./blobs";
 import { getSettings } from "../../settings";
 
 // One live collaboration session: a room, a shared document, the base file, and the
@@ -184,6 +185,7 @@ export class CollabSession {
   readonly readOnly: boolean;
   readonly provider: CollabProvider;
   private readonly base: BaseTransfer;
+  private readonly blobs: BlobStore;
   private readonly host: SessionHost;
   private readonly makeTransport: (key: RoomKey) => CollabTransport;
   private binding: CollabBinding | null = null;
@@ -233,6 +235,13 @@ export class CollabSession {
       },
     );
 
+    this.blobs = new BlobStore({
+      send: (payload, target) => this.provider.sendOn("blob", payload, target),
+      // Read each time rather than captured: a peer that joined after an image was pasted
+      // is still somewhere to ask.
+      peers: () => this.provider.peers().map((p) => p.peerId).filter((id): id is string => !!id),
+    });
+    this.provider.onChannel("blob", (payload, peerId) => void this.blobs.receive(payload, peerId));
     this.provider.onChannel("base", (payload, peerId) => void this.base.receive(payload, peerId));
     this.provider.onChannel("control", (payload, peerId) => void this.onControl(payload, peerId));
     // Only the peer that started the room serves the base; joiners never offer theirs.
@@ -362,6 +371,7 @@ export class CollabSession {
       awareness: this.provider.awareness,
       seed: this.isHost,
       readOnly: this.readOnly,
+      blobs: this.blobs,
       ordered: this.ordered,
     });
     this.host.onChange?.();
@@ -589,6 +599,7 @@ export class CollabSession {
   async leave(): Promise<void> {
     if (this.closed) return;
     for (const t of this.reachTimers) clearTimeout(t);
+    this.blobs.dispose();
     this.closed = true;
     this.binding?.unbind();
     this.binding = null;

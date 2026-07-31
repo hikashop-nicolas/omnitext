@@ -41,6 +41,9 @@ export type PeersHandler = (peers: Peer[]) => void;
 
 /** How often peers compare state vectors. Cheap: a state vector is small, and a match costs nothing. */
 export const RESYNC_MS = 15_000;
+
+/** Carried by the provider, interpreted by the session: not CRDT traffic. */
+const SESSION_CHANNELS: ReadonlySet<Channel> = new Set<Channel>(["base", "control", "blob"]);
 /** y-protocols sync message types; only step 1 carries no content. */
 const SYNC_STEP_1 = 0;
 /** How long a joiner waits to hear the session's contents before giving up on waiting. */
@@ -195,8 +198,10 @@ export class CollabProvider {
     if (channel !== "sync" && channel !== "awareness") {
       debug("wire", `received on ${channel}`, () => ({ bytes: payload.length, from: peerId }));
     }
-    // The base file and the control messages belong to the session, not the CRDT.
-    if (channel === "base" || channel === "control") {
+    // Channels the session owns rather than the CRDT. Listed in one place because they
+    // are dispatched by name: a channel missing from here is delivered nowhere, silently,
+    // and looks from the outside like a peer that never answers.
+    if (SESSION_CHANNELS.has(channel)) {
       for (const h of this.channelHandlers.get(channel) ?? []) h(payload, peerId);
       return;
     }
