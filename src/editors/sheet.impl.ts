@@ -27,6 +27,8 @@ class SheetInstance implements EditorInstance {
   /** Marks our own transactions, so we neither echo them nor undo anyone else's. */
   private readonly origin = { sheet: this };
   private undoManager: Y.UndoManager | null = null;
+  /** A view-only session: mirror edits in, publish none out. */
+  private viewOnly = false;
   private unwatch: (() => void) | null = null;
   private unwatchPeers: (() => void) | null = null;
   /** Set while a session runs, so a selection change can be published. */
@@ -51,7 +53,12 @@ class SheetInstance implements EditorInstance {
       // it comes back through that path a moment later and applying it twice would move
       // the addresses twice.
       allowStructuralEdit: (op) => {
-        if (!this.shared || !this.propose) return true;
+        if (!this.shared) return true; // no session: their own workbook, their call
+        // Watching: refuse outright rather than fall through to allowing it. Letting a
+        // view-only peer insert a row locally would leave their grid a row out of step with
+        // everyone else's, and every address below it pointing at the wrong cell.
+        if (this.viewOnly) return false;
+        if (!this.propose) return true;
         this.propose({ kind: op.kind, axis: op.axis, sheet: op.sheet, at: op.at, count: op.count });
         return false;
       },
@@ -77,6 +84,9 @@ class SheetInstance implements EditorInstance {
   /** Mirror local cell edits into the shared workbook, if a session is running. */
   private publish(changes: SheetCellInput[]): void {
     if (!this.shared) return;
+    // A view-only peer keeps its own typing to itself. sheetedit has no read-only mode, so
+    // this is the only thing standing between a watcher and everyone else's workbook.
+    if (this.viewOnly) return;
     debug("wire", "publishing cells", () => changes);
     writeCells(this.shared, changes, this.origin);
   }
@@ -88,6 +98,7 @@ class SheetInstance implements EditorInstance {
         if (!editor) return; // still inflating; a session on a workbook this large is rare
         const doc = ctx.doc as unknown as Y.Doc;
         this.shared = doc;
+        this.viewOnly = ctx.readOnly;
 
         if (ctx.seed) {
           seedCells(doc, editor.cellInputs(), this.origin);
@@ -123,10 +134,14 @@ class SheetInstance implements EditorInstance {
         // order. The host also rewrites the shared cell map, once, in the same step: if
         // every peer shifted it themselves the same move would be written many times over.
         if (ctx.ordered) {
-          this.propose = (op) => {
-          debug("collab", "proposing a structural edit", () => op);
-          ctx.ordered!.propose(op);
-        };
+          // A view-only peer applies the order but never adds to it: proposing a row insert
+          // would restructure everyone's workbook, which is the opposite of watching.
+          if (!ctx.readOnly) {
+            this.propose = (op) => {
+              debug("collab", "proposing a structural edit", () => op);
+              ctx.ordered!.propose(op);
+            };
+          }
           const sequencer = new OpSequencer((op) => {
             debug("collab", `applying structural operation ${op.seq}`, () => op);
             if (ctx.seed) writeCells(doc, shiftCells(readCells(doc), op), this.origin);
@@ -158,6 +173,7 @@ class SheetInstance implements EditorInstance {
         this.undoManager?.destroy();
         this.undoManager = null;
         this.shared = null;
+        this.viewOnly = false;
       },
     };
   }

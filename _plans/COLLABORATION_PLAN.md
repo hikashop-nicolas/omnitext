@@ -294,6 +294,25 @@ what they have already seen. If they saved a copy, it is theirs.
 Phases 3 and 5 each carry a prerequisite body of work in another repository. Those are
 not incidental; budget them as their own tasks.
 
+### Pair tests, added before phase 5
+
+Every phase up to here shipped with each side tested and the join between them not. That
+is where the bugs were, without exception: a veto naming no sheet, a joiner that never
+bound, a peer marker whose ids could not match. So each repository now has a test that
+runs two of the thing at once.
+
+- subedit and sheetedit: two editors on one page, wired as a host wires them. No network.
+- Omnitext: two whole sessions over the real BroadcastChannel transport with the real
+  bindings, in `session-pair.test.ts` and `sheet-pair.test.ts`. Only the editor widget is
+  stubbed, because it needs a browser and belongs to the other repository anyway.
+
+Writing the Omnitext pair found that view-only was not enforced for either the subtitle or
+the sheet editor. `readOnly` reached the bindings and was used only to skip the undo
+manager, so anyone given a view-only link could edit the shared document and everyone saw
+it. Both bindings now drop their own edits while view-only, and the sheet also refuses
+structural edits outright rather than applying them locally. Neither editor library has a
+read-only mode, so the binding is the only place this can be enforced.
+
 ## 7a. How to test two peers
 
 Two different browsers on one machine, not two tabs and not two machines.

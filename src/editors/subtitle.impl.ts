@@ -43,6 +43,8 @@ class SubtitleInstance implements EditorInstance {
   private unwatch: (() => void) | null = null;
   private unwatchPeers: (() => void) | null = null;
   private applyingRemote = false;
+  /** A view-only session: mirror edits in, publish none out. */
+  private viewOnly = false;
   /** Set while a session runs, so a selection change can be published. */
   private publishSelection: ((cueId: string | null) => void) | null = null;
 
@@ -61,9 +63,19 @@ class SubtitleInstance implements EditorInstance {
     );
   }
 
-  /** Mirror the local cue list into the shared document, if a session is running. */
+  /**
+   * Mirror the local cue list into the shared document, if a session is running.
+   *
+   * The applyingRemote check is an optimisation, not the thing that stops an edit echoing
+   * round: writeCues only writes what differs, so republishing what just arrived produces
+   * no update anyway. What it saves is the snapshot and whole-list diff behind that
+   * conclusion, on every remote update.
+   */
   private publish(): void {
     if (!this.shared || !this.handle || this.applyingRemote) return;
+    // A view-only peer keeps its own typing to itself. subedit has no read-only mode, so
+    // this is the only thing standing between a watcher and everyone else's document.
+    if (this.viewOnly) return;
     debug("wire", "publishing cues", () => this.handle?.cueSnapshot().length);
     writeCues(this.shared, this.handle.cueSnapshot(), this.origin);
   }
@@ -83,6 +95,7 @@ class SubtitleInstance implements EditorInstance {
         if (!handle) return;
         const doc = ctx.doc as unknown as Y.Doc;
         this.shared = doc;
+        this.viewOnly = ctx.readOnly;
 
         if (ctx.seed) {
           seedCues(doc, handle.cueSnapshot(), this.origin);
@@ -142,6 +155,7 @@ class SubtitleInstance implements EditorInstance {
         this.undoManager = null;
         this.handle?.setUndoHandler(null);
         this.shared = null;
+        this.viewOnly = false;
       },
     };
   }
