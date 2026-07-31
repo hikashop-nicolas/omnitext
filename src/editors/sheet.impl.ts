@@ -51,9 +51,7 @@ class SheetInstance implements EditorInstance {
       // the addresses twice.
       allowStructuralEdit: (op) => {
         if (!this.shared || !this.propose) return true;
-        const sheet = this.editor?.selectedCell()?.sheet;
-        if (!sheet) return false;
-        this.propose({ kind: op.kind, axis: op.axis, sheet, at: op.at, count: op.count });
+        this.propose({ kind: op.kind, axis: op.axis, sheet: op.sheet, at: op.at, count: op.count });
         return false;
       },
       formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",

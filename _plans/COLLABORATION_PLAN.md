@@ -288,7 +288,7 @@ what they have already seen. If they saved a copy, it is theirs.
 | 1 | **Done.** Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding, chat, removal | Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
 | 3 | **Done.** sheetedit binding, cell content only; structural edits refused during a session | Phase 2 shipped and used |
-| 4 | **Done.** sheetedit structural operations, host-arbitrated | Phase 3 refused them outright, so everyone hit it |
+| 4 | **Done and verified in two tabs.** sheetedit structural operations, host-arbitrated | Phase 3 refused them outright, so everyone hit it |
 | 5 | richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
 
 Phases 3 and 5 each carry a prerequisite body of work in another repository. Those are
