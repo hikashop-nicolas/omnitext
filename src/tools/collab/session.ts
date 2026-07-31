@@ -7,6 +7,8 @@ import { newRoomKey, type RoomKey } from "./link";
 import { CollabProvider, type Peer } from "./provider";
 import { localTransport } from "./local-transport";
 import { trysteroTransport, type CollabTransport } from "./transport";
+import { turnServers } from "./turn";
+import { getSettings } from "../../settings";
 
 // One live collaboration session: a room, a shared document, the base file, and the
 // active editor's binding.
@@ -162,7 +164,15 @@ export function localModeRequested(search: string = typeof location === "undefin
 }
 
 const defaultTransport = (key: RoomKey): CollabTransport =>
-  localModeRequested() ? localTransport(key.roomId) : trysteroTransport({ roomId: key.roomId, secret: key.secret });
+  localModeRequested()
+    ? localTransport(key.roomId)
+    : trysteroTransport({
+        roomId: key.roomId,
+        secret: key.secret,
+        // Only if it is complete and well formed; a half-filled one is treated as absent
+        // rather than handed to the browser to fail on later.
+        turnServers: turnServers(getSettings().turn).servers,
+      });
 
 export class CollabSession {
   private currentKey: RoomKey;

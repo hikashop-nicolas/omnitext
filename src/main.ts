@@ -130,6 +130,7 @@ import {
 } from "./formats/binary-viewers";
 import { applyDom, initI18n, t } from "./i18n";
 import { getSettings, saveSettings } from "./settings";
+import { turnServers, type TurnProblem } from "./tools/collab/turn";
 import type {
   EditorInstance,
   EditorResolution,
@@ -1627,6 +1628,35 @@ const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 const settingThemeEl = $("setting-theme") as HTMLSelectElement;
+const settingTurnUrlEl = $("setting-turn-url") as HTMLInputElement;
+const settingTurnUserEl = $("setting-turn-user") as HTMLInputElement;
+const settingTurnPassEl = $("setting-turn-pass") as HTMLInputElement;
+const settingTurnStatusEl = $("setting-turn-status");
+
+const turnFromDialog = () => ({
+  url: settingTurnUrlEl.value.trim(),
+  username: settingTurnUserEl.value.trim(),
+  credential: settingTurnPassEl.value,
+});
+
+/**
+ * Say whether the relay as typed would be used, and if not, why.
+ *
+ * A relay that is wrong fails at connection time, minutes later, with nothing pointing at
+ * the field that caused it. Saying so here is the whole value of the field having a check.
+ */
+function showTurnStatus(): TurnProblem | null {
+  const { problem } = turnServers(turnFromDialog());
+  settingTurnStatusEl.textContent =
+    problem === "scheme"
+      ? t("app.turnBadScheme")
+      : problem === "credentials"
+        ? t("app.turnNeedCreds")
+        : problem === null
+          ? t("app.turnOk")
+          : "";
+  return problem;
+}
 
 // Apply a theme choice: attribute for the palette, then remount the active
 // editor so surfaces that sample colors at mount (CodeMirror and friends)
@@ -1648,6 +1678,10 @@ function openSettings(): void {
   settingPageSizeEl.value = s.pageSize;
   settingPaginatedEl.checked = s.paginated;
   settingThemeEl.value = s.theme;
+  settingTurnUrlEl.value = s.turn?.url ?? "";
+  settingTurnUserEl.value = s.turn?.username ?? "";
+  settingTurnPassEl.value = s.turn?.credential ?? "";
+  showTurnStatus();
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -1657,6 +1691,13 @@ function closeSettings(): void {
   modalReturnFocus = null;
 }
 function saveSettingsDialog(): void {
+  // A typed-in relay that would not be used keeps the dialog open. Saving it silently
+  // would leave the person believing they had configured one.
+  const turn = turnFromDialog();
+  if (turn.url && showTurnStatus() !== null) {
+    settingTurnUrlEl.focus();
+    return;
+  }
   const theme = settingThemeEl.value === "light" ? "light" : settingThemeEl.value === "dark" ? "dark" : "system";
   const themeChanged = theme !== getSettings().theme;
   saveSettings({
@@ -1664,9 +1705,13 @@ function saveSettingsDialog(): void {
     pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
     paginated: settingPaginatedEl.checked,
     theme,
+    turn,
   });
   if (themeChanged) applyTheme(theme);
   closeSettings();
+}
+for (const el of [settingTurnUrlEl, settingTurnUserEl, settingTurnPassEl]) {
+  el.addEventListener("input", () => void showTurnStatus());
 }
 $("btn-settings").addEventListener("click", openSettings);
 $("settings-cancel").addEventListener("click", closeSettings);

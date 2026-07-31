@@ -133,6 +133,14 @@
             </select>
           </label>
           <p class="modal-hint" data-i18n="app.docSettingsHint">For Word and OpenDocument files. Page size applies only when the file specifies none.</p>
+          <details class="modal-adv">
+            <summary data-i18n="app.turnTitle">Relay server for collaboration</summary>
+            <p class="modal-hint" data-i18n="app.turnHint">Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.</p>
+            <label class="modal-field"><span data-i18n="app.turnUrl">Server address</span> <input id="setting-turn-url" type="text" autocomplete="off" spellcheck="false" placeholder="turn:relay.example.org:3478" /></label>
+            <label class="modal-field"><span data-i18n="app.turnUser">Username</span> <input id="setting-turn-user" type="text" autocomplete="off" spellcheck="false" /></label>
+            <label class="modal-field"><span data-i18n="app.turnPass">Password</span> <input id="setting-turn-pass" type="password" autocomplete="off" /></label>
+            <p class="modal-hint" id="setting-turn-status" role="status"></p>
+          </details>
           <div class="modal-actions">
             <button id="settings-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
             <button id="settings-save" class="btn btn-primary" type="button" data-i18n="app.save">Save</button>

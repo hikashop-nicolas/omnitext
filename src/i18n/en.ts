@@ -60,6 +60,14 @@ const en: Dict = {
     dirRtl: "Right to left (Arabic, Hebrew)",
     dirVertical: "Vertical (Japanese)",
     docSettingsHint: "For Word and OpenDocument files. Page size applies only when the file specifies none.",
+    turnTitle: "Relay server for collaboration",
+    turnHint: "Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.",
+    turnUrl: "Server address",
+    turnUser: "Username",
+    turnPass: "Password",
+    turnBadScheme: "Not a relay address. It should start with turn: or turns:, not stun:.",
+    turnNeedCreds: "A relay needs both a username and a password.",
+    turnOk: "This relay will be used when a direct connection cannot be made.",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "Text",

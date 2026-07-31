@@ -14,9 +14,23 @@ export interface Settings {
   paginated: boolean;
   /** Color theme: follow the OS, or force light/dark. */
   theme: Theme;
+  /**
+   * A relay (TURN) server for collaboration, supplied by whoever is using the app.
+   *
+   * Most sessions never need one. It matters only for two peers whose networks cannot be
+   * joined directly, which this app cannot fix for them: it runs no relay of its own, and
+   * routing everyone's document through a server would undo the point of it.
+   */
+  turn?: { url: string; username: string; credential: string };
 }
 
-const DEFAULTS: Settings = { name: "", pageSize: "a4", paginated: true, theme: "system" };
+const DEFAULTS: Settings = {
+  name: "",
+  pageSize: "a4",
+  paginated: true,
+  theme: "system",
+  turn: { url: "", username: "", credential: "" },
+};
 
 export function getSettings(): Settings {
   try {

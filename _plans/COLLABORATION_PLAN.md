@@ -435,9 +435,20 @@ the comment in `session.ts` says so rather than implying the app knows more than
 A host is never told anything of the kind: it is waiting on a person, and no length of
 time makes that a failure.
 
-TURN is still not offered. That is a deliberate gap, not an oversight: it means running or
-paying for a relay, and it is worth deciding on evidence of real failures rather than in
-advance. What has changed is that those failures are now visible instead of silent.
+**TURN is the user's own, entered in Settings (2026-07-31).** The app runs no relay and
+should not: someone has to pay for one, and routing everyone's document through a server we
+operate would undo the point of the thing. So the field takes a relay you already have, and
+most people will never fill it in.
+
+Passed to Trystero as `turnConfig`, not folded into `rtcConfig.iceServers`. That matters: a
+custom `iceServers` REPLACES Trystero's default STUN list, so configuring a relay that way
+would remove the discovery that makes most connections work without one.
+
+A relay that would not be used does not save. A `stun:` URL in that field is the likely
+mistake and the browser would accept it, so it is refused by name; so is a relay missing
+half its credentials. Both otherwise fail at connection time, minutes later, with nothing
+pointing at the field that was wrong. The credentials sit in localStorage in plain text
+like every other setting, and the panel says so rather than leaving it to be discovered.
 
 **One correction fell out of this**, in section 6: the draft claimed payloads are
 encrypted with a key derived from the link secret. They are not, and the honest version

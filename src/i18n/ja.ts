@@ -60,6 +60,14 @@ const ja: Dict = {
     dirRtl: "右から左（アラビア語、ヘブライ語）",
     dirVertical: "縦書き（日本語）",
     docSettingsHint: "Word および OpenDocument ファイル用。ページサイズはファイルに指定がない場合のみ適用されます。",
+    turnTitle: "共同編集用のリレーサーバー",
+    turnHint: "ほとんどの場合、これは不要です。ネットワークどうしを直接つなげない二者は、文書を中継するリレー（TURN）サーバーが必要になりますが、このアプリはリレーを提供していません。ご自身のサーバーを指定できます。他の設定と同様、このブラウザーに平文で保存されます。",
+    turnUrl: "サーバーアドレス",
+    turnUser: "ユーザー名",
+    turnPass: "パスワード",
+    turnBadScheme: "リレーのアドレスではありません。stun: ではなく turn: または turns: で始まる必要があります。",
+    turnNeedCreds: "リレーにはユーザー名とパスワードの両方が必要です。",
+    turnOk: "直接接続できない場合にこのリレーが使われます。",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "テキスト",

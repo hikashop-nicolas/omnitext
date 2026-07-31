@@ -53,6 +53,14 @@ export interface RoomOptions {
   appId?: string;
   /** Escape hatch for tests and for pointing at a self-hosted relay. */
   relayUrls?: string[];
+  /**
+   * The user's own TURN servers, for two networks that cannot be joined directly.
+   *
+   * Passed as `turnConfig` rather than folded into `rtcConfig.iceServers`, because a
+   * custom `iceServers` replaces Trystero's default STUN list. Adding a relay must not
+   * cost the discovery that makes most connections work without one.
+   */
+  turnServers?: RTCIceServer[];
 }
 
 export function trysteroTransport(opts: RoomOptions): CollabTransport {
@@ -61,6 +69,7 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
       appId: opts.appId ?? APP_ID,
       password: opts.secret,
       ...(opts.relayUrls ? { relayConfig: { urls: opts.relayUrls } } : {}),
+      ...(opts.turnServers?.length ? { turnConfig: opts.turnServers } : {}),
     },
     opts.roomId,
   );

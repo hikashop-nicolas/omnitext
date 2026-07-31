@@ -342,6 +342,11 @@ body {
 .modal-check { justify-content: flex-start; }
 .modal-check input { flex: 0 0 auto; width: auto; padding: 0; border: none; background: none; }
 .modal-hint { margin: -10px 0 16px; font-size: 12px; color: var(--muted, #8b949e); }
+/* Advanced settings, folded away: almost nobody needs a relay server. The hint's negative
+   top margin is meant to tuck it under a field, so it has to be undone under a summary. */
+.modal-adv { margin-bottom: 16px; }
+.modal-adv summary { cursor: pointer; font-size: 12px; color: var(--muted, #8b949e); }
+.modal-adv summary + .modal-hint { margin-top: 8px; }
 .modal-field select {
   flex: 1;
   font: inherit; font-size: 13px;
