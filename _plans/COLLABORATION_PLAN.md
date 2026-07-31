@@ -162,9 +162,11 @@ Prerequisites in `~/dev/sheetedit`:
 - A change signal carrying the address and the new input, rather than "something changed".
 - A public "apply this input at this address without emitting a change event" path, so
   applying a remote edit does not echo back into the shared doc.
-- ActiveX controls, Power Query, pivots, slicers and the like are **out of scope**: they
+- ~~ActiveX controls, Power Query, pivots, slicers and the like are **out of scope**: they
   are file features, not concurrent editing surfaces. They travel in the base file and
-  are not shared state.
+  are not shared state.~~ **Reversed 2026-08-01** at the user's direction: anything a
+  person can change during a session has to be shared, whatever kind of thing it is. See
+  section 8, the coverage audit.
 
 ### 3.4 richdoc
 
@@ -625,3 +627,82 @@ otherwise hide the failures the real transport exists to surface.
 - Collaborate on the viewers, on PDF, or on the format-specific surfaces (ActiveX, Power
   Query, pivot layout). Those travel in the base file.
 - Provide identity, permissions or an audit trail. There are no accounts, by design.
+
+## 8. Coverage audit (2026-08-01)
+
+The goal is now full coverage: **anything a person can change during a session is shared.**
+Not "the main thing" per editor, which is what phases 1 to 5 delivered.
+
+The test for whether something belongs here is not what kind of thing it is, but whether a
+session can change it. A pivot table nobody touches needs no sharing: it is in the base
+file and every peer already has it. A pivot table someone reconfigures does.
+
+The rule this audit exists to enforce: **a gap must be visible.** Two people editing what
+they believe is one document, where some of what they do silently fails to travel, is worse
+than an editor that refuses to collaborate at all. Every row below is either shared, or
+listed as a known gap that the panel says out loud.
+
+### What is shared today
+
+| Editor | Shared | Mechanism |
+|---|---|---|
+| CodeMirror (text) | the whole document | one `Y.Text`; text *is* the document, so this is complete by construction |
+| subedit | cue content, cue order | `Y.Map` by cue id + `Y.Array` of ids |
+| sheetedit | cell inputs, row/column insert and delete | `Y.Map` by address + host-ordered structural ops |
+| richdoc | block content, block order | `Y.Map` by block id + `Y.Array` of ids |
+| pdfedit | paragraph edits, added boxes, whiteouts, images | position keys, object ids, blobs (in progress) |
+
+### Known gaps, by editor
+
+Everything below is editable in a session today and does **not** travel. Ordered roughly by
+how likely a user is to hit it.
+
+**sheetedit** (the largest gap by far)
+
+- Sheets themselves: add, rename, delete, reorder, hide/show
+- Images, shapes and form controls
+- Charts (creation, data range, configuration)
+- Pivot tables
+- Power Query: queries, their steps, refresh
+- Data validation, protection, outline/grouping
+- Named ranges and table definitions
+- Cell formatting beyond the input (rich text in cells, number formats)
+- Print setup, frozen panes and split panes, filters and sort
+- VBA macros
+
+**richdoc**
+
+- Images: currently *technically* shared, but wrongly. A block containing one is stored in
+  the CRDT as a plain string with the `data:` URL inline, so the bytes sit in the session
+  for its whole life (plus 33% for base64) and the block cannot merge two people's edits.
+  Both problems go away by moving the payload to the blob store.
+- Headers and footers, footnotes and endnotes
+- Comments and tracked changes
+- Named styles, page geometry
+- Tables: inside block HTML, so carried, but last-writer-wins for the whole block
+
+**subedit**
+
+- ASS style definitions (editable in the styles editor)
+- Tracks: label, language, adding and removing a track
+- Document-level fields: format, header preamble, trailing notes
+
+**pdfedit** (finish the current thread first)
+
+- Link annotations, glyph-level edits, page rotation, if a session can reach them
+
+**CodeMirror**: none. The document is its text.
+
+### Approach
+
+1. Finish the pdfedit thread, since half-built is worse than either end.
+2. richdoc images onto the blob store: fixes a live bloat problem and restores merging.
+3. sheetedit, largest first: sheets, then images/shapes, then charts, then pivots and
+   Power Query.
+4. subedit: styles, tracks, document fields.
+5. Whatever is still not shared when the work stops gets said in the panel, per editor,
+   rather than left for a user to discover by losing work.
+
+Each of these is its own body of work with the same shape as a phase: an identity scheme
+where things are added, a report/apply pair in the library, a shared type, a binding, a
+pair test. They are not small, and there are a lot of them.
