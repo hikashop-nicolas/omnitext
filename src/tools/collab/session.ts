@@ -128,7 +128,7 @@ export class CollabSession {
   private closed = false;
   private unsupported = false;
   private wrongEditor = false;
-  private readonly me: { name: string; colour: string };
+  private me: { name: string; colour: string };
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
   private readonly followMs: number;
@@ -166,6 +166,17 @@ export class CollabSession {
 
   get key(): RoomKey {
     return this.currentKey;
+  }
+
+  /** Change the name the others see, without interrupting the session. */
+  setName(name: string): void {
+    this.me = { ...this.me, name };
+    this.announce();
+    this.host.onChange?.();
+  }
+
+  get myName(): string {
+    return this.me.name;
   }
 
   /** Presence carries our transport id, which is how another peer can name us to remove us. */

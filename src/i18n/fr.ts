@@ -151,6 +151,7 @@ const fr: Dict = {
       "Ce document est partagé via un autre éditeur : vos modifications ne parviendraient à personne. Basculez sur la même vue pour participer.",
     wrongEditorHint: "Partagé via la vue « {editor} ». Basculez dessus pour éditer ensemble.",
     editorPinned: "Quittez la session avant de changer de vue : tout le monde édite via celle-ci.",
+    nameHint: "Ce que les autres voient. Conservé pour la prochaine fois, et utilisé aussi pour signer les commentaires.",
     chat: "Discussion",
     noMessages: "Aucun message pour l'instant.",
     messagePlaceholder: "Écrire aux autres",

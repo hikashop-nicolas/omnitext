@@ -498,3 +498,33 @@ describe("two peers in different editors", () => {
     expect(joiner.pinsEditor, "they must be able to switch to the right view").toBe(false);
   });
 });
+
+describe("the name others see", () => {
+  it("can be changed mid-session, and reaches the other peer", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "text");
+    const h = host({ editor: fakeEditor("text"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      name: "Grace",
+      colour: "#0f0",
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+    expect(joiner.peers().map((p) => p.name)).toEqual(["Ada"]);
+
+    session.setName("Ada Lovelace");
+    await net.settle();
+
+    expect(session.myName).toBe("Ada Lovelace");
+    expect(joiner.peers().map((p) => p.name)).toEqual(["Ada Lovelace"]);
+    // And the peer id is unchanged, so a rename is not a new person.
+    expect(joiner.peers()[0].peerId).toBe("host");
+  });
+});

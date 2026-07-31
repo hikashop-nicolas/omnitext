@@ -4,6 +4,7 @@ import { VersionStore } from "./version-store";
 import { snapshot } from "./history";
 import { hashBytes, type BaseDoc } from "./collab/base";
 import { newRoomKey, parseInvite, roomLink, withoutRoom } from "./collab/link";
+import { saveSettings, userName } from "../settings";
 import { CollabSession, type SessionHost } from "./collab/session";
 import type { Peer } from "./collab/provider";
 
@@ -286,6 +287,30 @@ async function removePeer(host: HostAPI, state: ToolState, peer: Peer): Promise<
   state.repaint?.();
 }
 
+/** Who the others see you as, editable where you can see it. */
+function renderMe(session: CollabSession, state: ToolState): HTMLElement {
+  const box = el("section");
+  box.appendChild(el("h4", undefined, t("app.yourName")));
+  const row = el("div", "ot-collab-row");
+  const input = document.createElement("input");
+  input.className = "ot-collab-link";
+  input.value = session.myName;
+  input.setAttribute("aria-label", t("app.yourName"));
+  const apply = (): void => {
+    const name = input.value.trim();
+    if (!name || name === session.myName) return;
+    state.me.name = name;
+    saveSettings({ name }); // one name, the same one comments are signed with
+    session.setName(name);
+  };
+  input.addEventListener("change", apply);
+  input.addEventListener("blur", apply);
+  row.appendChild(input);
+  box.appendChild(row);
+  box.appendChild(el("div", "ot-collab-muted", t("collab.nameHint")));
+  return box;
+}
+
 const clock = (at: number): string =>
   new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
@@ -443,6 +468,7 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           root.appendChild(who);
         }
 
+        if (session) root.appendChild(renderMe(session, state));
         if (session) root.appendChild(renderChat(session, state));
 
         // The warnings still have to be here: they are the honest description of what a
@@ -488,7 +514,10 @@ export const collabTool: ToolModule = {
     const store = new VersionStore();
     const state: ToolState = {
       session: null,
-      me: { name: pick(NAMES), colour: pick(COLOURS) },
+      // The name from Settings, which is the same one comments are signed with. Only when
+      // it is unset does a pseudonym stand in: collaboration needs something to show, and
+      // demanding a name before sharing would be an account by another route.
+      me: { name: userName() ?? pick(NAMES), colour: pick(COLOURS) },
       repaint: null,
       panelOpen: false,
       readCount: 0,
