@@ -135,7 +135,21 @@ export interface SessionOptions {
   makeTransport?(key: RoomKey): CollabTransport;
   /** How long to wait for the others to follow a re-key before reporting who did not. */
   followMs?: number;
+  /** When a joiner starts saying it is taking a while, and when it gives up. Test seams. */
+  slowMs?: number;
+  unreachableMs?: number;
 }
+
+/**
+ * How a joiner's attempt to reach the session is going.
+ *
+ * There is no relay configured, so two peers whose networks cannot be joined directly do
+ * not fall back to anything: they simply never connect. Trystero cannot tell us that has
+ * happened, so this is inferred from time passing, which is honest about what it is. The
+ * point is that the one unacceptable outcome, spinning on "connecting" forever with no
+ * explanation, does not happen.
+ */
+export type Reachability = "connecting" | "slow" | "unreachable" | "connected";
 
 /**
  * Same-browser tabs pair instantly over BroadcastChannel; everyone else goes through the
@@ -170,6 +184,8 @@ export class CollabSession {
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
   private readonly followMs: number;
+  private reach: Reachability = "connecting";
+  private reachTimers: ReturnType<typeof setTimeout>[] = [];
   /** Host only: the next sequence number to hand out. */
   private nextSeq = 1;
   private readonly orderedHandlers = new Set<(op: unknown, seq: number) => void>();
@@ -209,8 +225,18 @@ export class CollabSession {
     if (this.isHost) this.provider.onPeerJoined((peerId) => void this.base.offerTo(peerId));
     this.provider.onPeersChanged(() => {
       this.renumber();
+      if (this.provider.peers().length) this.settleReach("connected");
       this.host.onChange?.();
     });
+
+    // Only a joiner. A host waiting for an invitation to be used is waiting on a person,
+    // and there is no length of time after which that has "failed".
+    if (!this.isHost) {
+      const slow = opts.slowMs ?? 20_000;
+      const unreachable = opts.unreachableMs ?? 60_000;
+      this.reachTimers.push(setTimeout(() => this.settleReach("slow"), slow));
+      this.reachTimers.push(setTimeout(() => this.settleReach("unreachable"), unreachable));
+    }
   }
 
   get key(): RoomKey {
@@ -503,6 +529,22 @@ export class CollabSession {
    * Why this peer is not editing together, so the UI can say which it is rather than
    * guessing. Two very different situations look identical from outside.
    */
+  /** How the attempt to reach the others is going. Always "connected" once one has been. */
+  get reachability(): Reachability {
+    return this.reach;
+  }
+
+  private settleReach(next: Reachability): void {
+    if (this.closed) return;
+    // Reaching someone cancels the timers, which is what makes it stick: nothing re-arms
+    // them, so a peer leaving later cannot turn a connection that happened into a failure.
+    if (next === "connected") for (const t of this.reachTimers) clearTimeout(t);
+    if (this.reach === next) return;
+    this.reach = next;
+    debug("collab", `reachability: ${next}`);
+    this.host.onChange?.();
+  }
+
   get status(): "editing" | "unsupported" | "mismatch" | "waiting" {
     if (this.bound) return "editing";
     if (this.wrongEditor) return "mismatch";
@@ -516,6 +558,7 @@ export class CollabSession {
 
   async leave(): Promise<void> {
     if (this.closed) return;
+    for (const t of this.reachTimers) clearTimeout(t);
     this.closed = true;
     this.binding?.unbind();
     this.binding = null;

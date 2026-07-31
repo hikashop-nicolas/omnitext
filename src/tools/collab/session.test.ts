@@ -127,6 +127,73 @@ function host(over: Partial<SessionHost> & { editor?: ReturnType<typeof fakeEdit
 
 const me = { name: "Ada", colour: "#f00" };
 
+describe("reachability", () => {
+  // There is no relay for the document, so two peers whose networks cannot be joined never
+  // connect and nothing fails on its own. Trystero cannot tell us that has happened, so it
+  // is inferred from time passing. What must not happen is spinning on "connecting" with
+  // no explanation, which is the one outcome the plan singles out.
+  const tick = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+  it("says nothing to a host, who is waiting on a person rather than a network", async () => {
+    const net = new Net();
+    const h = host({ editor: fakeEditor("x"), currentDoc: async () => doc("a.txt", "x") });
+    const session = new CollabSession(h.api, {
+      ...me,
+      makeTransport: () => net.connect("host"),
+      slowMs: 10,
+      unreachableMs: 20,
+    });
+    await session.start();
+    await tick(60);
+    expect(session.reachability, "no length of time makes waiting a failure").toBe("connecting");
+  });
+
+  it("tells a joiner it is taking a while, then that it failed", async () => {
+    const net = new Net();
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: { roomId: "nobody-here", secret: "s" },
+      makeTransport: () => net.connect("joiner"),
+      slowMs: 20,
+      unreachableMs: 50,
+    });
+    await joiner.start();
+
+    expect(joiner.reachability).toBe("connecting");
+    await tick(35);
+    expect(joiner.reachability).toBe("slow");
+    await tick(40);
+    expect(joiner.reachability).toBe("unreachable");
+    await joiner.leave();
+  });
+
+  it("stops worrying as soon as someone is there", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "shared");
+    const h = host({ editor: fakeEditor("shared"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor("shared"), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+      slowMs: 10,
+      unreachableMs: 20,
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.reachability).toBe("connected");
+    // And a peer leaving later does not turn a connection that happened into a failure.
+    await tick(40);
+    expect(joiner.reachability).toBe("connected");
+  });
+});
+
 describe("CollabSession", () => {
   it("seeds the shared document from the starter's editor, and only from it", async () => {
     const net = new Net();

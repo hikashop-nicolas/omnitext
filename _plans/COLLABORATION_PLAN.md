@@ -427,6 +427,18 @@ is no TURN configured, such a pair does not fall back, it simply fails. Trystero
 the failure and say plainly that these two networks cannot be joined. Silently spinning on
 "connecting" is the one outcome to avoid.
 
+**Done, as the second of those two (2026-07-31).** A joiner's panel says it is still
+connecting after 20 seconds, and after 60 says plainly that the two could not be reached,
+that some networks cannot be joined directly, and that this app runs no relay for the
+document. Inferred from time passing, because Trystero cannot report an ICE failure to us;
+the comment in `session.ts` says so rather than implying the app knows more than it does.
+A host is never told anything of the kind: it is waiting on a person, and no length of
+time makes that a failure.
+
+TURN is still not offered. That is a deliberate gap, not an oversight: it means running or
+paying for a relay, and it is worth deciding on evidence of real failures rather than in
+advance. What has changed is that those failures are now visible instead of silent.
+
 **One correction fell out of this**, in section 6: the draft claimed payloads are
 encrypted with a key derived from the link secret. They are not, and the honest version
 is now written there.

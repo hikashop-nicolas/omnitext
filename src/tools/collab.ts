@@ -405,6 +405,15 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           if (session.readOnly) {
             status.appendChild(el("div", "ot-collab-muted", t("collab.readOnlyHere")));
           }
+          // Say what is happening while nobody has arrived. There is no relay for the
+          // document, so two networks that cannot be joined never connect and nothing
+          // times out on its own; without this the panel would read "waiting" forever and
+          // the person would have no way to tell that from a slow relay.
+          if (session.reachability === "slow") {
+            status.appendChild(el("div", "ot-collab-muted", t("collab.reachSlow")));
+          } else if (session.reachability === "unreachable") {
+            status.appendChild(el("div", "ot-collab-warn", t("collab.reachFailed")));
+          }
           if (session.status === "mismatch") {
             status.appendChild(
               el(

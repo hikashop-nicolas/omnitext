@@ -128,6 +128,10 @@ const en: Dict = {
     share: "Share this document",
     openDocFirst: "Open a document before starting a session.",
     waiting: "Waiting for someone to join",
+    reachSlow:
+      "Still connecting. Finding the other person goes through a public relay, which can take up to half a minute.",
+    reachFailed:
+      "Could not reach the other person. Some networks cannot be connected to each other directly, and this app uses no relay server for the document itself. Check they still have the page open, or try again from a different network.",
     connected: { one: "Connected to {n} person", other: "Connected to {n} people" },
     unsupported:
       "This editor cannot edit together yet, so others see the document but your changes stay local. Plain text files work today.",

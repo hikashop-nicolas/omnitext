@@ -126,6 +126,10 @@ const fr: Dict = {
     share: "Partager ce document",
     openDocFirst: "Ouvrez un document avant de démarrer une session.",
     waiting: "En attente d'un participant",
+    reachSlow:
+      "Connexion toujours en cours. La mise en relation passe par un relais public, ce qui peut prendre jusqu'à une trentaine de secondes.",
+    reachFailed:
+      "Impossible de joindre l'autre personne. Certains réseaux ne peuvent pas être reliés directement, et cette application n'utilise aucun serveur relais pour le document lui-même. Vérifiez que la page est toujours ouverte de son côté, ou réessayez depuis un autre réseau.",
     connected: { one: "Connecté à {n} personne", other: "Connecté à {n} personnes" },
     unsupported:
       "Cet éditeur ne permet pas encore l'édition simultanée : les autres voient le document, mais vos modifications restent locales. Les fichiers texte fonctionnent déjà.",
