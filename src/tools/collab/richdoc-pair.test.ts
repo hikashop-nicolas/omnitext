@@ -86,9 +86,20 @@ class StubRich {
 
 const built: StubRich[] = [];
 
+/**
+ * How long the editor takes to appear after mount returns.
+ *
+ * Not a detail. A richdoc editor is inflated off the main thread, so it does not exist for
+ * some time after mount, and a joiner binds the instant the base file arrives, which is
+ * inside that window. Resolving immediately here hid a bug that made every real session
+ * silent in both directions; a delay reproduces it.
+ */
+let inflateMs = 30;
+
 vi.mock("richdoc", () => ({
   initLocale: () => Promise.resolve(),
-  createDocxEditorAsync: () => {
+  createDocxEditorAsync: async () => {
+    await new Promise((r) => setTimeout(r, inflateMs));
     const editor = new StubRich();
     editor.blocks = [
       { id: "b1", html: "The first paragraph." },
@@ -96,7 +107,7 @@ vi.mock("richdoc", () => ({
       { id: "b3", html: "The third paragraph." },
     ];
     built.push(editor);
-    return Promise.resolve(editor);
+    return editor;
   },
 }));
 
@@ -129,8 +140,6 @@ async function makePeer(opts: {
     onChange: () => undefined,
   } as unknown as EditorMountContext;
   instance.mount({} as HTMLElement, mountCtx);
-  await new Promise((r) => setTimeout(r, 0)); // the factory is async
-  const editor = built[built.length - 1];
 
   const api: SessionHost = {
     currentDoc: baseDoc,
@@ -148,13 +157,20 @@ async function makePeer(opts: {
     makeTransport: (key) => localTransport(key.roomId),
   });
   await session.start();
+  // Deliberately after start(), so the session begins while the editor is still inflating,
+  // which is what happens in the browser.
+  await new Promise((r) => setTimeout(r, inflateMs + 20));
+  const editor = built[built.length - 1];
   return { session, editor };
 }
 
 const settle = (ms = 120): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 describe("two peers on a rich document", () => {
-  beforeEach(() => void (built.length = 0));
+  beforeEach(() => {
+    built.length = 0;
+    inflateMs = 30;
+  });
   afterEach(() => void built.splice(0));
 
   async function connected(readOnlyJoiner = false): Promise<{ a: Peer; b: Peer }> {

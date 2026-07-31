@@ -29,6 +29,16 @@ export interface RichHandle {
 /** How the binding reaches the editor, which may not exist yet when a session starts. */
 export interface RichBindingHost {
   handle(): RichHandle | null;
+  /**
+   * Resolves once the editor has been built.
+   *
+   * A richdoc editor is constructed asynchronously: the file is inflated off the main
+   * thread first, so the editor does not exist for some time after mount returns. A joiner
+   * binds the moment the base file arrives, which is exactly when that inflation is still
+   * running, so without waiting here `bind` finds no editor and gives up silently. The
+   * session then looks connected and shares nothing, in both directions.
+   */
+  ready(): Promise<void>;
 }
 
 export function richdocBinding(host: RichBindingHost): CollabBinding {
@@ -67,8 +77,9 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
 
   return {
     bind: async (ctx: CollabContext) => {
+      await host.ready(); // it is normal for the editor not to exist yet; see RichBindingHost
       const handle = host.handle();
-      if (!handle) return; // still inflating; the session binds again when it is ready
+      if (!handle) return; // construction failed, and the failure was already reported
       const doc = ctx.doc as unknown as Y.Doc;
       shared = doc;
       viewOnly = ctx.readOnly;

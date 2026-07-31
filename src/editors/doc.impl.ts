@@ -14,13 +14,15 @@ class DocInstance implements EditorInstance {
   private editor: DocEditor | null = null;
   private bytes: Uint8Array = new Uint8Array();
   private disposed = false;
+  /** Resolves once the editor exists. A session may start before it does. */
+  private ready: Promise<void> = Promise.resolve();
 
   constructor(private host: HostAPI) {}
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.bytes = ctx.bytes ?? new Uint8Array();
     const s = getSettings();
-    void localeReady
+    this.ready = localeReady
       .then(() => {
         if (this.disposed) return null;
         return createDocEditorAsync(container, this.bytes, {
@@ -55,7 +57,7 @@ class DocInstance implements EditorInstance {
 
   collab(): CollabBinding {
     // The editor may still be inflating when a session starts; the binding checks.
-    return richdocBinding({ handle: () => this.editor });
+    return richdocBinding({ handle: () => this.editor, ready: () => this.ready });
   }
 
   focus(): void {}
