@@ -154,6 +154,7 @@ const en: Dict = {
     wrongEditorHint: "Shared through the \u201c{editor}\u201d view. Switch to it to edit together.",
     editorPinned: "Leave the session before switching view: everyone is editing through this one.",
     nameHint: "What the others see. Saved for next time, and used to sign comments too.",
+    noStructural: "Inserting or deleting rows and columns is off while sharing: it would move everyone else's cells without telling them. Leave the session to do it.",
     chat: "Chat",
     noMessages: "No messages yet.",
     messagePlaceholder: "Message the others",

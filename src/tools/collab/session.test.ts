@@ -596,3 +596,28 @@ describe("default names", () => {
     expect(joiner.myName).toBe("Guest 1"); // Nicolas is not a guest number
   });
 });
+
+describe("what a binding blocks", () => {
+  // sheetedit refuses row and column edits while a session runs, because they shift every
+  // address below them on one side only. The reason has to reach the person, or the
+  // command simply appears not to work.
+  it("passes a blocked action from the binding to the host", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const editor = fakeEditor("a,b");
+    let explain: ((reason: "structural") => void) | null = null;
+    editor.binding.onBlocked = (fn) => void (explain = fn);
+
+    const blocked: string[] = [];
+    const h = host({ editor, currentDoc: async () => base });
+    h.api.onBlocked = (reason) => blocked.push(reason);
+
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    expect(explain, "the binding is given a way to explain itself").not.toBeNull();
+    explain!("structural");
+    expect(blocked).toEqual(["structural"]);
+  });
+});

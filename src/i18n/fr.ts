@@ -152,6 +152,7 @@ const fr: Dict = {
     wrongEditorHint: "Partagé via la vue « {editor} ». Basculez dessus pour éditer ensemble.",
     editorPinned: "Quittez la session avant de changer de vue : tout le monde édite via celle-ci.",
     nameHint: "Ce que les autres voient. Conservé pour la prochaine fois, et utilisé aussi pour signer les commentaires.",
+    noStructural: "L'insertion et la suppression de lignes et de colonnes sont désactivées pendant le partage : cela déplacerait les cellules des autres sans les prévenir. Quittez la session pour le faire.",
     chat: "Discussion",
     noMessages: "Aucun message pour l'instant.",
     messagePlaceholder: "Écrire aux autres",

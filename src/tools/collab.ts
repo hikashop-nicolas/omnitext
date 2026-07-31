@@ -205,6 +205,10 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
      * this side contributed. History from before the session is that person's own earlier
      * data and is left alone.
      */
+    onBlocked(reason) {
+      if (reason === "structural") host.notifications.warn(t("collab.noStructural"));
+    },
+
     onEvicted() {
       state.session = null;
       state.repaint?.();

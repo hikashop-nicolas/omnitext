@@ -224,6 +224,9 @@ export interface AwarenessLike {
 }
 
 export interface CollabBinding {
+  /** Told when the editor blocked something because a session is running, so the host can
+   *  explain it. Not every binding has such a case. */
+  onBlocked?(explain: (reason: "structural") => void): void;
   /** Mirror local edits into the shared document, and remote ones back into the editor.
    *  May be async: a binding is free to load its CRDT adapter only when a session starts. */
   bind(ctx: CollabContext): void | Promise<void>;

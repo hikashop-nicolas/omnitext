@@ -287,7 +287,7 @@ what they have already seen. If they saved a copy, it is theirs.
 | 0 | **Done.** Transport spike: Yjs + WebRTC provider, room from fragment, no editor | Provider confirmed maintained, and the answer inverted the review's guess (7b) |
 | 1 | **Done.** Core Tool: session, presence, peer list, base transfer, share UI, CodeMirror binding, chat, removal | Phase 0 synced Chrome/Safari, and laptop-to-phone across NAT (7b) |
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
-| 3 | **Done.** sheetedit binding, cell content only; structural edits still local | Phase 2 shipped and used |
+| 3 | **Done.** sheetedit binding, cell content only; structural edits refused during a session | Phase 2 shipped and used |
 | 4 | sheetedit structural operations, host-arbitrated | Phase 3 shows people actually hit the limitation |
 | 5 | richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
 
@@ -489,6 +489,37 @@ differing; that is stated rather than hidden. sheetedit gained `cellInputs`,
    screen. Neither announces itself. **A running session now pins the editor** and the
    switch is refused through the existing `willChangeEditor` hook, with leaving the session
    as the way to change view.
+
+## 7e. Presence, names, and structural edits (2026-07-31)
+
+**Presence.** Each binding publishes where this peer is through awareness and draws the
+others. CodeMirror had it already through y-codemirror.next; subedit marks the cue and
+sheetedit outlines the cell, in the peer's colour. Several people on one cue or cell share
+a single border, since a border can only be one colour, and get a name badge each in their
+own colour, because otherwise two peers in the same place are indistinguishable.
+
+Two things only visible with real tabs side by side: a peer was invisible until they
+happened to move, because a position was published only on change and never on binding;
+and the same-browser transport below made both findable in a minute rather than twenty.
+
+**Names.** Collaboration invented a pseudonym per session and ignored the Settings name,
+which fed only comment authorship: two names for one person, and no way to set the one the
+others saw. There is one name now, editable in the panel, and unnamed people are "Guest n"
+rather than a plausible first name, which was a small lie about who was in the room.
+Numbering is the fiddly part: taking the lowest free number on every change had two peers
+swap numbers forever, so a peer moves only on a real clash and only the higher client id
+moves.
+
+**Structural edits are refused during a session.** Cells are shared by address, so
+inserting a row shifts everything below it on one side only and the two workbooks drift
+apart unannounced: the same silent class as two peers bound to different editors.
+sheetedit asks the host through `allowStructuralEdit`, and the host explains why. Phase 4
+is to have the host order these for everyone instead.
+
+**A testing transport.** `?collab=local` pairs tabs of one browser over BroadcastChannel,
+instantly, satisfying the same transport contract so everything above it runs unchanged.
+Opt-in rather than automatic on localhost, because it does not exercise WebRTC and would
+otherwise hide the failures the real transport exists to surface.
 
 ## 8. What this will not do
 

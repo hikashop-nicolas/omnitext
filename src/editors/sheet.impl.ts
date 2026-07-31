@@ -29,6 +29,8 @@ class SheetInstance implements EditorInstance {
   private unwatchPeers: (() => void) | null = null;
   /** Set while a session runs, so a selection change can be published. */
   private publishSelection: ((at: { sheet: string; r: number; c: number }) => void) | null = null;
+  /** Told when a structural edit was refused, so the host can explain why. */
+  onStructuralRefused: (() => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
@@ -40,6 +42,14 @@ class SheetInstance implements EditorInstance {
       onChange: ctx.onChange,
       onCellsChanged: (changes) => this.publish(changes),
       onSelectionChanged: (at) => this.publishSelection?.(at),
+      // Cells are shared by address, so inserting a row would shift every address below it
+      // on this side only and the two workbooks would drift apart unannounced. Refusing is
+      // the honest Phase 3 answer; Phase 4 is to have the host order these for everyone.
+      allowStructuralEdit: () => {
+        if (!this.shared) return true;
+        this.onStructuralRefused?.();
+        return false;
+      },
       formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",
       fileName: ctx.filename,
       onConvert: (bytes, name) => {
@@ -66,6 +76,8 @@ class SheetInstance implements EditorInstance {
 
   collab(): CollabBinding {
     return {
+      onBlocked: (explain) => void (this.onStructuralRefused = () => explain("structural")),
+
       bind: async (ctx: CollabContext) => {
         const editor = this.editor;
         if (!editor) return; // still inflating; a session on a workbook this large is rare
@@ -113,6 +125,7 @@ class SheetInstance implements EditorInstance {
         this.unwatchPeers?.();
         this.unwatchPeers = null;
         this.publishSelection = null;
+        this.onStructuralRefused = null;
         this.editor?.setPeerCells([]);
         this.undoManager?.destroy();
         this.undoManager = null;

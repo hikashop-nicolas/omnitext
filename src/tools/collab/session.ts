@@ -81,6 +81,8 @@ export interface SessionHost {
   editorId(): string | null;
   /** Anything the person needs told. */
   notify(message: string): void;
+  /** The editor refused something because this session is running. */
+  onBlocked?(reason: "structural"): void;
   /** We were removed from the session: close the document, per the product decision. */
   onEvicted?(): void;
   /** Called whenever the peer list or connection state changes, for the UI. */
@@ -277,6 +279,7 @@ export class CollabSession {
 
     this.binding = binding;
     this.bound = true;
+    binding.onBlocked?.((reason) => this.host.onBlocked?.(reason));
     await binding.bind({
       doc: this.provider.doc,
       awareness: this.provider.awareness,
