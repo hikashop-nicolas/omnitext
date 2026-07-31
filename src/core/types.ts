@@ -203,6 +203,12 @@ export interface CollabContext {
   seed: boolean;
   /** A view-only session: mirror remote edits in, publish nothing out. */
   readOnly: boolean;
+  /** For operations that cannot be merged and must be put in one order for everyone.
+   *  Absent when the session does not offer it. */
+  ordered?: {
+    propose(op: unknown): void;
+    onOrdered(handler: (op: unknown, seq: number) => void): { dispose(): void };
+  };
 }
 
 /** The shape of a Y.Doc the core needs to know about; bindings cast to the real type. */

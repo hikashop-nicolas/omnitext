@@ -9,6 +9,7 @@ import type {
 } from "../core/types";
 import { changedCells, isEmpty, readCells, seedCells, sharedType, writeCells } from "./sheet-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
+import { OpSequencer, shiftCells, type StructuralOp } from "./sheet-structure";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
 // with formula recalculation and in-place preservation) as an Omnitext editor module.
@@ -29,8 +30,9 @@ class SheetInstance implements EditorInstance {
   private unwatchPeers: (() => void) | null = null;
   /** Set while a session runs, so a selection change can be published. */
   private publishSelection: ((at: { sheet: string; r: number; c: number }) => void) | null = null;
-  /** Told when a structural edit was refused, so the host can explain why. */
-  onStructuralRefused: (() => void) | null = null;
+  /** Set while a session runs: hands a structural edit to the session to be ordered. */
+  private propose: ((op: StructuralOp) => void) | null = null;
+  private unwatchOrdered: (() => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
@@ -42,12 +44,16 @@ class SheetInstance implements EditorInstance {
       onChange: ctx.onChange,
       onCellsChanged: (changes) => this.publish(changes),
       onSelectionChanged: (at) => this.publishSelection?.(at),
-      // Cells are shared by address, so inserting a row would shift every address below it
-      // on this side only and the two workbooks would drift apart unannounced. Refusing is
-      // the honest Phase 3 answer; Phase 4 is to have the host order these for everyone.
-      allowStructuralEdit: () => {
-        if (!this.shared) return true;
-        this.onStructuralRefused?.();
+      // Cells are shared by address, so inserting a row moves every address below it.
+      // That cannot be merged, so it is ordered instead: the edit is proposed, one peer
+      // puts it in sequence, and everyone applies it there. Always refused locally, since
+      // it comes back through that path a moment later and applying it twice would move
+      // the addresses twice.
+      allowStructuralEdit: (op) => {
+        if (!this.shared || !this.propose) return true;
+        const sheet = this.editor?.selectedCell()?.sheet;
+        if (!sheet) return false;
+        this.propose({ kind: op.kind, axis: op.axis, sheet, at: op.at, count: op.count });
         return false;
       },
       formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",
@@ -76,8 +82,6 @@ class SheetInstance implements EditorInstance {
 
   collab(): CollabBinding {
     return {
-      onBlocked: (explain) => void (this.onStructuralRefused = () => explain("structural")),
-
       bind: async (ctx: CollabContext) => {
         const editor = this.editor;
         if (!editor) return; // still inflating; a session on a workbook this large is rare
@@ -112,6 +116,21 @@ class SheetInstance implements EditorInstance {
           );
         });
 
+        // Structural edits: proposed here, ordered by one peer, applied by everyone in that
+        // order. The host also rewrites the shared cell map, once, in the same step: if
+        // every peer shifted it themselves the same move would be written many times over.
+        if (ctx.ordered) {
+          this.propose = (op) => ctx.ordered!.propose(op);
+          const sequencer = new OpSequencer((op) => {
+            if (ctx.seed) writeCells(doc, shiftCells(readCells(doc), op), this.origin);
+            editor.applyRemoteStructural(op);
+          });
+          const sub = ctx.ordered.onOrdered((op, seq) =>
+            sequencer.receive({ ...(op as StructuralOp), seq }),
+          );
+          this.unwatchOrdered = () => sub.dispose();
+        }
+
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
         if (!ctx.readOnly) {
           const { UndoManager } = await import("yjs");
@@ -125,7 +144,9 @@ class SheetInstance implements EditorInstance {
         this.unwatchPeers?.();
         this.unwatchPeers = null;
         this.publishSelection = null;
-        this.onStructuralRefused = null;
+        this.propose = null;
+        this.unwatchOrdered?.();
+        this.unwatchOrdered = null;
         this.editor?.setPeerCells([]);
         this.undoManager?.destroy();
         this.undoManager = null;

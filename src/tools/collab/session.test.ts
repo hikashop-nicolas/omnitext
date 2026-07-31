@@ -621,3 +621,100 @@ describe("what a binding blocks", () => {
     expect(blocked).toEqual(["structural"]);
   });
 });
+
+describe("operations that must be ordered", () => {
+  async function twoPeers() {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    const hostSession = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await hostSession.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: hostSession.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+    return { net, hostSession, joiner };
+  }
+
+  it("gives both peers the same operations in the same order", async () => {
+    const { net, hostSession, joiner } = await twoPeers();
+    const atHost: [unknown, number][] = [];
+    const atJoiner: [unknown, number][] = [];
+    hostSession.ordered.onOrdered((op, seq) => atHost.push([op, seq]));
+    joiner.ordered.onOrdered((op, seq) => atJoiner.push([op, seq]));
+
+    hostSession.ordered.propose({ kind: "insert" });
+    joiner.ordered.propose({ kind: "delete" });
+    await net.settle();
+
+    expect(atHost).toEqual(atJoiner);
+    expect(atHost.map(([, seq]) => seq)).toEqual([1, 2]);
+  });
+
+  // The point of a single orderer: a proposal from anyone else goes through the host, so
+  // there is one sequence rather than two peers each inventing their own.
+  it("numbers a joiner's proposal from the host's counter", async () => {
+    const { net, hostSession, joiner } = await twoPeers();
+    const seen: number[] = [];
+    joiner.ordered.onOrdered((_op, seq) => seen.push(seq));
+
+    hostSession.ordered.propose({ a: 1 });
+    await net.settle();
+    joiner.ordered.propose({ b: 2 });
+    await net.settle();
+
+    expect(seen).toEqual([1, 2]);
+  });
+
+  it("applies the host's own proposal locally without waiting for the network", async () => {
+    const { hostSession } = await twoPeers();
+    const seen: number[] = [];
+    hostSession.ordered.onOrdered((_op, seq) => seen.push(seq));
+    hostSession.ordered.propose({ x: 1 });
+    expect(seen).toEqual([1]); // no settle: the host does not ask itself
+  });
+});
+
+describe("only one peer puts operations in order", () => {
+  // With two peers this cannot be observed: a proposal is only ever received by the host,
+  // so a second peer that also ordered would never be asked to. It takes a third.
+  it("does not let a non-host order a proposal it merely overheard", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    const hostSession = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await hostSession.start();
+    await net.settle();
+
+    const make = async (id: string): Promise<CollabSession> => {
+      const s = new CollabSession(host({ editor: fakeEditor(""), localState: () => null }).api, {
+        ...me,
+        key: hostSession.key,
+        makeTransport: () => net.connect(id),
+      });
+      await s.start();
+      await net.settle();
+      return s;
+    };
+    const a = await make("a");
+    const b = await make("b");
+
+    const counts = { host: 0, a: 0, b: 0 };
+    hostSession.ordered.onOrdered(() => counts.host++);
+    a.ordered.onOrdered(() => counts.a++);
+    b.ordered.onOrdered(() => counts.b++);
+
+    a.ordered.propose({ insert: 1 }); // b overhears this too
+    await net.settle();
+
+    // Exactly once each. Were b to order what it overheard, everyone would see it twice,
+    // and the two orderings would disagree about the sequence from then on.
+    expect(counts).toEqual({ host: 1, a: 1, b: 1 });
+  });
+});

@@ -28,7 +28,7 @@ import { trysteroTransport, type CollabTransport } from "./transport";
 // complete, so a peer the host cannot see directly still gets the key from whoever can
 // see it. Only someone whose every path runs through the removed peer is stranded, and
 // the session reports that rather than losing them quietly.
-const CONTROL = { rekey: 1, evicted: 2 } as const;
+const CONTROL = { rekey: 1, evicted: 2, propose: 3, ordered: 4 } as const;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -87,6 +87,19 @@ export interface SessionHost {
   onEvicted?(): void;
   /** Called whenever the peer list or connection state changes, for the UI. */
   onChange?(): void;
+}
+
+/**
+ * Operations that cannot be merged and must instead be put in a single order.
+ *
+ * The session knows nothing about what they are: a binding proposes one, the peer that
+ * started the room stamps it with a sequence number, and every peer is handed the same
+ * operations in the same order. Deciding what an operation means, and what to do about one
+ * that arrives early, belongs to the binding.
+ */
+export interface OrderedOps {
+  propose(op: unknown): void;
+  onOrdered(handler: (op: unknown, seq: number) => void): { dispose(): void };
 }
 
 /** The default name, when the person has not set one. */
@@ -156,6 +169,9 @@ export class CollabSession {
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
   private readonly followMs: number;
+  /** Host only: the next sequence number to hand out. */
+  private nextSeq = 1;
+  private readonly orderedHandlers = new Set<(op: unknown, seq: number) => void>();
 
   constructor(host: SessionHost, opts: SessionOptions) {
     this.host = host;
@@ -285,6 +301,7 @@ export class CollabSession {
       awareness: this.provider.awareness,
       seed: this.isHost,
       readOnly: this.readOnly,
+      ordered: this.ordered,
     });
     this.host.onChange?.();
   }
@@ -322,6 +339,32 @@ export class CollabSession {
     // switch to the right one, and pinning before binding forbade the very thing the
     // mismatch message asks for.
     return !this.closed && this.bound;
+  }
+
+  /**
+   * The ordering facility a binding uses for operations that cannot merge. Proposing from
+   * the host applies immediately; from anyone else it asks the host, so there is one order
+   * and it is the same for everyone.
+   */
+  get ordered(): OrderedOps {
+    return {
+      propose: (op) => {
+        if (this.closed) return;
+        if (this.isHost) this.publishOrdered(op);
+        else this.provider.sendOn("control", controlFrame(CONTROL.propose, { op }), null);
+      },
+      onOrdered: (handler) => {
+        this.orderedHandlers.add(handler);
+        return { dispose: () => this.orderedHandlers.delete(handler) };
+      },
+    };
+  }
+
+  /** Host only: stamp an operation and give it to everyone, ourselves included. */
+  private publishOrdered(op: unknown): void {
+    const seq = this.nextSeq++;
+    this.provider.sendOn("control", controlFrame(CONTROL.ordered, { op, seq }), null);
+    for (const h of this.orderedHandlers) h(op, seq);
   }
 
   peers(): Peer[] {
@@ -411,6 +454,19 @@ export class CollabSession {
       return;
     }
 
+    if (kind === CONTROL.propose) {
+      // Only the host orders. A proposal reaching anyone else is ignored rather than
+      // applied locally, or two peers would each invent their own sequence.
+      if (!this.isHost) return;
+      const { op } = JSON.parse(textDecoder.decode(body)) as { op: unknown };
+      this.publishOrdered(op);
+      return;
+    }
+    if (kind === CONTROL.ordered) {
+      const { op, seq } = JSON.parse(textDecoder.decode(body)) as { op: unknown; seq: number };
+      for (const h of this.orderedHandlers) h(op, seq);
+      return;
+    }
     if (kind !== CONTROL.rekey) return;
     const message = JSON.parse(textDecoder.decode(body)) as RekeyMessage;
     if (!message.room?.roomId || this.seenRooms.has(message.room.roomId)) return;
