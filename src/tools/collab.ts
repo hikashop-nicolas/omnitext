@@ -47,6 +47,11 @@ function ensureStyles(): void {
       border-radius: 6px; padding: 8px 10px; color: var(--muted); font-size: 12px; }
     .ot-collab-warn ul { margin: 5px 0 0; padding-left: 17px; }
     .ot-collab-viewonly { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    /* Someone waiting is the one thing in this panel that is asking for an answer now. */
+    .ot-collab-waiting { border: 1px solid var(--border); border-left: 3px solid #3fb950;
+      border-radius: 6px; padding: 8px 10px; }
+    .ot-collab-waiting li { display: flex; align-items: center; gap: 6px; }
+    .ot-collab-waiting button { padding: 1px 8px; font-size: 12px; }
     .ot-collab-about summary { cursor: pointer; color: var(--muted); font-size: 12px; }
     .ot-collab-about[open] summary { margin-bottom: 6px; }
 
@@ -102,6 +107,10 @@ interface ToolState {
   chatSub: { dispose(): void } | null;
   /** Show the view-only variant of the invitation. Host-side display choice only. */
   offerViewOnly: boolean;
+  /** Hold newcomers until let in. Remembered across sessions this tab starts. */
+  approveJoins: boolean;
+  /** Who we have already said is waiting, so one knock is announced once. */
+  announced: Set<string>;
 }
 
 /** Unread count on the toolbar button; the tool owns the badge inside its own button. */
@@ -215,6 +224,27 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
       host.workspace.closeActive?.();
     },
 
+    onKnock(waiting) {
+      // Said out loud, not only drawn: the panel is usually closed, and someone standing
+      // at a door nobody is looking at waits for as long as they have patience. Once each,
+      // though: this is called again on every arrival and every decision.
+      for (const peer of waiting) {
+        const id = peer.peerId ?? peer.name;
+        if (state.announced.has(id)) continue;
+        state.announced.add(id);
+        host.notifications.info(t("collab.knockedName", { name: peer.name }));
+      }
+      const here = new Set(waiting.map((p) => p.peerId ?? p.name));
+      for (const id of [...state.announced]) if (!here.has(id)) state.announced.delete(id);
+      state.repaint?.();
+    },
+
+    onWaiting(what) {
+      if (what === "waiting") host.notifications.info(t("collab.youAreWaiting"));
+      else if (what === "admitted") host.notifications.info(t("collab.youWereAdmitted"));
+      state.repaint?.();
+    },
+
     onChange() {
       state.repaint?.();
     },
@@ -239,6 +269,7 @@ async function startSession(
     ...state.me,
     key,
     readOnly,
+    approveJoins: state.approveJoins,
   });
   state.session = session;
   await session.start();
@@ -275,6 +306,43 @@ function renderPeers(into: HTMLElement, peers: Peer[], onRemove: (peer: Peer) =>
     }
     into.appendChild(li);
   }
+}
+
+/**
+ * Who is waiting to be let in, with a decision beside each name.
+ *
+ * Nothing is drawn at all when nobody is waiting: an empty "nobody is knocking" panel
+ * suggests a permanent gate where there is a passing one, and the room already has enough
+ * to read.
+ */
+function renderWaiting(
+  session: CollabSession,
+  onAdmit: (peer: Peer) => void,
+  onRefuse: (peer: Peer) => void,
+): HTMLElement | null {
+  const waiting = session.waiting();
+  if (!waiting.length) return null;
+
+  const box = el("section", "ot-collab-waiting");
+  box.appendChild(el("h4", undefined, t("collab.knocking")));
+  const list = el("ul", "ot-collab-peers");
+  for (const peer of waiting) {
+    const li = el("li");
+    const dot = el("span", "ot-collab-dot");
+    dot.style.background = peer.colour;
+    li.append(dot, document.createTextNode(peer.name));
+    const yes = button(t("collab.admit"), true);
+    yes.addEventListener("click", () => onAdmit(peer));
+    const no = button(t("collab.refuse"));
+    no.addEventListener("click", () => onRefuse(peer));
+    li.append(yes, no);
+    list.appendChild(li);
+  }
+  box.appendChild(list);
+  // Said here rather than only in the docs: the person deciding is the one who needs to
+  // know what the decision does and does not cover.
+  box.appendChild(el("div", "ot-collab-muted", t("collab.knockHint")));
+  return box;
 }
 
 async function removePeer(host: HostAPI, state: ToolState, peer: Peer): Promise<void> {
@@ -469,7 +537,38 @@ function openPanel(host: HostAPI, state: ToolState, store: VersionStore): void {
           viewRow.append(box, document.createTextNode(t("collab.viewOnly")));
           link.appendChild(viewRow);
           link.appendChild(el("div", "ot-collab-muted", t("collab.viewOnlyHint")));
+
+          // Only the peer that started the room can hold the door; a joiner offering the
+          // choice would be offering something it cannot do.
+          if (session.isHost) {
+            const askRow = el("label", "ot-collab-viewonly");
+            const askBox = document.createElement("input");
+            askBox.type = "checkbox";
+            askBox.checked = session.gatekeeping;
+            askBox.addEventListener("change", () => {
+              state.approveJoins = askBox.checked;
+              session.setApproveJoins(askBox.checked);
+              state.repaint?.();
+            });
+            askRow.append(askBox, document.createTextNode(t("collab.approveJoins")));
+            link.appendChild(askRow);
+            link.appendChild(el("div", "ot-collab-muted", t("collab.approveJoinsHint")));
+          }
           root.appendChild(link);
+
+          const knocking = renderWaiting(
+            session,
+            (peer) => {
+              session.admit(peer.peerId ?? "");
+              host.notifications.info(t("collab.admitted", { name: peer.name }));
+              state.repaint?.();
+            },
+            (peer) => {
+              session.refuse(peer.peerId ?? "");
+              state.repaint?.();
+            },
+          );
+          if (knocking) root.appendChild(knocking);
 
           const who = el("section");
           who.appendChild(el("h4", undefined, t("collab.people")));
@@ -538,6 +637,8 @@ export const collabTool: ToolModule = {
       readCount: 0,
       chatSub: null,
       offerViewOnly: false,
+      approveJoins: false,
+      announced: new Set<string>(),
     };
 
     /** Slide the panel in or out, rather than only ever opening it. */

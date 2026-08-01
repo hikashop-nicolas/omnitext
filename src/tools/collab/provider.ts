@@ -31,6 +31,10 @@ export interface Presence {
   peerId?: string;
   /** Whatever the editor's binding wants to publish. Opaque here, by design. */
   selection?: unknown;
+  /** Set by a host that is holding newcomers at the door, so the others follow its ruling. */
+  gatekeeper?: boolean;
+  /** Transport ids the gatekeeper has let in. Meaningless from anyone else. */
+  admitted?: string[];
 }
 
 export interface Peer extends Presence {
@@ -65,6 +69,14 @@ export class CollabProvider {
   private readonly firstContent: Promise<void>;
   private markSynced: () => void = () => undefined;
   private hasContent = false;
+  /**
+   * Who may be sent the document, when the session is holding newcomers at the door.
+   *
+   * Presence is deliberately outside this: the point of waiting is that the people inside
+   * can see who is asking, and a knock with no name on it is not a decision anyone can
+   * make. Everything that IS the document goes through here.
+   */
+  private syncGate: ((peerId: string) => boolean) | null = null;
   /** Set while pruning presence locally, so the clean-up is not broadcast. */
   private quietAwareness = false;
   /** Sync traffic is per keystroke: a line each drowns the console, so it is counted. */
@@ -117,6 +129,19 @@ export class CollabProvider {
    * session's own control messages. Routed through here so a move to a new room does not
    * leave a caller holding a closed transport.
    */
+  /** Hold the document back from peers this returns false for. Null lets everyone have it. */
+  setSyncGate(gate: ((peerId: string) => boolean) | null): void {
+    this.syncGate = gate;
+  }
+
+  /** The peers currently allowed the document, of those we can reach. */
+  private syncTargets(exclude?: string): string[] {
+    const gate = this.syncGate;
+    return this.transport
+      .peers()
+      .filter((p) => p !== exclude && (!gate || gate(p)));
+  }
+
   sendOn(channel: Channel, payload: Uint8Array, target: string | string[] | null): void {
     if (this.closed) return;
     debug("wire", `sending on ${channel}`, () => ({ bytes: payload.length, target }));
@@ -173,17 +198,23 @@ export class CollabProvider {
    * in either direction closes within one interval.
    */
   requestResync(): void {
-    if (this.closed || !this.transport.peers().length) return;
+    if (this.closed) return;
+    const targets = this.syncTargets();
+    if (!targets.length) return;
     const enc = encoding.createEncoder();
     writeSyncStep1(enc, this.doc);
-    this.transport.send("sync", encoding.toUint8Array(enc), null);
+    this.transport.send("sync", encoding.toUint8Array(enc), targets);
   }
 
   /** A peer arrived: ask what it already has, and tell it we are here. */
   private greet(peerId: string): void {
-    const enc = encoding.createEncoder();
-    writeSyncStep1(enc, this.doc);
-    this.transport.send("sync", encoding.toUint8Array(enc), peerId);
+    // Presence first and unconditionally: someone waiting to be let in must still be
+    // visible to the people deciding, and must still see them.
+    if (!this.syncGate || this.syncGate(peerId)) {
+      const enc = encoding.createEncoder();
+      writeSyncStep1(enc, this.doc);
+      this.transport.send("sync", encoding.toUint8Array(enc), peerId);
+    }
 
     const known = [...this.awareness.getStates().keys()];
     if (known.length) {
@@ -206,6 +237,10 @@ export class CollabProvider {
       return;
     }
     if (channel === "sync") {
+      // Both directions. A peer being held at the door that asked for the document would
+      // otherwise be answered, and one that pushed an update would be writing into a
+      // document nobody has agreed to share with it.
+      if (this.syncGate && !this.syncGate(peerId)) return;
       const enc = encoding.createEncoder();
       // Applying runs the doc-update handler synchronously, which reads this to know
       // where the update came from.
@@ -244,13 +279,14 @@ export class CollabProvider {
     const payload = encoding.toUint8Array(enc);
 
     if (origin !== this) {
-      this.transport.send("sync", payload, null); // our own edit: tell everyone
+      const targets = this.syncTargets(); // our own edit: tell everyone allowed it
+      if (targets.length) this.transport.send("sync", payload, targets);
       return;
     }
     // A remote update that genuinely changed the document: pass it on, in case a peer we
     // can see cannot see the sender. Yjs ignores an update it already has, so this dies
     // out rather than circulating.
-    const onward = this.transport.peers().filter((p) => p !== this.applyingFrom);
+    const onward = this.syncTargets(this.applyingFrom ?? undefined);
     if (onward.length) this.transport.send("sync", payload, onward);
   };
 
@@ -317,7 +353,15 @@ export class CollabProvider {
       if (clientId === this.doc.clientID) continue;
       const s = state as Partial<Presence>;
       if (!s || typeof s.name !== "string") continue; // a peer that has not introduced itself yet
-      out.push({ clientId, name: s.name, colour: s.colour ?? "#888", peerId: s.peerId, selection: s.selection });
+      out.push({
+        clientId,
+        name: s.name,
+        colour: s.colour ?? "#888",
+        peerId: s.peerId,
+        selection: s.selection,
+        gatekeeper: s.gatekeeper,
+        admitted: s.admitted,
+      });
     }
     return out.sort((a, b) => a.clientId - b.clientId);
   }

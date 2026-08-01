@@ -92,6 +92,10 @@ export interface SessionHost {
   onBlocked?(reason: "structural"): void;
   /** We were removed from the session: close the document, per the product decision. */
   onEvicted?(): void;
+  /** Someone is waiting to be let in, or has stopped waiting. Only ever called on the host. */
+  onKnock?(waiting: Peer[]): void;
+  /** We are waiting to be let in, or have been refused. */
+  onWaiting?(state: "waiting" | "refused" | "admitted"): void;
   /** Called whenever the peer list or connection state changes, for the UI. */
   onChange?(): void;
 }
@@ -141,6 +145,15 @@ export interface SessionOptions {
   makeTransport?(key: RoomKey): CollabTransport;
   /** How long to wait for the others to follow a re-key before reporting who did not. */
   followMs?: number;
+  /**
+   * Hold newcomers at the door until the peer who started the room lets them in.
+   *
+   * Not a security boundary and the UI must not suggest it is one: anyone with the link is
+   * already in the room, can see who is here, and can be seen. What it controls is the
+   * document. It is worth having because a link gets forwarded, and the person who shared
+   * it is the only one who knows whether the fourth arrival was meant to be there.
+   */
+  approveJoins?: boolean;
   /** When a joiner starts saying it is taking a while, and when it gives up. Test seams. */
   slowMs?: number;
   unreachableMs?: number;
@@ -197,6 +210,16 @@ export class CollabSession {
   private me: { name: string; colour: string };
   /** True while the name is one we picked, so it may be renumbered as peers appear. */
   private autoName: boolean;
+  /** Host only: newcomers are held until let in. Off unless the person turned it on. */
+  private approveJoins: boolean;
+  /**
+   * Transport ids the host has let in, as everyone sees them.
+   *
+   * The host publishes this in its presence and every peer applies it, because a gate only
+   * the host keeps is not a gate: any other peer would hand the document over while the
+   * host was still deciding.
+   */
+  private admitted = new Set<string>();
   /** Rooms we have already moved through, so a stale re-key cannot bounce us back. */
   private readonly seenRooms = new Set<string>();
   private readonly followMs: number;
@@ -211,6 +234,7 @@ export class CollabSession {
     this.isHost = !opts.key;
     this.currentKey = opts.key ?? newRoomKey();
     this.readOnly = opts.readOnly ?? false;
+    this.approveJoins = (opts.approveJoins ?? false) && this.isHost;
     this.autoName = !opts.name.trim();
     this.me = { name: opts.name.trim() || `${GUEST} 1`, colour: opts.colour };
     this.followMs = opts.followMs ?? 2_000;
@@ -251,9 +275,15 @@ export class CollabSession {
     // Gated on being bound, which is exactly "this document is the session's". A joiner
     // still waiting for the base would otherwise offer whatever it happened to have open.
     this.provider.onPeerJoined((peerId) => {
+      if (!this.mayHaveDocument(peerId)) {
+        if (this.isHost) this.reportKnocks();
+        return;
+      }
       if (this.isHost || this.bound) void this.base.offerTo(peerId);
     });
+    this.provider.setSyncGate((peerId) => this.mayHaveDocument(peerId));
     this.provider.onPeersChanged(() => {
+      this.noticeAdmission();
       this.renumber();
       if (this.provider.peers().length) this.settleReach("connected");
       this.host.onChange?.();
@@ -311,9 +341,105 @@ export class CollabSession {
     return this.me.name;
   }
 
+  /**
+   * Whether a peer may be given the document.
+   *
+   * Everyone applies the host's decision, not just the host: while the host is deciding,
+   * any other peer would otherwise hand the whole document over and make the question
+   * moot. With no host present, nobody is holding the door, and the room carries on: the
+   * alternative is a session that silently stops admitting anyone the moment the person
+   * who started it closes their tab.
+   */
+  private mayHaveDocument(peerId: string): boolean {
+    if (this.isHost) return !this.approveJoins || this.admitted.has(peerId);
+    const host = this.provider.peers().find((p) => p.gatekeeper);
+    if (!host?.admitted) return true; // nobody is holding the door
+    return host.admitted.includes(peerId) || peerId === host.peerId;
+  }
+
+  /** What we were told last time, so becoming admitted is noticed once rather than each tick. */
+  private wasAdmitted: boolean | null = null;
+
+  /**
+   * Notice that the door opened for us, and ask for the document.
+   *
+   * Nothing else would. A sync exchange starts with the peer that wants the document
+   * asking for it, and ours was asked and refused before we were let in; the host answering
+   * questions nobody is asking now is the whole of the silence. So the moment the host's
+   * presence says we are in, we ask again.
+   */
+  private noticeAdmission(): void {
+    if (this.isHost) return;
+    const allowed = this.mayHaveDocument(this.provider.selfId);
+    if (allowed === this.wasAdmitted) return;
+    const first = this.wasAdmitted === null;
+    this.wasAdmitted = allowed;
+    if (allowed) {
+      // Only on the change. The first look is not news: an ordinary session with no door
+      // reaches here allowed, and acting on that would bind the editor a second time.
+      if (first) return;
+      this.host.onWaiting?.("admitted");
+      this.provider.requestResync();
+      if (!this.bound) void this.attachWhenSynced();
+    } else if (!first) {
+      this.host.onWaiting?.("waiting");
+    }
+  }
+
+  /** Who is waiting to be let in. Host only; everyone else follows its decisions. */
+  waiting(): Peer[] {
+    if (!this.isHost || !this.approveJoins) return [];
+    return this.provider.peers().filter((p) => p.peerId && !this.admitted.has(p.peerId));
+  }
+
+  private reportKnocks(): void {
+    this.host.onKnock?.(this.waiting());
+    this.host.onChange?.();
+  }
+
+  /** Let someone in. Their document follows at once. */
+  admit(peerId: string): void {
+    if (!this.isHost || this.admitted.has(peerId)) return;
+    this.admitted.add(peerId);
+    this.announce(); // tell the others before handing anything over
+    void this.base.offerTo(peerId);
+    this.provider.requestResync();
+    this.reportKnocks();
+  }
+
+  /** Turn someone away. They are told, and close their copy, exactly as a removal does. */
+  refuse(peerId: string): void {
+    if (!this.isHost) return;
+    this.provider.sendOn("control", controlFrame(CONTROL.evicted, {}), peerId);
+    this.reportKnocks();
+  }
+
+  /** Whether newcomers are being held at the door, and whether this peer decides. */
+  get gatekeeping(): boolean {
+    return this.isHost && this.approveJoins;
+  }
+
+  /** Turn the door on or off mid-session. Turning it off lets in everyone waiting. */
+  setApproveJoins(on: boolean): void {
+    if (!this.isHost || this.approveJoins === on) return;
+    this.approveJoins = on;
+    if (!on) {
+      for (const peer of this.provider.peers()) if (peer.peerId) this.admitted.add(peer.peerId);
+      this.announce();
+      this.provider.requestResync();
+      for (const peer of this.provider.peers()) if (peer.peerId) void this.base.offerTo(peer.peerId);
+    }
+    this.reportKnocks();
+  }
+
   /** Presence carries our transport id, which is how another peer can name us to remove us. */
   private announce(): void {
-    this.provider.setPresence({ ...this.me, peerId: this.provider.selfId });
+    this.provider.setPresence({
+      ...this.me,
+      peerId: this.provider.selfId,
+      // Only the host publishes these, and only when it is actually holding the door.
+      ...(this.gatekeeping ? { gatekeeper: true, admitted: [...this.admitted] } : {}),
+    });
     for (const watcher of this.meWatchers) watcher({ ...this.me });
   }
 

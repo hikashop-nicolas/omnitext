@@ -56,6 +56,14 @@ export function readCells(doc: Y.Doc): CellInput[] {
  *
  * An empty input means the cell was cleared, and the entry is removed rather than stored
  * as an empty string, so a long editing session does not accumulate blanks.
+ *
+ * A cell's content is one value and last writer wins, deliberately, unlike a paragraph or
+ * a line of dialogue. Merging two people's character edits inside `=SUM(A1:A20)*1.2` can
+ * produce a formula neither of them wrote, which then computes a wrong number quietly and
+ * for as long as nobody checks. Losing an edit is visible; inventing one is not. What
+ * would make merging worth that risk is two people typing in one cell, which a cell is too
+ * small for. Formatting is a separate write, so the realistic pairing of one person
+ * styling a column while another types into it already keeps both.
  */
 export function writeCells(doc: Y.Doc, changes: readonly CellInput[], origin: unknown): void {
   const map = cellMap(doc);

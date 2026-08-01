@@ -155,6 +155,18 @@ const fr: Dict = {
       "{name} a été exclu et les autres sont passés à un nouveau lien. {name} conserve ce qu'il avait déjà vu.",
     stranded:
       "Impossible de déplacer {names} : seul {name} pouvait les joindre. Envoyez-leur le nouveau lien pour les faire revenir.",
+    approveJoins: "Approuver les arriv\u00e9es",
+    approveJoinsHint:
+      "Les nouveaux attendent votre accord. Ils voient toujours le salon et qui s'y trouve : ce r\u00e9glage retient le document, pas le lien.",
+    knocking: "En attente d'acc\u00e8s",
+    knockHint:
+      "Ils ont d\u00e9j\u00e0 le lien et voient qui est l\u00e0. Les laisser entrer leur donne le document et tout ce qui y a \u00e9t\u00e9 fait depuis.",
+    admit: "Laisser entrer",
+    refuse: "Refuser",
+    admitted: "{name} a \u00e9t\u00e9 admis.",
+    knockedName: "{name} attend votre accord.",
+    youAreWaiting: "En attente de l'accord de la personne qui a partag\u00e9 ce document.",
+    youWereAdmitted: "Vous avez \u00e9t\u00e9 admis.",
     viewOnly: "Lien en lecture seule",
     viewOnlyHint:
       "Demande à leur application de ne pas publier de modifications. L'application standard le respecte ; c'est une demande, pas un verrou.",

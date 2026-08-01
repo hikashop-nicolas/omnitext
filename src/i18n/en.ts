@@ -157,6 +157,18 @@ const en: Dict = {
       "{name} was removed and everyone else moved to a new link. {name} keeps whatever they had already seen.",
     stranded:
       "Could not move {names}: they were only reachable through {name}. Send them the new link to bring them back.",
+    approveJoins: "Let me approve who joins",
+    approveJoinsHint:
+      "New arrivals wait until you let them in. They can still see the room and who is in it: this holds back the document, not the link.",
+    knocking: "Waiting to be let in",
+    knockHint:
+      "They already have the link and can see who is here. Letting them in gives them the document and everything done to it since.",
+    admit: "Let in",
+    refuse: "Turn away",
+    admitted: "{name} was let in.",
+    knockedName: "{name} is waiting to be let in.",
+    youAreWaiting: "Waiting for the person who shared this to let you in.",
+    youWereAdmitted: "You were let in.",
     viewOnly: "View-only link",
     viewOnlyHint:
       "Asks their app not to publish edits. The standard app honours it; it is a request, not a lock.",
