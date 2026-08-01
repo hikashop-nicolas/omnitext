@@ -702,8 +702,11 @@ is never run on one.
   byte, and an image put back together slightly differently would quietly break that.
 - ~~Headers and footers, footnotes and endnotes~~ **Done 2026-08-01**, with page geometry and added styles, as one "document beside its body" channel keyed per entry.
 - ~~Comments~~ **Done 2026-08-01**, keyed per reaction / reply / resolution / deletion so
-  two people's replies both survive. **One limit:** the cards on screen are not rebuilt, so
-  a peer's reply reaches the file and is seen after a reload rather than as it arrives.
+  two people's replies both survive. ~~**One limit:** the cards on screen are not rebuilt.~~ **Fixed 2026-08-01:** a reply,
+  reaction, resolution, rewrite or deletion now changes the card as it arrives, in the same
+  place the pending state changes and only for an entry that was new, so a repeated
+  delivery cannot append the same reply twice. The cards are updated rather than rebuilt: a
+  rebuild would discard a reply someone is halfway through typing.
 - ~~Tracked changes~~ **Done 2026-08-01**, and they needed less than expected. A block is
   reported as its outerHTML, so an ins, a del, an rPrChange and a paragraph-mark record all
   ride along with the block that carries them, and accept and reject arrive as the ordinary
