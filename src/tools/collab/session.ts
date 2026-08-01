@@ -419,13 +419,21 @@ export class CollabSession {
     return this.isHost && this.approveJoins;
   }
 
-  /** Turn the door on or off mid-session. Turning it off lets in everyone waiting. */
+  /**
+   * Turn the door on or off mid-session.
+   *
+   * Either way everyone already here is let in. Turning it off is obvious. Turning it on is
+   * the one that bites: the people in the room hold the document and are working in it, so
+   * putting them back outside asks the host to approve people who are already inside and,
+   * worse, stops their edits reaching anyone until they do. The door is for arrivals from
+   * now on, not a review of who is already here.
+   */
   setApproveJoins(on: boolean): void {
     if (!this.isHost || this.approveJoins === on) return;
     this.approveJoins = on;
+    for (const peer of this.provider.peers()) if (peer.peerId) this.admitted.add(peer.peerId);
+    this.announce();
     if (!on) {
-      for (const peer of this.provider.peers()) if (peer.peerId) this.admitted.add(peer.peerId);
-      this.announce();
       this.provider.requestResync();
       for (const peer of this.provider.peers()) if (peer.peerId) void this.base.offerTo(peer.peerId);
     }

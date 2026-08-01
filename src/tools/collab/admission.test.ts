@@ -322,4 +322,45 @@ describe("holding newcomers at the door", () => {
     expect(guest.session.gatekeeping).toBe(false);
     expect(guest.session.waiting()).toEqual([]);
   });
+
+
+  // Turning the door on partway through a session. Found in a browser, not here: the
+  // people already in the room hold the document and are working in it, and putting them
+  // back outside stopped their edits reaching anyone until the host approved people who
+  // were already inside.
+  it("does not put the people already here back outside", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId });
+    await settle();
+    const bo = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key });
+    await settle(350);
+    expect(bo.opened, "Bo is in before the door exists").toHaveLength(1);
+
+    host.session.setApproveJoins(true);
+    await settle(200);
+
+    expect(host.session.waiting(), "nobody is asked to knock twice").toHaveLength(0);
+
+    host.editor.type("cue1", "Still reaching Bo.");
+    await settle(300);
+    expect(bo.editor.text("cue1"), "and the session carries on").toBe("Still reaching Bo.");
+  });
+
+  it("still holds someone who arrives after the door goes up", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId });
+    await settle();
+    const bo = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key });
+    await settle(350);
+
+    host.session.setApproveJoins(true);
+    await settle(200);
+
+    const cy = await makePeer({ text: "", name: "Cy", roomId, key: host.session.key });
+    await settle(400);
+
+    expect(cy.opened, "the newcomer waits").toHaveLength(0);
+    expect(host.session.waiting().map((p) => p.name)).toEqual(["Cy"]);
+    expect(bo.opened, "and Bo is untouched by it").toHaveLength(1);
+  });
 });

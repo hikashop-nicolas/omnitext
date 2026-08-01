@@ -871,3 +871,34 @@ different places, a joiner arriving into work already done, name deduplication a
 everyone rather than pairwise, one peer leaving without disturbing the other two, and the
 blob channel when more than one peer holds the bytes, including a fourth arrival fetching an
 image from a peer that did not create it.
+
+## 14. Three peers on real hardware (2026-08-01)
+
+Two Chrome tabs and an Android phone, all on the same production build served over
+`adb reverse` so the phone reached it at `localhost` (a secure context, which `crypto.subtle`
+needs), talking over the actual nostr relay and WebRTC. Not the local transport: the point
+was to exercise the layer the local transport deliberately does not.
+
+**What held.** The three found each other and named themselves Guest 1, 2 and 3, so the
+deduplication works against everyone rather than pairwise. An edit made on the phone reached
+both tabs; an edit on a tab reached the phone and the other tab. A retiming on the desktop
+and a rewording on the phone, issued within the same round trip on the same cue, both
+survived on all three: the field-level cue merge, over a real network, between a phone and a
+laptop. Peer markers appeared on the right rows in the right colours. The founder left and a
+newcomer joining afterwards was let in and received live edits, which is the three-peer bug
+fixed above, confirmed in the wild.
+
+**What it found.** Turning the approval door on partway through a session put the people
+already inside into the waiting queue and stopped their edits reaching anyone until the host
+approved people who were already there. The unit tests covered turning the door off and
+never turning it on mid-session. Fixed: both directions admit everyone currently present,
+and the door applies to arrivals from then on.
+
+**Two things about the setup, not the app.** Four peers in one browser profile share one
+IndexedDB, so a peer held at the door still *displays* a document: it is the local
+autosave, restored at load, not the session's. The proof that the gate holds is that a live
+edit made while they waited did not reach them, and arrived the instant they were let in. A
+phone, with its own storage, showed the honest empty state. Separately, the phone's
+"Leave site?" prompt blocks automation entirely, so a page with unsaved work has to be
+dismissed through adb before it will navigate.
+
