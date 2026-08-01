@@ -663,7 +663,9 @@ how likely a user is to hit it.
   by an id rather than a name, so a rename moves nothing.
 - ~~Images~~ **Done 2026-08-01**: insert, delete, move, resize and replace, payloads in the
   blob store. Inserting and deleting did not exist in the editor at all and were built for
-  this. Shapes and form controls remain.
+  this.
+- ~~Shapes and form controls~~ **Done 2026-08-01.** A control's state is not shared and does
+  not need to be: it writes into its linked cell, and cells already travel.
 - ~~Charts (creation, data range, configuration)~~ **Done 2026-08-01**, whole definition per chart, last writer wins.
 - ~~Pivot tables~~ **Done 2026-08-01**: definitions travel, output does not need to (it is
   cells, already shared). Identified by id, because every pivot authored in the app is

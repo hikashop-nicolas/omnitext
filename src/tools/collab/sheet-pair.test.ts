@@ -58,6 +58,8 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  drawingList: { id: string; sheet: string; kind: "shape" | "control"; model: string }[] = [];
+  drawingsReporter: ((d: StubSheet["drawingList"]) => void) | null = null;
   pivotList: ChartInfo[] = [];
   pivotsReporter: ((p: ChartInfo[]) => void) | null = null;
   sectionM: string | null = "section Section1;\r\n";
@@ -73,6 +75,24 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  drawings(): StubSheet["drawingList"] {
+    return this.drawingList.map((d) => ({ ...d }));
+  }
+  setDrawingsReporter(h: ((d: StubSheet["drawingList"]) => void) | null): void {
+    this.drawingsReporter = h;
+  }
+  applyRemoteDrawings(next: StubSheet["drawingList"]): void {
+    this.drawingList = next.map((d) => ({ ...d }));
+  }
+  addShape(id: string, text: string): void {
+    this.drawingList.push({ id, sheet: "s0", kind: "shape", model: JSON.stringify({ text }) });
+    this.drawingsReporter?.(this.drawings());
+  }
+  shapeText(id: string): string | undefined {
+    const found = this.drawingList.find((d) => d.id === id);
+    return found ? (JSON.parse(found.model) as { text?: string }).text : undefined;
+  }
+
   pivots(): ChartInfo[] {
     return this.pivotList.map((p) => ({ ...p }));
   }
@@ -435,6 +455,28 @@ describe("two peers, sheets and pictures", () => {
       expect(a.editor.sectionM, "Ada's edit survives").toContain("One = 111");
       expect(a.editor.sectionM, "and so does Bo's").toContain("Two = 222");
       expect(b.editor.sectionM).toBe(a.editor.sectionM);
+    });
+
+    it("carries a shape to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addShape("d-ada", "From Ada");
+      await settle(300);
+
+      expect(b.editor.drawings().map((d) => d.id)).toEqual(["d-ada"]);
+      expect(b.editor.shapeText("d-ada")).toBe("From Ada");
+    });
+
+    it("keeps both when each peer adds a shape", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addShape("d-ada", "Ada's");
+      b.editor.addShape("d-bo", "Bo's");
+      await settle(400);
+
+      const ids = (p: Peer) => p.editor.drawings().map((d) => d.id).sort();
+      expect(ids(a), "two, not one").toEqual(["d-ada", "d-bo"]);
+      expect(ids(b)).toEqual(["d-ada", "d-bo"]);
     });
 
     it("carries a pivot definition to the other peer", async () => {

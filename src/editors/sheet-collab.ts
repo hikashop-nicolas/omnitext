@@ -115,6 +115,7 @@ export const SHEET_ORDER = "sheet.order";
 export const IMAGES = "sheet.images";
 export const CHARTS = "sheet.charts";
 export const PIVOTS = "sheet.pivots";
+export const DRAWINGS = "sheet.drawings";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -170,6 +171,7 @@ const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(SHEET_O
 const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
 const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
 const pivotMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(PIVOTS);
+const drawingMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(DRAWINGS);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -308,6 +310,50 @@ export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unkno
   }, origin);
 }
 
+/** A shape or form control as the session carries it. */
+export interface DrawingRef {
+  id: string;
+  sheet: string;
+  kind: "shape" | "control";
+  model: string;
+}
+
+/** Every shape and control the session knows about. */
+export function readDrawings(doc: Y.Doc): DrawingRef[] {
+  const out: DrawingRef[] = [];
+  for (const [id, f] of drawingMap(doc)) {
+    const kind = str(f, "kind");
+    out.push({ id, sheet: str(f, "sheet"), kind: kind === "control" ? "control" : "shape", model: str(f, "model") });
+  }
+  return out;
+}
+
+/** Write the shapes and controls, touching only what differs. */
+export function writeDrawings(doc: Y.Doc, next: readonly DrawingRef[], origin: unknown): void {
+  const drawings = drawingMap(doc);
+  const wanted = new Set(next.map((d) => d.id));
+  const dropped = [...drawings.keys()].filter((id) => !wanted.has(id));
+  const changed = next.filter((d) => {
+    const f = drawings.get(d.id);
+    return !f || str(f, "sheet") !== d.sheet || str(f, "kind") !== d.kind || str(f, "model") !== d.model;
+  });
+  if (!changed.length && !dropped.length) return;
+
+  doc.transact(() => {
+    for (const d of changed) {
+      let f = drawings.get(d.id);
+      if (!f) {
+        f = new Y.Map();
+        drawings.set(d.id, f);
+      }
+      if (str(f, "sheet") !== d.sheet) f.set("sheet", d.sheet);
+      if (str(f, "kind") !== d.kind) f.set("kind", d.kind);
+      if (str(f, "model") !== d.model) f.set("model", d.model);
+    }
+    for (const id of dropped) drawings.delete(id);
+  }, origin);
+}
+
 /** A pivot as the session carries it: its definition, not its output. */
 export interface PivotRef {
   id: string;
@@ -365,6 +411,8 @@ export function writeQueries(doc: Y.Doc, sectionM: string, origin: unknown): voi
 /** The types a session watches for sheet, picture and chart changes. */
 export function sheetSharedTypes(
   doc: Y.Doc,
-): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>] {
-  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc)];
+): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>] {
+  return [
+    sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc), drawingMap(doc),
+  ];
 }
