@@ -74,6 +74,9 @@ class StubPdf {
     else this.snap.edits.push({ page, index, html });
     this.reporter?.(this.snap);
   }
+  paragraph(page: number, index: number): string | undefined {
+    return this.snap.edits.find((e) => e.page === page && e.index === index)?.html;
+  }
   addWhiteout(id: string): void {
     this.snap.whiteouts.push({ id, page: 0, leftPx: 1, topPx: 2, widthPx: 3, heightPx: 4 });
     this.reporter?.(this.snap);
@@ -165,6 +168,20 @@ describe("two peers on a PDF", () => {
     await settle();
 
     expect(b.editor.snap.edits).toEqual([{ page: 0, index: 1, html: "Edited by Ada.", align: undefined }]);
+  });
+
+  // A link is not a channel of its own: the link button runs createLink inside the
+  // paragraph, so the anchor is part of that paragraph's html and rides the edit that
+  // carries it. Same for every inline mark. Worth a test because it is the reason none of
+  // them needed building, and a future snapshot that carried text instead of html would
+  // drop them all without failing anything else.
+  it("carries a link inside the paragraph that holds it", async () => {
+    const { a, b } = await connected();
+
+    a.editor.editParagraph(0, 1, 'See <a href="https://example.org/doc">the source</a>.');
+    await settle();
+
+    expect(b.editor.paragraph(0, 1)).toContain('href="https://example.org/doc"');
   });
 
   it("merges edits each peer makes to a different paragraph", async () => {

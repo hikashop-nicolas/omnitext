@@ -704,21 +704,34 @@ is never run on one.
 - ~~Comments~~ **Done 2026-08-01**, keyed per reaction / reply / resolution / deletion so
   two people's replies both survive. **One limit:** the cards on screen are not rebuilt, so
   a peer's reply reaches the file and is seen after a reload rather than as it arrives.
-- **Still open:** tracked changes. Accept and reject are state on the change itself and
-  interact with the block content around them, so they are not a value to mirror the way a
-  reply is.
+- ~~Tracked changes~~ **Done 2026-08-01**, and they needed less than expected. A block is
+  reported as its outerHTML, so an ins, a del, an rPrChange and a paragraph-mark record all
+  ride along with the block that carries them, and accept and reject arrive as the ordinary
+  block edits they are. Two peers resolving the same change converge, because a block is
+  last-writer-wins. What was actually broken was attribution: richdoc reads the author from
+  the host's settings once, at mount, and a session hands out deduplicated names, so two
+  peers who set none were both "Author". A suggested insertion merges into an adjacent one
+  by the same author, so the second person's words were absorbed into the first person's
+  change, accepted or rejected as one and credited to them. `setAuthor` on the editor,
+  `ctx.me` on the binding.
 - ~~Named styles, page geometry~~ **Done 2026-08-01** (see above).
 - Tables: inside block HTML, so carried, but last-writer-wins for the whole block
 
-**subedit**
+**subedit is complete.** ~~ASS style definitions, tracks, document-level fields~~ **Done
+2026-08-01** as one keyed "document beside its cues" channel: the style table one entry per
+style, the verbatim script-info and styles tail, both ASS field orders, line endings, BOM,
+final newline, frame rate, and each track's label and language. Two deliberate limits: a
+track carries its label only, since its cues are a document of their own, and a field a
+peer no longer has is left alone rather than deleted, since a peer holding an SRT reports
+no styles at all and absence is not agreement.
 
-- ASS style definitions (editable in the styles editor)
-- Tracks: label, language, adding and removing a track
-- Document-level fields: format, header preamble, trailing notes
-
-**pdfedit** (finish the current thread first)
-
-- Link annotations, glyph-level edits, page rotation, if a session can reach them
+**pdfedit is complete.** The remaining three turned out to need nothing built. A link is
+made by running createLink inside the paragraph, so the anchor is part of that paragraph's
+html and travels with the edit that carries it; the same is true of every inline mark, and
+of glyph-level edits, which are that html. Page rotation is read from the file to lay text
+out upright and is not an operation a user can perform, so there is nothing to share. The
+link case has a pair test, since it is the reason the others need no work and a snapshot
+that ever carried text instead of html would silently drop all of them.
 
 **CodeMirror**: none. The document is its text.
 
@@ -728,7 +741,7 @@ is never run on one.
 2. richdoc images onto the blob store: fixes a live bloat problem and restores merging.
 3. sheetedit, largest first: sheets, then images/shapes, then charts, then pivots and
    Power Query.
-4. subedit: styles, tracks, document fields.
+4. ~~subedit: styles, tracks, document fields.~~ Done.
 5. Whatever is still not shared when the work stops gets said in the panel, per editor,
    rather than left for a user to discover by losing work.
 
