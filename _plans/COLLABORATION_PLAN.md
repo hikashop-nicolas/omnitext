@@ -291,7 +291,7 @@ what they have already seen. If they saved a copy, it is theirs.
 | 2 | subedit binding, plus its per-cue mutation API and scoped undo | **Met.** Two people edited one text file end to end (7c) |
 | 3 | **Done.** sheetedit binding, cell content only; structural edits refused during a session | Phase 2 shipped and used |
 | 4 | **Done and verified in two tabs.** sheetedit structural operations, host-arbitrated | Phase 3 refused them outright, so everyone hit it |
-| 5 | **Done, with presence outstanding.** richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
+| 5 | **Done, presence included.** richdoc: block ids, per-block change reporting, operation-based undo, binding | Phases 2 and 3 shipped; this is the largest piece and should not be first |
 
 Phases 3 and 5 each carry a prerequisite body of work in another repository. Those are
 not incidental; budget them as their own tasks.
@@ -332,8 +332,9 @@ every test passed:
    the caret. jsdom does not reproduce Chrome's collapse, so the test covers only the
    narrower case and says so.
 
-Blocks added, removed or moved still rebuild the body, and the caret survives that too, but
-the scroll position does not.
+Blocks added, removed or moved still rebuild the body, and the caret survives that too.
+The scroll position was lost at first and is now restored by anchoring to a block rather
+than to a scrollTop, which a repagination invalidates.
 
 ### Pair tests, added before phase 5
 
@@ -624,11 +625,15 @@ otherwise hide the failures the real transport exists to surface.
 - Merge two divergent *files*. Collaboration is live, on one agreed base. Reconciling two
   separately edited copies of a workbook is a different feature and is not planned.
 - Guarantee byte-identical saves across peers. Equivalent content, yes.
-- Collaborate on the viewers, on PDF, or on the format-specific surfaces (ActiveX, Power
-  Query, pivot layout). Those travel in the base file.
+- Collaborate on the viewers. Those documents are read, not edited.
+- ~~Collaborate on PDF, or on the format-specific surfaces (Power Query, pivot layout).~~
+  **Superseded by the coverage audit below.** PDF has its own binding, and Power Query
+  definitions, pivots, charts, drawings and table definitions all travel. What remains
+  deliberately unshared is running someone else's work: a query is never refreshed on a
+  peer's behalf, and a macro is never run on one. ActiveX is still base-file only.
 - Provide identity, permissions or an audit trail. There are no accounts, by design.
 
-## 8. Coverage audit (2026-08-01)
+## 9. Coverage audit (2026-08-01)
 
 The goal is now full coverage: **anything a person can change during a session is shared.**
 Not "the main thing" per editor, which is what phases 1 to 5 delivered.
@@ -751,3 +756,31 @@ that ever carried text instead of html would silently drop all of them.
 Each of these is its own body of work with the same shape as a phase: an identity scheme
 where things are added, a report/apply pair in the library, a shared type, a binding, a
 pair test. They are not small, and there are a lot of them.
+
+## 10. Where this stands (2026-08-01)
+
+Every editor shares everything a session can reach. The audit above is closed, phases 0 to
+5 are done, and each binding has a pair test that fails when its mechanism is broken.
+
+What is deliberately not shared, and should stay that way:
+
+- **Refreshing a Power Query.** The definition travels; running it does not. A refresh
+  reaches the network from whichever machine runs it, including addresses only that peer
+  can see, so a definition arriving from someone else must be run by a person who chose to.
+- **Running a macro.** The source travels. Running it is arbitrary code from a peer.
+- **ActiveX and other format-specific payloads** that no editor exposes: they ride in the
+  base file and come back out unchanged.
+
+What is known and accepted:
+
+- **A block, a cue and a cell are last-writer-wins within themselves.** Two people typing
+  in the same paragraph at the same instant is a real conflict with no good automatic
+  answer; two people in different paragraphs is the common case, and it merges.
+- **No identity, permissions or audit trail.** By design; there are no accounts.
+- **Names are a display convenience, not proof.** A peer picks their own, and the session
+  only deduplicates it. Attribution on a tracked change means "who said they were this",
+  which is the right guarantee for a link-shared session and not one to build on.
+
+What is untested rather than unbuilt: nobody has run a session with more than two peers on
+anything but CodeMirror. The mesh, the base transfer and the blob channel are all written
+for n peers and none of them has met a third. That is the next thing to actually try.
