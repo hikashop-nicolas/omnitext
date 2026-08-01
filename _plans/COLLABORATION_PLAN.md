@@ -902,3 +902,35 @@ phone, with its own storage, showed the honest empty state. Separately, the phon
 "Leave site?" prompt blocks automation entirely, so a page with unsaved work has to be
 dismissed through adb before it will navigate.
 
+## 15. Browser pass on the other bindings (2026-08-01)
+
+**Spreadsheet: verified.** Two tabs over the real transport. The joiner received the
+workbook including the computed total, cells travelled in both directions, and a change to
+an input on one peer recalculated the SUM on the peer that had not typed. Presence draws
+each peer's cell cursor. The row-insert control did nothing on either peer, but it does
+nothing in a solo tab either, so it wants a selection and is not a session matter.
+
+**Rich text: found a serious bug.** A three-paragraph document reached a peer as one
+paragraph. The cause was not in the binding at all: pressing Enter makes the browser clone
+the element it splits, attributes and all, so the new half arrives wearing the old half's
+`data-rdoc-bid`, and `assignBlockIds` only ever filled in a *missing* id. Every paragraph
+after the first therefore answered to the same name, the map keyed by that name held one of
+them, and the rest were invisible to everyone else and to the saved file.
+
+Every test passed throughout. The pair tests insert blocks through a stub that hands out
+fresh ids, so they never produce a clone: the single most ordinary act in a text editor was
+the one thing nothing exercised. Fixed in richdoc (23ef899) with two tests, one of which
+passed at first with the bug still in place, because the snapshot is keyed by id and two
+blocks sharing one collapse into a single entry.
+
+**Confirmed after the fix:** three paragraphs typed in a browser now carry three distinct
+ids. **Not confirmed:** the two-peer round trip after the fix. The phone did not pair
+through the relay on that attempt and the second tab locked behind a "Leave site?" prompt.
+The unit tests cover the mechanism; the end-to-end confirmation is still owed.
+
+**PDF: not exercised.** Still owed.
+
+**On the rig.** Peers in one browser profile share an IndexedDB, and the app's own crash
+recovery restores a sibling tab's document, so a tab can look like it received something it
+did not. Anything about "did this reach the peer" has to be settled with a live edit made
+after the join, or with a device that has its own storage.
