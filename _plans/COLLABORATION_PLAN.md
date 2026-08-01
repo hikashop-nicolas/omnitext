@@ -632,6 +632,7 @@ otherwise hide the failures the real transport exists to surface.
   deliberately unshared is running someone else's work: a query is never refreshed on a
   peer's behalf, and a macro is never run on one. ActiveX is still base-file only.
 - Provide identity, permissions or an audit trail. There are no accounts, by design.
+  Approving newcomers (section 12) is a courtesy on top of that, not an exception to it.
 
 ## 9. Coverage audit (2026-08-01)
 
@@ -773,14 +774,100 @@ What is deliberately not shared, and should stay that way:
 
 What is known and accepted:
 
-- **A block, a cue and a cell are last-writer-wins within themselves.** Two people typing
-  in the same paragraph at the same instant is a real conflict with no good automatic
-  answer; two people in different paragraphs is the common case, and it merges.
+- **A cell is last-writer-wins within itself, deliberately.** Merging two people's
+  character edits inside `=SUM(A1:A20)*1.2` can produce a formula neither wrote, which then
+  computes a wrong number quietly. Losing an edit is visible; inventing one is not, and a
+  cell is too small for the merge to be worth that risk. Formatting is a separate write, so
+  one person styling a column while another types into it already keeps both.
+- **A paragraph and a cue merge within themselves**, since 2026-08-01. See section 11.
 - **No identity, permissions or audit trail.** By design; there are no accounts.
 - **Names are a display convenience, not proof.** A peer picks their own, and the session
   only deduplicates it. Attribution on a tracked change means "who said they were this",
   which is the right guarantee for a link-shared session and not one to build on.
+- **Approving newcomers is a courtesy, not a boundary.** See section 12.
 
-What is untested rather than unbuilt: nobody has run a session with more than two peers on
-anything but CodeMirror. The mesh, the base transfer and the blob channel are all written
-for n peers and none of them has met a third. That is the next thing to actually try.
+What is untested rather than unbuilt: no session has been run on real hardware with three
+people at once. The trio tests below cover the logic; the transport with three real peers
+across three networks is a different question and has not been asked.
+
+## 11. Merging inside one paragraph (2026-08-01)
+
+The audit's closing note said a block, a cue and a cell were each last-writer-wins within
+themselves. That was wrong about the first and out of date about the second.
+
+**A paragraph already merged.** A block is held as a `Y.Text`, and a local change is written
+as the smallest edit that explains it: the shared prefix and suffix are trimmed, leaving an
+insert or a delete at the point that actually moved. Two people typing at different points
+in one paragraph therefore both keep their words, and a deletion survives the other person
+typing elsewhere in the same paragraph. It is only last-writer-wins when the edits genuinely
+overlap. What was missing was tests, and they are there now, including a sabotage check that
+replacing the whole string instead of diffing breaks exactly the two that should break.
+
+**A cue did not, and now does.** It was one value, and the realistic collision is not two
+typists racing: it is one person retiming a track while another proofreads it. Those two do
+not overlap at all and one of them was being thrown away. A cue is now a `Y.Map` of fields
+with the text as a `Y.Text`, so retiming and rewording are separate writes and both survive,
+and two people inside one line merge as they do inside a paragraph.
+
+That change moved where an edit happens. A cue's text is two levels down now, and the
+session's shallow `observe` never heard it, which showed up as a session that carried
+nothing at all. `observeDeep` is not an optimisation here; it is the difference between
+working and not.
+
+**A cell stays as it is**, for the reason recorded above.
+
+**Structured blocks stay as strings.** A table, an image or a run of opaque .docx XML is a
+payload, not prose, and a `Y.Text` cannot express last-writer-wins anyway: two peers who
+each clear it and insert their own version converge on both versions, one after the other.
+
+## 12. Approving newcomers (2026-08-01)
+
+Optional, off unless asked for, and only the peer that started the room can do it.
+
+**What it is.** A link gets forwarded. The person who shared it is the only one who knows
+whether the fourth arrival was meant to be there, so they can hold newcomers until they say
+otherwise. A newcomer waits, is announced by name, and gets the document the moment they are
+let in, or is told plainly and closes their copy if they are not.
+
+**What it is not, stated in the UI and not only here.** It gates the document, not the room.
+Anyone with the link is already in: they can see who is present and be seen. Hiding them
+would defeat the point, because a knock with no name on it is not a decision anyone can
+make. There is no identity in a session, so this is a courtesy between people who mostly
+know each other, not a boundary that holds against someone who does not want it to.
+
+**Every peer applies the host's ruling**, which is the part that needs three peers to get
+right at all. While the host decides about the third arrival, the second is already in and
+holds the whole document; a gate only the host keeps is not a gate. The host publishes its
+decisions in presence and the others follow it. With no host present nobody holds the door,
+which keeps the property that a room outlives the peer who opened it.
+
+**The joiner has to ask again once admitted.** A sync exchange begins with the peer that
+wants the document asking for it, and theirs was asked and refused before admission. Without
+noticing the change and asking again, the door opens onto silence.
+
+## 13. Three peers (2026-08-01)
+
+Everything below the editors was written for any number of people and had never met more
+than two. Two is the number at which a whole class of mistake is invisible: a reply sent to
+"the other peer" rather than to everyone, a request answered without thought for a second
+holder answering as well, a name clash resolved pairwise so the third arrival lands on a
+name someone already moved to.
+
+**What the tests found.** Only the peer that started a session offered the base file. Once
+they closed their tab the invitation link was useless to anyone who had not already used it,
+and it failed in the worst way available: the newcomer connected, saw everyone present, and
+sat looking at an empty document, while the people already in noticed nothing at all.
+
+Any peer holding the session's document now serves it, gated on being bound, which is
+precisely "this document is the session's": a joiner still waiting for the base would
+otherwise offer whatever it happened to have open and hand a newcomer the wrong file.
+
+Several peers offering means several offers arriving. Taking each would fetch the same
+document once per peer, so the others are kept as somewhere to ask if the one chosen goes
+quiet, which is exactly what happens when the peer mid-transfer is the one that just left.
+
+**What held up.** Fan-out to both peers, joiner-to-joiner edits, three simultaneous edits in
+different places, a joiner arriving into work already done, name deduplication against
+everyone rather than pairwise, one peer leaving without disturbing the other two, and the
+blob channel when more than one peer holds the bytes, including a fourth arrival fetching an
+image from a peer that did not create it.

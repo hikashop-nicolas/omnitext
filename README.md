@@ -137,17 +137,50 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   view, so no file ever fails to open.
 - **Multilingual**: the UI auto-detects your language (English, French and Japanese today;
   adding one is a single file), and each editor library translates its own UI independently.
-- **Tools**: version **history** with diff.
+- **Tools**: version **history** with diff, and live **collaboration** (below).
 - **Local-first**: IndexedDB autosave + crash recovery; UTF-8 / BOM and line endings
   preserved so text round-trips byte-for-byte.
 
 Any unrecognised *text* file still opens as plain text in the code editor; truly binary files
 fall back to the hex viewer — so nothing ever fails to open.
 
+## Editing together
+
+Share a link and two or more people edit the same file at once, in the same editor, with
+each other's cursors visible. There is no server holding the document and no account: the
+link carries the room, the browsers connect to each other directly, and the file goes from
+one machine to another and nowhere else.
+
+It works in the code editor, the subtitle editor, the spreadsheet, the rich-text editor and
+the PDF editor, and it covers what those editors can actually change: not only the text, but
+the style table of a subtitle file, a workbook's sheets, images, charts, pivots, named
+ranges and query definitions, and a document's headers, footnotes, comments and tracked
+changes.
+
+Concurrent edits merge rather than overwrite. Two people in different paragraphs, different
+cues or different cells never collide; two people inside the *same* paragraph or the same
+line of dialogue merge as well, because a change is sent as the smallest edit that explains
+it rather than as a new copy of the whole thing. A cue's timing and its wording are separate
+edits, so one person retiming a track while another proofreads it keeps both.
+
+Two things are deliberately never done on your behalf: refreshing someone else's Power Query
+(it reaches the network from your machine, including addresses only you can see) and running
+someone else's macro. Their definitions travel; running them is your decision.
+
+Optionally the person who shared the link approves each newcomer before they get the
+document. That is a courtesy, not a security boundary, and the app says so: anyone holding
+the link is in the room and can see who else is there.
+
 ## Privacy
 
 Everything runs on your machine. Files never leave the browser; there is no server, no
 account, and no telemetry. That privacy guarantee is the point of the project.
+
+Collaboration keeps that promise: peers connect directly and the document passes between
+them. What is not private is the room itself. Finding each other uses a public relay, which
+learns that some browsers are talking, and a session has no identity in it at all: names are
+self-chosen, so a name says what someone typed and not who they are. Anyone with the link
+can join.
 
 ## Architecture in one breath
 
@@ -157,12 +190,20 @@ into a small core:
 - **Format** — parses a file type into an opaque, format-owned model and serializes it back
   (region-splice, so untouched regions stay byte-identical).
 - **Editor** — an editing surface that consumes a model or a generic view.
-- **Tool** — a cross-cutting capability (diff, history, …).
+- **Tool** — a cross-cutting capability (diff, history, collaboration, …).
 
 The core (event bus, registries, host API, editor resolution) knows about none of them
 specifically: it picks an editor per format (native pairing → generic view → text fallback),
 and every file can always fall back to the text editor. Binary formats delegate the full
 round-trip to a dedicated editor. The core imports no parser and no DOM editor widget.
+
+Collaboration is a Tool plus one small binding per editor. The Tool owns the session,
+presence, the transfer of the file to a joiner and the payload channel for images; the
+binding is the only part that knows what a paragraph or a cue is. The shared state is a
+[Yjs](https://github.com/yjs/yjs) document over WebRTC ([Trystero](https://github.com/dmotz/trystero)),
+and every editor library grew the same small contract for it: report what a local edit
+touched, take a peer's change without reporting it back, and hand undo to the host so one
+person's Ctrl+Z cannot take back another's work.
 
 The dedicated editor libraries live in their own MIT repos (pdfedit, richdoc, sheetedit,
 geoedit, subedit, imageview, mediaplay) and are consumed here as git dependencies, so each is
