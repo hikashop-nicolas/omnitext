@@ -39,6 +39,11 @@ interface SheetInfo {
   name: string;
   visibility?: "hidden" | "veryHidden";
 }
+interface ChartInfo {
+  id: string;
+  sheet: string;
+  model: string;
+}
 interface ImageInfo {
   id: string;
   sheet: string;
@@ -51,6 +56,8 @@ class StubSheet {
   sheetList: SheetInfo[] = [{ id: "s0", name: "Sheet1" }];
   imageList: ImageInfo[] = [];
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
+  chartList: ChartInfo[] = [];
+  chartsReporter: ((c: ChartInfo[]) => void) | null = null;
   imagesReporter: ((i: ImageInfo[]) => void) | null = null;
 
   sheets(): SheetInfo[] {
@@ -62,6 +69,24 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  charts(): ChartInfo[] {
+    return this.chartList.map((c) => ({ ...c }));
+  }
+  setChartsReporter(h: ((c: ChartInfo[]) => void) | null): void {
+    this.chartsReporter = h;
+  }
+  applyRemoteCharts(next: ChartInfo[]): void {
+    this.chartList = next.map((c) => ({ ...c }));
+  }
+  addChart(id: string, title: string): void {
+    this.chartList.push({ id, sheet: "s0", model: JSON.stringify({ id, title }) });
+    this.chartsReporter?.(this.charts());
+  }
+  chartTitle(id: string): string | undefined {
+    const found = this.chartList.find((c) => c.id === id);
+    return found ? (JSON.parse(found.model) as { title?: string }).title : undefined;
+  }
+
   images(): ImageInfo[] {
     return this.imageList.map((i) => ({ ...i, anchor: { ...i.anchor } }));
   }
@@ -349,6 +374,28 @@ describe("two peers, sheets and pictures", () => {
 
   describe("pictures", () => {
     const uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    it("carries a chart to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addChart("chart-new-1-abc", "Ada's chart");
+      await settle(300);
+
+      expect(b.editor.charts().map((c) => c.id)).toEqual(["chart-new-1-abc"]);
+      expect(b.editor.chartTitle("chart-new-1-abc")).toBe("Ada's chart");
+    });
+
+    it("keeps both when each peer adds a chart", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addChart("chart-ada", "Ada's");
+      b.editor.addChart("chart-bo", "Bo's");
+      await settle(400);
+
+      const ids = (p: Peer) => p.editor.charts().map((c) => c.id).sort();
+      expect(ids(a), "two, not one").toEqual(["chart-ada", "chart-bo"]);
+      expect(ids(b)).toEqual(["chart-ada", "chart-bo"]);
+    });
 
     it("carries a picture to the other peer, payload and all", async () => {
       const { a, b } = await connected();

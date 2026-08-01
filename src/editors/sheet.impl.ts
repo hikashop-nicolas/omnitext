@@ -11,12 +11,14 @@ import {
   changedCells,
   isEmpty,
   readCells,
+  readCharts,
   readImages,
   readSheets,
   seedCells,
   sharedType,
   sheetSharedTypes,
   writeCells,
+  writeCharts,
   writeImages,
   writeSheets,
   type ImageRef,
@@ -133,6 +135,8 @@ class SheetInstance implements EditorInstance {
     if (!editor) return;
     const sheets = readSheets(doc);
     if (sheets.length) editor.applyRemoteSheets(sheets);
+    const charts = readCharts(doc);
+    if (charts.length) editor.applyRemoteCharts(charts);
 
     const ready: SheetImageInfo[] = [];
     for (const ref of readImages(doc)) {
@@ -236,8 +240,13 @@ class SheetInstance implements EditorInstance {
           if (this.viewOnly) return;
           void this.publishImages(doc, images);
         });
+        editor.setChartsReporter((charts) => {
+          if (this.viewOnly) return;
+          writeCharts(doc, charts, this.origin);
+        });
         if (ctx.seed) {
           writeSheets(doc, editor.sheets(), this.origin);
+          writeCharts(doc, editor.charts(), this.origin);
           void this.publishImages(doc, editor.images());
         } else {
           this.applySheetsAndImages(doc);
@@ -246,14 +255,16 @@ class SheetInstance implements EditorInstance {
           if (transaction.origin === this.origin) return;
           this.applySheetsAndImages(doc);
         };
-        const [sheetsMap, order, imagesMap] = sheetSharedTypes(doc);
+        const [sheetsMap, order, imagesMap, chartsMap] = sheetSharedTypes(doc);
         sheetsMap.observeDeep(onSheets);
         order.observe(onSheets);
         imagesMap.observeDeep(onSheets);
+        chartsMap.observeDeep(onSheets);
         this.unwatchSheets = () => {
           sheetsMap.unobserveDeep(onSheets);
           order.unobserve(onSheets);
           imagesMap.unobserveDeep(onSheets);
+          chartsMap.unobserveDeep(onSheets);
         };
 
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
@@ -278,6 +289,7 @@ class SheetInstance implements EditorInstance {
         this.blobs = undefined;
         this.editor?.setSheetsReporter(null);
         this.editor?.setImagesReporter(null);
+        this.editor?.setChartsReporter(null);
         this.editor?.setPeerCells([]);
         this.undoManager?.destroy();
         this.undoManager = null;

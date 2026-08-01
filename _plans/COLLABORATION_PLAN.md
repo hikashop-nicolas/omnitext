@@ -661,9 +661,10 @@ how likely a user is to hit it.
 
 - ~~Sheets themselves: add, rename, delete, reorder, hide/show~~ **Done 2026-08-01**, keyed
   by an id rather than a name, so a rename moves nothing.
-- ~~Images~~ **Done 2026-08-01** (move, resize, replace: they cannot be inserted or removed
-  here), payloads in the blob store. Shapes and form controls remain.
-- Charts (creation, data range, configuration)
+- ~~Images~~ **Done 2026-08-01**: insert, delete, move, resize and replace, payloads in the
+  blob store. Inserting and deleting did not exist in the editor at all and were built for
+  this. Shapes and form controls remain.
+- ~~Charts (creation, data range, configuration)~~ **Done 2026-08-01**, whole definition per chart, last writer wins.
 - Pivot tables
 - Power Query: queries, their steps, refresh
 - Data validation, protection, outline/grouping

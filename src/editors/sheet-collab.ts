@@ -112,6 +112,7 @@ export function sharedType(doc: Y.Doc): Y.Map<string> {
 export const SHEETS = "sheet.sheets";
 export const SHEET_ORDER = "sheet.order";
 export const IMAGES = "sheet.images";
+export const CHARTS = "sheet.charts";
 
 export interface SheetInfo {
   id: string;
@@ -130,6 +131,20 @@ export interface ImageAnchor {
   toRowOff: number;
 }
 
+/**
+ * A chart as the session carries it: its whole definition, as one value.
+ *
+ * Not split into fields. Two people reconfiguring the same chart at the same moment is
+ * rare, and a chart half from one and half from the other is a chart neither asked for.
+ * The definition is structured data of a few kilobytes, so unlike a picture it belongs in
+ * the document rather than in the blobs.
+ */
+export interface ChartRef {
+  id: string;
+  sheet: string;
+  model: string;
+}
+
 /** A picture as the session carries it: where it sits, and a hash for what it shows. */
 export interface ImageRef {
   id: string;
@@ -143,6 +158,7 @@ type Fields = Y.Map<unknown>;
 const sheetMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(SHEETS);
 const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(SHEET_ORDER);
 const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
+const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
 const num = (f: Fields, k: string): number => (typeof f.get(k) === "number" ? (f.get(k) as number) : 0);
@@ -246,7 +262,43 @@ export function writeImages(doc: Y.Doc, next: readonly ImageRef[], origin: unkno
   }, origin);
 }
 
-/** The types a session watches for sheet and picture changes. */
-export function sheetSharedTypes(doc: Y.Doc): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>] {
-  return [sheetMap(doc), orderArray(doc), imageMap(doc)];
+/** Every chart the session knows about. */
+export function readCharts(doc: Y.Doc): ChartRef[] {
+  const out: ChartRef[] = [];
+  for (const [id, f] of chartMap(doc)) {
+    out.push({ id, sheet: str(f, "sheet"), model: str(f, "model") });
+  }
+  return out;
+}
+
+/** Write the charts, touching only what differs. */
+export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unknown): void {
+  const charts = chartMap(doc);
+  const wanted = new Set(next.map((c) => c.id));
+  const dropped = [...charts.keys()].filter((id) => !wanted.has(id));
+  const changed = next.filter((c) => {
+    const f = charts.get(c.id);
+    return !f || str(f, "sheet") !== c.sheet || str(f, "model") !== c.model;
+  });
+  if (!changed.length && !dropped.length) return;
+
+  doc.transact(() => {
+    for (const c of changed) {
+      let f = charts.get(c.id);
+      if (!f) {
+        f = new Y.Map();
+        charts.set(c.id, f);
+      }
+      if (str(f, "sheet") !== c.sheet) f.set("sheet", c.sheet);
+      if (str(f, "model") !== c.model) f.set("model", c.model);
+    }
+    for (const id of dropped) charts.delete(id);
+  }, origin);
+}
+
+/** The types a session watches for sheet, picture and chart changes. */
+export function sheetSharedTypes(
+  doc: Y.Doc,
+): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>] {
+  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc)];
 }
