@@ -116,6 +116,7 @@ export const IMAGES = "sheet.images";
 export const CHARTS = "sheet.charts";
 export const PIVOTS = "sheet.pivots";
 export const DRAWINGS = "sheet.drawings";
+export const SETTINGS = "sheet.settings";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -172,6 +173,7 @@ const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
 const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
 const pivotMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(PIVOTS);
 const drawingMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(DRAWINGS);
+const settingsMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(SETTINGS);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -310,6 +312,36 @@ export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unkno
   }, origin);
 }
 
+/** One group of one sheet's settings. Keyed "sheet:group" so groups do not clobber. */
+export interface SettingRef {
+  sheet: string;
+  group: string;
+  value: string;
+}
+
+const settingKey = (sheet: string, group: string): string => `${sheet}:${group}`;
+
+/** Every sheet setting the session holds. */
+export function readSettings(doc: Y.Doc): SettingRef[] {
+  const out: SettingRef[] = [];
+  for (const [key, value] of settingsMap(doc)) {
+    const colon = key.indexOf(":");
+    if (colon < 0) continue;
+    out.push({ sheet: key.slice(0, colon), group: key.slice(colon + 1), value });
+  }
+  return out;
+}
+
+/** Write the settings, touching only what differs. */
+export function writeSettings(doc: Y.Doc, next: readonly SettingRef[], origin: unknown): void {
+  const settings = settingsMap(doc);
+  const changed = next.filter((s) => settings.get(settingKey(s.sheet, s.group)) !== s.value);
+  if (!changed.length) return;
+  doc.transact(() => {
+    for (const s of changed) settings.set(settingKey(s.sheet, s.group), s.value);
+  }, origin);
+}
+
 /** A shape or form control as the session carries it. */
 export interface DrawingRef {
   id: string;
@@ -411,8 +443,11 @@ export function writeQueries(doc: Y.Doc, sectionM: string, origin: unknown): voi
 /** The types a session watches for sheet, picture and chart changes. */
 export function sheetSharedTypes(
   doc: Y.Doc,
-): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>] {
+): [
+  Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>, Y.Map<string>,
+] {
   return [
     sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc), drawingMap(doc),
+    settingsMap(doc),
   ];
 }

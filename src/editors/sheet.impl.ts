@@ -15,6 +15,7 @@ import {
   readImages,
   readDrawings,
   readPivots,
+  readSettings,
   readQueries,
   readSheets,
   seedCells,
@@ -25,6 +26,7 @@ import {
   writeImages,
   writeDrawings,
   writePivots,
+  writeSettings,
   writeQueries,
   writeSheets,
   type ImageRef,
@@ -144,6 +146,8 @@ class SheetInstance implements EditorInstance {
     const charts = readCharts(doc);
     if (charts.length) editor.applyRemoteCharts(charts);
     // Definitions only. The rows a refresh produces arrive as cells, from whoever ran it.
+    const settings = readSettings(doc);
+    if (settings.length) editor.applyRemoteSheetSettings(settings);
     const drawings = readDrawings(doc);
     if (drawings.length) editor.applyRemoteDrawings(drawings);
     const pivots = readPivots(doc);
@@ -257,6 +261,10 @@ class SheetInstance implements EditorInstance {
           if (this.viewOnly) return;
           writeCharts(doc, charts, this.origin);
         });
+        editor.setSheetSettingsReporter((settings) => {
+          if (this.viewOnly) return;
+          writeSettings(doc, settings, this.origin);
+        });
         editor.setDrawingsReporter((drawings) => {
           if (this.viewOnly) return;
           writeDrawings(doc, drawings, this.origin);
@@ -274,6 +282,7 @@ class SheetInstance implements EditorInstance {
           writeCharts(doc, editor.charts(), this.origin);
           writePivots(doc, editor.pivots(), this.origin);
           writeDrawings(doc, editor.drawings(), this.origin);
+          writeSettings(doc, editor.sheetSettings(), this.origin);
           void editor.queries().then((m) => {
             if (m != null && this.shared === doc) writeQueries(doc, m, this.origin);
           });
@@ -285,7 +294,8 @@ class SheetInstance implements EditorInstance {
           if (transaction.origin === this.origin) return;
           this.applySheetsAndImages(doc);
         };
-        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap] = sheetSharedTypes(doc);
+        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap, settingsMap] =
+          sheetSharedTypes(doc);
         sheetsMap.observeDeep(onSheets);
         order.observe(onSheets);
         imagesMap.observeDeep(onSheets);
@@ -293,6 +303,7 @@ class SheetInstance implements EditorInstance {
         queries.observe(onSheets);
         pivotsMap.observeDeep(onSheets);
         drawingsMap.observeDeep(onSheets);
+        settingsMap.observe(onSheets);
         this.unwatchSheets = () => {
           sheetsMap.unobserveDeep(onSheets);
           order.unobserve(onSheets);
@@ -301,6 +312,7 @@ class SheetInstance implements EditorInstance {
           queries.unobserve(onSheets);
           pivotsMap.unobserveDeep(onSheets);
           drawingsMap.unobserveDeep(onSheets);
+          settingsMap.unobserve(onSheets);
         };
 
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
@@ -326,6 +338,7 @@ class SheetInstance implements EditorInstance {
         this.editor?.setSheetsReporter(null);
         this.editor?.setImagesReporter(null);
         this.editor?.setChartsReporter(null);
+        this.editor?.setSheetSettingsReporter(null);
         this.editor?.setDrawingsReporter(null);
         this.editor?.setPivotsReporter(null);
         this.editor?.setQueriesReporter(null);

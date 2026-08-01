@@ -58,6 +58,11 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  settingList: { sheet: string; group: string; value: string }[] = [
+    { sheet: "s0", group: "freeze", value: "" },
+    { sheet: "s0", group: "autoFilter", value: "" },
+  ];
+  settingsReporter: ((s: StubSheet["settingList"]) => void) | null = null;
   drawingList: { id: string; sheet: string; kind: "shape" | "control"; model: string }[] = [];
   drawingsReporter: ((d: StubSheet["drawingList"]) => void) | null = null;
   pivotList: ChartInfo[] = [];
@@ -75,6 +80,29 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  sheetSettings(): StubSheet["settingList"] {
+    return this.settingList.map((x) => ({ ...x }));
+  }
+  setSheetSettingsReporter(h: ((s: StubSheet["settingList"]) => void) | null): void {
+    this.settingsReporter = h;
+  }
+  applyRemoteSheetSettings(next: StubSheet["settingList"]): void {
+    for (const item of next) {
+      const found = this.settingList.find((x) => x.sheet === item.sheet && x.group === item.group);
+      if (found) found.value = item.value;
+      else this.settingList.push({ ...item });
+    }
+  }
+  setSetting(group: string, value: string): void {
+    const found = this.settingList.find((x) => x.group === group);
+    if (found) found.value = value;
+    else this.settingList.push({ sheet: "s0", group, value });
+    this.settingsReporter?.(this.sheetSettings());
+  }
+  setting(group: string): string | undefined {
+    return this.settingList.find((x) => x.group === group)?.value;
+  }
+
   drawings(): StubSheet["drawingList"] {
     return this.drawingList.map((d) => ({ ...d }));
   }
@@ -455,6 +483,28 @@ describe("two peers, sheets and pictures", () => {
       expect(a.editor.sectionM, "Ada's edit survives").toContain("One = 111");
       expect(a.editor.sectionM, "and so does Bo's").toContain("Two = 222");
       expect(b.editor.sectionM).toBe(a.editor.sectionM);
+    });
+
+    it("carries a frozen pane to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.setSetting("freeze", JSON.stringify({ rows: 2, cols: 1, paneSplit: false }));
+      await settle(300);
+
+      expect(JSON.parse(String(b.editor.setting("freeze"))).rows).toBe(2);
+    });
+
+    // Two settings changed at once must both survive, which is why they are keyed per group.
+    it("keeps two settings each peer changes at the same time", async () => {
+      const { a, b } = await connected();
+
+      a.editor.setSetting("freeze", JSON.stringify({ rows: 3, cols: 0, paneSplit: false }));
+      b.editor.setSetting("autoFilter", JSON.stringify({ r1: 1, c1: 1, r2: 9, c2: 2 }));
+      await settle(400);
+
+      expect(JSON.parse(String(a.editor.setting("freeze"))).rows, "A kept its own").toBe(3);
+      expect(JSON.parse(String(a.editor.setting("autoFilter"))).r2, "and took B's").toBe(9);
+      expect(JSON.parse(String(b.editor.setting("freeze"))).rows, "and B has both too").toBe(3);
     });
 
     it("carries a shape to the other peer", async () => {
