@@ -71,10 +71,19 @@ export interface BaseTransferOptions {
   /** Anything the person needs told, refusals included. */
   report(message: string): void;
   maxBytes?: number;
+  /** How long to wait on the peer we asked before trying another who offered. */
+  retryMs?: number;
 }
 
 export class BaseTransfer {
   private expecting: Offer | null = null;
+  /** Who we asked, so a second offer for the same file is not a second download. */
+  private askedOf: string | null = null;
+  /** Others who offered the same file while one transfer was in flight. */
+  private readonly fallbacks: string[] = [];
+  private retry: ReturnType<typeof setTimeout> | null = null;
+  /** Set once a base has been taken, so a late offer is not acted on at all. */
+  private settled = false;
 
   constructor(
     private readonly send: (payload: Uint8Array, peerId: string | null) => void,
@@ -107,11 +116,25 @@ export class BaseTransfer {
   }
 
   private onOffer(offer: Offer, peerId: string): void {
+    if (this.settled) return; // we have the document; a later offer of it is nothing to do
+
+    // More than one peer can hold the session's file, and after the person who started it
+    // leaves, more than one must. Their offers all arrive; taking each would download the
+    // same document once per peer, so the rest are kept only as somewhere to ask if the
+    // one we chose goes quiet.
+    if (this.expecting) {
+      if (offer.hash === this.expecting.hash && peerId !== this.askedOf && !this.fallbacks.includes(peerId)) {
+        this.fallbacks.push(peerId);
+      }
+      return;
+    }
+
     const mine = this.opts.local();
 
     // Already the same file, the common case when both people were sent it. Nothing to
     // fetch, but the session still has to be told, or a joiner would never bind.
     if (mine && mine.hash === offer.hash) {
+      this.settled = true;
       this.opts.alreadyHave?.();
       return;
     }
@@ -136,7 +159,33 @@ export class BaseTransfer {
     }
 
     this.expecting = offer;
+    this.askedOf = peerId;
     this.send(frame(KIND.request, new Uint8Array(0)), peerId);
+    this.armRetry();
+  }
+
+  /**
+   * Ask someone else if the peer we chose has not delivered.
+   *
+   * Without this, choosing a peer that leaves mid-transfer is a session that never opens,
+   * and the person sees a connected room with an empty document and no way to say what is
+   * wrong. The wait is generous: a large file over a slow link is not a failure.
+   */
+  private armRetry(): void {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = setTimeout(() => {
+      const next = this.fallbacks.shift();
+      if (!next || !this.expecting || this.settled) return;
+      this.askedOf = next;
+      this.send(frame(KIND.request, new Uint8Array(0)), next);
+      this.armRetry();
+    }, this.opts.retryMs ?? 15_000);
+  }
+
+  /** Stop waiting. A session that has ended has nothing left to fetch. */
+  dispose(): void {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
   }
 
   private async onRequest(peerId: string): Promise<void> {
@@ -152,6 +201,8 @@ export class BaseTransfer {
       return;
     }
     this.expecting = null;
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
 
     // Copy: the payload may be a view into a larger receive buffer.
     const copy = new Uint8Array(bytes);
@@ -160,6 +211,7 @@ export class BaseTransfer {
       this.opts.report(t("collab.damaged", { name: offer.name }));
       return;
     }
+    this.settled = true;
     this.opts.accept({ name: offer.name, bytes: copy, hash });
   }
 }

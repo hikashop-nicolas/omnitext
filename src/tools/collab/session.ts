@@ -244,8 +244,15 @@ export class CollabSession {
     this.provider.onChannel("blob", (payload, peerId) => void this.blobs.receive(payload, peerId));
     this.provider.onChannel("base", (payload, peerId) => void this.base.receive(payload, peerId));
     this.provider.onChannel("control", (payload, peerId) => void this.onControl(payload, peerId));
-    // Only the peer that started the room serves the base; joiners never offer theirs.
-    if (this.isHost) this.provider.onPeerJoined((peerId) => void this.base.offerTo(peerId));
+    // Anyone holding the session's document serves it, not only the peer who started the
+    // room. With one server, the person who shared the link closing their tab makes that
+    // link silently useless: newcomers connect, see everyone, and sit with nothing.
+    //
+    // Gated on being bound, which is exactly "this document is the session's". A joiner
+    // still waiting for the base would otherwise offer whatever it happened to have open.
+    this.provider.onPeerJoined((peerId) => {
+      if (this.isHost || this.bound) void this.base.offerTo(peerId);
+    });
     this.provider.onPeersChanged(() => {
       this.renumber();
       if (this.provider.peers().length) this.settleReach("connected");
@@ -612,6 +619,7 @@ export class CollabSession {
     if (this.closed) return;
     for (const t of this.reachTimers) clearTimeout(t);
     this.blobs.dispose();
+    this.base.dispose();
     this.closed = true;
     this.binding?.unbind();
     this.binding = null;

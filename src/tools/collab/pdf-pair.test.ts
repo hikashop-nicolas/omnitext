@@ -308,3 +308,65 @@ describe("two peers on a PDF", () => {
     expect(b.editor.reporter).toBeNull();
   });
 });
+
+
+// The blob channel with three peers, which is the first time it is asked a question two
+// cannot pose: an image is requested from everyone, and more than one person has it.
+describe("three peers and the blob channel", () => {
+  beforeEach(() => void (built.length = 0));
+  afterEach(() => void built.splice(0));
+
+  async function trio(): Promise<{ a: Peer; b: Peer; c: Peer }> {
+    const a = await makePeer({ name: "Ada", colour: "#f00" });
+    await settle();
+    const b = await makePeer({ name: "Bo", colour: "#0f0", key: a.session.key });
+    await settle(300);
+    const c = await makePeer({ name: "Cy", colour: "#00f", key: a.session.key });
+    await settle(350);
+    return { a, b, c };
+  }
+
+  it("carries an image to both other peers", async () => {
+    const { a, b, c } = await trio();
+    const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    a.editor.addImage("i1", bytes);
+    await settle(400);
+
+    expect(b.editor.imageBytes("i1")).toEqual(bytes);
+    expect(c.editor.imageBytes("i1"), "the third peer gets the bytes too").toEqual(bytes);
+  });
+
+  // Once B and C both hold an image, a fourth arrival asks all of them and both answer.
+  // The second answer arrives after the fetch has resolved and must be dropped quietly
+  // rather than treated as an unexpected frame.
+  it("survives two peers answering the same request", async () => {
+    const { a, b, c } = await trio();
+    const bytes = new Uint8Array([9, 9, 9, 9]);
+    a.editor.addImage("i2", bytes);
+    await settle(400);
+    expect(b.editor.imageBytes("i2"), "all three hold it now").toEqual(bytes);
+    expect(c.editor.imageBytes("i2")).toEqual(bytes);
+
+    const d = await makePeer({ name: "Di", colour: "#ff0", key: a.session.key });
+    await settle(450);
+
+    expect(d.editor.imageBytes("i2"), "one good copy, from whoever answered first").toEqual(bytes);
+  });
+
+  it("still finds an image when the peer who made it has gone", async () => {
+    const { a, b, c } = await trio();
+    const bytes = new Uint8Array([4, 5, 6, 7]);
+    a.editor.addImage("i3", bytes);
+    await settle(400);
+
+    await a.session.leave();
+    await settle(200);
+
+    const d = await makePeer({ name: "Di", colour: "#ff0", key: b.session.key });
+    await settle(450);
+
+    expect(d.editor.imageBytes("i3"), "held by whoever is still here").toEqual(bytes);
+    expect(c.editor.imageBytes("i3")).toEqual(bytes);
+  });
+});

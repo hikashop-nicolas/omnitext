@@ -20,6 +20,7 @@ function side(opts: {
   local?: { hash: string; dirty: boolean } | null;
   serves?: BaseDoc | null;
   maxBytes?: number;
+  retryMs?: number;
 }): Side {
   const accepted: BaseDoc[] = [];
   const reports: string[] = [];
@@ -32,6 +33,7 @@ function side(opts: {
       accept: (doc) => accepted.push(doc),
       report: (m) => reports.push(m),
       maxBytes: opts.maxBytes,
+      retryMs: opts.retryMs,
     },
   );
   return { transfer, accepted, reports, outbox };
@@ -172,5 +174,81 @@ describe("BaseTransfer", () => {
 
   it("has a ceiling above the warning threshold", () => {
     expect(MAX_BYTES).toBeGreaterThan(WARN_BYTES);
+  });
+});
+
+
+// More than one peer holding the file, which is the ordinary state of a session and
+// becomes the only state once the peer who started it leaves.
+describe("BaseTransfer with several peers offering", () => {
+  const KIND_REQUEST = 1;
+  const KIND_DATA = 2;
+
+  /** Offers of the same file from two different peers, in one delivery. */
+  async function twoOffers(joiner: Side, file: BaseDoc): Promise<void> {
+    const server = side({ serves: file });
+    await server.transfer.offerTo("first");
+    const offer = server.outbox.splice(0)[0]!.payload;
+    await joiner.transfer.receive(offer, "first");
+    await joiner.transfer.receive(offer, "second");
+  }
+
+  it("asks one peer, not every peer that offered", async () => {
+    const file = await doc("notes.srt", "one two three");
+    const joiner = side({});
+
+    await twoOffers(joiner, file);
+
+    const requests = joiner.outbox.filter((m) => m.payload[0] === KIND_REQUEST);
+    expect(requests, "one request, so one copy comes back").toHaveLength(1);
+    expect(requests[0].peerId).toBe("first");
+  });
+
+  it("asks the other peer when the one it chose goes quiet", async () => {
+    const file = await doc("notes.srt", "one two three");
+    const joiner = side({ retryMs: 5 });
+
+    await twoOffers(joiner, file);
+    joiner.outbox.splice(0);
+    await new Promise((r) => setTimeout(r, 30));
+
+    const retry = joiner.outbox.filter((m) => m.payload[0] === KIND_REQUEST);
+    expect(retry, "the first peer left mid-transfer; ask the other").toHaveLength(1);
+    expect(retry[0].peerId).toBe("second");
+  });
+
+  it("stops asking once the file has arrived", async () => {
+    const file = await doc("notes.srt", "one two three");
+    const joiner = side({ retryMs: 5 });
+    const server = side({ serves: file });
+
+    await server.transfer.offerTo("first");
+    await pump(server, joiner);
+    expect(joiner.accepted, "it arrived").toHaveLength(1);
+
+    joiner.outbox.splice(0);
+    await server.transfer.offerTo("second");
+    const late = server.outbox.splice(0)[0]!.payload;
+    await joiner.transfer.receive(late, "second");
+
+    expect(joiner.outbox, "a later offer of what we hold is nothing to do").toEqual([]);
+    expect(joiner.accepted, "and certainly not a second document").toHaveLength(1);
+  });
+
+  it("serves the file to whoever asks, not only to the first", async () => {
+    const file = await doc("notes.srt", "one two three");
+    const server = side({ serves: file });
+
+    await server.transfer.receive(new Uint8Array([KIND_REQUEST]), "one");
+    await server.transfer.receive(new Uint8Array([KIND_REQUEST]), "two");
+
+    const sent = server.outbox.filter((m) => m.payload[0] === KIND_DATA);
+    expect(sent.map((m) => m.peerId), "both asked, both served").toEqual(["one", "two"]);
+  });
+
+  it("offers nothing when it holds nothing of the session's", async () => {
+    const empty = side({ serves: null });
+    await empty.transfer.offerTo("someone");
+    expect(empty.outbox, "silence is right; an unrelated file is not").toEqual([]);
   });
 });
