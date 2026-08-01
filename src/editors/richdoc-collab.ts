@@ -63,15 +63,24 @@ export interface ExtraRef {
   value: string;
 }
 
-const extraKey = (kind: string, id: string): string => `${kind}:${id}`;
+/**
+ * Kind and id, joined by a character neither can contain.
+ *
+ * A colon would not do: comment kinds contain one ("comment:reply"), so splitting the key
+ * on the first colon read the kind back as "comment" and folded the rest into the id. The
+ * entry then merged into nothing on the other side, and the CRDT looked perfectly correct
+ * while both peers kept only their own.
+ */
+const SEP = "\u0000";
+const extraKey = (kind: string, id: string): string => `${kind}${SEP}${id}`;
 
 /** Everything the session holds beside the blocks. */
 export function readExtras(doc: Y.Doc): ExtraRef[] {
   const out: ExtraRef[] = [];
   for (const [key, value] of extrasMap(doc).entries()) {
-    const colon = key.indexOf(":");
-    if (colon < 0) continue;
-    out.push({ kind: key.slice(0, colon), id: key.slice(colon + 1), value });
+    const at = key.indexOf(SEP);
+    if (at < 0) continue;
+    out.push({ kind: key.slice(0, at), id: key.slice(at + 1), value });
   }
   return out;
 }

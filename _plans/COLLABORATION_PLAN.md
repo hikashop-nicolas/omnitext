@@ -701,7 +701,12 @@ is never run on one.
   exact rather than reassembled: richdoc claims an untouched part comes back byte for
   byte, and an image put back together slightly differently would quietly break that.
 - ~~Headers and footers, footnotes and endnotes~~ **Done 2026-08-01**, with page geometry and added styles, as one "document beside its body" channel keyed per entry.
-- Comments and tracked changes
+- ~~Comments~~ **Done 2026-08-01**, keyed per reaction / reply / resolution / deletion so
+  two people's replies both survive. **One limit:** the cards on screen are not rebuilt, so
+  a peer's reply reaches the file and is seen after a reload rather than as it arrives.
+- **Still open:** tracked changes. Accept and reject are state on the change itself and
+  interact with the block content around them, so they are not a value to mirror the way a
+  reply is.
 - ~~Named styles, page geometry~~ **Done 2026-08-01** (see above).
 - Tables: inside block HTML, so carried, but last-writer-wins for the whole block
 

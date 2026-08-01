@@ -392,6 +392,21 @@ describe("two peers on a rich document", () => {
     });
   });
 
+  // Comment edits ride the same channel, keyed so two people's replies both survive.
+  it("keeps both replies when each peer adds one", async () => {
+    const { a, b } = await connected();
+
+    a.editor.setExtra("comment:reply", "r-ada", JSON.stringify({ id: "r-ada", text: "From Ada" }));
+    await settle(200);
+    b.editor.setExtra("comment:reply", "r-bo", JSON.stringify({ id: "r-bo", text: "From Bo" }));
+    await settle(600);
+
+    const ids = (p: Peer) =>
+      p.editor.extras.filter((e) => e.kind === "comment:reply").map((e) => e.id).sort();
+    expect(ids(a), "two, not one").toEqual(["r-ada", "r-bo"]);
+    expect(ids(b)).toEqual(["r-ada", "r-bo"]);
+  });
+
   // The document beside its body.
   it("carries a header to the other peer", async () => {
     const { a, b } = await connected();
