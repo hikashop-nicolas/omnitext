@@ -381,7 +381,10 @@ export class CollabSession {
       this.host.onWaiting?.("admitted");
       this.provider.requestResync();
       if (!this.bound) void this.attachWhenSynced();
-    } else if (!first) {
+    } else {
+      // Said on the first look too. A joiner arriving into a room that is holding the door
+      // has nothing on screen and no reason given, which now means an empty window rather
+      // than their own document: silence there is the whole of the problem.
       this.host.onWaiting?.("waiting");
     }
   }

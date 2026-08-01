@@ -104,6 +104,8 @@ interface Peer {
   knocks: { name: string; peerId?: string }[][];
   /** A box rather than a number: a count copied at return time never changes again. */
   evicted: { count: number };
+  /** What this peer was told about its own admission, in order. */
+  waiting: string[];
 }
 
 async function makePeer(opts: {
@@ -112,12 +114,15 @@ async function makePeer(opts: {
   roomId: string;
   key?: CollabSession["key"];
   approveJoins?: boolean;
+  /** Nothing open: no document to serve, and no editor to bind until the base arrives. */
+  empty?: boolean;
 }): Promise<Peer> {
   const { subtitleEditor } = await import("../../editors/subtitle.impl");
   const instance = subtitleEditor.create({} as never);
   const opened: BaseDoc[] = [];
   const knocks: { name: string; peerId?: string }[][] = [];
   const evicted = { count: 0 };
+  const waiting: string[] = [];
 
   instance.mount({} as HTMLElement, {
     text: opts.text,
@@ -131,15 +136,23 @@ async function makePeer(opts: {
   } as unknown as EditorMountContext);
   const editor = built[built.length - 1];
 
+  // What an empty workspace answers: nothing to serve, nothing to bind, nothing held.
+  // The editor appears only when the base arrives, exactly as opening a file makes one.
+  let hasDoc = !opts.empty;
+
   const api: SessionHost = {
-    currentDoc: async () => baseDoc(opts.text),
+    currentDoc: async () => (hasDoc ? baseDoc(opts.text) : null),
     localState: () => null,
-    openBase: (d) => void opened.push(d),
-    binding: () => instance.collab?.() ?? null,
+    openBase: (d) => {
+      opened.push(d);
+      hasDoc = true;
+    },
+    binding: () => (hasDoc ? (instance.collab?.() ?? null) : null),
     editorId: () => "subtitle",
     notify: () => undefined,
     onKnock: (waiting) => void knocks.push(waiting.map((w) => ({ name: w.name, peerId: w.peerId }))),
     onEvicted: () => void (evicted.count += 1),
+    onWaiting: (what) => void waiting.push(what),
   };
 
   const session = new CollabSession(api, {
@@ -150,7 +163,7 @@ async function makePeer(opts: {
     makeTransport: (key) => localTransport(key.roomId),
   });
   await session.start();
-  return { session, editor, opened, knocks, evicted };
+  return { session, editor, opened, knocks, evicted, waiting };
 }
 
 const settle = (ms = 200): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -362,5 +375,64 @@ describe("holding newcomers at the door", () => {
     expect(cy.opened, "the newcomer waits").toHaveLength(0);
     expect(host.session.waiting().map((p) => p.name)).toEqual(["Cy"]);
     expect(bo.opened, "and Bo is untouched by it").toHaveLength(1);
+  });
+
+  // Following a link on a browser with nothing open, which is the person opening Omnitext
+  // for the first time because a colleague sent them a link. Requiring them to have a
+  // document already is backwards: the session exists to give them the host's.
+  it("lets someone with nothing open join and receive the document", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId });
+    await settle();
+
+    const guest = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key, empty: true });
+    await settle(400);
+
+    expect(guest.opened, "the file arrived").toHaveLength(1);
+    expect(guest.editor.text("cue1"), "with its contents").toBe("First line.");
+  });
+
+  it("carries later edits to a peer that arrived with nothing", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId });
+    await settle();
+    const guest = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key, empty: true });
+    await settle(400);
+
+    host.editor.type("cue1", "Written after Bo arrived.");
+    await settle(300);
+
+    expect(guest.editor.text("cue1")).toBe("Written after Bo arrived.");
+  });
+
+  // The door still comes first. Someone arriving with nothing open must not be handed the
+  // document before the host says so, and being empty must not be a way around the gate.
+  it("gives an empty newcomer nothing until they are let in", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId, approveJoins: true });
+    await settle();
+
+    const guest = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key, empty: true });
+    await settle(400);
+
+    expect(guest.opened, "not before the host agrees").toHaveLength(0);
+    expect(host.session.waiting().map((p) => p.name)).toEqual(["Bo"]);
+
+    host.session.admit(host.session.waiting()[0]?.peerId ?? "");
+    await settle(450);
+
+    expect(guest.opened, "and now it comes").toHaveLength(1);
+    expect(guest.editor.text("cue1")).toBe("First line.");
+  });
+
+  it("tells an empty newcomer that they are waiting", async () => {
+    const roomId = nextRoom();
+    const host = await makePeer({ text: FILE, name: "Ada", roomId, approveJoins: true });
+    await settle();
+    const guest = await makePeer({ text: "", name: "Bo", roomId, key: host.session.key, empty: true });
+    await settle(400);
+
+    // Nothing on screen and no reason given is the failure this replaced.
+    expect(guest.waiting, "said so").toContain("waiting");
   });
 });

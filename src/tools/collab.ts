@@ -259,8 +259,11 @@ async function startSession(
   readOnly = false,
 ): Promise<void> {
   if (state.session) return;
-  const doc = host.workspace.getActiveDocument();
-  if (!doc) {
+  // Sharing needs something to share. Joining does not: the session exists to hand the
+  // joiner the host's file, and requiring them to have one open first is backwards. It
+  // also fails the case that matters most, someone opening Omnitext for the first time
+  // because a colleague sent them a link, who has nothing open by definition.
+  if (!key && !host.workspace.getActiveDocument()) {
     host.notifications.warn(t("collab.openDocFirst"));
     return;
   }
@@ -649,20 +652,24 @@ export const collabTool: ToolModule = {
 
     // Arriving on a link. The room comes out of the address bar at once, so the secret
     // stops sitting where a screen share or a synced browser history would pick it up.
-    let invited: { key: { roomId: string; secret: string }; viewOnly: boolean } | null = null;
+    type Invite = { key: { roomId: string; secret: string }; viewOnly: boolean } | null;
 
-    const takeInvite = (): typeof invited => {
+    const takeInvite = (): Invite => {
       const invite = parseInvite(location.hash);
       if (invite) history.replaceState(null, "", withoutRoom());
       return invite;
     };
 
-    /** Join now if a document is open, otherwise as soon as the first one is. */
-    const accept = (invite: typeof invited): void => {
+    /**
+     * Join, open document or not.
+     *
+     * This used to hold the invitation until a document was opened, and say nothing while
+     * it waited. On a browser with nothing open, which is exactly the person following a
+     * colleague's link for the first time, following it did nothing at all.
+     */
+    const accept = (invite: Invite): void => {
       if (!invite || state.session) return;
-      if (host.workspace.getActiveDocument()) {
-        void startSession(host, state, store, invite.key, invite.viewOnly);
-      } else invited = invite;
+      void startSession(host, state, store, invite.key, invite.viewOnly);
     };
 
     // Pasting a link into a tab that already has Omnitext open changes only the fragment,
@@ -680,11 +687,6 @@ export const collabTool: ToolModule = {
         if (!state.session?.pinsEditor) return;
         ctx.cancel = true;
         host.notifications.warn(t("collab.editorPinned"));
-      }),
-      host.events.on("documentOpened", () => {
-        const invite = invited;
-        invited = null;
-        accept(invite);
       }),
       host.commands.register({
         id: "collab.share",

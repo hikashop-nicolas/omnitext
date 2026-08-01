@@ -956,7 +956,16 @@ peer that arrives with nothing open is precisely the newcomer: someone opening O
 the first time because a colleague sent them a link. That is the single most important path
 into the feature and it is the one that fails.
 
-**A view on the fix, for the owner to settle.** Requiring the joiner to have a document open
+**Fixed 2026-08-02.** A joiner no longer needs a document: sharing needs something to
+share, joining does not, and the session exists to hand the joiner the host's file. The
+invitation is no longer parked and no longer silent. Confirmed in a browser: a phone with
+nothing open followed a link and ended up in the session.
+
+The door still comes first. An empty newcomer is offered nothing until the host admits
+them, and being empty is not a way around the gate; there are tests for both, and for the
+peer being told it is waiting rather than left looking at an empty window.
+
+**The original view on the fix, kept for the record.** Requiring the joiner to have a document open
 is backwards. The session hands them the host's file: that is what the base transfer is for,
 and a joiner who already has something open is the case that needs care (it is why the
 transfer can be declined as dirty), not the case that should be mandatory. The smallest
