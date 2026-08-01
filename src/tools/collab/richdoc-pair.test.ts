@@ -55,6 +55,8 @@ class StubRich {
   peerCarets: PeerCaretState[] = [];
   /** How many times a peer's body was put on screen, to catch an edit echoing round. */
   applied = 0;
+  /** Who new suggestions and comments are signed by. What richdoc reads at the keystroke. */
+  author = "Author";
 
   docExtras(): StubRich["extras"] {
     return this.extras.map((e) => ({ ...e }));
@@ -97,6 +99,9 @@ class StubRich {
   }
   setPeerCarets(carets: readonly PeerCaretState[]): void {
     this.peerCarets = [...carets];
+  }
+  setAuthor(name: string): void {
+    this.author = name;
   }
   setUndoHandler(handler: UndoHandler | null): void {
     this.undoHandler = handler;
@@ -215,20 +220,21 @@ async function makePeer(opts: {
 
 const settle = (ms = 120): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/** Host and joiner on the same document, bound and synced. The common opening. */
+async function connected(readOnlyJoiner = false): Promise<{ a: Peer; b: Peer }> {
+  const a = await makePeer({ name: "Ada", colour: "#f00" });
+  await settle();
+  const b = await makePeer({ name: "Bo", colour: "#00f", key: a.session.key, readOnly: readOnlyJoiner });
+  await settle(250);
+  return { a, b };
+}
+
 describe("two peers on a rich document", () => {
   beforeEach(() => {
     built.length = 0;
     inflateMs = 30;
   });
   afterEach(() => void built.splice(0));
-
-  async function connected(readOnlyJoiner = false): Promise<{ a: Peer; b: Peer }> {
-    const a = await makePeer({ name: "Ada", colour: "#f00" });
-    await settle();
-    const b = await makePeer({ name: "Bo", colour: "#00f", key: a.session.key, readOnly: readOnlyJoiner });
-    await settle(250);
-    return { a, b };
-  }
 
   it("carries an edit from one peer's document to the other's", async () => {
     const { a, b } = await connected();
@@ -470,5 +476,47 @@ describe("two peers on a rich document", () => {
     b.editor.type("b3", "Bo cannot.");
     await settle(200);
     expect(a.editor.html("b3"), "and cannot change it").toBe("The third paragraph.");
+  });
+});
+
+// Who a suggestion belongs to. Two peers who set no display name are both "Author" to the
+// editor, and a suggested insertion merges into an adjacent one by the same author: the
+// second person's words are absorbed into the first person's change, to be accepted or
+// rejected as one. The session already deduplicates the names its peers see, so the fix is
+// to tell the editor the name rather than let it read the setting.
+describe("two peers signing their suggestions", () => {
+  beforeEach(() => {
+    built.length = 0;
+    inflateMs = 30;
+  });
+  afterEach(() => void built.splice(0));
+
+  it("gives each editor the name its peers see", async () => {
+    const { a, b } = await connected();
+
+    expect(a.editor.author).toBe("Ada");
+    expect(b.editor.author).toBe("Bo");
+    expect(a.editor.author, "and they are not the same name").not.toBe(b.editor.author);
+  });
+
+  it("follows a peer who renames themselves mid-session", async () => {
+    const { a } = await connected();
+
+    a.session.setName("Ada Lovelace");
+    await settle();
+
+    expect(a.editor.author).toBe("Ada Lovelace");
+  });
+
+  // The case that made this necessary: nobody set a name, so the session hands out
+  // Guest 1 and Guest 2 and the editors must not both be "Author".
+  it("separates two peers who set no name at all", async () => {
+    const a = await makePeer({ name: "", colour: "#f00" });
+    await settle();
+    const b = await makePeer({ name: "", colour: "#00f", key: a.session.key });
+    await settle(250);
+
+    expect(a.editor.author).not.toBe(b.editor.author);
+    expect(a.editor.author).toBeTruthy();
   });
 });

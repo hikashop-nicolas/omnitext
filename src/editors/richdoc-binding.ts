@@ -34,6 +34,7 @@ export interface RichHandle {
   setBlockReporter(handler: ((changes: BlockChanges) => void) | null): void;
   setSelectionReporter(handler: ((at: BlockPosition | null) => void) | null): void;
   setPeerCarets(carets: readonly PeerCaretState[]): void;
+  setAuthor(name: string): void;
   setUndoHandler(handler: { undo(): void; redo(): void; canUndo(): boolean; canRedo(): boolean } | null): void;
 }
 
@@ -73,6 +74,8 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
   let applyingRemote = false;
   let unwatch: (() => void) | null = null;
   let unwatchPeers: (() => void) | null = null;
+  /** Stops watching our own name, which moves when a clash renumbers it or we rename. */
+  let unwatchMe: (() => void) | null = null;
   let undoManager: Y.UndoManager | null = null;
   let blobs: CollabContext["blobs"] | undefined;
   /** data: URL to its hash, so the same picture is not hashed on every keystroke. */
@@ -166,6 +169,15 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       viewOnly = ctx.readOnly;
 
       // Subscribe before seeding, so nothing this peer does from here on is missed.
+      // Suggestions and comments are signed. Without this both peers write under the name
+      // the settings gave them, which for anyone who set none is the same name, and a
+      // suggestion typed beside another by the "same" author is absorbed into it.
+      if (ctx.me) {
+        handle.setAuthor(ctx.me.name);
+        const sub = ctx.me.onChanged((me) => host.handle()?.setAuthor(me.name));
+        unwatchMe = () => sub.dispose();
+      }
+
       handle.setBlockReporter(publish);
       // The document beside its body: headers, footers, notes, page geometry, styles.
       handle.setDocExtrasReporter((extras) => {
@@ -237,6 +249,8 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
     unbind: () => {
       unwatch?.();
       unwatch = null;
+      unwatchMe?.();
+      unwatchMe = null;
       unwatchPeers?.();
       unwatchPeers = null;
       undoManager?.destroy();

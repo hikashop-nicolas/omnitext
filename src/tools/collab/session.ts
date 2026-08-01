@@ -307,7 +307,11 @@ export class CollabSession {
   /** Presence carries our transport id, which is how another peer can name us to remove us. */
   private announce(): void {
     this.provider.setPresence({ ...this.me, peerId: this.provider.selfId });
+    for (const watcher of this.meWatchers) watcher({ ...this.me });
   }
+
+  /** Told when our own name or colour moves: a clash renumber, or a rename mid-session. */
+  private readonly meWatchers = new Set<(me: { name: string; colour: string }) => void>();
 
   /**
    * Attach the active editor. The host does this at once, since its own document is the
@@ -373,6 +377,14 @@ export class CollabSession {
       readOnly: this.readOnly,
       blobs: this.blobs,
       ordered: this.ordered,
+      me: {
+        name: this.me.name,
+        colour: this.me.colour,
+        onChanged: (handler) => {
+          this.meWatchers.add(handler);
+          return { dispose: () => void this.meWatchers.delete(handler) };
+        },
+      },
     });
     this.host.onChange?.();
   }

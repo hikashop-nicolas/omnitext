@@ -216,6 +216,20 @@ export interface CollabContext {
     has(sha: string): boolean;
     fetch(sha: string): Promise<Uint8Array | null>;
   };
+  /**
+   * Who this peer is to the others, for edits that carry an author: a tracked change, a
+   * comment, a suggestion.
+   *
+   * Not the host's configured name. A session deduplicates names on arrival, so the peer
+   * who set nothing is "Guest 2" to everyone else, and an editor left to read the setting
+   * itself would attribute two people's work to one name. `onChanged` fires when this
+   * peer's name moves, which happens on a clash and on a rename mid-session.
+   */
+  me?: {
+    name: string;
+    colour: string;
+    onChanged(handler: (me: { name: string; colour: string }) => void): { dispose(): void };
+  };
   /** For operations that cannot be merged and must be put in one order for everyone.
    *  Absent when the session does not offer it. */
   ordered?: {
