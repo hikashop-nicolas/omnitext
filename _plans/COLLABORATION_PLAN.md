@@ -679,7 +679,13 @@ how likely a user is to hit it.
 - ~~Named ranges~~ **Done 2026-08-01.** Table definitions remain.
 - ~~Cell formatting beyond the input (rich text in cells, number formats)~~ **Done 2026-08-01**, in its own map beside the inputs.
 - ~~Print setup, frozen panes and split panes, filters and sort~~ **Done 2026-08-01**, with row/column sizes, hidden rows and columns, merges and conditional formats, as sheet settings carried one entry per group.
-- VBA macros
+- ~~VBA macros~~ **Source done 2026-08-01; running deliberately not shared**, for the same
+  reason as a query refresh but more so: a macro is arbitrary code with the whole workbook
+  in reach.
+- **Still open:** table definitions. They live in file parts rather than the model, and
+  nothing in the UI creates one; the only path that does is a Power Query load, which also
+  writes the cells. So a peer sees the data and not the table around it. Sharing it means
+  sharing file parts, which is a different mechanism from everything above.
 
 **richdoc**
 

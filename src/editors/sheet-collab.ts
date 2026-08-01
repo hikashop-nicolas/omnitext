@@ -121,6 +121,7 @@ export const DRAWINGS = "sheet.drawings";
 export const SETTINGS = "sheet.settings";
 export const FORMATS = "sheet.formats";
 export const NAMES = "sheet.names";
+export const VBA = "sheet.vba";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -180,6 +181,7 @@ const drawingMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(DRAWINGS);
 const settingsMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(SETTINGS);
 const formatMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(FORMATS);
 const namesMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(NAMES);
+const vbaMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(VBA);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -362,6 +364,26 @@ export function writeNames(doc: Y.Doc, names: Record<string, string>, origin: un
   }, origin);
 }
 
+/**
+ * The workbook's macro modules, as name to source.
+ *
+ * Source only. Running a peer's macro is never done on their behalf: it is arbitrary code
+ * with the whole workbook in reach.
+ */
+export function readVba(doc: Y.Doc): Record<string, string> {
+  return Object.fromEntries(vbaMap(doc).entries());
+}
+
+/** Write the macro source, touching only what differs. */
+export function writeVba(doc: Y.Doc, modules: Record<string, string>, origin: unknown): void {
+  const map = vbaMap(doc);
+  const changed = Object.entries(modules).filter(([k, v]) => map.get(k) !== v);
+  if (!changed.length) return;
+  doc.transact(() => {
+    for (const [k, v] of changed) map.set(k, v);
+  }, origin);
+}
+
 /** One group of one sheet's settings. Keyed "sheet:group" so groups do not clobber. */
 export interface SettingRef {
   sheet: string;
@@ -495,10 +517,10 @@ export function sheetSharedTypes(
   doc: Y.Doc,
 ): [
   Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>, Y.Map<string>,
-  Y.Map<string>, Y.Map<string>,
+  Y.Map<string>, Y.Map<string>, Y.Map<string>,
 ] {
   return [
     sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc), drawingMap(doc),
-    settingsMap(doc), formatMap(doc), namesMap(doc),
+    settingsMap(doc), formatMap(doc), namesMap(doc), vbaMap(doc),
   ];
 }

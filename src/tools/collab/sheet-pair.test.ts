@@ -59,6 +59,8 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  vba: Record<string, string> = { Module1: "Sub Hello()\nEnd Sub\n" };
+  vbaReporter: ((m: Record<string, string>) => void) | null = null;
   names: Record<string, string> = {};
   namesReporter: ((n: Record<string, string>) => void) | null = null;
   formats = new Map<string, string>();
@@ -84,6 +86,20 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  vbaModules(): Record<string, string> {
+    return { ...this.vba };
+  }
+  setVbaReporter(h: ((m: Record<string, string>) => void) | null): void {
+    this.vbaReporter = h;
+  }
+  applyRemoteVba(m: Record<string, string>): void {
+    for (const [k, v] of Object.entries(m)) if (k in this.vba) this.vba[k] = v;
+  }
+  editMacro(name: string, source: string): void {
+    this.vba[name] = source;
+    this.vbaReporter?.(this.vbaModules());
+  }
+
   definedNames(): Record<string, string> {
     return { ...this.names };
   }
@@ -520,6 +536,15 @@ describe("two peers, sheets and pictures", () => {
       await settle(300);
 
       expect(b.editor.format("Sheet1", 1, 1), "the format arrived").toContain("0.00%");
+    });
+
+    it("carries macro source to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.editMacro("Module1", 'Sub Hello()\n  Range("A1").Value = 1\nEnd Sub\n');
+      await settle(300);
+
+      expect(b.editor.vbaModules().Module1, "the source arrived").toContain("A1");
     });
 
     it("carries defined names to the other peer", async () => {
