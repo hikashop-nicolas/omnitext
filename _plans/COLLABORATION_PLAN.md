@@ -666,7 +666,11 @@ how likely a user is to hit it.
   this. Shapes and form controls remain.
 - ~~Charts (creation, data range, configuration)~~ **Done 2026-08-01**, whole definition per chart, last writer wins.
 - Pivot tables
-- Power Query: queries, their steps, refresh
+- ~~Power Query: queries, their steps, refresh~~ **Definitions done 2026-08-01; refresh
+  deliberately not shared.** A refresh reaches the network, so running a peer's definition
+  automatically would let anyone in a session choose what everyone else's browser fetches,
+  including addresses on a private network only that peer can reach. The rows a refresh
+  produces travel as cells instead, published by whoever ran it, so nothing is lost.
 - Data validation, protection, outline/grouping
 - Named ranges and table definitions
 - Cell formatting beyond the input (rich text in cells, number formats)

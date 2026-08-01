@@ -58,6 +58,8 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  sectionM: string | null = "section Section1;\r\n";
+  queriesReporter: ((m: string) => void) | null = null;
   imagesReporter: ((i: ImageInfo[]) => void) | null = null;
 
   sheets(): SheetInfo[] {
@@ -69,6 +71,21 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  queries(): Promise<string | null> {
+    return Promise.resolve(this.sectionM);
+  }
+  setQueriesReporter(h: ((m: string) => void) | null): void {
+    this.queriesReporter = h;
+  }
+  applyRemoteQueries(sectionM: string): Promise<void> {
+    this.sectionM = sectionM;
+    return Promise.resolve();
+  }
+  editQuery(sectionM: string): void {
+    this.sectionM = sectionM;
+    this.queriesReporter?.(sectionM);
+  }
+
   charts(): ChartInfo[] {
     return this.chartList.map((c) => ({ ...c }));
   }
@@ -374,6 +391,31 @@ describe("two peers, sheets and pictures", () => {
 
   describe("pictures", () => {
     const uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    it("carries a query definition to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.editQuery('section Section1;\r\nshared Sales = Web.Contents("https://example.org/x");\r\n');
+      await settle(300);
+
+      expect(b.editor.sectionM, "B has the definition").toContain("shared Sales");
+    });
+
+    // Two people working on different queries are working on different parts of one
+    // document, which is what text merging is for.
+    it("merges two peers editing different queries in the section", async () => {
+      const { a, b } = await connected();
+      a.editor.editQuery("section Section1;\r\nshared One = 1;\r\nshared Two = 2;\r\n");
+      await settle(300);
+
+      a.editor.editQuery("section Section1;\r\nshared One = 111;\r\nshared Two = 2;\r\n");
+      b.editor.editQuery("section Section1;\r\nshared One = 1;\r\nshared Two = 222;\r\n");
+      await settle(400);
+
+      expect(a.editor.sectionM, "Ada's edit survives").toContain("One = 111");
+      expect(a.editor.sectionM, "and so does Bo's").toContain("Two = 222");
+      expect(b.editor.sectionM).toBe(a.editor.sectionM);
+    });
 
     it("carries a chart to the other peer", async () => {
       const { a, b } = await connected();

@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { spliceIds } from "./order";
+import { editText } from "./richdoc-collab";
 
 // The shared shape for collaborating on a workbook.
 //
@@ -113,6 +114,14 @@ export const SHEETS = "sheet.sheets";
 export const SHEET_ORDER = "sheet.order";
 export const IMAGES = "sheet.images";
 export const CHARTS = "sheet.charts";
+/**
+ * The workbook's Power Query definitions, as one M section document.
+ *
+ * A Y.Text rather than a string: the section holds every query, so two people working on
+ * different queries are working on different parts of one document, which is exactly the
+ * case text merging is for.
+ */
+export const QUERIES = "sheet.queries";
 
 export interface SheetInfo {
   id: string;
@@ -159,6 +168,7 @@ const sheetMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(SHEETS);
 const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(SHEET_ORDER);
 const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
 const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
+const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
 const num = (f: Fields, k: string): number => (typeof f.get(k) === "number" ? (f.get(k) as number) : 0);
@@ -296,9 +306,22 @@ export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unkno
   }, origin);
 }
 
+/** The query definitions the session holds, or null when it has none. */
+export function readQueries(doc: Y.Doc): string | null {
+  const text = queryText(doc);
+  return text.length ? text.toString() : null;
+}
+
+/** Write the query definitions as the smallest edit that explains the difference. */
+export function writeQueries(doc: Y.Doc, sectionM: string, origin: unknown): void {
+  const text = queryText(doc);
+  if (text.toString() === sectionM) return;
+  doc.transact(() => editText(text, sectionM), origin);
+}
+
 /** The types a session watches for sheet, picture and chart changes. */
 export function sheetSharedTypes(
   doc: Y.Doc,
-): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>] {
-  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc)];
+): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text] {
+  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc)];
 }
