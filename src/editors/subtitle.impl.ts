@@ -120,7 +120,9 @@ class SubtitleInstance implements EditorInstance {
           this.applyRemote(doc);
         };
         const [cues, order, fields] = sharedTypes(doc);
-        cues.observe(onChange);
+        // Deeply: a cue is a map of fields holding a Y.Text, so an edit to a line of
+        // dialogue changes something two levels down and a shallow observer never hears it.
+        cues.observeDeep(onChange);
         order.observe(onChange);
         fields.observe(onChange);
 
@@ -133,7 +135,7 @@ class SubtitleInstance implements EditorInstance {
         });
 
         this.unwatch = () => {
-          cues.unobserve(onChange);
+          cues.unobserveDeep(onChange);
           order.unobserve(onChange);
           fields.unobserve(onChange);
           this.handle?.setDocFieldsReporter(null);

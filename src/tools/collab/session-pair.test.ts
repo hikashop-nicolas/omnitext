@@ -116,6 +116,15 @@ class StubEditor {
     if (cue) cue.text = text;
     this.onChange();
   }
+  /** Move a cue in time, the way dragging it on the waveform does. */
+  retime(id: string, startMs: number, endMs: number): void {
+    const cue = this.cues.find((c) => c.id === id);
+    if (cue) {
+      cue.startMs = startMs;
+      cue.endMs = endMs;
+    }
+    this.onChange();
+  }
   /** Click a cue. */
   click(id: string | null): void {
     this.selected = id;
@@ -475,5 +484,61 @@ describe("two peers, the document beside its cues", () => {
 
     expect(b.editor.cues.find((c) => c.id === "cue2")?.text).toBe("Second cue, edited by Ada.");
     expect(a.editor.field("fps")).toBe("23.976");
+  });
+});
+
+
+// Two people inside one cue.
+//
+// Not the same shape of problem as two people in one paragraph. A cue is one line of
+// dialogue and the two numbers saying when it is on screen, and the realistic collision is
+// not two typists: it is one person retiming a track while another proofreads it. Holding
+// the cue as a single value makes those two an unresolvable conflict over work that does
+// not overlap at all.
+describe("two peers inside one cue", () => {
+  beforeEach(() => void (built.length = 0));
+  afterEach(() => void built.splice(0));
+
+  it("keeps a retiming and a rewording of the same cue", async () => {
+    const { a, b } = await connected();
+
+    a.editor.retime("cue2", 5000, 7000);
+    b.editor.type("cue2", "Second line, proofread.");
+    await settle(250);
+
+    for (const peer of [a, b]) {
+      const cue = peer.editor.cues.find((c) => c.id === "cue2");
+      expect(cue?.startMs, "Ada's retiming").toBe(5000);
+      expect(cue?.text, "and Bo's wording").toBe("Second line, proofread.");
+    }
+  });
+
+  it("merges two edits at different ends of one line", async () => {
+    const { a, b } = await connected();
+
+    a.editor.type("cue1", "Well, First line.");
+    b.editor.type("cue1", "First line, indeed.");
+    await settle(250);
+
+    const text = a.editor.cues.find((c) => c.id === "cue1")?.text ?? "";
+    expect(text).toContain("Well,");
+    expect(text).toContain("indeed.");
+    expect(b.editor.cues.find((c) => c.id === "cue1")?.text, "and both agree").toBe(text);
+  });
+
+  it("does not resurrect a deleted word because the other peer typed elsewhere", async () => {
+    const { a, b } = await connected();
+    a.editor.type("cue3", "One two three.");
+    await settle(200);
+
+    a.editor.type("cue3", "One three.");
+    b.editor.type("cue3", "One two three. Four.");
+    await settle(250);
+
+    for (const peer of [a, b]) {
+      const text = peer.editor.cues.find((c) => c.id === "cue3")?.text ?? "";
+      expect(text, "the cut stays cut").not.toContain("two");
+      expect(text, "and the addition stays").toContain("Four.");
+    }
   });
 });

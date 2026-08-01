@@ -1,4 +1,5 @@
-import type * as Y from "yjs";
+import * as Y from "yjs";
+import { editText } from "./richdoc-collab";
 import { spliceIds } from "./order";
 
 // The shared shape for collaborating on subtitles, kept apart from the DOM so it can be
@@ -10,9 +11,16 @@ import { spliceIds } from "./order";
 // loses one of the two. Keying by id means two people editing different cues never touch
 // the same thing, and order changes are array operations Yjs already merges.
 //
-// Within one cue it is last-writer-wins. Two people typing in the same cue at the same
-// moment is a real conflict with no good automatic answer, and it is rare; two people
-// working on different cues is the common case, and that merges.
+// Within one cue it is a Y.Map of fields, not one value. A cue is a line of dialogue and
+// the two numbers saying when it is on screen, and those are edited by different people
+// doing different jobs: one retimes a track while another proofreads it. Holding the cue
+// as a single value makes those two an unresolvable conflict, and the loser is whichever
+// of them happened to speak first.
+//
+// The text within a cue is a Y.Text, written as the smallest edit that explains the
+// change, so two people inside one line merge the way two people in one paragraph do. A
+// cue is short enough that this is rarer than it is for prose, but "rarer" is not a reason
+// to lose the work when it happens.
 
 export const CUES = "subedit.cues";
 export const ORDER = "subedit.order";
@@ -27,15 +35,22 @@ export interface CueLike {
   id: string;
 }
 
-type Stored = Record<string, unknown>;
+/** One cue's fields. The text is a Y.Text so it merges; everything else is a scalar. */
+type Fields = Y.Map<unknown>;
 
-const cueMap = (doc: Y.Doc): Y.Map<Stored> => doc.getMap<Stored>(CUES);
+const cueMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CUES);
 const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(ORDER);
 
-/** Field-by-field equality, which is all a cue needs: its values are JSON scalars and small objects. */
-function same(a: Stored | undefined, b: Stored): boolean {
-  if (!a) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
+/** The field whose edits merge rather than replace. Everything else is last writer wins. */
+const TEXT = "text";
+
+/** One shared cue as a plain object, with its Y.Text read back as a string. */
+function readCue(fields: Fields): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of fields.entries()) {
+    out[key] = value instanceof Y.Text ? value.toString() : value;
+  }
+  return out;
 }
 
 /** The shared cue list, in order. Ids in the order with no cue behind them are skipped. */
@@ -44,7 +59,7 @@ export function readCues<T extends CueLike>(doc: Y.Doc): T[] {
   const out: T[] = [];
   for (const id of orderArray(doc).toArray()) {
     const cue = cues.get(id);
-    if (cue) out.push({ ...cue } as unknown as T);
+    if (cue) out.push(readCue(cue) as unknown as T);
   }
   return out;
 }
@@ -62,7 +77,7 @@ export function writeCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], ori
   const nextIds = cues.map((c) => c.id);
   const prevIds = order.toArray();
 
-  const changed = cues.filter((c) => !same(map.get(c.id), c as unknown as Stored));
+  const changed = cues.filter((c) => !sameCue(map.get(c.id), c as unknown as Record<string, unknown>));
   const wanted = new Set(nextIds);
   const dropped = [...map.keys()].filter((id) => !wanted.has(id));
   const orderChanged = prevIds.length !== nextIds.length || prevIds.some((id, i) => id !== nextIds[i]);
@@ -70,10 +85,44 @@ export function writeCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], ori
   if (!changed.length && !dropped.length && !orderChanged) return; // nothing to say
 
   doc.transact(() => {
-    for (const cue of changed) map.set(cue.id, { ...(cue as unknown as Stored) });
+    for (const cue of changed) writeCue(map, cue as unknown as Record<string, unknown>);
     for (const id of dropped) map.delete(id);
     if (orderChanged) spliceIds(order, prevIds, nextIds);
   }, origin);
+}
+
+/** Whether the shared cue already says what this one says. */
+function sameCue(fields: Fields | undefined, cue: Record<string, unknown>): boolean {
+  if (!fields) return false;
+  return JSON.stringify(readCue(fields)) === JSON.stringify(cue);
+}
+
+/**
+ * Write one cue, field by field, leaving alone every field that has not changed.
+ *
+ * Replacing the whole cue would work and would take the other person's retiming with it.
+ * Setting only the fields that differ means a change to when a line appears and a change
+ * to what it says are two different writes, and both survive.
+ */
+function writeCue(map: Y.Map<Fields>, cue: Record<string, unknown>): void {
+  let fields = map.get(cue.id as string);
+  if (!fields) {
+    fields = new Y.Map<unknown>();
+    map.set(cue.id as string, fields);
+  }
+  for (const [key, value] of Object.entries(cue)) {
+    if (key === TEXT && typeof value === "string") {
+      const held = fields.get(TEXT);
+      if (held instanceof Y.Text) editText(held, value);
+      else fields.set(TEXT, new Y.Text(value));
+      continue;
+    }
+    if (fields.get(key) !== value) fields.set(key, value);
+  }
+  // A field the cue no longer has is gone from the cue, not merely unmentioned.
+  for (const key of [...fields.keys()]) {
+    if (!(key in cue)) fields.delete(key);
+  }
 }
 
 
@@ -89,7 +138,7 @@ export function isEmpty(doc: Y.Doc): boolean {
 }
 
 /** The shared types a session watches, and that an UndoManager should track. */
-export function sharedTypes(doc: Y.Doc): [Y.Map<Stored>, Y.Array<string>, Y.Map<string>] {
+export function sharedTypes(doc: Y.Doc): [Y.Map<Fields>, Y.Array<string>, Y.Map<string>] {
   return [cueMap(doc), orderArray(doc), fieldMap(doc)];
 }
 

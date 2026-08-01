@@ -520,3 +520,75 @@ describe("two peers signing their suggestions", () => {
     expect(a.editor.author).toBeTruthy();
   });
 });
+
+
+// Two people in the SAME paragraph, which is the case a document has and a subtitle cue
+// does not: a paragraph is long, a document has few of them, and two people working on one
+// section will be inside one paragraph within the minute.
+//
+// A block is stored as a Y.Text and a local change is written as the smallest edit that
+// explains it, so this merges the way a version control system merges two people touching
+// different lines. It is only last-writer-wins when the edits actually overlap.
+describe("two peers inside one paragraph", () => {
+  it("keeps both edits when each types at a different end", async () => {
+    const { a, b } = await connected();
+
+    a.editor.type("b2", "Ada says. The second paragraph.");
+    b.editor.type("b2", "The second paragraph. Bo says.");
+    await settle(250);
+
+    for (const peer of [a, b]) {
+      const html = peer.editor.html("b2") ?? "";
+      expect(html, "Ada's opening survives").toContain("Ada says.");
+      expect(html, "and Bo's ending").toContain("Bo says.");
+      expect(html, "and the sentence they share is there once").toBe(
+        "Ada says. The second paragraph. Bo says.",
+      );
+    }
+  });
+
+  it("keeps a word inserted mid-sentence while the other appends", async () => {
+    const { a, b } = await connected();
+
+    a.editor.type("b1", "The very first paragraph.");
+    b.editor.type("b1", "The first paragraph. Indeed.");
+    await settle(250);
+
+    const html = a.editor.html("b1") ?? "";
+    expect(html).toContain("very");
+    expect(html).toContain("Indeed.");
+    expect(b.editor.html("b1"), "and both peers agree on it").toBe(html);
+  });
+
+  it("does not duplicate the shared text when both retype the paragraph", async () => {
+    const { a, b } = await connected();
+
+    a.editor.type("b3", "Rewritten by Ada.");
+    await settle(200);
+    b.editor.type("b3", "Rewritten by Bo.");
+    await settle(200);
+
+    expect(a.editor.html("b3")).toBe(b.editor.html("b3"));
+    expect(a.editor.html("b3"), "one of the two, not a splice of both").toMatch(
+      /^Rewritten by (Ada|Bo)\.$/,
+    );
+  });
+
+  // A deletion is an edit like any other: one peer removing a clause must not resurrect it
+  // because the other typed elsewhere in the same paragraph.
+  it("keeps a deletion when the other peer types elsewhere in the paragraph", async () => {
+    const { a, b } = await connected();
+    a.editor.type("b1", "One. Two. Three.");
+    await settle(200);
+
+    a.editor.type("b1", "One. Three."); // Ada cuts the middle
+    b.editor.type("b1", "One. Two. Three. Four."); // Bo appends
+    await settle(250);
+
+    for (const peer of [a, b]) {
+      const html = peer.editor.html("b1") ?? "";
+      expect(html, "the cut stays cut").not.toContain("Two.");
+      expect(html, "and the addition stays").toContain("Four.");
+    }
+  });
+});

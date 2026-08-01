@@ -62,11 +62,16 @@ describe("the shared subtitle shape", () => {
     const doc = new Y.Doc();
     writeCues(doc, [cue("1", "First"), cue("2", "Second", 2000), cue("3", "Third", 4000)], ORIGIN);
 
+    // Deeply, and by path: a cue is a map of fields holding a Y.Text, so an edit to a line
+    // lands two levels down. The guarantee is the same one it always was, observed where
+    // the change now happens.
     const touched: string[] = [];
-    doc.getMap<Record<string, unknown>>(CUES).observe((e) => touched.push(...e.keysChanged));
+    doc.getMap(CUES).observeDeep((events) => {
+      for (const e of events) touched.push(String(e.path[0] ?? ""));
+    });
     writeCues(doc, [cue("1", "First"), cue("2", "Edited", 2000), cue("3", "Third", 4000)], ORIGIN);
 
-    expect(touched).toEqual(["2"]);
+    expect([...new Set(touched)], "one cue, not the file").toEqual(["2"]);
   });
 
   it("does not rewrite the order when only text changed", () => {
