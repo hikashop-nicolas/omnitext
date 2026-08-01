@@ -676,8 +676,8 @@ how likely a user is to hit it.
   including addresses on a private network only that peer can reach. The rows a refresh
   produces travel as cells instead, published by whoever ran it, so nothing is lost.
 ~~Data validation, protection, outline/grouping~~ **Done 2026-08-01** as sheet settings, one entry per group.
-- Named ranges and table definitions
-- Cell formatting beyond the input (rich text in cells, number formats)
+- ~~Named ranges~~ **Done 2026-08-01.** Table definitions remain.
+- ~~Cell formatting beyond the input (rich text in cells, number formats)~~ **Done 2026-08-01**, in its own map beside the inputs.
 - ~~Print setup, frozen panes and split panes, filters and sort~~ **Done 2026-08-01**, with row/column sizes, hidden rows and columns, merges and conditional formats, as sheet settings carried one entry per group.
 - VBA macros
 

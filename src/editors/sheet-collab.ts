@@ -24,6 +24,8 @@ export interface CellInput {
   r: number;
   c: number;
   input: string;
+  /** How the cell looks, as JSON, or "" when unformatted. Carried in its own map. */
+  fmt?: string;
 }
 
 const cellMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(CELLS);
@@ -117,6 +119,8 @@ export const CHARTS = "sheet.charts";
 export const PIVOTS = "sheet.pivots";
 export const DRAWINGS = "sheet.drawings";
 export const SETTINGS = "sheet.settings";
+export const FORMATS = "sheet.formats";
+export const NAMES = "sheet.names";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -174,6 +178,8 @@ const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
 const pivotMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(PIVOTS);
 const drawingMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(DRAWINGS);
 const settingsMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(SETTINGS);
+const formatMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(FORMATS);
+const namesMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(NAMES);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -312,6 +318,50 @@ export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unkno
   }, origin);
 }
 
+/**
+ * Cell formatting, addressed exactly like a cell input but kept in its own map.
+ *
+ * An input changes on every keystroke and is a few bytes; formatting changes rarely and is
+ * an object. Sharing them in one entry would mean re-sending the formatting of a cell every
+ * time someone typed a character in it.
+ */
+export function readFormats(doc: Y.Doc): CellInput[] {
+  const out: CellInput[] = [];
+  for (const [key, fmt] of formatMap(doc).entries()) {
+    const at = parseAddress(key);
+    if (at) out.push({ ...at, input: "", fmt });
+  }
+  return out;
+}
+
+/** Write cell formatting, touching only what differs. */
+export function writeFormats(doc: Y.Doc, changes: readonly CellInput[], origin: unknown): void {
+  const formats = formatMap(doc);
+  const changed = changes.filter((c) => c.fmt !== undefined && formats.get(addressOf(c.sheet, c.r, c.c)) !== c.fmt);
+  if (!changed.length) return;
+  doc.transact(() => {
+    for (const c of changed) formats.set(addressOf(c.sheet, c.r, c.c), c.fmt ?? "");
+  }, origin);
+}
+
+/** The workbook's defined names. */
+export function readNames(doc: Y.Doc): Record<string, string> {
+  return Object.fromEntries(namesMap(doc).entries());
+}
+
+/** Write the defined names, touching only what differs. */
+export function writeNames(doc: Y.Doc, names: Record<string, string>, origin: unknown): void {
+  const map = namesMap(doc);
+  const wanted = new Set(Object.keys(names));
+  const dropped = [...map.keys()].filter((k) => !wanted.has(k));
+  const changed = Object.entries(names).filter(([k, v]) => map.get(k) !== v);
+  if (!changed.length && !dropped.length) return;
+  doc.transact(() => {
+    for (const [k, v] of changed) map.set(k, v);
+    for (const k of dropped) map.delete(k);
+  }, origin);
+}
+
 /** One group of one sheet's settings. Keyed "sheet:group" so groups do not clobber. */
 export interface SettingRef {
   sheet: string;
@@ -445,9 +495,10 @@ export function sheetSharedTypes(
   doc: Y.Doc,
 ): [
   Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>, Y.Map<string>,
+  Y.Map<string>, Y.Map<string>,
 ] {
   return [
     sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc), drawingMap(doc),
-    settingsMap(doc),
+    settingsMap(doc), formatMap(doc), namesMap(doc),
   ];
 }

@@ -17,6 +17,7 @@ interface CellInput {
   r: number;
   c: number;
   input: string;
+  fmt?: string;
 }
 interface StructuralOp {
   kind: "insert" | "delete";
@@ -58,6 +59,9 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  names: Record<string, string> = {};
+  namesReporter: ((n: Record<string, string>) => void) | null = null;
+  formats = new Map<string, string>();
   settingList: { sheet: string; group: string; value: string }[] = [
     { sheet: "s0", group: "freeze", value: "" },
     { sheet: "s0", group: "autoFilter", value: "" },
@@ -80,6 +84,20 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  definedNames(): Record<string, string> {
+    return { ...this.names };
+  }
+  setDefinedNamesReporter(h: ((n: Record<string, string>) => void) | null): void {
+    this.namesReporter = h;
+  }
+  applyRemoteDefinedNames(n: Record<string, string>): void {
+    this.names = { ...n };
+  }
+  setName(name: string, ref: string): void {
+    this.names[name] = ref;
+    this.namesReporter?.(this.definedNames());
+  }
+
   sheetSettings(): StubSheet["settingList"] {
     return this.settingList.map((x) => ({ ...x }));
   }
@@ -221,11 +239,21 @@ class StubSheet {
     return [...this.cells].map(([k, input]) => {
       const [rc, sheet] = k.split("!");
       const [r, c] = rc.split(",").map(Number);
-      return { sheet, r, c, input };
+      return { sheet, r, c, input, fmt: this.formats.get(k) ?? "" };
     });
   }
   applyRemoteCells(changes: CellInput[]): void {
-    for (const change of changes) this.cells.set(StubSheet.key(change), change.input);
+    for (const change of changes) {
+      this.cells.set(StubSheet.key(change), change.input);
+      if (change.fmt !== undefined) this.formats.set(StubSheet.key(change), change.fmt);
+    }
+  }
+  format(sheet: string, r: number, c: number): string | undefined {
+    return this.formats.get(StubSheet.key({ sheet, r, c }));
+  }
+  styleCell(sheet: string, r: number, c: number, fmt: string): void {
+    this.formats.set(StubSheet.key({ sheet, r, c }), fmt);
+    this.onCellsChanged([{ sheet, r, c, input: this.value(sheet, r, c) ?? "", fmt }]);
   }
   applyRemoteStructural(op: StructuralOp): void {
     this.structural.push(op);
@@ -483,6 +511,24 @@ describe("two peers, sheets and pictures", () => {
       expect(a.editor.sectionM, "Ada's edit survives").toContain("One = 111");
       expect(a.editor.sectionM, "and so does Bo's").toContain("Two = 222");
       expect(b.editor.sectionM).toBe(a.editor.sectionM);
+    });
+
+    it("carries cell formatting to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.styleCell("Sheet1", 1, 1, JSON.stringify({ numFmt: "0.00%", cellStyle: { bold: true } }));
+      await settle(300);
+
+      expect(b.editor.format("Sheet1", 1, 1), "the format arrived").toContain("0.00%");
+    });
+
+    it("carries defined names to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.setName("TaxRate", "Sheet1!$B$1");
+      await settle(300);
+
+      expect(b.editor.definedNames().TaxRate).toBe("Sheet1!$B$1");
     });
 
     it("carries a frozen pane to the other peer", async () => {

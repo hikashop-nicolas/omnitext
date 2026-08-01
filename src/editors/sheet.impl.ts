@@ -15,6 +15,8 @@ import {
   readImages,
   readDrawings,
   readPivots,
+  readFormats,
+  readNames,
   readSettings,
   readQueries,
   readSheets,
@@ -26,6 +28,8 @@ import {
   writeImages,
   writeDrawings,
   writePivots,
+  writeFormats,
+  writeNames,
   writeSettings,
   writeQueries,
   writeSheets,
@@ -146,6 +150,15 @@ class SheetInstance implements EditorInstance {
     const charts = readCharts(doc);
     if (charts.length) editor.applyRemoteCharts(charts);
     // Definitions only. The rows a refresh produces arrive as cells, from whoever ran it.
+    const names = readNames(doc);
+    if (Object.keys(names).length) editor.applyRemoteDefinedNames(names);
+    // Formatting is applied as cell changes whose input is left alone: applyRemoteCells
+    // writes the value first, so an empty one here would blank the cell it is styling.
+    const formats = readFormats(doc).map((f) => ({
+      ...f,
+      input: editor.cellInputs().find((c) => c.sheet === f.sheet && c.r === f.r && c.c === f.c)?.input ?? "",
+    }));
+    if (formats.length) editor.applyRemoteCells(formats);
     const settings = readSettings(doc);
     if (settings.length) editor.applyRemoteSheetSettings(settings);
     const drawings = readDrawings(doc);
@@ -181,6 +194,8 @@ class SheetInstance implements EditorInstance {
     if (this.viewOnly) return;
     debug("wire", "publishing cells", () => changes);
     writeCells(this.shared, changes, this.origin);
+    // Formatting travels in its own map, so typing in a cell does not re-send how it looks.
+    writeFormats(this.shared, changes, this.origin);
   }
 
   collab(): CollabBinding {
@@ -261,6 +276,10 @@ class SheetInstance implements EditorInstance {
           if (this.viewOnly) return;
           writeCharts(doc, charts, this.origin);
         });
+        editor.setDefinedNamesReporter((names) => {
+          if (this.viewOnly) return;
+          writeNames(doc, names, this.origin);
+        });
         editor.setSheetSettingsReporter((settings) => {
           if (this.viewOnly) return;
           writeSettings(doc, settings, this.origin);
@@ -283,6 +302,8 @@ class SheetInstance implements EditorInstance {
           writePivots(doc, editor.pivots(), this.origin);
           writeDrawings(doc, editor.drawings(), this.origin);
           writeSettings(doc, editor.sheetSettings(), this.origin);
+          writeNames(doc, editor.definedNames(), this.origin);
+          writeFormats(doc, editor.cellInputs(), this.origin);
           void editor.queries().then((m) => {
             if (m != null && this.shared === doc) writeQueries(doc, m, this.origin);
           });
@@ -294,7 +315,7 @@ class SheetInstance implements EditorInstance {
           if (transaction.origin === this.origin) return;
           this.applySheetsAndImages(doc);
         };
-        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap, settingsMap] =
+        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap, settingsMap, formatsMap, namesMap] =
           sheetSharedTypes(doc);
         sheetsMap.observeDeep(onSheets);
         order.observe(onSheets);
@@ -304,6 +325,8 @@ class SheetInstance implements EditorInstance {
         pivotsMap.observeDeep(onSheets);
         drawingsMap.observeDeep(onSheets);
         settingsMap.observe(onSheets);
+        formatsMap.observe(onSheets);
+        namesMap.observe(onSheets);
         this.unwatchSheets = () => {
           sheetsMap.unobserveDeep(onSheets);
           order.unobserve(onSheets);
@@ -313,6 +336,8 @@ class SheetInstance implements EditorInstance {
           pivotsMap.unobserveDeep(onSheets);
           drawingsMap.unobserveDeep(onSheets);
           settingsMap.unobserve(onSheets);
+          formatsMap.unobserve(onSheets);
+          namesMap.unobserve(onSheets);
         };
 
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
@@ -338,6 +363,7 @@ class SheetInstance implements EditorInstance {
         this.editor?.setSheetsReporter(null);
         this.editor?.setImagesReporter(null);
         this.editor?.setChartsReporter(null);
+        this.editor?.setDefinedNamesReporter(null);
         this.editor?.setSheetSettingsReporter(null);
         this.editor?.setDrawingsReporter(null);
         this.editor?.setPivotsReporter(null);
