@@ -23,6 +23,10 @@ interface Cue {
   endMs: number;
   text: string;
 }
+interface DocField {
+  key: string;
+  value: string;
+}
 interface PeerCue {
   id: string;
   colour: string;
@@ -44,6 +48,21 @@ interface UndoHandler {
  */
 class StubEditor {
   cues: Cue[] = [];
+  /**
+   * Everything the file is beside its cues, keyed. The values here are the ones subedit
+   * reports for an ASS file, because ASS is where this matters: a style table is a list of
+   * independent definitions two people can edit at once.
+   */
+  fields: DocField[] = [
+    { key: "format", value: "ass" },
+    { key: "eol", value: "\n" },
+    { key: "assScriptInfo", value: "[Script Info]\nTitle: Untitled\n" },
+    { key: "style:Default", value: JSON.stringify({ name: "Default", Fontsize: "36" }) },
+    { key: "style:Title", value: JSON.stringify({ name: "Title", Fontsize: "60" }) },
+  ];
+  fieldsReporter: ((f: DocField[]) => void) | null = null;
+  /** How many times a peer's fields were put on screen, to catch one echoing round. */
+  fieldsApplied = 0;
   peerCues: PeerCue[] = [];
   undoHandler: UndoHandler | null = null;
   selected: string | null = null;
@@ -58,6 +77,20 @@ class StubEditor {
   applyRemoteCues(cues: Cue[]): void {
     this.applied++;
     this.cues = cues.map((c) => ({ ...c }));
+  }
+  docFields(): DocField[] {
+    return this.fields.map((f) => ({ ...f }));
+  }
+  setDocFieldsReporter(h: ((f: DocField[]) => void) | null): void {
+    this.fieldsReporter = h;
+  }
+  applyRemoteDocFields(next: DocField[]): void {
+    this.fieldsApplied++;
+    for (const item of next) {
+      const found = this.fields.find((f) => f.key === item.key);
+      if (found) found.value = item.value;
+      else this.fields.push({ ...item });
+    }
   }
   setPeerCues(peers: PeerCue[]): void {
     this.peerCues = peers;
@@ -87,6 +120,17 @@ class StubEditor {
   click(id: string | null): void {
     this.selected = id;
     this.onSelectionChanged(id);
+  }
+  /** Change a document field, the way editing the style table or the script info does. */
+  setField(key: string, value: string): void {
+    const found = this.fields.find((f) => f.key === key);
+    if (found) found.value = value;
+    else this.fields.push({ key, value });
+    this.fieldsReporter?.(this.docFields());
+    this.onChange();
+  }
+  field(key: string): string | undefined {
+    return this.fields.find((f) => f.key === key)?.value;
   }
 }
 
@@ -198,19 +242,26 @@ const settle = (ms = 120): Promise<void> => new Promise((r) => setTimeout(r, ms)
 let room = 0;
 const nextRoom = (): string => `pair-${room++}-${Math.random().toString(36).slice(2)}`;
 
+/** Host and joiner on the same file, bound and synced. The common opening. */
+async function connected(readOnlyJoiner = false): Promise<{ a: Peer; b: Peer }> {
+  const roomId = nextRoom();
+  const a = await makePeer({ text: FILE, name: "Ada", colour: "#f00", roomId });
+  await settle();
+  const b = await makePeer({
+    text: FILE,
+    name: "Bo",
+    colour: "#00f",
+    roomId,
+    key: a.session.key,
+    readOnly: readOnlyJoiner,
+  });
+  await settle(250);
+  return { a, b };
+}
+
 describe("two peers, real transport, real binding", () => {
   beforeEach(() => void (built.length = 0));
   afterEach(() => void built.splice(0));
-
-  /** Host and joiner on the same file, bound and synced. The common opening. */
-  async function connected(): Promise<{ a: Peer; b: Peer }> {
-    const roomId = nextRoom();
-    const a = await makePeer({ text: FILE, name: "Ada", colour: "#f00", roomId });
-    await settle();
-    const b = await makePeer({ text: FILE, name: "Bo", colour: "#00f", roomId, key: a.session.key });
-    await settle(250);
-    return { a, b };
-  }
 
   it("carries an edit from one peer's editor to the other's", async () => {
     const { a, b } = await connected();
@@ -344,5 +395,85 @@ describe("two peers, real transport, real binding", () => {
     b.editor.type("cue3", "Bo cannot.");
     await settle();
     expect(a.editor.cues[2].text, "and cannot change it").toBe("Third line.");
+  });
+});
+
+// Everything the file is beside its cues. Two peers agreeing on every line of dialogue
+// while disagreeing on the style table, the script info, or the line endings is a real way
+// to lose work, and neither editor can see it happening on its own.
+describe("two peers, the document beside its cues", () => {
+  beforeEach(() => void (built.length = 0));
+  afterEach(() => void built.splice(0));
+
+  it("carries a document field from one peer to the other", async () => {
+    const { a, b } = await connected();
+
+    a.editor.setField("assScriptInfo", "[Script Info]\nTitle: Ada's cut\n");
+    await settle();
+
+    expect(b.editor.field("assScriptInfo")).toContain("Ada's cut");
+  });
+
+  // The reason fields are keyed rather than sent as one blob. Both peers change the style
+  // table at once in different rows; a whole-table exchange would hand the table to
+  // whoever spoke last, and the other would find their work gone.
+  it("merges two peers restyling different styles at the same moment", async () => {
+    const { a, b } = await connected();
+
+    a.editor.setField("style:Default", JSON.stringify({ name: "Default", Fontsize: "48" }));
+    b.editor.setField("style:Title", JSON.stringify({ name: "Title", Fontsize: "80" }));
+    await settle(200);
+
+    for (const peer of [a, b]) {
+      expect(peer.editor.field("style:Default"), "Ada's restyle survives").toContain("48");
+      expect(peer.editor.field("style:Title"), "and so does Bo's").toContain("80");
+    }
+  });
+
+  it("does not send a peer's field back to them", async () => {
+    const { a, b } = await connected();
+    const before = a.editor.fieldsApplied;
+
+    a.editor.setField("eol", "\r\n");
+    await settle(200);
+
+    expect(b.editor.field("eol")).toBe("\r\n");
+    expect(a.editor.fieldsApplied, "the change did not come back").toBe(before);
+  });
+
+  it("gives a joiner the seeder's fields, not its own", async () => {
+    const roomId = nextRoom();
+    const a = await makePeer({ text: FILE, name: "Ada", colour: "#f00", roomId });
+    a.editor.setField("style:Default", JSON.stringify({ name: "Default", Fontsize: "22" }));
+    await settle();
+
+    const b = await makePeer({ text: FILE, name: "Bo", colour: "#00f", roomId, key: a.session.key });
+    await settle(250);
+
+    expect(b.editor.field("style:Default")).toContain("22");
+  });
+
+  // subedit has no read-only mode of its own, so the binding is the only thing standing
+  // between a watcher and everyone else's style table.
+  it("keeps a view-only peer's fields to themselves", async () => {
+    const { a, b } = await connected(true);
+
+    b.editor.setField("assScriptInfo", "[Script Info]\nTitle: Bo was here\n");
+    await settle(200);
+
+    expect(a.editor.field("assScriptInfo"), "a watcher writes nothing").not.toContain(
+      "Bo was here",
+    );
+  });
+
+  it("carries cues and fields in the same session", async () => {
+    const { a, b } = await connected();
+
+    a.editor.type("cue2", "Second cue, edited by Ada.");
+    b.editor.setField("fps", "23.976");
+    await settle(200);
+
+    expect(b.editor.cues.find((c) => c.id === "cue2")?.text).toBe("Second cue, edited by Ada.");
+    expect(a.editor.field("fps")).toBe("23.976");
   });
 });

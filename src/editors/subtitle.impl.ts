@@ -7,7 +7,16 @@ import type {
   EditorModule,
   EditorMountContext,
 } from "../core/types";
-import { isEmpty, readCues, seedCues, sharedTypes, writeCues } from "./subtitle-collab";
+import {
+  isEmpty,
+  readCues,
+  readFields,
+  seedCues,
+  seedFields,
+  sharedTypes,
+  writeCues,
+  writeFields,
+} from "./subtitle-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
 import { debug } from "../core/debug";
 
@@ -99,6 +108,7 @@ class SubtitleInstance implements EditorInstance {
 
         if (ctx.seed) {
           seedCues(doc, handle.cueSnapshot(), this.origin);
+          seedFields(doc, handle.docFields(), this.origin);
         } else if (!isEmpty(doc)) {
           // Adopt the session's cues. Only when there are some: adopting an empty shared
           // document would blank the file this peer already had open.
@@ -109,12 +119,24 @@ class SubtitleInstance implements EditorInstance {
           if (transaction.origin === this.origin) return; // our own edit, already on screen
           this.applyRemote(doc);
         };
-        const [cues, order] = sharedTypes(doc);
+        const [cues, order, fields] = sharedTypes(doc);
         cues.observe(onChange);
         order.observe(onChange);
+        fields.observe(onChange);
+
+        // What this peer changes beside the cues goes out the same way an edit does, and
+        // stops here for a watcher: subedit has no read-only mode, so as with publish()
+        // this check is the only thing between a view-only peer and everyone's styles.
+        handle.setDocFieldsReporter((f) => {
+          if (this.applyingRemote || this.viewOnly) return;
+          writeFields(doc, f, this.origin);
+        });
+
         this.unwatch = () => {
           cues.unobserve(onChange);
           order.unobserve(onChange);
+          fields.unobserve(onChange);
+          this.handle?.setDocFieldsReporter(null);
         };
 
         // Presence: publish which cue we are on, and mark the cues the others are on.
@@ -166,6 +188,7 @@ class SubtitleInstance implements EditorInstance {
     this.applyingRemote = true;
     try {
       this.handle.applyRemoteCues(readCues<Cue>(doc));
+      this.handle.applyRemoteDocFields(readFields(doc));
     } finally {
       this.applyingRemote = false;
     }

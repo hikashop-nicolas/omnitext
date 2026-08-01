@@ -89,6 +89,55 @@ export function isEmpty(doc: Y.Doc): boolean {
 }
 
 /** The shared types a session watches, and that an UndoManager should track. */
-export function sharedTypes(doc: Y.Doc): [Y.Map<Stored>, Y.Array<string>] {
-  return [cueMap(doc), orderArray(doc)];
+export function sharedTypes(doc: Y.Doc): [Y.Map<Stored>, Y.Array<string>, Y.Map<string>] {
+  return [cueMap(doc), orderArray(doc), fieldMap(doc)];
+}
+
+// Everything the file is besides its cues: the ASS style table, the verbatim script-info
+// and styles tail, the field orders, the line endings, the frame rate, the track labels.
+//
+// One entry per field rather than one blob for the lot, for the same reason cues are keyed:
+// a peer restyling Default and a peer restyling Title are not in conflict, and a blob would
+// make them one.
+
+export const FIELDS = "subedit.fields";
+
+export interface DocField {
+  key: string;
+  value: string;
+}
+
+const fieldMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(FIELDS);
+
+/** The shared document fields. */
+export function readFields(doc: Y.Doc): DocField[] {
+  return [...fieldMap(doc).entries()].map(([key, value]) => ({ key, value }));
+}
+
+/**
+ * Put the local fields into the shared document, writing only what differs.
+ *
+ * Fields this peer no longer has are left alone rather than deleted. A style table is not
+ * a set every peer sees the same way: a peer that opened an SRT reports no styles at all,
+ * and deleting on absence would let it wipe the ASS styles another peer is working on.
+ * Removing a style is a deliberate act and does not travel yet.
+ */
+export function writeFields(doc: Y.Doc, fields: readonly DocField[], origin: unknown): void {
+  const map = fieldMap(doc);
+  const changed = fields.filter((f) => map.get(f.key) !== f.value);
+  if (!changed.length) return;
+  doc.transact(() => {
+    for (const f of changed) map.set(f.key, f.value);
+  }, origin);
+}
+
+/** Seed the fields from this peer. Exactly one peer may do this. */
+export function seedFields(doc: Y.Doc, fields: readonly DocField[], origin: unknown): void {
+  if (fieldMap(doc).size > 0) return;
+  writeFields(doc, fields, origin);
+}
+
+/** The field map, for watching and for undo. */
+export function fieldType(doc: Y.Doc): Y.Map<string> {
+  return fieldMap(doc);
 }
