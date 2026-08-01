@@ -43,6 +43,11 @@ interface UndoHandler {
  * behind. richdoc's own tests hold it to that; this one assumes it.
  */
 class StubRich {
+  extras: { kind: string; id: string; value: string }[] = [
+    { kind: "geometry", id: "", value: JSON.stringify({ widthPx: 794 }) },
+    { kind: "band", id: "header", value: "<p>Head</p>" },
+  ];
+  extrasReporter: ((e: StubRich["extras"]) => void) | null = null;
   blocks: BlockState[] = [];
   undoHandler: UndoHandler | null = null;
   reporter: ((changes: BlockChanges) => void) | null = null;
@@ -50,6 +55,29 @@ class StubRich {
   peerCarets: PeerCaretState[] = [];
   /** How many times a peer's body was put on screen, to catch an edit echoing round. */
   applied = 0;
+
+  docExtras(): StubRich["extras"] {
+    return this.extras.map((e) => ({ ...e }));
+  }
+  setDocExtrasReporter(h: ((e: StubRich["extras"]) => void) | null): void {
+    this.extrasReporter = h;
+  }
+  applyRemoteDocExtras(next: StubRich["extras"]): void {
+    for (const item of next) {
+      const found = this.extras.find((e) => e.kind === item.kind && e.id === item.id);
+      if (found) found.value = item.value;
+      else this.extras.push({ ...item });
+    }
+  }
+  setExtra(kind: string, id: string, value: string): void {
+    const found = this.extras.find((e) => e.kind === kind && e.id === id);
+    if (found) found.value = value;
+    else this.extras.push({ kind, id, value });
+    this.extrasReporter?.(this.docExtras());
+  }
+  extra(kind: string, id: string): string | undefined {
+    return this.extras.find((e) => e.kind === kind && e.id === id)?.value;
+  }
 
   blockSnapshot(): BlockState[] {
     return this.blocks.map((b) => ({ ...b }));
@@ -362,6 +390,29 @@ describe("two peers on a rich document", () => {
       expect(merged, "and so does Bo's").toContain("the finish");
       expect(b.editor.html("b2"), "and both hold the same paragraph").toBe(merged);
     });
+  });
+
+  // The document beside its body.
+  it("carries a header to the other peer", async () => {
+    const { a, b } = await connected();
+
+    a.editor.setExtra("band", "header", "<p>Written by Ada</p>");
+    await settle(300);
+
+    expect(b.editor.extra("band", "header")).toBe("<p>Written by Ada</p>");
+  });
+
+  // Keyed per entry, so a header and the page size do not overwrite each other.
+  it("keeps a header and a page size changed at the same time", async () => {
+    const { a, b } = await connected();
+
+    a.editor.setExtra("band", "header", "<p>Ada's header</p>");
+    b.editor.setExtra("geometry", "", JSON.stringify({ widthPx: 999 }));
+    await settle(400);
+
+    expect(a.editor.extra("band", "header"), "A kept its own").toContain("Ada's header");
+    expect(JSON.parse(String(a.editor.extra("geometry", ""))).widthPx, "and took B's").toBe(999);
+    expect(b.editor.extra("band", "header"), "and B has both").toContain("Ada's header");
   });
 
   it("gives undo, the reporter and the carets back when the session ends", async () => {

@@ -4,13 +4,16 @@ import { debug } from "../core/debug";
 import { publishPosition, watchPeers } from "./peer-presence";
 import {
   dataUrlsIn,
+  extrasType,
   fromBlobRefs,
   isEmpty,
   readAsChanges,
   seedBlocks,
   sharedTypes,
+  readExtras,
   toBlobRefs,
   writeBlocks,
+  writeExtras,
   type BlockChanges,
   type BlockState,
 } from "./richdoc-collab";
@@ -23,6 +26,9 @@ import {
 
 /** What this binding needs of a richdoc editor. A subset of RichEditor. */
 export interface RichHandle {
+  docExtras(): { kind: string; id: string; value: string }[];
+  setDocExtrasReporter(handler: ((extras: { kind: string; id: string; value: string }[]) => void) | null): void;
+  applyRemoteDocExtras(extras: { kind: string; id: string; value: string }[]): void;
   blockSnapshot(): BlockState[];
   applyRemoteBlocks(changes: BlockChanges): void;
   setBlockReporter(handler: ((changes: BlockChanges) => void) | null): void;
@@ -161,9 +167,15 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
 
       // Subscribe before seeding, so nothing this peer does from here on is missed.
       handle.setBlockReporter(publish);
+      // The document beside its body: headers, footers, notes, page geometry, styles.
+      handle.setDocExtrasReporter((extras) => {
+        if (!shared || applyingRemote || viewOnly) return;
+        writeExtras(doc, extras, origin);
+      });
 
       if (ctx.seed) {
         seedBlocks(doc, await liftImages(handle.blockSnapshot()), origin);
+        writeExtras(doc, handle.docExtras(), origin);
       } else if (!isEmpty(doc)) {
         // Adopt the session's body. Only when there is one: adopting an empty shared
         // document would blank the file this peer already had open.
@@ -174,12 +186,26 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
         if (transaction.origin === origin) return; // our own edit, already on screen
         applyRemote(doc);
       };
+      const extras = extrasType(doc);
+      const onExtras = (_e: unknown, transaction: Y.Transaction): void => {
+        if (transaction.origin === origin) return;
+        const incoming = readExtras(doc);
+        if (!incoming.length) return;
+        applyingRemote = true;
+        try {
+          handle.applyRemoteDocExtras(incoming);
+        } finally {
+          applyingRemote = false;
+        }
+      };
+      extras.observe(onExtras);
       const [blocks, order] = sharedTypes(doc);
       blocks.observeDeep(onChange); // deep: typing inside a block changes its Y.Text, not the map
       order.observe(onChange);
       unwatch = () => {
         blocks.unobserveDeep(onChange);
         order.unobserve(onChange);
+        extras.unobserve(onExtras);
       };
 
       // Presence: publish where this caret is, and draw everyone else's.
@@ -219,6 +245,7 @@ export function richdocBinding(host: RichBindingHost): CollabBinding {
       blobs = undefined;
       const handle = host.handle();
       handle?.setBlockReporter(null); // stop paying for the diff once nobody wants it
+      handle?.setDocExtrasReporter(null);
       handle?.setSelectionReporter(null);
       handle?.setPeerCarets([]); // nobody is here any more, so nobody is drawn
       handle?.setUndoHandler(null);

@@ -28,6 +28,13 @@ import { spliceIds } from "./order";
 
 export const BLOCKS = "richdoc.blocks";
 export const ORDER = "richdoc.order";
+/**
+ * The document beside its body: bands, note bodies, page geometry, added styles.
+ *
+ * Keyed "kind:id" in one map, so a header and the page size are separate entries and two
+ * people changing one each both keep their change.
+ */
+export const EXTRAS = "richdoc.extras";
 
 /** One block's identity and inline markup, as richdoc reports and accepts them. */
 export interface BlockState {
@@ -47,6 +54,37 @@ type Stored = Y.Text | string;
 
 const blockMap = (doc: Y.Doc): Y.Map<Stored> => doc.getMap<Stored>(BLOCKS);
 const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(ORDER);
+const extrasMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(EXTRAS);
+
+/** One entry of the document beside its body. */
+export interface ExtraRef {
+  kind: string;
+  id: string;
+  value: string;
+}
+
+const extraKey = (kind: string, id: string): string => `${kind}:${id}`;
+
+/** Everything the session holds beside the blocks. */
+export function readExtras(doc: Y.Doc): ExtraRef[] {
+  const out: ExtraRef[] = [];
+  for (const [key, value] of extrasMap(doc).entries()) {
+    const colon = key.indexOf(":");
+    if (colon < 0) continue;
+    out.push({ kind: key.slice(0, colon), id: key.slice(colon + 1), value });
+  }
+  return out;
+}
+
+/** Write them, touching only what differs. */
+export function writeExtras(doc: Y.Doc, next: readonly ExtraRef[], origin: unknown): void {
+  const extras = extrasMap(doc);
+  const changed = next.filter((e) => extras.get(extraKey(e.kind, e.id)) !== e.value);
+  if (!changed.length) return;
+  doc.transact(() => {
+    for (const e of changed) extras.set(extraKey(e.kind, e.id), e.value);
+  }, origin);
+}
 
 const htmlOf = (value: Stored | undefined): string | undefined =>
   value === undefined ? undefined : typeof value === "string" ? value : value.toString();
@@ -206,4 +244,9 @@ export function isEmpty(doc: Y.Doc): boolean {
 /** The shared types a session watches, and that an UndoManager should track. */
 export function sharedTypes(doc: Y.Doc): [Y.Map<Stored>, Y.Array<string>] {
   return [blockMap(doc), orderArray(doc)];
+}
+
+/** The extras map, watched separately from the blocks. */
+export function extrasType(doc: Y.Doc): Y.Map<string> {
+  return extrasMap(doc);
 }

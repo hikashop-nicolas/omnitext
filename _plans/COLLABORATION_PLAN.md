@@ -700,9 +700,9 @@ is never run on one.
   The whole `data:` URL is what gets stored, not the decoded bytes, so restoring it is
   exact rather than reassembled: richdoc claims an untouched part comes back byte for
   byte, and an image put back together slightly differently would quietly break that.
-- Headers and footers, footnotes and endnotes
+- ~~Headers and footers, footnotes and endnotes~~ **Done 2026-08-01**, with page geometry and added styles, as one "document beside its body" channel keyed per entry.
 - Comments and tracked changes
-- Named styles, page geometry
+- ~~Named styles, page geometry~~ **Done 2026-08-01** (see above).
 - Tables: inside block HTML, so carried, but last-writer-wins for the whole block
 
 **subedit**
