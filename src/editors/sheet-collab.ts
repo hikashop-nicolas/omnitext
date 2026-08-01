@@ -114,6 +114,7 @@ export const SHEETS = "sheet.sheets";
 export const SHEET_ORDER = "sheet.order";
 export const IMAGES = "sheet.images";
 export const CHARTS = "sheet.charts";
+export const PIVOTS = "sheet.pivots";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -168,6 +169,7 @@ const sheetMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(SHEETS);
 const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(SHEET_ORDER);
 const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
 const chartMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(CHARTS);
+const pivotMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(PIVOTS);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -306,6 +308,47 @@ export function writeCharts(doc: Y.Doc, next: readonly ChartRef[], origin: unkno
   }, origin);
 }
 
+/** A pivot as the session carries it: its definition, not its output. */
+export interface PivotRef {
+  id: string;
+  sheet: string;
+  model: string;
+}
+
+/** Every pivot the session knows about. */
+export function readPivots(doc: Y.Doc): PivotRef[] {
+  const out: PivotRef[] = [];
+  for (const [id, f] of pivotMap(doc)) {
+    out.push({ id, sheet: str(f, "sheet"), model: str(f, "model") });
+  }
+  return out;
+}
+
+/** Write the pivots, touching only what differs. */
+export function writePivots(doc: Y.Doc, next: readonly PivotRef[], origin: unknown): void {
+  const pivots = pivotMap(doc);
+  const wanted = new Set(next.map((p) => p.id));
+  const dropped = [...pivots.keys()].filter((id) => !wanted.has(id));
+  const changed = next.filter((p) => {
+    const f = pivots.get(p.id);
+    return !f || str(f, "sheet") !== p.sheet || str(f, "model") !== p.model;
+  });
+  if (!changed.length && !dropped.length) return;
+
+  doc.transact(() => {
+    for (const p of changed) {
+      let f = pivots.get(p.id);
+      if (!f) {
+        f = new Y.Map();
+        pivots.set(p.id, f);
+      }
+      if (str(f, "sheet") !== p.sheet) f.set("sheet", p.sheet);
+      if (str(f, "model") !== p.model) f.set("model", p.model);
+    }
+    for (const id of dropped) pivots.delete(id);
+  }, origin);
+}
+
 /** The query definitions the session holds, or null when it has none. */
 export function readQueries(doc: Y.Doc): string | null {
   const text = queryText(doc);
@@ -322,6 +365,6 @@ export function writeQueries(doc: Y.Doc, sectionM: string, origin: unknown): voi
 /** The types a session watches for sheet, picture and chart changes. */
 export function sheetSharedTypes(
   doc: Y.Doc,
-): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text] {
-  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc)];
+): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>] {
+  return [sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc)];
 }

@@ -58,6 +58,8 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  pivotList: ChartInfo[] = [];
+  pivotsReporter: ((p: ChartInfo[]) => void) | null = null;
   sectionM: string | null = "section Section1;\r\n";
   queriesReporter: ((m: string) => void) | null = null;
   imagesReporter: ((i: ImageInfo[]) => void) | null = null;
@@ -71,6 +73,24 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  pivots(): ChartInfo[] {
+    return this.pivotList.map((p) => ({ ...p }));
+  }
+  setPivotsReporter(h: ((p: ChartInfo[]) => void) | null): void {
+    this.pivotsReporter = h;
+  }
+  applyRemotePivots(next: ChartInfo[]): void {
+    this.pivotList = next.map((p) => ({ ...p }));
+  }
+  addPivot(id: string, name: string): void {
+    this.pivotList.push({ id, sheet: "s0", model: JSON.stringify({ name }) });
+    this.pivotsReporter?.(this.pivots());
+  }
+  pivotName(id: string): string | undefined {
+    const found = this.pivotList.find((p) => p.id === id);
+    return found ? (JSON.parse(found.model) as { name?: string }).name : undefined;
+  }
+
   queries(): Promise<string | null> {
     return Promise.resolve(this.sectionM);
   }
@@ -415,6 +435,29 @@ describe("two peers, sheets and pictures", () => {
       expect(a.editor.sectionM, "Ada's edit survives").toContain("One = 111");
       expect(a.editor.sectionM, "and so does Bo's").toContain("Two = 222");
       expect(b.editor.sectionM).toBe(a.editor.sectionM);
+    });
+
+    it("carries a pivot definition to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addPivot("pv-ada", "PivotTable");
+      await settle(300);
+
+      expect(b.editor.pivots().map((p) => p.id)).toEqual(["pv-ada"]);
+      expect(b.editor.pivotName("pv-ada")).toBe("PivotTable");
+    });
+
+    // Two pivots share a name, so only the id keeps them apart.
+    it("keeps both when each peer adds a pivot with the same name", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addPivot("pv-ada", "PivotTable");
+      b.editor.addPivot("pv-bo", "PivotTable");
+      await settle(400);
+
+      const ids = (p: Peer) => p.editor.pivots().map((x) => x.id).sort();
+      expect(ids(a), "two, not one").toEqual(["pv-ada", "pv-bo"]);
+      expect(ids(b)).toEqual(["pv-ada", "pv-bo"]);
     });
 
     it("carries a chart to the other peer", async () => {

@@ -665,7 +665,9 @@ how likely a user is to hit it.
   blob store. Inserting and deleting did not exist in the editor at all and were built for
   this. Shapes and form controls remain.
 - ~~Charts (creation, data range, configuration)~~ **Done 2026-08-01**, whole definition per chart, last writer wins.
-- Pivot tables
+- ~~Pivot tables~~ **Done 2026-08-01**: definitions travel, output does not need to (it is
+  cells, already shared). Identified by id, because every pivot authored in the app is
+  called "PivotTable".
 - ~~Power Query: queries, their steps, refresh~~ **Definitions done 2026-08-01; refresh
   deliberately not shared.** A refresh reaches the network, so running a peer's definition
   automatically would let anyone in a session choose what everyone else's browser fetches,
