@@ -1,4 +1,5 @@
-import type * as Y from "yjs";
+import * as Y from "yjs";
+import { spliceIds } from "./order";
 
 // The shared shape for collaborating on a workbook.
 //
@@ -96,4 +97,156 @@ export function changedCells(doc: Y.Doc, keys: Iterable<string>): CellInput[] {
 /** The shared type a session watches, and that an UndoManager should track. */
 export function sharedType(doc: Y.Doc): Y.Map<string> {
   return cellMap(doc);
+}
+
+// --- sheets and pictures --------------------------------------------------------------
+//
+// Cells were the only thing a session carried, so adding, renaming or removing a sheet was
+// invisible to everyone else and the two workbooks quietly stopped matching. Same for
+// moving or replacing a picture.
+//
+// Both are keyed by the id sheetedit gives them rather than by name or position. A name
+// would move every cell keyed to it the moment someone renamed the sheet; a position would
+// move everything the moment someone reordered.
+
+export const SHEETS = "sheet.sheets";
+export const SHEET_ORDER = "sheet.order";
+export const IMAGES = "sheet.images";
+
+export interface SheetInfo {
+  id: string;
+  name: string;
+  visibility?: "hidden" | "veryHidden";
+}
+
+export interface ImageAnchor {
+  fromCol: number;
+  fromRow: number;
+  fromColOff: number;
+  fromRowOff: number;
+  toCol: number;
+  toRow: number;
+  toColOff: number;
+  toRowOff: number;
+}
+
+/** A picture as the session carries it: where it sits, and a hash for what it shows. */
+export interface ImageRef {
+  id: string;
+  sheet: string;
+  anchor: ImageAnchor;
+  sha: string;
+}
+
+type Fields = Y.Map<unknown>;
+
+const sheetMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(SHEETS);
+const orderArray = (doc: Y.Doc): Y.Array<string> => doc.getArray<string>(SHEET_ORDER);
+const imageMap = (doc: Y.Doc): Y.Map<Fields> => doc.getMap<Fields>(IMAGES);
+
+const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
+const num = (f: Fields, k: string): number => (typeof f.get(k) === "number" ? (f.get(k) as number) : 0);
+
+/** The sheets, in the order the session agrees on. Ids with no entry are skipped. */
+export function readSheets(doc: Y.Doc): SheetInfo[] {
+  const sheets = sheetMap(doc);
+  const out: SheetInfo[] = [];
+  for (const id of orderArray(doc).toArray()) {
+    const f = sheets.get(id);
+    if (!f) continue;
+    const visibility = str(f, "visibility");
+    out.push({
+      id,
+      name: str(f, "name"),
+      visibility: visibility === "hidden" || visibility === "veryHidden" ? visibility : undefined,
+    });
+  }
+  return out;
+}
+
+/** Write the sheet list, touching only what differs. */
+export function writeSheets(doc: Y.Doc, next: readonly SheetInfo[], origin: unknown): void {
+  const sheets = sheetMap(doc);
+  const order = orderArray(doc);
+  const prev = order.toArray();
+  const ids = next.map((s) => s.id);
+  const orderChanged = prev.length !== ids.length || prev.some((id, i) => id !== ids[i]);
+  const wanted = new Set(ids);
+  const dropped = [...sheets.keys()].filter((id) => !wanted.has(id));
+  const changed = next.filter((s) => {
+    const f = sheets.get(s.id);
+    return !f || str(f, "name") !== s.name || str(f, "visibility") !== (s.visibility ?? "");
+  });
+  if (!changed.length && !dropped.length && !orderChanged) return;
+
+  doc.transact(() => {
+    for (const s of changed) {
+      let f = sheets.get(s.id);
+      if (!f) {
+        f = new Y.Map();
+        sheets.set(s.id, f);
+      }
+      if (str(f, "name") !== s.name) f.set("name", s.name);
+      if (str(f, "visibility") !== (s.visibility ?? "")) f.set("visibility", s.visibility ?? "");
+    }
+    for (const id of dropped) sheets.delete(id);
+    if (orderChanged) spliceIds(order, prev, ids);
+  }, origin);
+}
+
+/** Every picture the session knows about. */
+export function readImages(doc: Y.Doc): ImageRef[] {
+  const out: ImageRef[] = [];
+  for (const [id, f] of imageMap(doc)) {
+    out.push({
+      id,
+      sheet: str(f, "sheet"),
+      sha: str(f, "sha"),
+      anchor: {
+        fromCol: num(f, "fromCol"),
+        fromRow: num(f, "fromRow"),
+        fromColOff: num(f, "fromColOff"),
+        fromRowOff: num(f, "fromRowOff"),
+        toCol: num(f, "toCol"),
+        toRow: num(f, "toRow"),
+        toColOff: num(f, "toColOff"),
+        toRowOff: num(f, "toRowOff"),
+      },
+    });
+  }
+  return out;
+}
+
+/** Write the pictures, touching only what differs. */
+export function writeImages(doc: Y.Doc, next: readonly ImageRef[], origin: unknown): void {
+  const images = imageMap(doc);
+  const same = (f: Fields, im: ImageRef): boolean =>
+    str(f, "sheet") === im.sheet &&
+    str(f, "sha") === im.sha &&
+    (Object.keys(im.anchor) as (keyof ImageAnchor)[]).every((k) => num(f, k) === im.anchor[k]);
+  const changed = next.filter((im) => {
+    const f = images.get(im.id);
+    return !f || !same(f, im);
+  });
+  if (!changed.length) return;
+
+  doc.transact(() => {
+    for (const im of changed) {
+      let f = images.get(im.id);
+      if (!f) {
+        f = new Y.Map();
+        images.set(im.id, f);
+      }
+      if (str(f, "sheet") !== im.sheet) f.set("sheet", im.sheet);
+      if (str(f, "sha") !== im.sha) f.set("sha", im.sha);
+      for (const k of Object.keys(im.anchor) as (keyof ImageAnchor)[]) {
+        if (num(f, k) !== im.anchor[k]) f.set(k, im.anchor[k]);
+      }
+    }
+  }, origin);
+}
+
+/** The types a session watches for sheet and picture changes. */
+export function sheetSharedTypes(doc: Y.Doc): [Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>] {
+  return [sheetMap(doc), orderArray(doc), imageMap(doc)];
 }

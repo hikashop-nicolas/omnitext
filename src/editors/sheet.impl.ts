@@ -1,4 +1,4 @@
-import { createSheetEditorAsync, type CellInput as SheetCellInput, type SheetEditor } from "sheetedit";
+import { createSheetEditorAsync, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
 import type * as Y from "yjs";
 import type {
   CollabBinding,
@@ -7,7 +7,20 @@ import type {
   EditorModule,
   EditorMountContext,
 } from "../core/types";
-import { changedCells, isEmpty, readCells, seedCells, sharedType, writeCells } from "./sheet-collab";
+import {
+  changedCells,
+  isEmpty,
+  readCells,
+  readImages,
+  readSheets,
+  seedCells,
+  sharedType,
+  sheetSharedTypes,
+  writeCells,
+  writeImages,
+  writeSheets,
+  type ImageRef,
+} from "./sheet-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
 import { OpSequencer, shiftCells, type StructuralOp } from "./sheet-structure";
 import { debug } from "../core/debug";
@@ -36,6 +49,11 @@ class SheetInstance implements EditorInstance {
   /** Set while a session runs: hands a structural edit to the session to be ordered. */
   private propose: ((op: StructuralOp) => void) | null = null;
   private unwatchOrdered: (() => void) | null = null;
+  private unwatchSheets: (() => void) | null = null;
+  private blobs: CollabContext["blobs"] | undefined;
+  /** A picture's data URI to its hash, so an unchanged one is not re-hashed on every edit. */
+  private readonly shaByUri = new Map<string, string>();
+  private readonly awaiting = new Set<string>();
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
@@ -81,6 +99,59 @@ class SheetInstance implements EditorInstance {
       });
   }
 
+  /**
+   * Put pictures into the shared workbook, with their payloads in the blob store.
+   *
+   * A picture in the CRDT would stay there for the life of the session, so replacing one
+   * twice would cost three pictures for ever. What crosses is a hash.
+   */
+  private async publishImages(doc: Y.Doc, images: readonly SheetImageInfo[]): Promise<void> {
+    if (!this.blobs) return;
+    const refs: ImageRef[] = [];
+    for (const im of images) {
+      let sha = this.shaByUri.get(im.dataUri);
+      if (!sha) {
+        sha = await this.blobs.put(new TextEncoder().encode(im.dataUri));
+        this.shaByUri.set(im.dataUri, sha);
+      }
+      refs.push({ id: im.id, sheet: im.sheet, anchor: im.anchor, sha });
+    }
+    // Re-checked after the awaits: a session can end while payloads are being hashed.
+    if (this.shared !== doc) return;
+    writeImages(doc, refs, this.origin);
+  }
+
+  /**
+   * Put the session's sheets and pictures on screen.
+   *
+   * A picture whose payload has not arrived is left out of this pass and fetched; when it
+   * lands the whole state is applied again. Passing an empty payload would draw a blank
+   * where a picture is, which looks exactly like one somebody cleared.
+   */
+  private applySheetsAndImages(doc: Y.Doc): void {
+    const editor = this.editor;
+    if (!editor) return;
+    const sheets = readSheets(doc);
+    if (sheets.length) editor.applyRemoteSheets(sheets);
+
+    const ready: SheetImageInfo[] = [];
+    for (const ref of readImages(doc)) {
+      const held = this.blobs?.get(ref.sha);
+      if (held) {
+        const uri = new TextDecoder().decode(held);
+        this.shaByUri.set(uri, ref.sha);
+        ready.push({ id: ref.id, sheet: ref.sheet, anchor: ref.anchor, dataUri: uri });
+      } else if (this.blobs && !this.awaiting.has(ref.sha)) {
+        this.awaiting.add(ref.sha);
+        void this.blobs.fetch(ref.sha).then((got) => {
+          this.awaiting.delete(ref.sha);
+          if (got && this.shared === doc) this.applySheetsAndImages(doc);
+        });
+      }
+    }
+    if (ready.length) editor.applyRemoteImages(ready);
+  }
+
   /** Mirror local cell edits into the shared workbook, if a session is running. */
   private publish(changes: SheetCellInput[]): void {
     if (!this.shared) return;
@@ -98,6 +169,7 @@ class SheetInstance implements EditorInstance {
         if (!editor) return; // still inflating; a session on a workbook this large is rare
         const doc = ctx.doc as unknown as Y.Doc;
         this.shared = doc;
+        this.blobs = ctx.blobs;
         this.viewOnly = ctx.readOnly;
 
         if (ctx.seed) {
@@ -153,6 +225,37 @@ class SheetInstance implements EditorInstance {
           this.unwatchOrdered = () => sub.dispose();
         }
 
+        // Sheets and pictures. Cells were the only thing carried, so adding a sheet or
+        // moving a picture was invisible to everyone else and the two workbooks quietly
+        // stopped matching.
+        editor.setSheetsReporter((sheets) => {
+          if (this.viewOnly) return;
+          writeSheets(doc, sheets, this.origin);
+        });
+        editor.setImagesReporter((images) => {
+          if (this.viewOnly) return;
+          void this.publishImages(doc, images);
+        });
+        if (ctx.seed) {
+          writeSheets(doc, editor.sheets(), this.origin);
+          void this.publishImages(doc, editor.images());
+        } else {
+          this.applySheetsAndImages(doc);
+        }
+        const onSheets = (_e: unknown, transaction: Y.Transaction): void => {
+          if (transaction.origin === this.origin) return;
+          this.applySheetsAndImages(doc);
+        };
+        const [sheetsMap, order, imagesMap] = sheetSharedTypes(doc);
+        sheetsMap.observeDeep(onSheets);
+        order.observe(onSheets);
+        imagesMap.observeDeep(onSheets);
+        this.unwatchSheets = () => {
+          sheetsMap.unobserveDeep(onSheets);
+          order.unobserve(onSheets);
+          imagesMap.unobserveDeep(onSheets);
+        };
+
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
         if (!ctx.readOnly) {
           const { UndoManager } = await import("yjs");
@@ -169,6 +272,12 @@ class SheetInstance implements EditorInstance {
         this.propose = null;
         this.unwatchOrdered?.();
         this.unwatchOrdered = null;
+        this.unwatchSheets?.();
+        this.unwatchSheets = null;
+        this.awaiting.clear();
+        this.blobs = undefined;
+        this.editor?.setSheetsReporter(null);
+        this.editor?.setImagesReporter(null);
         this.editor?.setPeerCells([]);
         this.undoManager?.destroy();
         this.undoManager = null;

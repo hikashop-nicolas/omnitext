@@ -1,4 +1,5 @@
 import type * as Y from "yjs";
+import { spliceIds } from "./order";
 
 // The shared shape for collaborating on subtitles, kept apart from the DOM so it can be
 // tested with two Y.Docs and no editor.
@@ -71,26 +72,10 @@ export function writeCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], ori
   doc.transact(() => {
     for (const cue of changed) map.set(cue.id, { ...(cue as unknown as Stored) });
     for (const id of dropped) map.delete(id);
-    if (orderChanged) spliceOrder(order, prevIds, nextIds);
+    if (orderChanged) spliceIds(order, prevIds, nextIds);
   }, origin);
 }
 
-/**
- * Replace the id order with the smallest delete and insert that explains it, so inserting
- * one cue is one small operation rather than a rewrite of the whole list.
- */
-function spliceOrder(order: Y.Array<string>, prev: string[], next: string[]): void {
-  let start = 0;
-  while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
-  let endPrev = prev.length;
-  let endNext = next.length;
-  while (endPrev > start && endNext > start && prev[endPrev - 1] === next[endNext - 1]) {
-    endPrev--;
-    endNext--;
-  }
-  if (endPrev > start) order.delete(start, endPrev - start);
-  if (endNext > start) order.insert(start, next.slice(start, endNext));
-}
 
 /** Seed an empty shared document from the local cues. Exactly one peer may do this. */
 export function seedCues<T extends CueLike>(doc: Y.Doc, cues: readonly T[], origin: unknown): void {

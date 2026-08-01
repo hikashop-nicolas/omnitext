@@ -659,8 +659,10 @@ how likely a user is to hit it.
 
 **sheetedit** (the largest gap by far)
 
-- Sheets themselves: add, rename, delete, reorder, hide/show
-- Images, shapes and form controls
+- ~~Sheets themselves: add, rename, delete, reorder, hide/show~~ **Done 2026-08-01**, keyed
+  by an id rather than a name, so a rename moves nothing.
+- ~~Images~~ **Done 2026-08-01** (move, resize, replace: they cannot be inserted or removed
+  here), payloads in the blob store. Shapes and form controls remain.
 - Charts (creation, data range, configuration)
 - Pivot tables
 - Power Query: queries, their steps, refresh

@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { spliceIds } from "./order";
 
 // The shared shape for collaborating on a rich document, kept apart from the DOM so it can
 // be tested with two Y.Docs and no editor.
@@ -186,26 +187,10 @@ export function writeBlocks(doc: Y.Doc, changes: BlockChanges, origin: unknown):
       else blocks.set(block.id, new Y.Text(block.html));
     }
     for (const id of toRemove) blocks.delete(id);
-    if (orderChanged) spliceOrder(order, prevIds, changes.order);
+    if (orderChanged) spliceIds(order, prevIds, changes.order);
   }, origin);
 }
 
-/**
- * Replace the id order with the smallest delete and insert that explains it, so inserting
- * one paragraph is one small operation rather than a rewrite of the whole body.
- */
-function spliceOrder(order: Y.Array<string>, prev: string[], next: string[]): void {
-  let start = 0;
-  while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
-  let endPrev = prev.length;
-  let endNext = next.length;
-  while (endPrev > start && endNext > start && prev[endPrev - 1] === next[endNext - 1]) {
-    endPrev--;
-    endNext--;
-  }
-  if (endPrev > start) order.delete(start, endPrev - start);
-  if (endNext > start) order.insert(start, next.slice(start, endNext));
-}
 
 /** Seed an empty shared document from the local body. Exactly one peer may do this. */
 export function seedBlocks(doc: Y.Doc, blocks: readonly BlockState[], origin: unknown): void {

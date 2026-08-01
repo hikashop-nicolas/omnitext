@@ -34,8 +34,65 @@ interface PeerCell {
   c: number;
 }
 
+interface SheetInfo {
+  id: string;
+  name: string;
+  visibility?: "hidden" | "veryHidden";
+}
+interface ImageInfo {
+  id: string;
+  sheet: string;
+  anchor: Record<string, number>;
+  dataUri: string;
+}
+
 /** A stand-in for sheetedit's grid: cells by address, and a log of what it was told. */
 class StubSheet {
+  sheetList: SheetInfo[] = [{ id: "s0", name: "Sheet1" }];
+  imageList: ImageInfo[] = [];
+  sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
+  imagesReporter: ((i: ImageInfo[]) => void) | null = null;
+
+  sheets(): SheetInfo[] {
+    return this.sheetList.map((s) => ({ ...s }));
+  }
+  setSheetsReporter(h: ((s: SheetInfo[]) => void) | null): void {
+    this.sheetsReporter = h;
+  }
+  applyRemoteSheets(next: SheetInfo[]): void {
+    this.sheetList = next.map((s) => ({ ...s }));
+  }
+  images(): ImageInfo[] {
+    return this.imageList.map((i) => ({ ...i, anchor: { ...i.anchor } }));
+  }
+  setImagesReporter(h: ((i: ImageInfo[]) => void) | null): void {
+    this.imagesReporter = h;
+  }
+  applyRemoteImages(next: ImageInfo[]): void {
+    const byId = new Map(this.imageList.map((i) => [i.id, i]));
+    for (const im of next) byId.set(im.id, { ...im, anchor: { ...im.anchor } });
+    this.imageList = [...byId.values()];
+  }
+
+  // --- what a person does ---
+
+  addSheet(id: string, name: string): void {
+    this.sheetList.push({ id, name });
+    this.sheetsReporter?.(this.sheets());
+  }
+  renameSheet(id: string, name: string): void {
+    const found = this.sheetList.find((s) => s.id === id);
+    if (found) found.name = name;
+    this.sheetsReporter?.(this.sheets());
+  }
+  putImage(id: string, dataUri: string, fromCol = 1): void {
+    this.imageList.push({ id, sheet: "s0", anchor: { fromCol, fromRow: 1 }, dataUri });
+    this.imagesReporter?.(this.images());
+  }
+  imageUri(id: string): string | undefined {
+    return this.imageList.find((i) => i.id === id)?.dataUri;
+  }
+
   cells = new Map<string, string>();
   peerCells: PeerCell[] = [];
   structural: StructuralOp[] = [];
@@ -241,5 +298,80 @@ describe("two peers on a workbook", () => {
 
     expect(b.editor.structural, "and not applied by any route").toHaveLength(0);
     expect(a.editor.structural, "nor proposed to anyone else").toHaveLength(0);
+  });
+});
+
+// Sheets and pictures, which a session carried none of until now: adding a sheet or moving
+// a picture was invisible to the other person and the two workbooks quietly diverged.
+describe("two peers, sheets and pictures", () => {
+  beforeEach(() => void (built.length = 0));
+  afterEach(() => void built.splice(0));
+
+  async function connected(): Promise<{ a: Peer; b: Peer }> {
+    const a = await makePeer({ name: "Ada", colour: "#f00" });
+    await settle();
+    const b = await makePeer({ name: "Bo", colour: "#00f", key: a.session.key });
+    await settle(300);
+    return { a, b };
+  }
+
+  it("carries a new sheet to the other peer", async () => {
+    const { a, b } = await connected();
+
+    a.editor.addSheet("s-new", "Budget 2027");
+    await settle(300);
+
+    expect(b.editor.sheets().map((s) => s.id)).toEqual(["s0", "s-new"]);
+    expect(b.editor.sheets()[1].name).toBe("Budget 2027");
+  });
+
+  it("carries a rename", async () => {
+    const { a, b } = await connected();
+
+    a.editor.renameSheet("s0", "Renamed by Ada");
+    await settle(300);
+
+    expect(b.editor.sheets()[0].name).toBe("Renamed by Ada");
+    expect(b.editor.sheets()[0].id, "under the id it always had").toBe("s0");
+  });
+
+  it("keeps both when each peer adds a sheet", async () => {
+    const { a, b } = await connected();
+
+    a.editor.addSheet("s-ada", "Ada's");
+    b.editor.addSheet("s-bo", "Bo's");
+    await settle(400);
+
+    const ids = (p: Peer) => p.editor.sheets().map((s) => s.id).sort();
+    expect(ids(a), "two, not one").toEqual(["s-ada", "s-bo", "s0"]);
+    expect(ids(b)).toEqual(["s-ada", "s-bo", "s0"]);
+  });
+
+  describe("pictures", () => {
+    const uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    it("carries a picture to the other peer, payload and all", async () => {
+      const { a, b } = await connected();
+
+      a.editor.putImage("img-1", uri);
+      await settle(500);
+
+      expect(b.editor.imageUri("img-1"), "restored exactly").toBe(uri);
+    });
+
+    // The point of the blob channel: a CRDT never forgets, so a picture replaced twice
+    // would cost three pictures' worth of session for ever.
+    it("keeps the payload out of the shared document", async () => {
+      const { a, b } = await connected();
+
+      a.editor.putImage("img-1", uri);
+      await settle(500);
+
+      const shared = new TextDecoder("utf-8", { fatal: false }).decode(
+        (await import("yjs")).encodeStateAsUpdate(b.session.provider.doc),
+      );
+      expect(shared, "no payload in the document").not.toContain("iVBORw0KGgo");
+      expect(shared, "a hash instead").toContain(await hashBytes(new TextEncoder().encode(uri)));
+    });
   });
 });
