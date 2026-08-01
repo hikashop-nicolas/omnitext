@@ -18,6 +18,7 @@ import {
   readFormats,
   readNames,
   readSettings,
+  readTables,
   readVba,
   readQueries,
   readSheets,
@@ -32,6 +33,7 @@ import {
   writeFormats,
   writeNames,
   writeSettings,
+  writeTables,
   writeVba,
   writeQueries,
   writeSheets,
@@ -152,6 +154,16 @@ class SheetInstance implements EditorInstance {
     const charts = readCharts(doc);
     if (charts.length) editor.applyRemoteCharts(charts);
     // Definitions only. The rows a refresh produces arrive as cells, from whoever ran it.
+    const tables = readTables(doc)
+      .map((t) => {
+        try {
+          return JSON.parse(t.model) as ReturnType<SheetEditor["tables"]>[number];
+        } catch {
+          return null; // unreadable; better no table than a guess at one
+        }
+      })
+      .filter((t): t is ReturnType<SheetEditor["tables"]>[number] => !!t);
+    if (tables.length) editor.applyRemoteTables(tables);
     // Source only: applyRemoteVba stores it and never runs it.
     const macros = readVba(doc);
     if (Object.keys(macros).length) editor.applyRemoteVba(macros);
@@ -281,6 +293,10 @@ class SheetInstance implements EditorInstance {
           if (this.viewOnly) return;
           writeCharts(doc, charts, this.origin);
         });
+        editor.setTablesReporter((tables) => {
+          if (this.viewOnly) return;
+          writeTables(doc, tables.map((t) => ({ cid: t.cid, model: JSON.stringify(t) })), this.origin);
+        });
         editor.setVbaReporter((modules) => {
           if (this.viewOnly) return;
           writeVba(doc, modules, this.origin);
@@ -313,6 +329,7 @@ class SheetInstance implements EditorInstance {
           writeSettings(doc, editor.sheetSettings(), this.origin);
           writeNames(doc, editor.definedNames(), this.origin);
           writeVba(doc, editor.vbaModules(), this.origin);
+          writeTables(doc, editor.tables().map((t) => ({ cid: t.cid, model: JSON.stringify(t) })), this.origin);
           writeFormats(doc, editor.cellInputs(), this.origin);
           void editor.queries().then((m) => {
             if (m != null && this.shared === doc) writeQueries(doc, m, this.origin);
@@ -325,7 +342,7 @@ class SheetInstance implements EditorInstance {
           if (transaction.origin === this.origin) return;
           this.applySheetsAndImages(doc);
         };
-        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap, settingsMap, formatsMap, namesMap, vbaMap] =
+        const [sheetsMap, order, imagesMap, chartsMap, queries, pivotsMap, drawingsMap, settingsMap, formatsMap, namesMap, vbaMap, tablesMap] =
           sheetSharedTypes(doc);
         sheetsMap.observeDeep(onSheets);
         order.observe(onSheets);
@@ -338,6 +355,7 @@ class SheetInstance implements EditorInstance {
         formatsMap.observe(onSheets);
         namesMap.observe(onSheets);
         vbaMap.observe(onSheets);
+        tablesMap.observe(onSheets);
         this.unwatchSheets = () => {
           sheetsMap.unobserveDeep(onSheets);
           order.unobserve(onSheets);
@@ -350,6 +368,7 @@ class SheetInstance implements EditorInstance {
           formatsMap.unobserve(onSheets);
           namesMap.unobserve(onSheets);
           vbaMap.unobserve(onSheets);
+          tablesMap.unobserve(onSheets);
         };
 
         // Undo has to be ours alone, or Ctrl+Z takes back a peer's typing.
@@ -375,6 +394,7 @@ class SheetInstance implements EditorInstance {
         this.editor?.setSheetsReporter(null);
         this.editor?.setImagesReporter(null);
         this.editor?.setChartsReporter(null);
+        this.editor?.setTablesReporter(null);
         this.editor?.setVbaReporter(null);
         this.editor?.setDefinedNamesReporter(null);
         this.editor?.setSheetSettingsReporter(null);

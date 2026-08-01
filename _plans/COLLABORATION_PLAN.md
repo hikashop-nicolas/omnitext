@@ -682,10 +682,15 @@ how likely a user is to hit it.
 - ~~VBA macros~~ **Source done 2026-08-01; running deliberately not shared**, for the same
   reason as a query refresh but more so: a macro is arbitrary code with the whole workbook
   in reach.
-- **Still open:** table definitions. They live in file parts rather than the model, and
-  nothing in the UI creates one; the only path that does is a Power Query load, which also
-  writes the cells. So a peer sees the data and not the table around it. Sharing it means
-  sharing file parts, which is a different mechanism from everything above.
+- ~~Table definitions~~ **Done 2026-08-01.** The gap was not really a sharing problem: they
+  could not be authored at all, which is why they lived in file parts rather than the model
+  and looked like they needed a mechanism of their own. Given authoring and an id, they
+  share like every other object. ODF named database ranges are the same idea in the other
+  format and are covered by the same model.
+
+**sheetedit is complete.** Everything a session can change now travels, with two deliberate
+exceptions, both recorded above: a query is never refreshed on a peer's behalf, and a macro
+is never run on one.
 
 **richdoc**
 

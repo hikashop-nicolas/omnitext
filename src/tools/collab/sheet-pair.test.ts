@@ -59,6 +59,8 @@ class StubSheet {
   sheetsReporter: ((s: SheetInfo[]) => void) | null = null;
   chartList: ChartInfo[] = [];
   chartsReporter: ((c: ChartInfo[]) => void) | null = null;
+  tableList: { cid: string; name: string; sheet: string; r1: number; c1: number; r2: number; c2: number; headerRow: boolean; columns: string[] }[] = [];
+  tablesReporter: ((t: StubSheet["tableList"]) => void) | null = null;
   vba: Record<string, string> = { Module1: "Sub Hello()\nEnd Sub\n" };
   vbaReporter: ((m: Record<string, string>) => void) | null = null;
   names: Record<string, string> = {};
@@ -86,6 +88,23 @@ class StubSheet {
   applyRemoteSheets(next: SheetInfo[]): void {
     this.sheetList = next.map((s) => ({ ...s }));
   }
+  tables(): StubSheet["tableList"] {
+    return this.tableList.map((t) => ({ ...t }));
+  }
+  setTablesReporter(h: ((t: StubSheet["tableList"]) => void) | null): void {
+    this.tablesReporter = h;
+  }
+  applyRemoteTables(next: StubSheet["tableList"]): void {
+    this.tableList = next.map((t) => ({ ...t }));
+  }
+  addTable(cid: string, name: string): void {
+    this.tableList.push({ cid, name, sheet: "s0", r1: 1, c1: 1, r2: 7, c2: 3, headerRow: true, columns: ["A", "B", "C"] });
+    this.tablesReporter?.(this.tables());
+  }
+  tableName(cid: string): string | undefined {
+    return this.tableList.find((t) => t.cid === cid)?.name;
+  }
+
   vbaModules(): Record<string, string> {
     return { ...this.vba };
   }
@@ -536,6 +555,30 @@ describe("two peers, sheets and pictures", () => {
       await settle(300);
 
       expect(b.editor.format("Sheet1", 1, 1), "the format arrived").toContain("0.00%");
+    });
+
+    it("carries a named data range to the other peer", async () => {
+      const { a, b } = await connected();
+
+      a.editor.addTable("tb-ada", "Sales");
+      await settle(300);
+
+      expect(b.editor.tables().map((t) => t.cid)).toEqual(["tb-ada"]);
+      expect(b.editor.tableName("tb-ada")).toBe("Sales");
+    });
+
+    // Keyed by id, so a rename is an edit rather than a delete and an add.
+    it("carries a rename without losing the range", async () => {
+      const { a, b } = await connected();
+      a.editor.addTable("tb-ada", "Sales");
+      await settle(300);
+
+      a.editor.tableList[0].name = "Revenue";
+      a.editor.tablesReporter?.(a.editor.tables());
+      await settle(300);
+
+      expect(b.editor.tables().length).toBe(1);
+      expect(b.editor.tableName("tb-ada")).toBe("Revenue");
     });
 
     it("carries macro source to the other peer", async () => {

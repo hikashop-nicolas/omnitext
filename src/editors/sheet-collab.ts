@@ -122,6 +122,7 @@ export const SETTINGS = "sheet.settings";
 export const FORMATS = "sheet.formats";
 export const NAMES = "sheet.names";
 export const VBA = "sheet.vba";
+export const TABLES = "sheet.tables";
 /**
  * The workbook's Power Query definitions, as one M section document.
  *
@@ -182,6 +183,7 @@ const settingsMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(SETTINGS);
 const formatMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(FORMATS);
 const namesMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(NAMES);
 const vbaMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(VBA);
+const tableMap = (doc: Y.Doc): Y.Map<string> => doc.getMap<string>(TABLES);
 const queryText = (doc: Y.Doc): Y.Text => doc.getText(QUERIES);
 
 const str = (f: Fields, k: string): string => (typeof f.get(k) === "string" ? (f.get(k) as string) : "");
@@ -365,6 +367,36 @@ export function writeNames(doc: Y.Doc, names: Record<string, string>, origin: un
 }
 
 /**
+ * A named data range as the session carries it: the whole definition, keyed by its id.
+ *
+ * Keyed by id rather than name because renaming one is an ordinary edit, and a name-keyed
+ * entry would make a rename look like a delete and an add.
+ */
+export interface TableRef {
+  cid: string;
+  /** The TableDef, as JSON. Opaque here. */
+  model: string;
+}
+
+/** Every named data range the session knows about. */
+export function readTables(doc: Y.Doc): TableRef[] {
+  return [...tableMap(doc).entries()].map(([cid, model]) => ({ cid, model }));
+}
+
+/** Write the named data ranges, touching only what differs. */
+export function writeTables(doc: Y.Doc, next: readonly TableRef[], origin: unknown): void {
+  const tables = tableMap(doc);
+  const wanted = new Set(next.map((t) => t.cid));
+  const dropped = [...tables.keys()].filter((cid) => !wanted.has(cid));
+  const changed = next.filter((t) => tables.get(t.cid) !== t.model);
+  if (!changed.length && !dropped.length) return;
+  doc.transact(() => {
+    for (const t of changed) tables.set(t.cid, t.model);
+    for (const cid of dropped) tables.delete(cid);
+  }, origin);
+}
+
+/**
  * The workbook's macro modules, as name to source.
  *
  * Source only. Running a peer's macro is never done on their behalf: it is arbitrary code
@@ -517,10 +549,10 @@ export function sheetSharedTypes(
   doc: Y.Doc,
 ): [
   Y.Map<Fields>, Y.Array<string>, Y.Map<Fields>, Y.Map<Fields>, Y.Text, Y.Map<Fields>, Y.Map<Fields>, Y.Map<string>,
-  Y.Map<string>, Y.Map<string>, Y.Map<string>,
+  Y.Map<string>, Y.Map<string>, Y.Map<string>, Y.Map<string>,
 ] {
   return [
     sheetMap(doc), orderArray(doc), imageMap(doc), chartMap(doc), queryText(doc), pivotMap(doc), drawingMap(doc),
-    settingsMap(doc), formatMap(doc), namesMap(doc), vbaMap(doc),
+    settingsMap(doc), formatMap(doc), namesMap(doc), vbaMap(doc), tableMap(doc),
   ];
 }
