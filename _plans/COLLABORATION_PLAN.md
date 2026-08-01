@@ -934,3 +934,32 @@ The unit tests cover the mechanism; the end-to-end confirmation is still owed.
 recovery restores a sibling tab's document, so a tab can look like it received something it
 did not. Anything about "did this reach the peer" has to be settled with a live edit made
 after the join, or with a device that has its own storage.
+
+## 16. An invitation link does nothing on a device with nothing open (2026-08-02)
+
+Found while trying to confirm the block-identity fix phone-to-desktop, which is still not
+confirmed because of this.
+
+**The repro.** Open Omnitext on a device where no document is open, then follow an
+invitation link. The room is taken out of the address bar, and nothing else happens. The
+collaboration panel says the document is not shared. Nothing tells the person that an
+invitation was seen, that it is being held, or what to do about it.
+
+**Why.** `accept()` starts the session only when `host.workspace.getActiveDocument()` is
+truthy, and otherwise parks the invite for the next `documentOpened`. Silently. In my
+attempts, creating a document afterwards did not fire it either, though I drove that dialog
+synthetically and that half needs confirming by hand before it is called a second bug.
+
+**Why it was invisible until now.** Every earlier successful join in this rig had a
+document already open, restored by crash recovery from the browser's own storage. The one
+peer that arrives with nothing open is precisely the newcomer: someone opening Omnitext for
+the first time because a colleague sent them a link. That is the single most important path
+into the feature and it is the one that fails.
+
+**A view on the fix, for the owner to settle.** Requiring the joiner to have a document open
+is backwards. The session hands them the host's file: that is what the base transfer is for,
+and a joiner who already has something open is the case that needs care (it is why the
+transfer can be declined as dirty), not the case that should be mandatory. The smallest
+honest fix is to say the invitation is waiting; the better one is to let a joiner with
+nothing open join and receive the document. The second changes what `localState()` returns
+for an empty workspace, so it wants deciding rather than assuming.
