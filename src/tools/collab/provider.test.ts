@@ -357,3 +357,28 @@ describe("presence shape", () => {
     expect(b.peers().map((p) => p.name)).toEqual(["Ada"]);
   });
 });
+
+
+// Repairing a gap. A peer that missed updates while its tab was throttled or frozen is
+// brought back by comparing state vectors, which is what the periodic tick does and what
+// coming back to the tab now triggers at once (see provider-wake.test.ts for that half).
+describe("catching up after time away", () => {
+  it("recovers everything it missed when it next compares state vectors", async () => {
+    const net = new FakeNetwork();
+    const a = new CollabProvider(net.connect("a"));
+    const b = new CollabProvider(net.connect("b"));
+    await net.settle();
+
+    // While b is away, a writes and the delivery is dropped: b was not running to hear it.
+    net.partitioned = true;
+    a.doc.getText("t").insert(0, "written while away");
+    await net.settle();
+    expect(text(b), "b missed it").toBe("");
+
+    net.partitioned = false;
+    b.requestResync();
+    await net.settle();
+
+    expect(text(b)).toBe("written while away");
+  });
+});

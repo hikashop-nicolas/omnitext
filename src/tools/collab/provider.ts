@@ -81,6 +81,8 @@ export class CollabProvider {
   private quietAwareness = false;
   /** Sync traffic is per keystroke: a line each drowns the console, so it is counted. */
   private readonly tally = new DebugTally("wire");
+  /** Ask again the moment this tab is looked at, or the network returns. */
+  private readonly wake: () => void;
 
   constructor(transport: CollabTransport, doc: Y.Doc = new Y.Doc(), resyncMs: number = RESYNC_MS) {
     this.doc = doc;
@@ -96,6 +98,20 @@ export class CollabProvider {
     this.awareness.on("update", this.onAwarenessUpdate);
 
     this.ticker = setInterval(() => this.requestResync(), resyncMs);
+
+    // Coming back to a tab that was in the background, or to a machine whose network
+    // dropped, is the one moment the periodic tick is worst at covering: it is throttled
+    // while hidden and does not run at all while frozen, so a returning peer can sit in
+    // front of a stale document until the next tick. Nothing is lost either way, since the
+    // state vectors reconcile whenever they are next compared. What this avoids is the
+    // person editing what they can see for as long as fifteen seconds after it stopped
+    // being true.
+    this.wake = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      this.requestResync();
+    };
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.wake);
+    if (typeof window !== "undefined") window.addEventListener("online", this.wake);
     // Node only, and only so a test process is not held open by the interval.
     (this.ticker as { unref?: () => void }).unref?.();
   }
@@ -384,6 +400,8 @@ export class CollabProvider {
     removeAwarenessStates(this.awareness, [this.doc.clientID], "local");
     this.closed = true;
     clearInterval(this.ticker);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.wake);
+    if (typeof window !== "undefined") window.removeEventListener("online", this.wake);
     this.doc.off("update", this.onDocUpdate);
     this.awareness.off("update", this.onAwarenessUpdate);
     this.awareness.destroy();

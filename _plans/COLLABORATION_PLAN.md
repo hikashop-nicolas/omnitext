@@ -972,3 +972,25 @@ transfer can be declined as dirty), not the case that should be mandatory. The s
 honest fix is to say the invitation is waiting; the better one is to let a joiner with
 nothing open join and receive the document. The second changes what `localState()` returns
 for an empty workspace, so it wants deciding rather than assuming.
+
+## 17. Coming back to a tab (2026-08-02)
+
+Raised from a real-world reading of the throttling that made the two-tab test rig awkward:
+someone joins, switches to another tab while the others carry on, and comes back.
+
+**What already held.** Peers compare state vectors every fifteen seconds, so a gap repairs
+itself whenever the comparison next happens, and a CRDT loses nothing in the meantime. The
+returning peer is not left with a broken document.
+
+**What did not.** A hidden tab is throttled and a frozen one runs no timers at all, so the
+tick that would repair the gap may not have run for as long as the person was away. On
+coming back they can sit in front of a document that stopped being true, for as long as the
+next tick takes, and start typing into it. Their edits still merge, but they are working
+from something they cannot see the truth of.
+
+The provider now asks the moment the tab is looked at again, and when the network comes
+back. Not while hidden: nobody is looking, and the tick covers it. The listeners come off
+on the way out, which is invisible in what goes on the wire, because a destroyed provider
+answers nothing anyway; it is counted rather than watched, since a page that opens and
+leaves sessions all day would otherwise accumulate one of each per session, every one of
+them holding a provider that has gone.
