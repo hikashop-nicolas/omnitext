@@ -68,6 +68,14 @@ const en: Dict = {
     turnBadScheme: "Not a relay address. It should start with turn: or turns:, not stun:.",
     turnNeedCreds: "A relay needs both a username and a password.",
     turnOk: "This relay will be used when a direct connection cannot be made.",
+    version: "Version",
+    checkUpdates: "Check for updates",
+    updateChecking: "Checking…",
+    updateCurrent: "You are running the latest version.",
+    updateFound: "A newer version is ready. Reloading applies it.",
+    updateApply: "Reload to update",
+    updateApplying: "Updating…",
+    updateCheckFailed: "Could not check for updates. You may be offline.",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "Text",
@@ -112,6 +120,7 @@ const en: Dict = {
     saveFailed: "Could not save the file.",
     documentWord: "document",
     updateReady: "A new version of Omnitext is ready. It loads the next time you open the app.",
+    updateApplied: "Another window updated Omnitext. Reload this one to catch up.",
     storageFull: "Browser storage is full. Old snapshots were removed, but crash recovery may not keep up; save your work to disk.",
   },
   history: {

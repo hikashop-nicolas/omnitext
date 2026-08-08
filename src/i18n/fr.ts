@@ -68,6 +68,14 @@ const fr: Dict = {
     turnBadScheme: "Ce n'est pas une adresse de relais. Elle doit commencer par turn: ou turns:, pas stun:.",
     turnNeedCreds: "Un relais a besoin à la fois d'un nom d'utilisateur et d'un mot de passe.",
     turnOk: "Ce relais sera utilisé lorsqu'une connexion directe est impossible.",
+    version: "Version",
+    checkUpdates: "Rechercher des mises à jour",
+    updateChecking: "Vérification…",
+    updateCurrent: "Vous utilisez la dernière version.",
+    updateFound: "Une version plus récente est prête. Le rechargement l'applique.",
+    updateApply: "Recharger pour mettre à jour",
+    updateApplying: "Mise à jour…",
+    updateCheckFailed: "Impossible de vérifier les mises à jour. Vous êtes peut-être hors ligne.",
     editors: {
       codemirror: "Texte",
       table: "Tableau",
@@ -110,6 +118,7 @@ const fr: Dict = {
     saveFailed: "Impossible d'enregistrer le fichier.",
     documentWord: "document",
     updateReady: "Une nouvelle version d'Omnitext est prête. Elle sera chargée à la prochaine ouverture de l'application.",
+    updateApplied: "Une autre fenêtre a mis à jour Omnitext. Rechargez celle-ci pour vous aligner.",
     storageFull: "Le stockage du navigateur est plein. Les anciens instantanés ont été supprimés, mais la récupération après plantage peut être incomplète ; enregistrez votre travail sur disque.",
   },
   history: {

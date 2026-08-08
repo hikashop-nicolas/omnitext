@@ -79,7 +79,18 @@ self.addEventListener("activate", (event) => {
     // Drop stale asset caches but keep a pending shared file across the update cycle.
     for (const k of await caches.keys()) if (k !== CACHE && k !== SHARE_CACHE) await caches.delete(k);
     await self.clients.claim();
+    // Any window still showing the previous build is now holding chunk URLs this cache
+    // does not have. Tell it, so it can say so rather than fail on the next lazy import.
+    for (const client of await self.clients.matchAll({ type: "window" })) {
+      client.postMessage({ type: "omnitext-activated" });
+    }
   })());
+});
+
+// "Update now" from the settings dialog. Waiting for every window to close is the safe
+// default; this is the user overriding it, and the page that asks reloads immediately.
+self.addEventListener("message", (event) => {
+  if (event.data === "omnitext-skip-waiting") self.skipWaiting();
 });
 
 // Web Share Target: the OS POSTs the shared file(s) here. Stash the first file in a

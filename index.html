@@ -141,6 +141,11 @@
             <label class="modal-field"><span data-i18n="app.turnPass">Password</span> <input id="setting-turn-pass" type="password" autocomplete="off" /></label>
             <p class="modal-hint" id="setting-turn-status" role="status"></p>
           </details>
+          <div class="modal-version">
+            <span><span data-i18n="app.version">Version</span> <span id="setting-build" class="build-id">dev</span></span>
+            <button id="setting-update" class="btn" type="button" hidden data-i18n="app.checkUpdates">Check for updates</button>
+          </div>
+          <p class="modal-hint" id="setting-update-status" role="status"></p>
           <div class="modal-actions">
             <button id="settings-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
             <button id="settings-save" class="btn btn-primary" type="button" data-i18n="app.save">Save</button>

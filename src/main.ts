@@ -2,6 +2,8 @@ import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { bootDocument } from "./core/boot";
+import { checkForUpdate, once } from "./core/updates";
+import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
 import { getOpenedFile, isNative, OpenedFileError, saveBytesNative } from "./core/platform";
@@ -1660,6 +1662,42 @@ const settingTurnUrlEl = $("setting-turn-url") as HTMLInputElement;
 const settingTurnUserEl = $("setting-turn-user") as HTMLInputElement;
 const settingTurnPassEl = $("setting-turn-pass") as HTMLInputElement;
 const settingTurnStatusEl = $("setting-turn-status");
+const settingBuildEl = $("setting-build");
+const settingUpdateEl = $("setting-update") as HTMLButtonElement;
+const settingUpdateStatusEl = $("setting-update-status");
+
+/** The service worker registration, once it resolves; null in the app and on the dev server. */
+let swRegistration: ServiceWorkerRegistration | null = null;
+/** Set while this window is deliberately taking an update, so it does not warn itself. */
+let applyingUpdate = false;
+
+/**
+ * Check for a newer deploy, and on a second press let it in.
+ *
+ * The worker holds a new build back until every window is closed, which is right for the
+ * chunks a running page may still need and wrong for anyone who keeps the app open. The
+ * button is the way to say "now", and the page reloads onto it immediately.
+ */
+async function updateButtonPressed(): Promise<void> {
+  const reg = swRegistration;
+  if (!reg) return;
+  if (reg.waiting) {
+    applyingUpdate = true;
+    settingUpdateStatusEl.textContent = t("app.updateApplying");
+    navigator.serviceWorker.addEventListener("controllerchange", once(() => location.reload()));
+    reg.waiting.postMessage("omnitext-skip-waiting");
+    return;
+  }
+  settingUpdateEl.disabled = true;
+  settingUpdateStatusEl.textContent = t("app.updateChecking");
+  const result = await checkForUpdate(reg);
+  settingUpdateEl.disabled = false;
+  settingUpdateStatusEl.textContent =
+    result === "ready" ? t("app.updateFound")
+    : result === "failed" ? t("app.updateCheckFailed")
+    : t("app.updateCurrent");
+  if (result === "ready") settingUpdateEl.textContent = t("app.updateApply");
+}
 
 const turnFromDialog = () => ({
   url: settingTurnUrlEl.value.trim(),
@@ -1710,6 +1748,12 @@ function openSettings(): void {
   settingTurnUserEl.value = s.turn?.username ?? "";
   settingTurnPassEl.value = s.turn?.credential ?? "";
   showTurnStatus();
+  settingBuildEl.textContent = BUILD_ID;
+  // No worker means no deploy to check against: the packaged app and the dev server both
+  // carry their build with them, so the number is worth showing and the button is not.
+  settingUpdateEl.hidden = !swRegistration;
+  settingUpdateEl.textContent = swRegistration?.waiting ? t("app.updateApply") : t("app.checkUpdates");
+  settingUpdateStatusEl.textContent = swRegistration?.waiting ? t("app.updateFound") : "";
   settingsDlgEl.hidden = false;
   settingNameEl.focus();
 }
@@ -1741,6 +1785,7 @@ function saveSettingsDialog(): void {
 for (const el of [settingTurnUrlEl, settingTurnUserEl, settingTurnPassEl]) {
   el.addEventListener("input", () => void showTurnStatus());
 }
+settingUpdateEl.addEventListener("click", () => void updateButtonPressed());
 $("btn-settings").addEventListener("click", openSettings);
 $("settings-cancel").addEventListener("click", closeSettings);
 $("settings-save").addEventListener("click", saveSettingsDialog);
@@ -2283,6 +2328,7 @@ void start();
 if (import.meta.env.PROD && !isNative() && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").then((reg) => {
+      swRegistration = reg;
       const announce = (worker: ServiceWorker | null) => {
         worker?.addEventListener("statechange", () => {
           if (worker.state === "installed" && navigator.serviceWorker.controller)
@@ -2292,5 +2338,12 @@ if (import.meta.env.PROD && !isNative() && "serviceWorker" in navigator) {
       announce(reg.installing);
       reg.addEventListener("updatefound", () => announce(reg.installing));
     }).catch((e) => console.warn("[omnitext] service worker registration failed", e));
+  });
+
+  // Another window let a new build in, so this one is now the odd one out: its cached
+  // chunks are gone from the new cache. Say so before a lazy import fails.
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if ((e.data as { type?: string } | null)?.type === "omnitext-activated" && !applyingUpdate)
+      showToast(t("notify.updateApplied"), "info");
   });
 }

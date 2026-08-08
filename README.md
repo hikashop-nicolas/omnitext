@@ -144,6 +144,11 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
 Any unrecognised *text* file still opens as plain text in the code editor; truly binary files
 fall back to the hex viewer — so nothing ever fails to open.
 
+**Which build am I on?** Settings shows the commit the running build came from, with a
+*Check for updates* button beside it. Installed as an app, Omnitext keeps serving the build
+it has until every window is closed, so that a page never loses a chunk it might still need;
+the button is how you say "now" instead of waiting.
+
 ## Editing together
 
 Share a link and two or more people edit the same file at once, in the same editor, with

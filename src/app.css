@@ -366,6 +366,14 @@ body {
   background-position: right 9px center;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Which build is running, and the way onto a newer one. Stacked rather than a row:
+   "Check for updates" is a long phrase in most languages and wraps badly beside a label. */
+.modal-version {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  margin-bottom: 10px; font-size: 12px; color: var(--muted, #8b949e);
+}
+.modal-version .btn { font-size: 12px; padding: 5px 10px; }
+.build-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 @media (max-width: 560px) {
   .pill { display: none; }

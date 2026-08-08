@@ -68,6 +68,14 @@ const ja: Dict = {
     turnBadScheme: "リレーのアドレスではありません。stun: ではなく turn: または turns: で始まる必要があります。",
     turnNeedCreds: "リレーにはユーザー名とパスワードの両方が必要です。",
     turnOk: "直接接続できない場合にこのリレーが使われます。",
+    version: "バージョン",
+    checkUpdates: "更新を確認",
+    updateChecking: "確認中…",
+    updateCurrent: "最新バージョンをご利用中です。",
+    updateFound: "新しいバージョンがあります。再読み込みで適用されます。",
+    updateApply: "再読み込みして更新",
+    updateApplying: "更新中…",
+    updateCheckFailed: "更新を確認できませんでした。オフラインの可能性があります。",
     // Editor labels, keyed by editor id (shown in the View switcher and status pill).
     editors: {
       codemirror: "テキスト",
@@ -112,6 +120,7 @@ const ja: Dict = {
     saveFailed: "ファイルを保存できませんでした。",
     documentWord: "文書",
     updateReady: "Omnitext の新しいバージョンが準備できました。次回アプリを開いたときに読み込まれます。",
+    updateApplied: "別のウィンドウで Omnitext が更新されました。このウィンドウも再読み込みしてください。",
     storageFull: "ブラウザーのストレージが満杯です。古いスナップショットを削除しましたが、クラッシュ復元が追いつかない可能性があります。作業をディスクに保存してください。",
   },
   history: {
