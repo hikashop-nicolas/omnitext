@@ -1,6 +1,7 @@
 import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
+import { bootDocument } from "./core/boot";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
 import { getOpenedFile, isNative, OpenedFileError, saveBytesNative } from "./core/platform";
@@ -1067,15 +1068,42 @@ window.addEventListener("drop", async (e) => {
 interface LaunchParamsLike {
   files?: FsHandle[];
 }
-(window as { launchQueue?: { setConsumer(cb: (p: LaunchParamsLike) => void): void } }).launchQueue?.setConsumer(async (params) => {
+
+/**
+ * The in-flight "Open with", published the moment the OS hands a file over and before
+ * anything is awaited. Startup reads it on its way to crash recovery: the launch queue
+ * delivers on its own schedule, and a recovered document must not be mounted over the
+ * file the user actually asked to open. Resolves false if the file could not be read,
+ * which lets boot fall back rather than leave the app with nothing on screen.
+ */
+let launchOpen: Promise<boolean> | null = null;
+
+/**
+ * Started here rather than inside start(), because an "Open with" file can be handed over
+ * before startup gets that far and would otherwise mount its editor against English
+ * strings. Everything that renders waits on this one promise.
+ */
+const i18nReady = initI18n();
+
+(window as { launchQueue?: { setConsumer(cb: (p: LaunchParamsLike) => void): void } }).launchQueue?.setConsumer((params) => {
   const handle = params.files?.[0];
-  if (!handle) return;
-  try {
-    const file = await handle.getFile();
-    await openLocalFile(file, "fs", handle);
-  } catch (e) {
-    console.error("launch queue open failed", e);
-  }
+  if (!handle) return; // a plain launch of the installed app: no file to open
+  // Already running: the same discard guard a dropped file gets. At boot there is
+  // nothing to discard, and asking before the app has drawn would be its own bug.
+  if (startupDone && !confirmDiscard()) return;
+  launchOpen = (async () => {
+    try {
+      await i18nReady; // before the read, so a failure is reported in the user's language
+      await openLocalFile(await handle.getFile(), "fs", handle);
+      return true;
+    } catch (e) {
+      // The OS did ask us to open something. Say that it failed rather than showing a
+      // blank document and letting it look as though nothing had been asked for.
+      console.error("launch queue open failed", e);
+      engine.notificationSink.error(t("notify.readFailed", { what: handle.name || t("notify.documentWord") }));
+      return false;
+    }
+  })();
 });
 
 // An editor produced a derived document (e.g. sheetedit's CSV-to-XLSX conversion):
@@ -2182,7 +2210,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 }
 
 async function start(): Promise<void> {
-  await initI18n();
+  await i18nReady;
   applyDom(); // resolve the static [data-i18n] attributes in index.html
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   engine.registerTool(collabTool);
@@ -2195,27 +2223,31 @@ async function start(): Promise<void> {
   });
 
   // A file shared to the app, or one it was launched with via "Open with", wins over
-  // crash recovery.
-  if (await maybeOpenSharedFile()) {
-    startupDone = true;
-    return;
-  }
-  if (await maybeOpenPendingFile()) {
-    startupDone = true;
-    return;
-  }
+  // crash recovery, whichever of them finishes first.
+  await bootDocument<DocSnapshot>({
+    osOpen: () => launchOpen,
+    openers: [maybeOpenSharedFile, maybeOpenPendingFile],
+    loadSnapshot: async () => {
+      try {
+        return (await store.loadLatest()) ?? null;
+      } catch (e) {
+        console.error("recovery load failed", e);
+        return null;
+      }
+    },
+    mountSnapshot: mountRecovered,
+    mountBlank: () => mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } }),
+  });
+  startupDone = true;
+}
 
-  let last: DocSnapshot | undefined;
-  try {
-    last = await store.loadLatest();
-  } catch (e) {
-    console.error("recovery load failed", e);
-  }
+/** Put the crash-recovery snapshot back on screen; false if there was nothing to restore. */
+async function mountRecovered(last: DocSnapshot): Promise<boolean> {
   // A recovered read-only viewer (media/image/archive) has nothing to restore; skip it
   // so it does not auto-reopen a large file that collides with the users own open.
-  const recDesc = last?.formatId ? engine.formats.byId(last.formatId) : null;
+  const recDesc = last.formatId ? engine.formats.byId(last.formatId) : null;
   const recReadOnly = !!(recDesc && engine.resolve(recDesc)?.editor?.manifest?.readOnly);
-  if (last?.binary && last.bytes?.length && !recReadOnly) {
+  if (last.binary && last.bytes?.length && !recReadOnly) {
     session = { id: last.id } as Session;
     await mountDoc({
       bytes: last.bytes,
@@ -2227,7 +2259,9 @@ async function start(): Promise<void> {
       mime: last.mime,
       recovered: true,
     });
-  } else if (last?.text) {
+    return true;
+  }
+  if (last.text) {
     session = { id: last.id } as Session;
     await mountDoc({
       text: last.text,
@@ -2237,10 +2271,9 @@ async function start(): Promise<void> {
       formatId: last.formatId,
       recovered: true,
     });
-  } else {
-    await mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } });
+    return true;
   }
-  startupDone = true;
+  return false;
 }
 
 void start();
