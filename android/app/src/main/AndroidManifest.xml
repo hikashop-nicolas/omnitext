@@ -54,6 +54,10 @@
                 <data android:mimeType="application/acad" />
                 <data android:mimeType="image/vnd.dxf" />
                 <data android:mimeType="application/dxf" />
+                <!-- File managers report anything they do not recognise as this, which
+                     is how a drawing usually arrives. Omnitext opens almost any file, so
+                     offering it for an unknown one is honest rather than noise. -->
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
 
             <!-- "Share to Omnitext" from another app. -->
@@ -88,6 +92,10 @@
                 <data android:mimeType="application/acad" />
                 <data android:mimeType="image/vnd.dxf" />
                 <data android:mimeType="application/dxf" />
+                <!-- File managers report anything they do not recognise as this, which
+                     is how a drawing usually arrives. Omnitext opens almost any file, so
+                     offering it for an unknown one is honest rather than noise. -->
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
 
