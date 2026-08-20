@@ -72,7 +72,9 @@ function ensureStyles(): void {
     /* Over the drawing, but out of the way of it: the layer takes the pointer only while an
        area is being marked, so at every other moment a drag still pans. */
     .ot-dxf-area { position:absolute; inset:0; pointer-events:none; z-index:1; }
-    .ot-dxf-area.is-active { pointer-events:auto; cursor:crosshair; }
+    /* touch-action matters here: without it the browser claims a drag as a scroll gesture and
+       cancels the pointer stream mid-mark, so on a phone no area can be drawn at all. */
+    .ot-dxf-area.is-active { pointer-events:auto; cursor:crosshair; touch-action:none; }
     .ot-dxf-area-rect { position:absolute; border:1px dashed var(--text);
       background:color-mix(in srgb, var(--accent, #4a9eff) 12%, transparent); pointer-events:none; }
     /* Above the marking layer, so the layer list and this button stay usable while an area
@@ -191,7 +193,9 @@ function buildLayerPanel(
     fold.title = `${layers.length}`;
   };
   fold.addEventListener("click", () => setFolded(!panel.classList.contains("is-folded")));
-  setFolded(false);
+  // On a phone the list is half the screen, and it opens over the drawing it is describing.
+  // There it starts folded, as an icon to reach for; on a desktop there is room for both.
+  setFolded(window.innerWidth < 720);
 
   refreshToggle();
   return panel;
@@ -341,17 +345,24 @@ function buildAreaSelector(
     extendTo(e);
   });
 
-  const finish = (e: PointerEvent): void => {
+  const finish = (e: PointerEvent, released: boolean): void => {
     if (!marking) return;
     marking = false;
-    // Where the pointer was let go, not where it was last seen moving: the two differ by
-    // the last of the drag, and that is the corner the eye was on.
-    extendTo(e);
     try {
       layer.releasePointerCapture(e.pointerId);
     } catch {
       /* the capture is already gone */
     }
+    // Only where the pointer was let go. A cancelled gesture carries no meaningful position
+    // (it arrives at 0,0), and taking it as the far corner drew every area from the top-left
+    // corner of the drawing.
+    if (!released) {
+      clear();
+      return;
+    }
+    // Where it was let go, not where it was last seen moving: the two differ by the last of
+    // the drag, and that is the corner the eye was on.
+    extendTo(e);
     // A click rather than a drag: too small to be an area, and treating it as one would
     // print a sliver of the drawing scaled up to fill the page.
     if (area && (Math.abs(area.x1 - area.x0) < 8 || Math.abs(area.y1 - area.y0) < 8)) {
@@ -364,8 +375,8 @@ function buildAreaSelector(
     // it, and the button is still there to mark another.
     setActive(false);
   };
-  layer.addEventListener("pointerup", finish);
-  layer.addEventListener("pointercancel", finish);
+  layer.addEventListener("pointerup", (e) => finish(e, true));
+  layer.addEventListener("pointercancel", (e) => finish(e, false));
 
   root.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
