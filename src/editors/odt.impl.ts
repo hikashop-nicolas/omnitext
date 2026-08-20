@@ -2,7 +2,7 @@ import { createOdtEditorAsync, initLocale, type OdtEditor } from "richdoc";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
-import { takeOverPrinting } from "./richdoc-print";
+import { richdocPrintable, takeOverPrinting } from "./richdoc-print";
 import { getSettings } from "../settings";
 
 // Load the browser language once (a dynamic import of the matching richdoc locale chunk; only
@@ -50,6 +50,11 @@ class OdtInstance implements EditorInstance {
 
   getText(): string {
     return "";
+  }
+
+  /** The pages themselves, so printing does not print the editor around them. */
+  printable(): HTMLElement | null {
+    return richdocPrintable(this.editor);
   }
 
   getBytes(): Promise<Uint8Array> {

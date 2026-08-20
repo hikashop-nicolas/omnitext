@@ -3,6 +3,24 @@ import { isNative } from "../core/platform";
 /** The subset of a richdoc editor this needs; the three adapters pass different types. */
 interface Printable {
   setPrintHandler(handler: (() => void) | null): void;
+  printClone(): HTMLElement;
+}
+
+/**
+ * The pages to print, away from the editor they live in.
+ *
+ * Printing the surface prints the pages where they sit: on the editor's grey backdrop, at
+ * the zoom in use, under its bars, which on paper is a small page floating in grey. The
+ * copy richdoc hands over has none of that around it, and the print sheet shows it instead
+ * of the editor.
+ */
+export function richdocPrintable(editor: Printable | null): HTMLElement | null {
+  if (!editor) return null;
+  const pages = editor.printClone();
+  const sheet = document.createElement("div");
+  sheet.className = "print-pages";
+  sheet.appendChild(pages);
+  return sheet;
 }
 
 /**

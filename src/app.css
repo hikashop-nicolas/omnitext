@@ -503,6 +503,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
      otherwise print its visible rows a second time, ahead of the real document. */
   .printing-sheet #printsheet { display: block !important; }
   .printing-sheet #editor { display: none !important; }
+  /* Pages handed over by the rich editor: on paper they are the page, so the card styling
+     that makes them look like sheets on a desk has to go. */
+  .print-pages .docxedit-page { box-shadow: none !important; margin: 0 !important; background: #fff !important; }
+  .print-pages .docxedit-pagecard { box-shadow: none !important; border: none !important; margin: 0 auto !important; }
   .print-text {
     white-space: pre-wrap; word-break: break-word;
     font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
