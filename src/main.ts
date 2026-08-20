@@ -2,12 +2,12 @@ import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { bootDocument } from "./core/boot";
-import { printDocument } from "./core/print";
+import { printDocument, printPdfBytes } from "./core/print";
 import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
-import { getOpenedFile, isNative, OpenedFileError, printNative, saveBytesNative } from "./core/platform";
+import { getOpenedFile, isNative, OpenedFileError, printFileNative, printNative, saveBytesNative } from "./core/platform";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
@@ -1575,10 +1575,14 @@ function backFromPrintUi(): Promise<void> {
 
 function printDoc(): void {
   void (async () => {
-    // An editor that can print the document itself does, except in the app: printing a
-    // frame needs window.print(), which a WebView does not have, so there the PDF goes
-    // through the same native path as everything else.
-    if (!isNative() && (await session?.editor?.printSelf?.())) return;
+    // A document that is already printable (a PDF) goes to the printer as itself. How it
+    // gets there is the host's business, because it differs: a frame of its own in the
+    // browser, Android's printer in the app. Either failing falls through to the surface.
+    const file = await session?.editor?.printableFile?.();
+    if (file) {
+      const name = session?.filename ?? "document.pdf";
+      if (isNative() ? await printFileNative(file.bytes, name) : await printPdfBytes(file.bytes)) return;
+    }
     await printSurface();
   })();
 }

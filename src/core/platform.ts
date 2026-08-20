@@ -30,6 +30,7 @@ const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
 
 interface PrinterPlugin {
   print(options: { name: string }): Promise<void>;
+  printFile(options: { path: string; name: string }): Promise<void>;
 }
 const Printer = registerPlugin<PrinterPlugin>("Printer");
 
@@ -41,6 +42,34 @@ const Printer = registerPlugin<PrinterPlugin>("Printer");
  * The native side prints the WebView's own rendering, which means the print stylesheet that
  * shapes a printed page in the browser shapes it here too.
  */
+/**
+ * Print an already-printable document (a PDF) through Android's printer, so its pages go
+ * out as the file describes them rather than as the canvases they are drawn on.
+ *
+ * Staged in the app cache and handed over as a path: the native side streams it from
+ * there. The alternative, sending the document across the bridge, is the thing that broke
+ * on real files when opening used to work that way.
+ */
+export async function printFileNative(bytes: Uint8Array, filename: string): Promise<boolean> {
+  if (!isNative()) return false;
+  try {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const path = `print/${filename || "document.pdf"}`;
+    await Filesystem.writeFile({
+      path,
+      data: bytesToBase64(bytes),
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
+    await Printer.printFile({ path: uri.replace(/^file:\/\//, ""), name: filename || "document" });
+    return true;
+  } catch (e) {
+    console.error("[omnitext] native file print failed", e);
+    return false;
+  }
+}
+
 export async function printNative(name: string): Promise<boolean> {
   if (!isNative()) return false;
   try {

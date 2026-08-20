@@ -2,7 +2,6 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createPdfEditor, type PdfEditor, type PdfEditState } from "pdfedit";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { pdfBinding } from "./pdf-binding";
-import { printPdfBytes } from "../core/print";
 
 // Unicode fallback font for PDF exports: characters the document's own fonts and the
 // standard fonts can't encode (Cyrillic, Greek, CJK, ...) are drawn with this instead
@@ -54,9 +53,9 @@ class PdfInstance implements EditorInstance {
     return this.editor ? this.editor.getBytes() : Promise.resolve(this.bytes);
   }
 
-  /** Send the PDF itself to the printer, rather than the canvases it is drawn on. */
-  async printSelf(): Promise<boolean> {
-    return printPdfBytes(await this.getBytes());
+  /** The PDF itself, so the printer gets the document rather than the canvases. */
+  async printableFile(): Promise<{ bytes: Uint8Array; mime: string }> {
+    return { bytes: await this.getBytes(), mime: "application/pdf" };
   }
 
   // History snapshots the editing session (pristine bytes + edits), not the lossy export.

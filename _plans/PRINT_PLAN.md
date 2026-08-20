@@ -47,12 +47,20 @@ editor's own chrome hidden and `printable()` filling in for whatever virtualizes
    `window.print` is no longer what runs. The dialog itself is unverified: opening it from
    an automated session freezes the tab, so that last step needs a person.
 3. ~~Android plugin printing the WebView~~ (8f398b8, verified on the device).
-4. Android still prints a PDF as the WebView's canvases. To match the web it needs a
-   `PrintDocumentAdapter` streaming the bytes to `PrintManager`, chosen by `printSelf()`
-   when native.
-5. richdoc: its toolbar and rulers are hidden now, confirmed through the CSSOM. Not yet
-   checked: whether a long document renders in full (the fixture was four paragraphs), and
-   how its pagination lines up with the page-size setting.
+4. ~~Android prints a PDF as the file, through a `PrintDocumentAdapter` that streams it to
+   `PrintManager`~~. Verified on the device: the preview showed the PDF's own text, sharp
+   and at the coordinates the file gives, rather than a picture of a canvas.
+5. richdoc: toolbar and rulers hidden (confirmed through the CSSOM), and it renders the
+   whole document rather than a window onto it, so it needs no print sheet: an 800
+   paragraph file had all 800 in the DOM. Still unchecked: how its pagination lines up
+   with the page-size setting, which needs a printed page to judge.
+
+## Left open
+
+- The print dialog itself is never verified from here: opening one from an automated
+  session freezes the tab. Everything up to the call is checked; the last step wants eyes.
+- Other virtualized surfaces (the spreadsheet grid, the subtitle cue list) presumably
+  truncate the way CodeMirror did. `printable()` is the place to fix each, unmeasured.
 
 ## Notes
 

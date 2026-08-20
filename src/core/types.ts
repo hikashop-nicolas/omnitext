@@ -291,12 +291,12 @@ export interface EditorInstance {
    */
   printable?(): HTMLElement | null;
   /**
-   * Print the document itself instead of the editor's rendering of it, or false if it
-   * cannot. A PDF is the case that matters: its pages are drawn to screen-resolution
-   * canvases, and printing those prints photographs of a document whose real pages,
-   * edits included, are right there in the file.
+   * The document as an already-printable file, or null. A PDF is the case that matters:
+   * its pages are drawn to screen-resolution canvases, and printing those prints
+   * photographs of pages the file itself describes exactly, this session's edits included.
+   * The host picks how to send it, which differs between the browser and the app.
    */
-  printSelf?(): Promise<boolean>;
+  printableFile?(): Promise<{ bytes: Uint8Array; mime: string } | null>;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */
