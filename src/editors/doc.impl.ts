@@ -2,6 +2,7 @@ import { createDocEditorAsync, initLocale, type DocEditor } from "richdoc";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
+import { takeOverPrinting } from "./richdoc-print";
 import { getSettings, userName } from "../settings";
 
 // Thin adapter wrapping richdoc's legacy Word 97-2003 (.doc) editor as an Omnitext editor
@@ -35,7 +36,10 @@ class DocInstance implements EditorInstance {
       .then((editor) => {
         if (!editor) return;
         if (this.disposed) editor.destroy(); // disposed while constructing: don't leak the editor
-        else this.editor = editor;
+        else {
+          this.editor = editor;
+          takeOverPrinting(editor);
+        }
       })
       .catch((e: unknown) => {
         console.error("[omnitext] editor construction failed", e);

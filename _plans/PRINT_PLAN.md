@@ -57,13 +57,18 @@ editor's own chrome hidden and `printable()` filling in for whatever virtualizes
 
 ## Left open
 
-- richdoc has a print button of its own, and it is the only one people found. It opens a
-  window, clones the pages into it with `@page` rules matched to the page geometry, and
-  calls `win.print()`. That is a better paginated result than the app's DOM print on the
-  web, and on Android it prints nothing at all: `window.print()` is a no-op in a WebView,
-  which is the whole reason the plugin exists. The button carries no class, so it cannot
-  even be hidden reliably from here. The fix belongs in richdoc: give it a print handler
-  the host can take over, the way subedit takes over undo.
+- ~~richdoc's own print button printed nothing in the app~~ (richdoc 37b4c9f + here). It
+  keeps its paginated window in a browser and routes to the platform in the app, verified
+  both ways.
+- **The app's printed page for richdoc is not good enough yet.** The device preview shows
+  what the WebView lays out: the document page scaled to its on-screen zoom (47%), sitting
+  on the grey editor backdrop, with richdoc's bottom bar underneath. The bottom bar and the
+  outline are hidden now, but the scale and the backdrop are not addressed: a printed page
+  should fill the sheet.
+  The fix that fits what is already here: richdoc already builds a clone of its pages for
+  its own print window, so let it hand that clone over instead, return it from
+  `printable()`, and the print sheet replaces the whole editor. One mechanism, and the
+  scale and backdrop problem disappear with the editor.
 
 - The print dialog itself is never verified from here: opening one from an automated
   session freezes the tab. Everything up to the call is checked; the last step wants eyes.

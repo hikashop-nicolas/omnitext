@@ -1608,6 +1608,10 @@ $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
 $("btn-print").addEventListener("click", printDoc);
+// An editor whose own print button cannot work on this platform routes it here instead
+// (richdoc in the app: its print opens a window and calls window.print(), which a WebView
+// does not implement). One print path, whichever button was pressed.
+window.addEventListener("omnitext:print", () => printDoc());
 backBtn.addEventListener("click", () => void goBack());
 // --- encoding pill: shows the decode in use; click re-decodes the original bytes ----
 const encBtn = $("enc-btn");

@@ -2,6 +2,7 @@ import { createOdtEditorAsync, initLocale, type OdtEditor } from "richdoc";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
+import { takeOverPrinting } from "./richdoc-print";
 import { getSettings } from "../settings";
 
 // Load the browser language once (a dynamic import of the matching richdoc locale chunk; only
@@ -35,7 +36,10 @@ class OdtInstance implements EditorInstance {
       .then((editor) => {
         if (!editor) return;
         if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
-        else this.editor = editor;
+        else {
+          this.editor = editor;
+          takeOverPrinting(editor);
+        }
       })
       .catch((e: unknown) => {
       // An async construction failure is otherwise an unhandled rejection with a blank editor.
