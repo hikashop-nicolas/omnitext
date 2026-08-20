@@ -12,6 +12,22 @@ import type { EditorInstance, EditorModule, EditorMountContext } from "../core/t
 
 const STYLE_ID = "omnitext-dxf-style";
 
+/**
+ * A worker to read the drawing in, or null if this browser will not make one.
+ *
+ * The viewer takes a factory and terminates what it gets when the load finishes, so a fresh
+ * one is built per file. Losing the worker costs responsiveness, not the feature, so a
+ * refusal here falls back to reading in the page rather than failing to open the file.
+ */
+function makeCadWorker(): Worker | null {
+  try {
+    return new Worker(new URL("./cad.worker.ts", import.meta.url), { type: "module" });
+  } catch (e) {
+    console.warn("No CAD worker; reading the drawing on the main thread", e);
+    return null;
+  }
+}
+
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
   const s = document.createElement("style");
@@ -199,14 +215,24 @@ class DxfInstance implements EditorInstance {
       });
       this.viewer = viewer;
 
+      // Reading happens in a worker so a big drawing does not freeze the page. Without one
+      // the viewer still reads it here, slowly, which beats not opening the file at all.
+      const worker = makeCadWorker();
+      const workerFactory = worker ? () => worker : null;
+
       const dwg = isDwg(bytes);
       let unsupported: Record<string, number> = {};
       let missingLinks: string[] = [];
       if (dwg) {
-        ({ unsupported, missingLinks } = await viewer.LoadDwg({ bytes }));
+        // The bytes are transferred to the worker, so this hands over a copy: the document
+        // still owns its own, and saving or reopening it must still work afterwards.
+        ({ unsupported, missingLinks } = await viewer.LoadDwg({
+          bytes: bytes.slice().buffer,
+          workerFactory,
+        }));
       } else {
         this.url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/dxf" }));
-        await viewer.Load({ url: this.url });
+        await viewer.Load({ url: this.url, workerFactory });
       }
 
       const bar = document.createElement("div");
