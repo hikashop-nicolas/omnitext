@@ -39,7 +39,9 @@ function ensureStyles(): void {
     .ot-dxf-layers.is-folded .ot-dxf-layers-head input,
     .ot-dxf-layers.is-folded .ot-dxf-layers-head button:not(.ot-dxf-fold) { display:none; }
     .ot-dxf-layers.is-folded .ot-dxf-layers-head { border-bottom:0; }
-    .ot-dxf-fold { flex:none; }
+    .ot-dxf-fold { flex:none; display:flex; align-items:center; justify-content:center;
+      padding:4px; line-height:0; }
+    .ot-dxf-fold svg { width:16px; height:16px; display:block; }
     .ot-dxf-layer { display:flex; align-items:center; gap:7px; padding:2px 9px; cursor:pointer; }
     .ot-dxf-layer:hover { background:var(--surface-hover); }
     .ot-dxf-layer span.sw { width:10px; height:10px; border-radius:2px; flex:none;
@@ -139,11 +141,16 @@ function buildLayerPanel(
     const q = filter.value.trim().toLowerCase();
     for (const { row, name } of rows) row.toggleAttribute("hidden", !!q && !name.toLowerCase().includes(q));
   });
+  // A stack of sheets, because that is what a layer is. A caret would say "there is more
+  // below", which is not what this opens.
+  fold.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>';
   const setFolded = (folded: boolean): void => {
     panel.classList.toggle("is-folded", folded);
-    fold.textContent = folded ? "▸" : "▾";
     fold.setAttribute("aria-expanded", String(!folded));
-    fold.title = folded ? `${layers.length}` : "";
+    fold.title = `${layers.length}`;
   };
   fold.addEventListener("click", () => setFolded(!panel.classList.contains("is-folded")));
   setFolded(false);
@@ -194,8 +201,9 @@ class DxfInstance implements EditorInstance {
 
       const dwg = isDwg(bytes);
       let unsupported: Record<string, number> = {};
+      let missingLinks: string[] = [];
       if (dwg) {
-        ({ unsupported } = await viewer.LoadDwg({ bytes }));
+        ({ unsupported, missingLinks } = await viewer.LoadDwg({ bytes }));
       } else {
         this.url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/dxf" }));
         await viewer.Load({ url: this.url });
@@ -211,7 +219,12 @@ class DxfInstance implements EditorInstance {
       const left = missing.length
         ? ` · ${missing.reduce((n, [, c]) => n + c, 0)} not drawn (${missing.map(([t]) => t.toLowerCase()).join(", ")})`
         : "";
-      bar.textContent = `${dwg ? "DWG" : "DXF"} · ${layers.length} layer${layers.length === 1 ? "" : "s"} · scroll to zoom, drag to pan${left}`;
+      // A linked picture is not a gap in this viewer: the drawing names a file that is not
+      // in it, and no browser can go and get it. Said differently so it is not read as one.
+      const linked = missingLinks.length
+        ? ` · ${missingLinks.length} linked image${missingLinks.length === 1 ? "" : "s"} not in the file`
+        : "";
+      bar.textContent = `${dwg ? "DWG" : "DXF"} · ${layers.length} layer${layers.length === 1 ? "" : "s"} · scroll to zoom, drag to pan${left}${linked}`;
       root.appendChild(bar);
 
       const panel = buildLayerPanel(viewer as never);
