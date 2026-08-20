@@ -290,6 +290,13 @@ export interface EditorInstance {
    * came out as its first page and nothing else.
    */
   printable?(): HTMLElement | null;
+  /**
+   * Print the document itself instead of the editor's rendering of it, or false if it
+   * cannot. A PDF is the case that matters: its pages are drawn to screen-resolution
+   * canvases, and printing those prints photographs of a document whose real pages,
+   * edits included, are right there in the file.
+   */
+  printSelf?(): Promise<boolean>;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

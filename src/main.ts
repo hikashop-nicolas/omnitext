@@ -1574,7 +1574,17 @@ function backFromPrintUi(): Promise<void> {
 }
 
 function printDoc(): void {
-  void printDocument(session?.editor?.printable?.() ?? null, {
+  void (async () => {
+    // An editor that can print the document itself does, except in the app: printing a
+    // frame needs window.print(), which a WebView does not have, so there the PDF goes
+    // through the same native path as everything else.
+    if (!isNative() && (await session?.editor?.printSelf?.())) return;
+    await printSurface();
+  })();
+}
+
+function printSurface(): Promise<void> {
+  return printDocument(session?.editor?.printable?.() ?? null, {
     fill: (sheet) => (sheet ? printSheetEl.replaceChildren(sheet) : printSheetEl.replaceChildren()),
     useSheet: (on) => document.documentElement.classList.toggle("printing-sheet", on),
     print: async () => {

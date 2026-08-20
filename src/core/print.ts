@@ -21,6 +21,47 @@ export interface PrintHost {
   print(): Promise<void>;
 }
 
+/**
+ * Print a PDF as the document it is.
+ *
+ * pdfedit draws each page into a canvas about 96 dpi wide, which is right for reading on a
+ * screen and wrong for paper: printing those canvases prints photographs of the pages. The
+ * bytes, with this session's edits already in them, describe the pages exactly, so they go
+ * to the printer through a frame of their own and arrive at the resolution of the file.
+ *
+ * Returns false if the frame could not be printed, so the caller can fall back to the DOM.
+ */
+export async function printPdfBytes(bytes: Uint8Array): Promise<boolean> {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;opacity:0";
+  let printed = false;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      frame.onload = () => resolve();
+      frame.onerror = () => reject(new Error("could not load the PDF for printing"));
+      frame.src = url;
+      document.body.appendChild(frame);
+    });
+    const view = frame.contentWindow;
+    if (!view) return false;
+    view.focus();
+    view.print();
+    printed = true;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    // Long after, never now: taking the frame away while the dialog is still open cancels
+    // the print. A frame one pixel wide costs nothing in the meantime.
+    setTimeout(() => {
+      frame.remove();
+      URL.revokeObjectURL(url);
+    }, printed ? 120_000 : 0);
+  }
+}
+
 export async function printDocument(sheet: HTMLElement | null, host: PrintHost): Promise<void> {
   if (!sheet) {
     await host.print(); // the live surface already holds the whole document

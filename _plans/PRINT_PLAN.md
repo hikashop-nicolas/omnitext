@@ -42,11 +42,17 @@ editor's own chrome hidden and `printable()` filling in for whatever virtualizes
 ## Steps
 
 1. ~~`printable()` hook + CodeMirror~~ (done, e6c78e6)
-2. PDF prints its own bytes on the web; hide pdfedit's toolbar and find bar in print CSS.
-3. Measure richdoc, hide its toolbar and ruler, check pagination against the page-size setting.
-4. Android plugin: print the WebView, and print a byte stream for PDFs. Register it like
-   `FileOpenerPlugin`. Route `printDoc()` through it when running native.
-5. Verify on the device (moto g85, adb over USB), not only in the browser.
+2. ~~Editor chrome hidden in print CSS~~ and ~~PDF prints its own bytes on the web~~ (8f398b8,
+   this one). Verified that the exact bytes reach the print frame, and that the page's own
+   `window.print` is no longer what runs. The dialog itself is unverified: opening it from
+   an automated session freezes the tab, so that last step needs a person.
+3. ~~Android plugin printing the WebView~~ (8f398b8, verified on the device).
+4. Android still prints a PDF as the WebView's canvases. To match the web it needs a
+   `PrintDocumentAdapter` streaming the bytes to `PrintManager`, chosen by `printSelf()`
+   when native.
+5. richdoc: its toolbar and rulers are hidden now, confirmed through the CSSOM. Not yet
+   checked: whether a long document renders in full (the fixture was four paragraphs), and
+   how its pagination lines up with the page-size setting.
 
 ## Notes
 
