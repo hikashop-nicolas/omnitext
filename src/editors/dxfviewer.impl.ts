@@ -24,11 +24,109 @@ function ensureStyles(): void {
     .ot-dxf-bar { position:absolute; left:12px; bottom:10px; font:12px system-ui, sans-serif;
       color:var(--muted); background:color-mix(in srgb, var(--canvas) 78%, transparent); padding:3px 8px;
       border-radius:4px; pointer-events:none; }
+    .ot-dxf-layers { position:absolute; top:10px; right:10px; width:230px; max-height:calc(100% - 20px);
+      display:flex; flex-direction:column; background:color-mix(in srgb, var(--canvas) 88%, transparent);
+      border:1px solid var(--border); border-radius:8px; font:12px system-ui, sans-serif; overflow:hidden; }
+    .ot-dxf-layers-head { display:flex; align-items:center; gap:6px; padding:6px 8px;
+      border-bottom:1px solid var(--border); }
+    .ot-dxf-layers-head input { flex:1; min-width:0; font:inherit; padding:3px 6px;
+      border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); }
+    .ot-dxf-layers-head button { font:inherit; font-size:11px; padding:3px 6px; cursor:pointer;
+      border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); }
+    .ot-dxf-layers-list { overflow:auto; padding:4px 0; }
+    .ot-dxf-layer { display:flex; align-items:center; gap:7px; padding:2px 9px; cursor:pointer; }
+    .ot-dxf-layer:hover { background:var(--surface-hover); }
+    .ot-dxf-layer span.sw { width:10px; height:10px; border-radius:2px; flex:none;
+      border:1px solid color-mix(in srgb, var(--text) 30%, transparent); }
+    .ot-dxf-layer span.nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
     .ot-dxf-msg { position:absolute; inset:0; margin:auto; display:flex; align-items:center;
       justify-content:center; color:var(--muted); font:14px system-ui, sans-serif; padding:24px;
       text-align:center; white-space:pre-wrap; }
   `;
   document.head.appendChild(s);
+}
+
+
+/**
+ * The layer list, with a box to filter it.
+ *
+ * A real drawing carries a lot of layers (181 in the one this was built against), so an
+ * unfiltered list is a wall rather than a control. Colour swatches because that is how
+ * anyone recognises a layer: the names are the CAD operator's, not the reader's.
+ */
+function buildLayerPanel(
+  viewer: { GetLayers?: (nonEmpty?: boolean) => Iterable<{ name: string; displayName?: string; color?: number }>;
+            ShowLayer: (name: string, show: boolean) => void; Render?: () => void },
+): HTMLElement | null {
+  const layers = [...(viewer.GetLayers?.(true) ?? [])];
+  if (layers.length === 0) return null;
+
+  const panel = document.createElement("div");
+  panel.className = "ot-dxf-layers";
+  const head = document.createElement("div");
+  head.className = "ot-dxf-layers-head";
+  const filter = document.createElement("input");
+  filter.type = "search";
+  filter.placeholder = `${layers.length}`;
+  const toggleAll = document.createElement("button");
+  toggleAll.type = "button";
+  head.append(filter, toggleAll);
+  const list = document.createElement("div");
+  list.className = "ot-dxf-layers-list";
+  panel.append(head, list);
+
+  const shown = new Map<string, boolean>(layers.map((l) => [l.name, true]));
+  const rows: { row: HTMLElement; box: HTMLInputElement; name: string }[] = [];
+
+  for (const layer of layers) {
+    const row = document.createElement("label");
+    row.className = "ot-dxf-layer";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = true;
+    const sw = document.createElement("span");
+    sw.className = "sw";
+    sw.style.background = "#" + ((layer.color ?? 0xffffff) >>> 0).toString(16).padStart(6, "0");
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = layer.displayName ?? layer.name;
+    nm.title = layer.name;
+    row.append(box, sw, nm);
+    box.addEventListener("change", () => {
+      shown.set(layer.name, box.checked);
+      viewer.ShowLayer(layer.name, box.checked);
+      viewer.Render?.();
+      refreshToggle();
+    });
+    list.appendChild(row);
+    rows.push({ row, box, name: layer.name });
+  }
+
+  const refreshToggle = (): void => {
+    // Whichever action affects more layers is the one offered: with most hidden, the
+    // useful button is "show all", and offering "hide all" there does nothing anyone wants.
+    const visible = [...shown.values()].filter(Boolean).length;
+    toggleAll.textContent = visible > shown.size / 2 ? "none" : "all";
+  };
+  toggleAll.addEventListener("click", () => {
+    const show = toggleAll.textContent === "all";
+    for (const { box, name } of rows) {
+      // Only the rows the filter is showing, so the button acts on what is on screen
+      // rather than on layers the reader cannot see and did not mean to touch.
+      if (box.closest(".ot-dxf-layer")?.hasAttribute("hidden")) continue;
+      box.checked = show;
+      shown.set(name, show);
+      viewer.ShowLayer(name, show);
+    }
+    viewer.Render?.();
+    refreshToggle();
+  });
+  filter.addEventListener("input", () => {
+    const q = filter.value.trim().toLowerCase();
+    for (const { row, name } of rows) row.toggleAttribute("hidden", !!q && !name.toLowerCase().includes(q));
+  });
+  refreshToggle();
+  return panel;
 }
 
 class DxfInstance implements EditorInstance {
@@ -92,6 +190,9 @@ class DxfInstance implements EditorInstance {
         : "";
       bar.textContent = `${dwg ? "DWG" : "DXF"} · ${layers.length} layer${layers.length === 1 ? "" : "s"} · scroll to zoom, drag to pan${left}`;
       root.appendChild(bar);
+
+      const panel = buildLayerPanel(viewer as never);
+      if (panel) root.appendChild(panel);
     } catch (e) {
       root.textContent = "";
       const m = document.createElement("div");
