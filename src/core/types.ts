@@ -282,6 +282,14 @@ export interface EditorInstance {
   countStateChanges?(state: unknown): number;
   /** How this editor joins a collaboration session, or null if it cannot yet. */
   collab?(): CollabBinding | null;
+  /**
+   * A complete rendering of the document for printing, or null to print the live surface.
+   *
+   * Only an editor that virtualizes needs this. Printing renders the DOM as it stands, and
+   * a surface that keeps just the visible rows in the DOM prints just those: a long file
+   * came out as its first page and nothing else.
+   */
+  printable?(): HTMLElement | null;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

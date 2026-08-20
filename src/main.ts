@@ -2,6 +2,7 @@ import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { bootDocument } from "./core/boot";
+import { printDocument } from "./core/print";
 import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
@@ -395,6 +396,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 const editorEl = $("editor");
+const printSheetEl = $("printsheet");
 const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const saveBtn = $("btn-save");
@@ -1548,8 +1550,18 @@ document.addEventListener("keydown", (e) => {
 
 // Print / Save-as-PDF: print CSS (app.css @media print) hides the app chrome and prints
 // only the editor surface, so the browser's print dialog can render or save it to PDF.
+//
+// An editor that virtualizes hands over a full rendering first. Print takes the DOM as it
+// finds it, and a surface holding only the visible rows printed only those: a long text
+// file came out as its first page. The sheet is emptied again afterwards so it never
+// shows on screen or ages into a stale copy of a document that has since changed.
 function printDoc(): void {
-  window.print();
+  printDocument(session?.editor?.printable?.() ?? null, {
+    fill: (sheet) => (sheet ? printSheetEl.replaceChildren(sheet) : printSheetEl.replaceChildren()),
+    useSheet: (on) => document.documentElement.classList.toggle("printing-sheet", on),
+    print: () => window.print(),
+    onceAfterPrint: (cb) => window.addEventListener("afterprint", cb, { once: true }),
+  });
 }
 
 $("btn-new").addEventListener("click", openNewDialog);

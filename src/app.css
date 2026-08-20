@@ -482,12 +482,24 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 /* Print / Save-as-PDF (Ctrl+P): drop the app chrome and let the editor surface flow
    onto the page. Read-only previews (rich text, markdown, notebook, PDF) print best;
    the code editor prints only what its virtualized viewport has rendered. */
+/* Holds a full rendering handed over by an editor that virtualizes; never shown on screen. */
+#printsheet { display: none; }
+
 @media print {
   header, #status, #panel, .toast, .modal, #dropzone { display: none !important; }
-  html, body, #app, #editor {
+  html, body, #app, #editor, #printsheet {
     height: auto !important; min-height: 0 !important; overflow: visible !important;
     background: #fff !important;
   }
   #app { position: static !important; }
   #editor { flex: none !important; }
+  /* When a full rendering was handed over it replaces the live surface, which would
+     otherwise print its visible rows a second time, ahead of the real document. */
+  .printing-sheet #printsheet { display: block !important; }
+  .printing-sheet #editor { display: none !important; }
+  .print-text {
+    white-space: pre-wrap; word-break: break-word;
+    font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #000; margin: 0;
+  }
 }

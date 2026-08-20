@@ -86,6 +86,19 @@ class CodeMirrorInstance implements EditorInstance {
     return this.view ? this.view.state.doc.toString() : "";
   }
 
+  /**
+   * The whole document as plain text for printing. CodeMirror keeps only the lines around
+   * the viewport in the DOM (about twenty of them), and print takes the DOM as it finds it,
+   * so printing the live surface yields the first page of any long file. Highlighting is
+   * lost here, which is the trade for printing all of it.
+   */
+  printable(): HTMLElement | null {
+    const pre = document.createElement("pre");
+    pre.className = "print-text";
+    pre.textContent = this.getText();
+    return pre;
+  }
+
   selection(): unknown {
     return this.view ? this.view.state.selection.main : null;
   }
