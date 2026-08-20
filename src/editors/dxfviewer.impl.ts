@@ -43,6 +43,7 @@ function ensureStyles(): void {
       color:var(--muted); background:color-mix(in srgb, var(--canvas) 78%, transparent); padding:3px 8px;
       border-radius:4px; pointer-events:none; }
     .ot-dxf-layers { position:absolute; top:10px; right:10px; width:230px; max-height:calc(100% - 20px);
+      z-index:2;
       display:flex; flex-direction:column; background:color-mix(in srgb, var(--canvas) 88%, transparent);
       border:1px solid var(--border); border-radius:8px; font:12px system-ui, sans-serif; overflow:hidden; }
     .ot-dxf-layers-head { display:flex; align-items:center; gap:6px; padding:6px 8px;
@@ -68,6 +69,25 @@ function ensureStyles(): void {
     .ot-dxf-msg { position:absolute; inset:0; margin:auto; display:flex; align-items:center;
       justify-content:center; color:var(--muted); font:14px system-ui, sans-serif; padding:24px;
       text-align:center; white-space:pre-wrap; }
+    /* Over the drawing, but out of the way of it: the layer takes the pointer only while an
+       area is being marked, so at every other moment a drag still pans. */
+    .ot-dxf-area { position:absolute; inset:0; pointer-events:none; z-index:1; }
+    .ot-dxf-area.is-active { pointer-events:auto; cursor:crosshair; }
+    .ot-dxf-area-rect { position:absolute; border:1px dashed var(--text);
+      background:color-mix(in srgb, var(--accent, #4a9eff) 12%, transparent); pointer-events:none; }
+    /* Above the marking layer, so the layer list and this button stay usable while an area
+       is being marked instead of being swallowed by it. */
+    .ot-dxf-areabtn { position:absolute; top:10px; left:10px; width:30px; height:30px; padding:5px;
+      z-index:2;
+      display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text);
+      background:color-mix(in srgb, var(--canvas) 88%, transparent); border:1px solid var(--border);
+      border-radius:8px; }
+    .ot-dxf-areabtn svg { width:100%; height:100%; }
+    .ot-dxf-areabtn.is-active { color:var(--accent, #4a9eff);
+      border-color:color-mix(in srgb, var(--accent, #4a9eff) 60%, var(--border)); }
+    .ot-dxf-marked { position:absolute; top:12px; left:48px; font:12px system-ui, sans-serif;
+      color:var(--muted); background:color-mix(in srgb, var(--canvas) 78%, transparent);
+      padding:3px 8px; border-radius:4px; pointer-events:none; }
   `;
   document.head.appendChild(s);
 }
@@ -177,10 +197,192 @@ function buildLayerPanel(
   return panel;
 }
 
+/** The longest side of a printed area, in pixels. Detail for paper, without asking the
+ * hardware for a buffer it will refuse to allocate. */
+const MAX_PRINT_PX = 2400;
+
+/**
+ * A picture of the drawing that suits paper.
+ *
+ * A drawing meant for a dark background is light lines on black, which on paper is a black
+ * rectangle: heavy on ink, and the reason CAD applications have always plotted a dark
+ * drawing as dark lines on white. Inverting turns the black ground white and the light
+ * lines dark; turning the hue back through half a circle keeps the colours recognisable
+ * instead of making every green line magenta.
+ */
+function forPaper(
+  source: HTMLCanvasElement,
+  width: number,
+  height: number,
+  invert: boolean,
+): HTMLCanvasElement {
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d");
+  if (!ctx) return source;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, width, height);
+  if (invert) ctx.filter = "invert(1) hue-rotate(180deg)";
+  ctx.drawImage(source, 0, 0, width, height);
+  return out;
+}
+
+/** Whether a six-digit hex colour is dark enough that what sits on it is drawn light. */
+function isDark(hex: string): boolean {
+  const n = parseInt(hex, 16);
+  if (!Number.isFinite(n)) return true;
+  // Rough luminance is enough: this only decides between two treatments.
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 < 0.5;
+}
+
+/**
+ * The area to print, in CSS pixels from the canvas's top-left corner.
+ *
+ * Kept in screen space rather than drawing coordinates because it is drawn on screen and
+ * has to survive nothing: it is turned into a camera at the moment of printing, against
+ * whatever view is current then.
+ */
+interface PrintArea {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * Let the pointer mark out a rectangle over the drawing.
+ *
+ * The layer sits above the canvas and takes the pointer only while marking, so at every
+ * other moment dragging still pans the drawing, which is what a drag means in a viewer.
+ * Returns the current area, or null when nothing is marked.
+ */
+function buildAreaSelector(
+  root: HTMLElement,
+  onChange: (area: PrintArea | null) => void,
+): { layer: HTMLElement; button: HTMLButtonElement; clear: () => void } {
+  const layer = document.createElement("div");
+  layer.className = "ot-dxf-area";
+  const rect = document.createElement("div");
+  rect.className = "ot-dxf-area-rect";
+  rect.hidden = true;
+  layer.appendChild(rect);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ot-dxf-areabtn";
+  button.title = "Mark an area to print";
+  button.setAttribute("aria-pressed", "false");
+  // A dashed frame with a solid corner: the marquee this draws, not a printer, because the
+  // button marks the area rather than printing it.
+  button.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" aria-hidden="true">' +
+    '<path d="M3 8V5a2 2 0 0 1 2-2h3" /><path d="M16 3h3a2 2 0 0 1 2 2v3" />' +
+    '<path d="M21 16v3a2 2 0 0 1-2 2h-3" /><path d="M8 21H5a2 2 0 0 1-2-2v-3" />' +
+    '<path d="M8 8h8v8H8z" stroke-dasharray="2 2" /></svg>';
+
+  let area: PrintArea | null = null;
+  let marking = false;
+
+  const draw = (): void => {
+    if (!area) {
+      rect.hidden = true;
+      return;
+    }
+    rect.hidden = false;
+    rect.style.left = `${Math.min(area.x0, area.x1)}px`;
+    rect.style.top = `${Math.min(area.y0, area.y1)}px`;
+    rect.style.width = `${Math.abs(area.x1 - area.x0)}px`;
+    rect.style.height = `${Math.abs(area.y1 - area.y0)}px`;
+  };
+
+  const setActive = (on: boolean): void => {
+    layer.classList.toggle("is-active", on);
+    button.classList.toggle("is-active", on);
+    button.setAttribute("aria-pressed", String(on));
+  };
+
+  const clear = (): void => {
+    area = null;
+    draw();
+    onChange(null);
+  };
+
+  button.addEventListener("click", () => {
+    const on = !layer.classList.contains("is-active");
+    setActive(on);
+    // Leaving the mode keeps the area: it is what will print, and having to redraw it
+    // because the mode was switched off would be its own small annoyance.
+    if (on && area) clear();
+  });
+
+  layer.addEventListener("pointerdown", (e) => {
+    if (!layer.classList.contains("is-active")) return;
+    const box = layer.getBoundingClientRect();
+    marking = true;
+    layer.setPointerCapture(e.pointerId);
+    area = { x0: e.clientX - box.left, y0: e.clientY - box.top, x1: e.clientX - box.left, y1: e.clientY - box.top };
+    draw();
+    e.preventDefault();
+  });
+
+  /** Take the far corner from wherever the pointer is now, inside the drawing. */
+  const extendTo = (e: PointerEvent): void => {
+    if (!area) return;
+    const box = layer.getBoundingClientRect();
+    area.x1 = Math.max(0, Math.min(box.width, e.clientX - box.left));
+    area.y1 = Math.max(0, Math.min(box.height, e.clientY - box.top));
+    draw();
+  };
+
+  layer.addEventListener("pointermove", (e) => {
+    if (!marking || !area) return;
+    extendTo(e);
+  });
+
+  const finish = (e: PointerEvent): void => {
+    if (!marking) return;
+    marking = false;
+    // Where the pointer was let go, not where it was last seen moving: the two differ by
+    // the last of the drag, and that is the corner the eye was on.
+    extendTo(e);
+    try {
+      layer.releasePointerCapture(e.pointerId);
+    } catch {
+      /* the capture is already gone */
+    }
+    // A click rather than a drag: too small to be an area, and treating it as one would
+    // print a sliver of the drawing scaled up to fill the page.
+    if (area && (Math.abs(area.x1 - area.x0) < 8 || Math.abs(area.y1 - area.y0) < 8)) {
+      clear();
+      return;
+    }
+    draw();
+    onChange(area);
+    // The area is marked; staying in marking mode would only get in the way of looking at
+    // it, and the button is still there to mark another.
+    setActive(false);
+  };
+  layer.addEventListener("pointerup", finish);
+  layer.addEventListener("pointercancel", finish);
+
+  root.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!area && !layer.classList.contains("is-active")) return;
+    setActive(false);
+    clear();
+    e.stopPropagation();
+  });
+
+  return { layer, button, clear };
+}
+
 class DxfInstance implements EditorInstance {
   private root: HTMLElement | null = null;
   private viewer: DxfViewer | null = null;
   private url: string | null = null;
+  private area: PrintArea | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -258,6 +460,23 @@ class DxfInstance implements EditorInstance {
 
       const panel = buildLayerPanel(viewer as never);
       if (panel) root.appendChild(panel);
+
+      // Marking an area changes what the print button does, so it says so rather than
+      // leaving the difference to be discovered on paper.
+      const marked = document.createElement("div");
+      marked.className = "ot-dxf-marked";
+      marked.hidden = true;
+      marked.textContent = "Print will cover the marked area";
+
+      const selector = buildAreaSelector(root, (area) => {
+        this.area = area;
+        marked.hidden = !area;
+      });
+      root.appendChild(selector.layer);
+      root.appendChild(selector.button);
+      root.appendChild(marked);
+      // Escape reaches the viewer only if something here can be focused.
+      root.tabIndex = -1;
     } catch (e) {
       root.textContent = "";
       const m = document.createElement("div");
@@ -265,6 +484,92 @@ class DxfInstance implements EditorInstance {
       m.textContent = "This DXF could not be displayed:\n" + ((e as Error)?.message ?? String(e));
       root.appendChild(m);
     }
+  }
+
+  /**
+   * The drawing as a picture of it, for the printer.
+   *
+   * The canvas cannot simply be printed where it sits: it is sized for the pane it lives in,
+   * so on paper it would be a screenshot, and the app's chrome sits on top of it. This
+   * re-renders the marked area, or the whole current view when none is marked, through a
+   * camera built for the page rather than for the screen.
+   */
+  printable(): HTMLElement | null {
+    const image = this.capture();
+    if (!image) return null;
+    const sheet = document.createElement("div");
+    sheet.className = "ot-dxf-print";
+    sheet.appendChild(image);
+    return sheet;
+  }
+
+  /** Re-render the print area at print resolution. Null if there is nothing to render. */
+  private capture(): HTMLImageElement | null {
+    const viewer = this.viewer;
+    if (!viewer?.HasRenderer?.()) return null;
+    const renderer = viewer.GetRenderer();
+    const camera = viewer.GetCamera();
+    const scene = viewer.GetScene();
+    const canvas = viewer.GetCanvas();
+    if (!renderer || !camera || !scene || !canvas) return null;
+
+    const box = canvas.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return null;
+    const area = this.area ?? { x0: 0, y0: 0, x1: box.width, y1: box.height };
+
+    // Screen pixels to the drawing's own coordinates, through the camera showing it now.
+    const at = (x: number, y: number): THREE.Vector3 =>
+      new THREE.Vector3((x / box.width) * 2 - 1, -((y / box.height) * 2 - 1), 0).unproject(camera);
+    const a = at(area.x0, area.y0);
+    const b = at(area.x1, area.y1);
+    const width = Math.abs(b.x - a.x);
+    const height = Math.abs(b.y - a.y);
+    if (!(width > 0) || !(height > 0)) return null;
+
+    // Paper holds far more detail than a screen, and this is a drawing: printing the pixels
+    // that were on screen would print the aliasing along with them. Capped so that a huge
+    // pane does not ask for a texture the hardware will refuse.
+    const scale = Math.min(3, MAX_PRINT_PX / Math.max(area.x1 - area.x0, area.y1 - area.y0));
+    const pw = Math.max(1, Math.round(Math.abs(area.x1 - area.x0) * scale));
+    const ph = Math.max(1, Math.round(Math.abs(area.y1 - area.y0) * scale));
+
+    const printCamera = camera.clone();
+    printCamera.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, camera.position.z);
+    printCamera.left = -width / 2;
+    printCamera.right = width / 2;
+    printCamera.top = height / 2;
+    printCamera.bottom = -height / 2;
+    printCamera.updateProjectionMatrix();
+
+    const size = renderer.getSize(new THREE.Vector2());
+    const pixelRatio = renderer.getPixelRatio();
+    const clear = renderer.getClearColor(new THREE.Color());
+    const clearAlpha = renderer.getClearAlpha();
+    // The entities were coloured for the background they are on, and cannot be recoloured
+    // now without rebuilding every material. So the page is reached from whichever end
+    // lands on white: a dark drawing is rendered on black and inverted, a light one is
+    // rendered on white as it is. Either way nothing prints a page-sized field of ink.
+    const invert = isDark(clear.getHexString());
+    let out: HTMLCanvasElement;
+    try {
+      // The drawing buffer is only cleared when the page is composited, so the picture has
+      // to be taken in the same task as the render: nothing here may wait.
+      renderer.setPixelRatio(1);
+      renderer.setSize(pw, ph, false);
+      renderer.setClearColor(invert ? 0x000000 : 0xffffff, 1);
+      renderer.render(scene, printCamera);
+      out = forPaper(canvas, pw, ph, invert);
+    } finally {
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(size.x, size.y, false);
+      renderer.setClearColor(clear, clearAlpha);
+      viewer.Render();
+    }
+
+    const img = document.createElement("img");
+    img.src = out.toDataURL("image/png");
+    img.alt = "The drawing";
+    return img;
   }
 
   getText(): string {

@@ -507,6 +507,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
      that makes them look like sheets on a desk has to go. */
   .print-pages .docxedit-page { box-shadow: none !important; margin: 0 !important; background: #fff !important; }
   .print-pages .docxedit-pagecard { box-shadow: none !important; border: none !important; margin: 0 auto !important; }
+  /* A drawing prints as one picture of the marked area, sized to the page rather than to the
+     pane it was being viewed in. */
+  .ot-dxf-print { display: flex; align-items: center; justify-content: center; }
+  .ot-dxf-print img { max-width: 100%; max-height: 100vh; height: auto; width: auto; }
   .print-text {
     white-space: pre-wrap; word-break: break-word;
     font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
