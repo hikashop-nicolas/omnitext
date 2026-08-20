@@ -325,6 +325,8 @@ interface Session {
   binary: boolean;
   mime: string | null;
   readOnly: boolean;
+  /** Nothing this surface holds belongs on paper: the app hides Print. */
+  unprintable: boolean;
   /** The original .gz filename when the document was opened from a gzip wrapper:
       saving re-compresses and writes back under this name. */
   gzipName: string | null;
@@ -401,6 +403,7 @@ const filenameEl = $("filename");
 const dirtyEl = $("dirty");
 const saveBtn = $("btn-save");
 const newBtn = $("btn-new");
+const printBtn = $("btn-print");
 const backBtn = $<HTMLButtonElement>("btn-back");
 // Tool buttons that asked to be hidden on a read-only document (see addToolbarButton).
 const readOnlyHiddenTools = new Set<HTMLElement>();
@@ -447,6 +450,9 @@ function updateUI(): void {
   // the same way, so a video is not framed by controls that do nothing to it. The command
   // palette still offers New for anyone who wants it here.
   const readOnly = !!session?.readOnly;
+  // A cue list on paper is nobody's idea of a subtitle file, so that surface says so and
+  // the button goes rather than printing something no one asked for.
+  printBtn.hidden = !!session?.unprintable;
   saveBtn.hidden = readOnly;
   dirtyEl.hidden = readOnly;
   newBtn.hidden = readOnly;
@@ -636,6 +642,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     binary,
     mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0] ?? null,
     readOnly: !!chosen.editor.manifest.readOnly,
+    unprintable: !!chosen.editor.manifest.unprintable,
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
     srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
     blob: opts.blob ?? (opts.isSwitch ? (session?.blob ?? null) : null),
@@ -1607,7 +1614,7 @@ function printSurface(): Promise<void> {
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
-$("btn-print").addEventListener("click", printDoc);
+printBtn.addEventListener("click", printDoc);
 // An editor whose own print button cannot work on this platform routes it here instead
 // (richdoc in the app: its print opens a window and calls window.print(), which a WebView
 // does not implement). One print path, whichever button was pressed.

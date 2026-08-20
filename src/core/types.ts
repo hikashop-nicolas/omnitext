@@ -151,6 +151,8 @@ export interface EditorManifest {
   consumesViews: ViewKind[];
   /** A view-only surface (e.g. Preview, image/media/archive viewers): the app hides Save. */
   readOnly?: boolean;
+  /** Nothing here belongs on paper (subtitles, media): the app hides Print. */
+  unprintable?: boolean;
 }
 
 export interface EditorMountContext {

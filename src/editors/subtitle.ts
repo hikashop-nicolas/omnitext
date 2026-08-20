@@ -5,6 +5,6 @@ import type { EditorDescriptor } from "../core/types";
 // video/waveform preview and byte-preserving round-trips. The raw file stays editable
 // through the CodeMirror text view.
 export const subtitleEditor: EditorDescriptor = {
-  manifest: { kind: "editor", id: "subtitle", consumesViews: ["subtitle"] },
+  manifest: { kind: "editor", id: "subtitle", consumesViews: ["subtitle"], unprintable: true },
   load: () => import("./subtitle.impl").then((m) => m.subtitleEditor),
 };

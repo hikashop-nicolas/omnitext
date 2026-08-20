@@ -1,3 +1,4 @@
+import { isNative } from "../core/platform";
 import { createSheetEditorAsync, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
 import type * as Y from "yjs";
 import type {
@@ -110,7 +111,11 @@ class SheetInstance implements EditorInstance {
     })
       .then((editor) => {
         if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
-        else this.editor = editor;
+        else {
+          this.editor = editor;
+          // On this platform the editor's own print cannot reach a printer; route it here.
+          if (isNative()) editor.setPrintHandler(() => window.dispatchEvent(new CustomEvent("omnitext:print")));
+        }
       })
       .catch((e: unknown) => {
         console.error("[omnitext] sheet editor construction failed", e);
@@ -413,6 +418,16 @@ class SheetInstance implements EditorInstance {
   getText(): string {
     if (this.binary) return "";
     return this.editor?.getText() ?? this.text;
+  }
+
+  /**
+   * The paginated pages, not the grid.
+   *
+   * The grid keeps only the rows near the viewport in the DOM, so printing the surface
+   * prints a screenful of a spreadsheet; sheetedit builds proper pages and hands them over.
+   */
+  printable(): HTMLElement | null {
+    return this.editor?.printPages() ?? null;
   }
 
   getBytes(): Promise<Uint8Array> {
