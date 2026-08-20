@@ -1,0 +1,9 @@
+New in this update:
+
+• Work on a document together: share a link and edit at the same time, with live cursors, names and chat. Invite-only, and you approve who joins
+• Print from the app, through Android's printer: documents, spreadsheets, and PDFs at their real quality rather than as pictures
+• Open CAD drawings (DWG and DXF): pan and zoom, switch layers on and off, and print just the area you mark out
+• Settings shows which build is running, with a check for updates
+• "Open with" no longer loses the file you opened to recovered work from last time
+
+Still fully offline unless you choose to share, and nothing is stored on a server.
