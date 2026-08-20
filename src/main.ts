@@ -7,7 +7,7 @@ import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
-import { getOpenedFile, isNative, OpenedFileError, saveBytesNative } from "./core/platform";
+import { getOpenedFile, isNative, OpenedFileError, printNative, saveBytesNative } from "./core/platform";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
@@ -1555,12 +1555,38 @@ document.addEventListener("keydown", (e) => {
 // finds it, and a surface holding only the visible rows printed only those: a long text
 // file came out as its first page. The sheet is emptied again afterwards so it never
 // shows on screen or ages into a stale copy of a document that has since changed.
+/** Resolves when the app is on screen again, i.e. the system print UI is done with it. */
+function backFromPrintUi(): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = (): void => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearTimeout(timer);
+      resolve();
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState === "visible") finish();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    // Printing may never hide the app at all, and the sheet is invisible on screen, so a
+    // long stop is a safety net rather than a deadline anyone waits on.
+    const timer = setTimeout(finish, 120_000);
+  });
+}
+
 function printDoc(): void {
-  printDocument(session?.editor?.printable?.() ?? null, {
+  void printDocument(session?.editor?.printable?.() ?? null, {
     fill: (sheet) => (sheet ? printSheetEl.replaceChildren(sheet) : printSheetEl.replaceChildren()),
     useSheet: (on) => document.documentElement.classList.toggle("printing-sheet", on),
-    print: () => window.print(),
-    onceAfterPrint: (cb) => window.addEventListener("afterprint", cb, { once: true }),
+    print: async () => {
+      if (await printNative(session?.filename ?? t("notify.documentWord"))) {
+        await backFromPrintUi(); // the system reads the page after that call returns
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        window.addEventListener("afterprint", () => resolve(), { once: true });
+        window.print();
+      });
+    },
   });
 }
 

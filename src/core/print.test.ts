@@ -1,47 +1,51 @@
 import { describe, expect, it } from "vitest";
 import { printDocument, type PrintHost } from "./print";
 
-function host(): PrintHost & { log: string[]; finish(): void } {
+function host(printImpl?: () => Promise<void>): PrintHost & { log: string[] } {
   const log: string[] = [];
-  let after: (() => void) | null = null;
   return {
     log,
     fill: (sheet) => log.push(sheet ? "fill" : "clear"),
     useSheet: (on) => log.push(on ? "useSheet" : "useEditor"),
-    print: () => log.push("print"),
-    onceAfterPrint: (cb) => void (after = cb),
-    finish: () => after?.(),
+    print: async () => {
+      log.push("print");
+      if (printImpl) await printImpl();
+    },
   };
 }
 
 const sheet = (): HTMLElement => ({ tagName: "PRE" }) as HTMLElement;
 
 describe("printDocument", () => {
-  it("prints the live surface when the editor renders the whole document", () => {
+  it("prints the live surface when the editor renders the whole document", async () => {
     const h = host();
-    printDocument(null, h);
+    await printDocument(null, h);
     expect(h.log).toEqual(["print"]);
   });
 
-  it("swaps in the full rendering before printing", () => {
+  it("swaps in the full rendering, then takes it back out", async () => {
     const h = host();
-    printDocument(sheet(), h);
-    expect(h.log).toEqual(["fill", "useSheet", "print"]);
-  });
-
-  // Left in place, the sheet is a copy of the document as it was at the last print, shown
-  // instead of the editor the next time. Clearing it is the whole reason for the callback.
-  it("takes the rendering back out once printing is over", () => {
-    const h = host();
-    printDocument(sheet(), h);
-    h.finish();
+    await printDocument(sheet(), h);
     expect(h.log).toEqual(["fill", "useSheet", "print", "clear", "useEditor"]);
   });
 
-  it("registers no cleanup when there was nothing to swap in", () => {
-    const h = host();
-    printDocument(null, h);
-    h.finish();
-    expect(h.log).toEqual(["print"]);
+  // The sheet has to outlive the print call itself. Android reads the page after the call
+  // returns, so clearing early would print an empty document.
+  it("keeps the rendering up until printing says it is finished", async () => {
+    let finish!: () => void;
+    const h = host(() => new Promise<void>((res) => (finish = res)));
+    const done = printDocument(sheet(), h);
+    await Promise.resolve();
+    expect(h.log).toEqual(["fill", "useSheet", "print"]); // not cleared yet
+    finish();
+    await done;
+    expect(h.log).toEqual(["fill", "useSheet", "print", "clear", "useEditor"]);
+  });
+
+  // A cancelled print still has to put the editor back, or the next one shows the old copy.
+  it("takes the rendering back out even when printing fails", async () => {
+    const h = host(() => Promise.reject(new Error("cancelled")));
+    await expect(printDocument(sheet(), h)).rejects.toThrow("cancelled");
+    expect(h.log).toEqual(["fill", "useSheet", "print", "clear", "useEditor"]);
   });
 });

@@ -487,6 +487,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 
 @media print {
   header, #status, #panel, .toast, .modal, #dropzone { display: none !important; }
+  /* Editor-owned chrome. These belong to the editor libraries rather than the app shell,
+     so the rules above miss them and they would print across the top of the first page. */
+  .pdfedit-toolbar, .pdfedit-findbar,
+  .docxedit-toolbar, .docxedit-findbar, .docxedit-rulerlayer, .docxedit-rulers,
+  .sheetedit-toolbar, .subedit-toolbar { display: none !important; }
   html, body, #app, #editor, #printsheet {
     height: auto !important; min-height: 0 !important; overflow: visible !important;
     background: #fff !important;

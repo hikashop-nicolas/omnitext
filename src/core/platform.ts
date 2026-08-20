@@ -28,6 +28,30 @@ interface FileOpenerPlugin {
 }
 const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
 
+interface PrinterPlugin {
+  print(options: { name: string }): Promise<void>;
+}
+const Printer = registerPlugin<PrinterPlugin>("Printer");
+
+/**
+ * Print through Android's PrintManager, returning false on the web so the caller falls back
+ * to window.print(). A WebView does not implement window.print() at all, so without this the
+ * app's print command did nothing on the phone and said nothing about why.
+ *
+ * The native side prints the WebView's own rendering, which means the print stylesheet that
+ * shapes a printed page in the browser shapes it here too.
+ */
+export async function printNative(name: string): Promise<boolean> {
+  if (!isNative()) return false;
+  try {
+    await Printer.print({ name });
+    return true;
+  } catch (e) {
+    console.error("[omnitext] native print failed", e);
+    return false;
+  }
+}
+
 export interface OpenedFile {
   /** The file itself, streamed from the staged copy rather than copied through the bridge. */
   file: File;
