@@ -1607,6 +1607,7 @@ function printSurface(): Promise<void> {
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
+$("btn-print").addEventListener("click", printDoc);
 backBtn.addEventListener("click", () => void goBack());
 // --- encoding pill: shows the decode in use; click re-decodes the original bytes ----
 const encBtn = $("enc-btn");

@@ -57,6 +57,14 @@ editor's own chrome hidden and `printable()` filling in for whatever virtualizes
 
 ## Left open
 
+- richdoc has a print button of its own, and it is the only one people found. It opens a
+  window, clones the pages into it with `@page` rules matched to the page geometry, and
+  calls `win.print()`. That is a better paginated result than the app's DOM print on the
+  web, and on Android it prints nothing at all: `window.print()` is a no-op in a WebView,
+  which is the whole reason the plugin exists. The button carries no class, so it cannot
+  even be hidden reliably from here. The fix belongs in richdoc: give it a print handler
+  the host can take over, the way subedit takes over undo.
+
 - The print dialog itself is never verified from here: opening one from an automated
   session freezes the tab. Everything up to the call is checked; the last step wants eyes.
 - Other virtualized surfaces (the spreadsheet grid, the subtitle cue list) presumably
