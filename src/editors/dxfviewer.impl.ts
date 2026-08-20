@@ -34,6 +34,12 @@ function ensureStyles(): void {
     .ot-dxf-layers-head button { font:inherit; font-size:11px; padding:3px 6px; cursor:pointer;
       border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); }
     .ot-dxf-layers-list { overflow:auto; padding:4px 0; }
+    .ot-dxf-layers.is-folded { width:auto; }
+    .ot-dxf-layers.is-folded .ot-dxf-layers-list,
+    .ot-dxf-layers.is-folded .ot-dxf-layers-head input,
+    .ot-dxf-layers.is-folded .ot-dxf-layers-head button:not(.ot-dxf-fold) { display:none; }
+    .ot-dxf-layers.is-folded .ot-dxf-layers-head { border-bottom:0; }
+    .ot-dxf-fold { flex:none; }
     .ot-dxf-layer { display:flex; align-items:center; gap:7px; padding:2px 9px; cursor:pointer; }
     .ot-dxf-layer:hover { background:var(--surface-hover); }
     .ot-dxf-layer span.sw { width:10px; height:10px; border-radius:2px; flex:none;
@@ -59,7 +65,9 @@ function buildLayerPanel(
             ShowLayer: (name: string, show: boolean) => void; Render?: () => void },
 ): HTMLElement | null {
   const layers = [...(viewer.GetLayers?.(true) ?? [])];
-  if (layers.length === 0) return null;
+  // Nothing to choose between: one layer, or none, and the control is a box that does
+  // nothing but take up the drawing.
+  if (layers.length < 2) return null;
 
   const panel = document.createElement("div");
   panel.className = "ot-dxf-layers";
@@ -70,7 +78,13 @@ function buildLayerPanel(
   filter.placeholder = `${layers.length}`;
   const toggleAll = document.createElement("button");
   toggleAll.type = "button";
-  head.append(filter, toggleAll);
+  // Folds away to its header. The list is worth its space while choosing layers and in
+  // the way while looking at the drawing, which is most of the time.
+  const fold = document.createElement("button");
+  fold.type = "button";
+  fold.className = "ot-dxf-fold";
+  fold.setAttribute("aria-expanded", "true");
+  head.append(fold, filter, toggleAll);
   const list = document.createElement("div");
   list.className = "ot-dxf-layers-list";
   panel.append(head, list);
@@ -125,6 +139,15 @@ function buildLayerPanel(
     const q = filter.value.trim().toLowerCase();
     for (const { row, name } of rows) row.toggleAttribute("hidden", !!q && !name.toLowerCase().includes(q));
   });
+  const setFolded = (folded: boolean): void => {
+    panel.classList.toggle("is-folded", folded);
+    fold.textContent = folded ? "▸" : "▾";
+    fold.setAttribute("aria-expanded", String(!folded));
+    fold.title = folded ? `${layers.length}` : "";
+  };
+  fold.addEventListener("click", () => setFolded(!panel.classList.contains("is-folded")));
+  setFolded(false);
+
   refreshToggle();
   return panel;
 }
