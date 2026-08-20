@@ -16,14 +16,16 @@ const STYLE_ID = "omnitext-dxf-style";
  * A worker to read the drawing in, or null if this browser will not make one.
  *
  * The viewer takes a factory and terminates what it gets when the load finishes, so a fresh
- * one is built per file. Losing the worker costs responsiveness, not the feature, so a
- * refusal here falls back to reading in the page rather than failing to open the file.
+ * one is built per file. DXF can still be read in the page without one; DWG cannot, because
+ * its parser is bundled only into the worker. That is deliberate: keeping a main-thread
+ * fallback for DWG meant shipping the 1.1 MB parser twice, in two bundles that cannot share
+ * a chunk, to everyone, for a browser with no worker support at all.
  */
 function makeCadWorker(): Worker | null {
   try {
     return new Worker(new URL("./cad.worker.ts", import.meta.url), { type: "module" });
   } catch (e) {
-    console.warn("No CAD worker; reading the drawing on the main thread", e);
+    console.warn("No CAD worker available", e);
     return null;
   }
 }
@@ -224,6 +226,7 @@ class DxfInstance implements EditorInstance {
       let unsupported: Record<string, number> = {};
       let missingLinks: string[] = [];
       if (dwg) {
+        if (!workerFactory) throw new Error("Opening a DWG needs a browser that supports workers.");
         // The bytes are transferred to the worker, so this hands over a copy: the document
         // still owns its own, and saving or reopening it must still work afterwards.
         ({ unsupported, missingLinks } = await viewer.LoadDwg({
