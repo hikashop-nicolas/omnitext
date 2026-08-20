@@ -68,8 +68,16 @@ editor's own chrome hidden and `printable()` filling in for whatever virtualizes
 
 - The print dialog itself is never verified from here: opening one from an automated
   session freezes the tab. Everything up to the call is checked; the last step wants eyes.
-- Other virtualized surfaces (the spreadsheet grid, the subtitle cue list) presumably
-  truncate the way CodeMirror did. `printable()` is the place to fix each, unmeasured.
+- ~~The spreadsheet grid truncated the way CodeMirror did.~~ sheetedit already builds
+  paginated pages, so the adapter hands those over and its print button routes to the
+  platform in the app (sheetedit ff2d987, 569d0e4). Verified on the device.
+  Finding worth keeping: sheetedit's print stylesheet hid every top-level element that was
+  not its own pages, which blanked the host's printed page. That rule is now scoped to its
+  own printing. A library that hides things it does not own reaches outside itself.
+  Still on the active sheet only, and the scope dialog (all sheets, selection) is not
+  reachable from the host's button.
+- ~~The subtitle cue list~~ has no print at all now: the surface declares itself
+  unprintable and the button goes. A cue list is not a subtitle file.
 
 ## Notes
 
