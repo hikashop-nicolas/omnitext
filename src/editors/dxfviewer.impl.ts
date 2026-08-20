@@ -1,11 +1,14 @@
-import { DxfViewer } from "dxf-viewer";
+import { DxfViewer, isDwg } from "cadview";
 import * as THREE from "three";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 
-// Read-only 2D CAD viewer for DXF drawings, built on dxf-viewer (a WebGL renderer tuned
-// for large real-world files). It renders entities with their layer colours and provides
-// pan/zoom. Editing is out of scope. dxf-viewer loads from a URL, so we feed it an
-// in-memory object URL built from the document bytes (nothing leaves the browser).
+// Read-only 2D CAD viewer for DXF and DWG drawings, built on cadview (a fork of dxf-viewer,
+// a WebGL renderer tuned for large real-world files, with DWG reading added). It renders
+// entities with their layer colours and provides pan/zoom; editing is out of scope.
+//
+// DXF loads from a URL, so it is fed an in-memory object URL built from the document bytes.
+// DWG is handed over as bytes directly: it is read in the page rather than fetched, and
+// either way nothing leaves the browser.
 
 const STYLE_ID = "omnitext-dxf-style";
 
@@ -68,13 +71,26 @@ class DxfInstance implements EditorInstance {
       });
       this.viewer = viewer;
 
-      this.url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/dxf" }));
-      await viewer.Load({ url: this.url });
+      const dwg = isDwg(bytes);
+      let unsupported: Record<string, number> = {};
+      if (dwg) {
+        ({ unsupported } = await viewer.LoadDwg({ bytes }));
+      } else {
+        this.url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/dxf" }));
+        await viewer.Load({ url: this.url });
+      }
 
       const bar = document.createElement("div");
       bar.className = "ot-dxf-bar";
-      const layers = viewer.GetLayers?.() ?? [];
-      bar.textContent = `DXF · ${layers.length} layer${layers.length === 1 ? "" : "s"} · scroll to zoom, drag to pan`;
+      const layers = [...(viewer.GetLayers?.() ?? [])];
+      // What could not be drawn is said out loud. A CAD drawing missing its dimensions
+      // still looks like a drawing, so a viewer that stays quiet is trusted for something
+      // it did not render.
+      const missing = Object.entries(unsupported);
+      const left = missing.length
+        ? ` · ${missing.reduce((n, [, c]) => n + c, 0)} not drawn (${missing.map(([t]) => t.toLowerCase()).join(", ")})`
+        : "";
+      bar.textContent = `${dwg ? "DWG" : "DXF"} · ${layers.length} layer${layers.length === 1 ? "" : "s"} · scroll to zoom, drag to pan${left}`;
       root.appendChild(bar);
     } catch (e) {
       root.textContent = "";
