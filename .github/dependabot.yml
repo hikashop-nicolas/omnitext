@@ -18,6 +18,11 @@ updates:
       # Only pinned to satisfy the peer of the vanilla filerobot-image-editor (the package we
       # import), which peers on ^4.7.0. Any 5.x here breaks npm install with ERESOLVE.
       - dependency-name: "react-filerobot-image-editor"
+      # 0.3.97 added a `files` field that ships neither `lib/` (its `main`) nor `src/` (its
+      # `module`), so the package cannot be imported at all. The version spec is pinned exact
+      # for the same reason; drop both when a release ships an entry point that exists.
+      - dependency-name: "@intity/epub-js"
+        versions: ["0.3.97"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
