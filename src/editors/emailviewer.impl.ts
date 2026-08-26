@@ -49,7 +49,9 @@ function addr(a?: { name?: string; address?: string } | null): string {
   return a.name && a.address ? `${a.name} <${a.address}>` : a.address || a.name || "";
 }
 
-async function parseEml(bytes: Uint8Array): Promise<NormEmail> {
+// Exported for the header test: a message can carry the same header twice, and which copy
+// wins (and in what order recipients come back) is the parser's call, not ours.
+export async function parseEml(bytes: Uint8Array): Promise<NormEmail> {
   const { default: PostalMime } = await import("postal-mime");
   const email = await new PostalMime().parse(bytes);
   return {
