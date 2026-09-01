@@ -78,7 +78,11 @@ jobs:
             echo "kind=debug (no signing secrets set)" >> "$GITHUB_OUTPUT"
           fi
 
+      # Only main publishes. Dispatching this workflow on a branch is the one way to test a
+      # change to it before merging, and that must not overwrite the APK people sideload with
+      # a build from a branch (the release text below promises it came from main).
       - name: Publish rolling release (APK for sideload)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: android-latest
