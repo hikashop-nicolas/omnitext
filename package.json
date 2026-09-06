@@ -19,7 +19,7 @@
     "android:open": "npx cap open android",
     "predev": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs && node scripts/copy-libav-assets.mjs && node scripts/copy-alac-assets.mjs",
     "prebuild": "node scripts/copy-svgedit-assets.mjs && node scripts/copy-octopus-assets.mjs && node scripts/copy-libav-assets.mjs && node scripts/copy-alac-assets.mjs",
-    "postbuild": "node scripts/gen-sw.mjs"
+    "postbuild": "node scripts/gen-format-pages.mjs && node scripts/gen-sw.mjs"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.1",

@@ -154,6 +154,22 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (req.mode === "navigate") {
+    // The static format pages are navigations too, and they must be answered with
+    // themselves. Falling through to the shell below would serve the app to anyone who
+    // followed a link to one, since the app is what "any navigation" means here.
+    if (/\\/formats(\\.html|\\/)/.test(url.pathname)) {
+      event.respondWith((async () => {
+        const cache = await caches.open(CACHE);
+        const hit = await cache.match(req, { ignoreSearch: true });
+        if (hit) return hit;
+        try {
+          return await fetch(req);
+        } catch {
+          return Response.error();
+        }
+      })());
+      return;
+    }
     // Cache-first for the shell, deliberately. A cache holds one deploy's index.html
     // together with the exact chunks that index.html names, so booting from it is
     // always self-consistent. Going to the network hands back a fresh index.html

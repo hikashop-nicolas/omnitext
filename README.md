@@ -31,6 +31,8 @@ No file ever fails to open: unknown text opens as plain text, unknown binary as 
 
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
+**[📄 Every format it opens](https://hikashop-nicolas.github.io/omnitext/formats.html)** — a
+page per format, generated from the app's own registry.
 
 **[⬇ Android APK](https://github.com/hikashop-nicolas/omnitext/releases/download/android-latest/omnitext.apk)**
 — Omnitext also runs as an Android app (Capacitor), bundling the same editor offline, and
