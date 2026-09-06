@@ -17,6 +17,10 @@ src/data.json '{"n":1}\n'
 | `note.txt.xz` | a bare xz of a single file, which carries no name of its own |
 | `note.txt.bz2` | the same for bzip2 |
 
+The last two do not go through libarchive at all: it will not read a lone compressed file
+(see `core/decompress-one.ts`), so those unwrap through a decompressor and take their name
+from the caller.
+
 Regenerate with `xz`, `bzip2`, `tar` and any `7za` (the 7z one was made with the binary
 from the `7zip-bin` npm package, since macOS ships no 7z tool):
 

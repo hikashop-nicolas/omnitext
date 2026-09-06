@@ -61,30 +61,27 @@ describe("extracting", () => {
     expectBothFiles(await extractWithLibarchive(fixture("sample.tar.bz2"), "unused"));
   });
 
-  // A bare .xz or .bz2 holds one compressed file and no archive inside it. This build of
-  // libarchive cannot read that: it enables archive_read_support_format_all(), which
-  // deliberately leaves out the "raw" format, so the xz filter decompresses the stream and
-  // then something tries to parse the plain file as a tar and fails on the first header.
-  //
-  // These run as expected-to-fail rather than being deleted or asserted as "throws": the
-  // app offers .xz and .bz2 in its open dialog, so this is a gap worth keeping visible, and
-  // if a later build of libarchive-wasm adds the raw format these turn red to say so.
-  it.fails("cannot yet read a bare xz of a single file", async () => {
+  // A bare .xz or .bz2 holds one compressed file and no archive inside it, which libarchive
+  // will not read: its wasm enables archive_read_support_format_all(), and the "raw" format
+  // is deliberately left out of that set. So these unwrap through a decompressor instead,
+  // and the name comes from the caller because the stream carries none.
+  it("reads a bare xz of a single file, named by the caller", async () => {
     const entries = await extractWithLibarchive(fixture("note.txt.xz"), "note.txt");
     expect(entries).toHaveLength(1);
     expect(entries[0]!.name).toBe("note.txt");
     expect(text(entries[0]!.data)).toBe(NOTE);
   });
 
-  it.fails("cannot yet read a bare bzip2 of a single file", async () => {
+  it("reads a bare bzip2 of a single file, named by the caller", async () => {
     const entries = await extractWithLibarchive(fixture("note.txt.bz2"), "note.txt");
     expect(entries).toHaveLength(1);
     expect(entries[0]!.name).toBe("note.txt");
     expect(text(entries[0]!.data)).toBe(NOTE);
   });
 
-  it("says so, rather than hanging, when it cannot read one", async () => {
-    await expect(extractWithLibarchive(fixture("note.txt.xz"), "note.txt")).rejects.toThrow();
+  it("still refuses something that is neither an archive nor compressed", async () => {
+    const notAnArchive = new TextEncoder().encode("just some text, honestly");
+    await expect(extractWithLibarchive(notAnArchive, "x")).rejects.toThrow(/could not be read/);
   });
 });
 
@@ -117,5 +114,18 @@ describe("listing before reading", () => {
   it("rejects a name the archive does not hold", async () => {
     const handle = await openLibarchiveStream(fixture("sample.7z"), "unused");
     await expect(handle.read("nothing/here.txt")).rejects.toThrow(/no entry/);
+  });
+
+  it("presents a bare xz as the one file it holds", async () => {
+    const handle = await openLibarchiveStream(fixture("note.txt.xz"), "note.txt");
+    expect(handle.entries).toEqual([{ name: "note.txt", size: NOTE.length, dir: false }]);
+    expect(text(await handle.read("note.txt"))).toBe(NOTE);
+    await expect(handle.read("other.txt")).rejects.toThrow(/no entry/);
+  });
+
+  it("presents a bare bzip2 as the one file it holds", async () => {
+    const handle = await openLibarchiveStream(fixture("note.txt.bz2"), "note.txt");
+    expect(handle.entries).toEqual([{ name: "note.txt", size: NOTE.length, dir: false }]);
+    expect(text(await handle.read("note.txt"))).toBe(NOTE);
   });
 });

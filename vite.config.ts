@@ -46,6 +46,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/*.test.ts"],
+    setupFiles: ["./src/vendor/test-setup.ts"],
     // The libarchive wasm is imported as a URL for the browser. Under node that string has
     // to be a filesystem path instead, or emscripten looks for it at the filesystem root.
     // Aliased here rather than made configurable in the app: it is the test environment

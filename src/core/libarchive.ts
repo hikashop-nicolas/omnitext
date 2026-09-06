@@ -2,6 +2,7 @@ import { ArchiveReader, libarchiveWasm } from "libarchive-wasm";
 import wasmUrl from "libarchive-wasm/dist/libarchive.wasm?url";
 import type { ArchiveEntry } from "./archive";
 import type { ArchiveHandle } from "./archive-stream";
+import { decompressSingleFile } from "./decompress-one";
 
 // Extraction for archive/compression formats the fflate + tar path can't handle: 7z, RAR,
 // xz, bzip2 (including tar wrapped in xz/bzip2). Backed by libarchive compiled to WASM
@@ -27,25 +28,27 @@ function loadModule() {
   return modPromise;
 }
 
-/** List and read an archive's entries via libarchive. fallbackName names an entry whose
- *  header carries no pathname.
+/** ArchiveReader wants an Int8Array of just this document's bytes. */
+const toArchiveData = (bytes: Uint8Array): Int8Array =>
+  new Int8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+
+/**
+ * Read every entry, or null when libarchive cannot see an archive here at all.
  *
- *  It does NOT rescue a bare .xz or .bz2 of a single file, which this comment used to claim:
- *  the wasm build enables archive_read_support_format_all(), and libarchive leaves the "raw"
- *  format out of that set on purpose, so such a file decompresses and then fails to parse as
- *  an archive. libarchive.test.ts holds that as an expected failure. */
-export async function extractWithLibarchive(
-  bytes: Uint8Array,
+ * Null rather than a throw because "this is not an archive" is an ordinary answer for a
+ * lone .xz or .bz2, which the callers below then unwrap as the single file it is. The
+ * reader can fail either while being constructed or partway through iterating, so both are
+ * caught.
+ */
+function readAllEntries(
+  mod: Awaited<ReturnType<typeof libarchiveWasm>>,
+  data: Int8Array,
   fallbackName: string,
-): Promise<ArchiveEntry[]> {
-  const mod = await loadModule();
-  // ArchiveReader wants an Int8Array of just this document's bytes.
-  const data = new Int8Array(
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-  );
-  const reader = new ArchiveReader(mod, data);
-  const entries: ArchiveEntry[] = [];
+): ArchiveEntry[] | null {
+  let reader: ArchiveReader | null = null;
   try {
+    reader = new ArchiveReader(mod, data);
+    const entries: ArchiveEntry[] = [];
     for (const entry of reader.entries()) {
       const name = entry.getPathname();
       if (name.endsWith("/")) continue; // directory
@@ -53,10 +56,26 @@ export async function extractWithLibarchive(
       // Copy out of WASM memory (the buffer is reused for the next entry).
       entries.push({ name: name || fallbackName, data: raw ? new Uint8Array(raw) : new Uint8Array(0) });
     }
+    return entries.length > 0 ? entries : null;
+  } catch {
+    return null;
   } finally {
-    reader.free();
+    reader?.free();
   }
-  return entries;
+}
+
+/** List and read an archive's entries. fallbackName names an entry whose header carries no
+ *  pathname, and names the file inside a lone .xz or .bz2, which has no header at all. */
+export async function extractWithLibarchive(
+  bytes: Uint8Array,
+  fallbackName: string,
+): Promise<ArchiveEntry[]> {
+  const mod = await loadModule();
+  const entries = readAllEntries(mod, toArchiveData(bytes), fallbackName);
+  if (entries) return entries;
+  const single = await decompressSingleFile(bytes);
+  if (single) return [{ name: fallbackName, data: single }];
+  throw new Error("libarchive: this file could not be read as an archive");
 }
 
 /** Stream-style handle for libarchive formats: list names + sizes from the headers without
@@ -65,18 +84,35 @@ export async function extractWithLibarchive(
  *  this avoids copying every entry's bytes onto the JS heap the way extractWithLibarchive does. */
 export async function openLibarchiveStream(bytes: Uint8Array, fallbackName: string): Promise<ArchiveHandle> {
   const mod = await loadModule();
-  const data = new Int8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const data = toArchiveData(bytes);
 
   const metas: { name: string; size: number; dir: boolean }[] = [];
-  const reader = new ArchiveReader(mod, data);
+  let reader: ArchiveReader | null = null;
   try {
+    reader = new ArchiveReader(mod, data);
     for (const entry of reader.entries()) {
       const name = entry.getPathname() || fallbackName;
       const dir = name.endsWith("/");
       metas.push({ name, size: dir ? 0 : entry.getSize(), dir });
     }
+  } catch {
+    metas.length = 0; // not an archive; the lone-file path below decides
   } finally {
-    reader.free();
+    reader?.free();
+  }
+
+  // A lone .xz or .bz2 holds one file and no archive, so there is nothing to list without
+  // decompressing it. Done once here, and the handle then reads from what came out.
+  if (metas.length === 0) {
+    const single = await decompressSingleFile(bytes);
+    if (!single) throw new Error("libarchive: this file could not be read as an archive");
+    return {
+      entries: [{ name: fallbackName, size: single.length, dir: false }],
+      read: (name) =>
+        name === fallbackName
+          ? Promise.resolve(single)
+          : Promise.reject(new Error(`libarchive: no entry ${name}`)),
+    };
   }
 
   return {

@@ -110,6 +110,21 @@ declare module "libheif-js/wasm-bundle" {
   export default libheif;
 }
 
+// "xzwasm" and "bz2" ship no types. They decompress a lone .xz / .bz2, which libarchive
+// cannot (see core/decompress-one.ts). xzwasm is UMD, so the export lands on the module or
+// on its default depending on the bundler; both shapes are declared.
+declare module "xzwasm" {
+  type XzStream = new (source: ReadableStream<Uint8Array>) => ReadableStream<Uint8Array>;
+  export const XzReadableStream: XzStream | undefined;
+  const _default: { XzReadableStream?: XzStream } | undefined;
+  export default _default;
+}
+declare module "bz2" {
+  export function decompress(input: Uint8Array): Uint8Array;
+  const _default: { decompress?: (input: Uint8Array) => Uint8Array } | undefined;
+  export default _default;
+}
+
 // "latex.js" ships no TypeScript types; declare the bits we use.
 declare module "latex.js" {
   export class HtmlGenerator {

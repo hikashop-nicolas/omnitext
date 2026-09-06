@@ -392,7 +392,7 @@ export const PAGES = [
       "Open 7z, RAR, xz and bzip2, not only zip",
       "Look inside a .jar, or read a .cbz comic page by page",
     ],
-    note: "Archives open read-only: Omnitext reads one and takes files out, but does not write one back. Compressed tarballs (.tar.gz, .tgz, .tar.xz, .tar.bz2) are recognised too. An .xz or .bz2 holding a single file rather than a tar does not open yet.",
+    note: "Archives open read-only: Omnitext reads one and takes files out, but does not write one back. Compressed tarballs (.tar.gz, .tgz, .tar.xz, .tar.bz2) are recognised too. An .xz or .bz2 holding a single file opens as that file.",
   },
   {
     id: "video",
