@@ -1237,6 +1237,13 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
     // not on browse). zip/tar/tgz only; libarchive formats have no write path.
     const archiveBytes = new Uint8Array(await a.archiveBlob.arrayBuffer());
     const kind = detectArchiveKind(archiveBytes);
+    // Only zip/tar/tgz can be written. A 7z or a RAR reads as zero entries rather than
+    // failing, so going on would write a tar holding only this file over the original and
+    // lose everything else in it. Say so instead; the entry can still be downloaded.
+    if (!kind) {
+      engine.notificationSink.error(t("notify.archiveNotWritable", { name: a.parentName }));
+      return;
+    }
     const entries = await readArchiveAsync(archiveBytes);
     const idx = entries.findIndex((e) => e.name === a.path);
     if (idx >= 0) entries[idx]!.data = entryData;

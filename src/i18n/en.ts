@@ -122,6 +122,7 @@ const en: Dict = {
     documentWord: "document",
     updateReady: "A new version of Omnitext is ready. It loads the next time you open the app.",
     updateApplied: "Another window updated Omnitext. Reload this one to catch up.",
+    archiveNotWritable: "Omnitext can read {name} but cannot write it back, so this file cannot be saved into it. Use Download to keep your changes as a separate file.",
     storageFull: "Browser storage is full. Old snapshots were removed, but crash recovery may not keep up; save your work to disk.",
   },
   history: {

@@ -23,12 +23,23 @@ export interface ArchiveEntry {
 
 const isZip = (b: Uint8Array): boolean => b.length > 3 && b[0] === 0x50 && b[1] === 0x4b;
 const isGzip = (b: Uint8Array): boolean => b.length > 2 && b[0] === 0x1f && b[1] === 0x8b;
+// tar has no magic at the start; its "ustar" marker sits inside the first header block.
+const isTar = (b: Uint8Array): boolean =>
+  b.length >= 262 && b[257] === 0x75 && b[258] === 0x73 && b[259] === 0x74 && b[260] === 0x61 && b[261] === 0x72;
 
-/** Identify an archive's kind from its bytes (zip magic, gzip magic = tgz, else tar). */
-export function detectArchiveKind(bytes: Uint8Array): ArchiveKind {
+/**
+ * Which of the writable kinds these bytes are, or null for anything else.
+ *
+ * Null matters. This used to answer "tar" for whatever it did not recognise, and a 7z or a
+ * RAR reads as zero tar entries without complaining, so saving a file edited from inside one
+ * rebuilt it as a tar holding only that file and wrote it over the original. Everything else
+ * in the archive was gone. Callers must handle null rather than write something.
+ */
+export function detectArchiveKind(bytes: Uint8Array): ArchiveKind | null {
   if (isZip(bytes)) return "zip";
   if (isGzip(bytes)) return "tgz";
-  return "tar";
+  if (isTar(bytes)) return "tar";
+  return null;
 }
 
 /** List an archive's entries (zip, tar, or gzip-wrapped tar). */

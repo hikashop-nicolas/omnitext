@@ -41,3 +41,31 @@ describe("archive codec", () => {
     });
   }
 });
+
+// A 7z or a RAR is readable but not writable here. detectArchiveKind used to answer "tar"
+// for anything it did not recognise, and reading a 7z as a tar yields no entries and no
+// error, so a save-back rebuilt the archive as a tar holding only the edited file and wrote
+// it over the original. Null is what stops that, so it is worth pinning down.
+describe("which archives can be written back", () => {
+  const bytes = (...b: number[]): Uint8Array => new Uint8Array(b);
+
+  it("recognises the three kinds it can write", () => {
+    expect(detectArchiveKind(bytes(0x50, 0x4b, 0x03, 0x04))).toBe("zip");
+    expect(detectArchiveKind(bytes(0x1f, 0x8b, 0x08, 0x00))).toBe("tgz");
+    const tar = new Uint8Array(512);
+    tar.set([0x75, 0x73, 0x74, 0x61, 0x72], 257); // "ustar"
+    expect(detectArchiveKind(tar)).toBe("tar");
+  });
+
+  it("refuses to name a kind for archives it can only read", () => {
+    expect(detectArchiveKind(bytes(0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c))).toBeNull(); // 7z
+    expect(detectArchiveKind(bytes(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00))).toBeNull(); // RAR
+    expect(detectArchiveKind(bytes(0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00))).toBeNull(); // xz
+    expect(detectArchiveKind(bytes(0x42, 0x5a, 0x68, 0x39))).toBeNull(); // bzip2
+  });
+
+  it("refuses on something that is not an archive at all", () => {
+    expect(detectArchiveKind(new TextEncoder().encode("hello, not an archive"))).toBeNull();
+    expect(detectArchiveKind(new Uint8Array(0))).toBeNull();
+  });
+});
