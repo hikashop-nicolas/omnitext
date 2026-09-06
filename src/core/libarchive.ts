@@ -27,8 +27,13 @@ function loadModule() {
   return modPromise;
 }
 
-/** List and read an archive's entries via libarchive. fallbackName names a single
- *  unnamed entry (e.g. a bare .xz of one file). */
+/** List and read an archive's entries via libarchive. fallbackName names an entry whose
+ *  header carries no pathname.
+ *
+ *  It does NOT rescue a bare .xz or .bz2 of a single file, which this comment used to claim:
+ *  the wasm build enables archive_read_support_format_all(), and libarchive leaves the "raw"
+ *  format out of that set on purpose, so such a file decompresses and then fails to parse as
+ *  an archive. libarchive.test.ts holds that as an expected failure. */
 export async function extractWithLibarchive(
   bytes: Uint8Array,
   fallbackName: string,
