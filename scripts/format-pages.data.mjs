@@ -378,6 +378,23 @@ export const PAGES = [
     note: "This is a viewer for looking at a file, not a diagnostic tool.",
   },
   {
+    id: "archives",
+    name: "archive",
+    formats: ["zip", "7z", "rar", "tar", "xz", "bzip2", "jar", "cbz"],
+    headline: "Open a ZIP, 7z or RAR in your browser",
+    summary:
+      "Look inside an archive without unpacking it: list the contents, open one file from within it, or extract just that file.",
+    lead: "Opening an archive usually means unpacking the whole thing onto your disk to find out what is in it. Omnitext lists the contents in the browser and lets you open a single file straight from inside, in the editor that suits it, without extracting anything.",
+    can: [
+      "See what is inside before you commit to unpacking it",
+      "Open one file from within the archive, in the right editor, with nothing written to disk",
+      "Extract a single file instead of all of them",
+      "Open 7z, RAR, xz and bzip2, not only zip",
+      "Look inside a .jar, or read a .cbz comic page by page",
+    ],
+    note: "Archives open read-only: Omnitext reads one and takes files out, but does not write one back. Compressed tarballs (.tar.gz and .tgz) are recognised too.",
+  },
+  {
     id: "video",
     name: "video",
     formats: ["mp4", "mkv", "mov", "avi", "webmv", "wmv", "ogv", "3gp", "mpegts"],

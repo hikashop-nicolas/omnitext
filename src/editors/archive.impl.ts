@@ -2,6 +2,7 @@ import { readArchiveAsync, type ArchiveEntry } from "../core/archive";
 import { openArchiveStream, type ArchiveHandle } from "../core/archive-stream";
 import { extractWithLibarchive, isLibarchiveArchive } from "../core/libarchive";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { t } from "../i18n";
 
 // Read-only archive viewer: lists the entries and lets you Open one inside Omnitext (it is
 // routed back through the open flow to the right editor/viewer) or Extract it (save or
@@ -46,7 +47,7 @@ class ArchiveInstance implements EditorInstance {
     const blob = ctx.blob ?? (ctx.bytes ? new Blob([ctx.bytes as BlobPart]) : null);
     const wrap = document.createElement("div");
     wrap.className = "ot-arc";
-    wrap.append(msg("Reading…"));
+    wrap.append(msg(t("archive.reading")));
     container.appendChild(wrap);
     this.wrap = wrap;
     void this.load(wrap, blob, ctx.filename);
@@ -62,7 +63,7 @@ class ArchiveInstance implements EditorInstance {
     if (wrap !== this.wrap) return; // disposed while reading
     if (!handle) {
       wrap.textContent = "";
-      wrap.append(msg("This archive could not be read."));
+      wrap.append(msg(t("archive.unreadable")));
       return;
     }
     wrap.textContent = "";
@@ -70,7 +71,7 @@ class ArchiveInstance implements EditorInstance {
     const files = handle.entries.filter((e) => !e.dir).sort((a, b) => a.name.localeCompare(b.name));
     const head = document.createElement("div");
     head.className = "ot-arc-head";
-    head.textContent = `${files.length} file${files.length === 1 ? "" : "s"}`;
+    head.textContent = t("archive.count", { n: files.length, count: files.length });
     wrap.append(head);
     for (const { name, size } of files) {
       const row = document.createElement("div");
@@ -91,12 +92,12 @@ class ArchiveInstance implements EditorInstance {
           /* a single unreadable entry shouldn't break the listing */
         }
       };
-      const open = btn("Open", withData((data) => this.host.workspace.openFile?.(base, data, undefined, name)));
-      const extract = btn("Extract", withData((data) => this.host.workspace.exportFile?.(base, data)));
+      const open = btn(t("archive.open"), withData((data) => this.host.workspace.openFile?.(base, data, undefined, name)));
+      const extract = btn(t("archive.extract"), withData((data) => this.host.workspace.exportFile?.(base, data)));
       row.append(nm, sz, open, extract);
       wrap.append(row);
     }
-    if (files.length === 0) wrap.append(msg("This archive is empty."));
+    if (files.length === 0) wrap.append(msg(t("archive.empty")));
   }
 
   getText(): string {

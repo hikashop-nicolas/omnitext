@@ -218,6 +218,14 @@ const en: Dict = {
     reasonDirty: "it has unsaved changes to a different document",
     reasonTooLarge: "it is {size} MB, over the limit",
   },
+  archive: {
+    reading: "Reading…",
+    unreadable: "This archive could not be read.",
+    empty: "This archive is empty.",
+    count: { one: "{n} file", other: "{n} files" },
+    open: "Open",
+    extract: "Extract",
+  },
   binary: {
     download: "Download",
     truncated: "Showing the first {shown} of {total}. Use Download for the whole file.",

@@ -218,6 +218,14 @@ const ja: Dict = {
     reasonDirty: "別の文書に未保存の変更があります",
     reasonTooLarge: "{size} MB で上限を超えています",
   },
+  archive: {
+    reading: "読み込み中…",
+    unreadable: "このアーカイブを読み込めませんでした。",
+    empty: "このアーカイブは空です。",
+    count: { one: "{n} 個のファイル", other: "{n} 個のファイル" },
+    open: "開く",
+    extract: "取り出す",
+  },
   binary: {
     download: "ダウンロード",
     truncated: "先頭 {shown} / 全体 {total} を表示しています。ファイル全体はダウンロードをご利用ください。",

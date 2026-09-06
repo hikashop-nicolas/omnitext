@@ -219,6 +219,14 @@ const fr: Dict = {
     reasonDirty: "il comporte des modifications non enregistrées sur un autre document",
     reasonTooLarge: "il pèse {size} Mo, au-delà de la limite",
   },
+  archive: {
+    reading: "Lecture…",
+    unreadable: "Cette archive n'a pas pu être lue.",
+    empty: "Cette archive est vide.",
+    count: { one: "{n} fichier", other: "{n} fichiers" },
+    open: "Ouvrir",
+    extract: "Extraire",
+  },
   binary: {
     download: "Télécharger",
     truncated: "Affichage des {shown} premiers sur {total}. Utilisez Télécharger pour le fichier entier.",
