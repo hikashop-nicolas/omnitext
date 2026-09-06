@@ -134,6 +134,7 @@ import {
   makeViewerFormats,
 } from "./formats/binary-viewers";
 import { applyDom, initI18n, t } from "./i18n";
+import { REPO_URL } from "./core/links";
 import { getSettings, saveSettings } from "./settings";
 import { turnServers, type TurnProblem } from "./tools/collab/turn";
 import type {
@@ -1720,6 +1721,8 @@ document.addEventListener("keydown", (e) => {
 
 // --- settings dialog ---------------------------------------------------------
 const settingsDlgEl = $("settingsdlg");
+// The link lives in one place (core/links), not hardcoded in the markup as well.
+($("setting-source") as HTMLAnchorElement).href = REPO_URL;
 const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;

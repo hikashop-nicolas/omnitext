@@ -69,6 +69,7 @@ const en: Dict = {
     turnNeedCreds: "A relay needs both a username and a password.",
     turnOk: "This relay will be used when a direct connection cannot be made.",
     version: "Version",
+    sourceCode: "Source code on GitHub",
     checkUpdates: "Check for updates",
     updateChecking: "Checking…",
     updateCurrent: "You are running the latest version.",
@@ -216,6 +217,15 @@ const en: Dict = {
     otherDeclined: "The other side could not take this document: {reason}",
     reasonDirty: "it has unsaved changes to a different document",
     reasonTooLarge: "it is {size} MB, over the limit",
+  },
+  binary: {
+    download: "Download",
+    truncated: "Showing the first {shown} of {total}. Use Download for the whole file.",
+    askKnown: "Omnitext does not read {ext} files yet, so this is the raw content.",
+    askUnknown: "Omnitext did not recognise this file, so this is the raw content.",
+    askHint: "Tell us what it is and it may become a format Omnitext opens. This opens GitHub with the extension filled in; nothing from the file itself is sent.",
+    askAction: "Ask for this format",
+    askDismiss: "Dismiss",
   },
   viewer: {
     rendering: "Rendering…",

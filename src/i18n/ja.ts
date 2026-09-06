@@ -69,6 +69,7 @@ const ja: Dict = {
     turnNeedCreds: "リレーにはユーザー名とパスワードの両方が必要です。",
     turnOk: "直接接続できない場合にこのリレーが使われます。",
     version: "バージョン",
+    sourceCode: "GitHub のソースコード",
     checkUpdates: "更新を確認",
     updateChecking: "確認中…",
     updateCurrent: "最新バージョンをご利用中です。",
@@ -216,6 +217,15 @@ const ja: Dict = {
     otherDeclined: "相手はこの文書を受け取れませんでした：{reason}",
     reasonDirty: "別の文書に未保存の変更があります",
     reasonTooLarge: "{size} MB で上限を超えています",
+  },
+  binary: {
+    download: "ダウンロード",
+    truncated: "先頭 {shown} / 全体 {total} を表示しています。ファイル全体はダウンロードをご利用ください。",
+    askKnown: "Omnitext はまだ {ext} ファイルを読めないため、生の内容を表示しています。",
+    askUnknown: "Omnitext はこのファイルを認識できなかったため、生の内容を表示しています。",
+    askHint: "どのようなファイルか教えていただければ、対応できるかもしれません。このリンクは拡張子を入力済みの状態で GitHub を開きます。ファイルの内容は一切送信されません。",
+    askAction: "この形式に対応をお願いする",
+    askDismiss: "閉じる",
   },
   viewer: {
     rendering: "描画中…",

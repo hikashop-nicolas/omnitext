@@ -69,6 +69,7 @@ const fr: Dict = {
     turnNeedCreds: "Un relais a besoin à la fois d'un nom d'utilisateur et d'un mot de passe.",
     turnOk: "Ce relais sera utilisé lorsqu'une connexion directe est impossible.",
     version: "Version",
+    sourceCode: "Code source sur GitHub",
     checkUpdates: "Rechercher des mises à jour",
     updateChecking: "Vérification…",
     updateCurrent: "Vous utilisez la dernière version.",
@@ -217,6 +218,15 @@ const fr: Dict = {
     otherDeclined: "L'autre partie n'a pas pu accepter ce document : {reason}",
     reasonDirty: "il comporte des modifications non enregistrées sur un autre document",
     reasonTooLarge: "il pèse {size} Mo, au-delà de la limite",
+  },
+  binary: {
+    download: "Télécharger",
+    truncated: "Affichage des {shown} premiers sur {total}. Utilisez Télécharger pour le fichier entier.",
+    askKnown: "Omnitext ne lit pas encore les fichiers {ext} : voici leur contenu brut.",
+    askUnknown: "Omnitext n'a pas reconnu ce fichier : voici son contenu brut.",
+    askHint: "Dites-nous de quoi il s'agit et ce format pourra être pris en charge. Ce lien ouvre GitHub avec l'extension pré-remplie ; rien du fichier lui-même n'est envoyé.",
+    askAction: "Demander ce format",
+    askDismiss: "Fermer",
   },
   viewer: {
     rendering: "Rendu en cours…",

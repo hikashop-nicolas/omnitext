@@ -1,11 +1,38 @@
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { extensionOf, formatRequestUrl } from "../core/links";
+import { t } from "../i18n";
 
 // Read-only fallback for files Omnitext can't open as text or a known binary type: shows
 // size + MIME, a hex dump of the first chunk, and a Download/Share button (so nothing ever
 // fails to open). Hidden Save (read-only).
+//
+// Landing here is the one moment the app knows it fell short, so it is also where it asks
+// what the file was. The ask is a link to a prefilled issue, carrying the extension and the
+// MIME guess and nothing else; see core/links.
 
 const STYLE_ID = "omnitext-binary-style";
 const HEX_LIMIT = 4096; // bytes shown in the dump
+const DISMISS_KEY = "omnitext:formatAskDismissed";
+
+// Dismissal is remembered per extension: saying "not this one" about .foo should not also
+// silence the question for the next unknown type, which is a different thing to learn.
+function dismissed(): string[] {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function dismiss(ext: string): void {
+  try {
+    const all = dismissed();
+    if (!all.includes(ext)) localStorage.setItem(DISMISS_KEY, JSON.stringify([...all, ext]));
+  } catch {
+    /* storage unavailable; the box simply comes back next time */
+  }
+}
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -22,6 +49,19 @@ function ensureStyles(): void {
     .ot-bin-hex { margin:0; padding:12px 16px; white-space:pre; overflow:auto;
       font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:var(--text); }
     .ot-bin-note { padding:0 16px 16px; color:var(--muted); font-size:12px; }
+    /* Sticky, because the dump above it can run to thousands of lines and a box only
+       reachable by scrolling past all of them would never be read. */
+    .ot-bin-ask { position:sticky; bottom:0; margin:0 16px 16px; padding:12px 14px;
+      border:1px solid var(--border); border-radius:8px; background:var(--surface);
+      box-shadow:0 2px 12px rgba(0,0,0,.18); display:flex; align-items:flex-start; gap:12px; }
+    a.ot-bin-btn { display:inline-block; text-decoration:none; }
+    .ot-bin-ask-body { flex:1 1 auto; min-width:0; }
+    .ot-bin-ask p { margin:0 0 4px; }
+    .ot-bin-ask .ot-bin-ask-hint { color:var(--muted); font-size:12px; margin:0 0 10px; }
+    .ot-bin-ask-close { flex:0 0 auto; width:26px; height:26px; line-height:1; padding:0;
+      border:0; border-radius:6px; background:transparent; color:var(--muted); font-size:16px;
+      cursor:pointer; }
+    .ot-bin-ask-close:hover { background:var(--chrome); color:var(--text); }
   `;
   document.head.appendChild(s);
 }
@@ -66,7 +106,7 @@ class BinaryInstance implements EditorInstance {
     const dl = document.createElement("button");
     dl.type = "button";
     dl.className = "ot-bin-btn";
-    dl.textContent = "Download";
+    dl.textContent = t("binary.download");
     const name = this.host.workspace.getActiveDocument()?.filename ?? "file";
     dl.addEventListener("click", () => this.host.workspace.exportFile?.(name, bytes));
     head.append(info, dl);
@@ -79,12 +119,57 @@ class BinaryInstance implements EditorInstance {
     if (bytes.length > HEX_LIMIT) {
       const note = document.createElement("div");
       note.className = "ot-bin-note";
-      note.textContent = `Showing the first ${fmtSize(HEX_LIMIT)} of ${fmtSize(bytes.length)}. Use Download for the whole file.`;
+      note.textContent = t("binary.truncated", {
+        shown: fmtSize(HEX_LIMIT),
+        total: fmtSize(bytes.length),
+      });
       wrap.append(note);
     }
 
+    const ask = this.buildAsk(extensionOf(name), ctx.mime);
+    if (ask) wrap.append(ask);
+
     container.appendChild(wrap);
     this.wrap = wrap;
+  }
+
+  /** The "what was this file?" box, or null once the reader has waved it away. */
+  private buildAsk(ext: string, mime?: string): HTMLElement | null {
+    if (dismissed().includes(ext)) return null;
+
+    const box = document.createElement("div");
+    box.className = "ot-bin-ask";
+
+    const body = document.createElement("div");
+    body.className = "ot-bin-ask-body";
+    const lead = document.createElement("p");
+    lead.textContent = ext
+      ? t("binary.askKnown", { ext })
+      : t("binary.askUnknown");
+    const hint = document.createElement("p");
+    hint.className = "ot-bin-ask-hint";
+    hint.textContent = t("binary.askHint");
+    const link = document.createElement("a");
+    link.className = "ot-bin-btn";
+    link.href = formatRequestUrl(ext, mime);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = t("binary.askAction");
+    body.append(lead, hint, link);
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ot-bin-ask-close";
+    close.textContent = "×";
+    close.title = t("binary.askDismiss");
+    close.setAttribute("aria-label", t("binary.askDismiss"));
+    close.addEventListener("click", () => {
+      dismiss(ext);
+      box.remove();
+    });
+
+    box.append(body, close);
+    return box;
   }
 
   getText(): string {
