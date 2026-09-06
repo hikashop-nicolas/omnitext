@@ -55,9 +55,18 @@ async function loadManifests() {
       skipped.push(`${f}: ${String(e.message).split("\n")[0]}`);
       continue;
     }
-    for (const value of Object.values(mod)) {
+    for (const [name, value] of Object.entries(mod)) {
+      // Most formats are exported as a descriptor object...
       if (value && typeof value === "object" && value.manifest?.kind === "format") {
         byId.set(value.manifest.id, value.manifest);
+      }
+      // ...but the media, image, archive and long-tail code formats come from a factory
+      // (makeViewerFormats, makeTextFormats). Those are most of what the app opens, so a
+      // loader that only looked at plain exports could not describe any of them.
+      if (typeof value === "function" && /^make\w*Formats$/.test(name)) {
+        for (const d of value()) {
+          if (d?.manifest?.kind === "format") byId.set(d.manifest.id, d.manifest);
+        }
       }
     }
   }
@@ -142,13 +151,18 @@ upload, no tracking. <a href="${REPO}">Source on GitHub</a> ·
 `;
 }
 
-function formatPage(page, manifest, manifests) {
-  // `also` names sibling formats the page speaks for (KML's page covers KMZ). Their
-  // extensions still come from the registry, so the list cannot claim one the app dropped.
-  const exts = [
-    ...manifest.extensions,
-    ...(page.also ?? []).flatMap((id) => manifests.get(id).extensions),
-  ].filter(Boolean);
+/** Extensions a page may advertise: every one comes from the registry, none is invented. */
+function extensionsFor(page, manifests) {
+  const all = page.formats.flatMap((id) => manifests.get(id).extensions).filter(Boolean);
+  return [...new Set(all)];
+}
+
+// A page covering 60 languages would otherwise print 150 extensions, which reads as noise
+// and buries the ones people recognise.
+const EXT_SHOWN = 16;
+
+function formatPage(page, manifests) {
+  const exts = extensionsFor(page, manifests);
   const title = `${page.headline} · Omnitext`;
   const canonical = `${SITE}/formats/${page.id}.html`;
   const related = PAGES.filter((p) => p.id !== page.id).slice(0, 6);
@@ -159,7 +173,9 @@ function formatPage(page, manifest, manifests) {
 <p class="note">Free, no account, and your file never leaves your device.</p>
 <div class="facts">
   <dl>
-    <dt>Opens</dt><dd>${exts.map((e) => `<code>${esc(e)}</code>`).join(" ") || "—"}</dd>
+    <dt>Opens</dt><dd>${
+      exts.slice(0, EXT_SHOWN).map((e) => `<code>${esc(e)}</code>`).join(" ") || "—"
+    }${exts.length > EXT_SHOWN ? ` and ${exts.length - EXT_SHOWN} more` : ""}</dd>
     <dt>Runs</dt><dd>In your browser. The file is not uploaded anywhere.</dd>
     <dt>Costs</dt><dd>Nothing, and there is no account to make.</dd>
   </dl>
@@ -195,7 +211,7 @@ is free and open source.</p>
     .map(
       (p) =>
         `<li><a href="formats/${esc(p.id)}.html"><strong>${esc(p.name)}</strong><span>${esc(
-          manifests.get(p.id).extensions.filter(Boolean).join(" "),
+          extensionsFor(p, manifests).slice(0, 4).join(" "),
         )}</span></a></li>`,
     )
     .join("")}</ul>
@@ -218,7 +234,7 @@ file you give it, and anything it does not recognise still opens, as text or as 
 
 const { byId: manifests, skipped } = await loadManifests();
 
-const referenced = PAGES.flatMap((p) => [p.id, ...(p.also ?? [])]);
+const referenced = PAGES.flatMap((p) => p.formats);
 const unknown = referenced.filter((id) => !manifests.has(id)).map((id) => ({ id }));
 if (unknown.length) {
   const why = skipped.length ? `\nModules that would not load:\n  ${skipped.join("\n  ")}` : "";
@@ -228,7 +244,7 @@ if (unknown.length) {
       .join(", ")}. Remove the page or restore the format.${why}`,
   );
 }
-const empty = PAGES.filter((p) => manifests.get(p.id).extensions.filter(Boolean).length === 0);
+const empty = PAGES.filter((p) => extensionsFor(p, manifests).length === 0);
 if (empty.length) {
   throw new Error(
     `these formats claim no extension, so their page would list none: ${empty
@@ -241,7 +257,7 @@ mkdirSync(join(dist, "formats"), { recursive: true });
 for (const page of PAGES) {
   writeFileSync(
     join(dist, "formats", `${page.id}.html`),
-    formatPage(page, manifests.get(page.id), manifests),
+    formatPage(page, manifests),
   );
 }
 writeFileSync(join(dist, "formats.html"), indexPage(PAGES, manifests));

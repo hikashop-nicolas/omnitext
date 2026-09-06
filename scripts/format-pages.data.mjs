@@ -8,21 +8,22 @@
 
 /**
  * @typedef {object} FormatPage
- * @property {string} id        Format id, must exist in src/formats.
+ * @property {string} id        Page slug, used for the URL.
+ * @property {string[]} formats Registry ids this page speaks for; every one must exist in
+ *                              the app, and their extensions are what the page lists.
  * @property {string} name      How people say it ("Word document", not "docx").
  * @property {string} headline  Page <h1> and <title> lead.
  * @property {string} summary   Meta description; one sentence, under ~155 characters.
  * @property {string} lead      Opening paragraph.
  * @property {string[]} can     What you can actually do, most useful first.
  * @property {string} [note]    A caveat or a detail worth knowing. Optional.
- * @property {string[]} [also]  Sibling format ids this page also speaks for; their
- *                              extensions are listed alongside, straight from the registry.
  */
 
 /** @type {FormatPage[]} */
 export const PAGES = [
   {
     id: "pdf",
+    formats: ["pdf"],
     name: "PDF",
     headline: "Edit a PDF in your browser",
     summary:
@@ -40,6 +41,7 @@ export const PAGES = [
   },
   {
     id: "docx",
+    formats: ["docx", "doc"],
     name: "Word document",
     headline: "Open and edit a .docx without Word",
     summary:
@@ -53,10 +55,10 @@ export const PAGES = [
       "Print or save as PDF",
     ],
     note: "Files still in the old binary .doc format open read-only. Save them as .docx from any word processor to edit them here.",
-    also: ["doc"],
   },
   {
     id: "odt",
+    formats: ["odt"],
     name: "OpenDocument text",
     headline: "Open and edit an .odt in your browser",
     summary:
@@ -71,6 +73,7 @@ export const PAGES = [
   },
   {
     id: "xlsx",
+    formats: ["xlsx", "xls"],
     name: "Excel spreadsheet",
     headline: "Edit an .xlsx and keep the formulas working",
     summary:
@@ -83,10 +86,10 @@ export const PAGES = [
       "Save back to .xlsx, or export the sheet as CSV",
     ],
     note: "The older binary .xls opens too, through a simpler table view that does not carry formulas.",
-    also: ["xls"],
   },
   {
     id: "ods",
+    formats: ["ods"],
     name: "OpenDocument spreadsheet",
     headline: "Edit an .ods spreadsheet in the browser",
     summary:
@@ -100,6 +103,7 @@ export const PAGES = [
   },
   {
     id: "csv",
+    formats: ["csv"],
     name: "CSV",
     headline: "Open a CSV as a table, or as text",
     summary:
@@ -114,6 +118,7 @@ export const PAGES = [
   },
   {
     id: "dwg",
+    formats: ["dwg"],
     name: "DWG drawing",
     headline: "Open a DWG drawing without AutoCAD",
     summary:
@@ -129,6 +134,7 @@ export const PAGES = [
   },
   {
     id: "dxf",
+    formats: ["dxf"],
     name: "DXF drawing",
     headline: "Open a DXF drawing in the browser",
     summary:
@@ -143,6 +149,7 @@ export const PAGES = [
   },
   {
     id: "epub",
+    formats: ["epub"],
     name: "EPUB book",
     headline: "Read an EPUB in your browser",
     summary: "Open EPUB ebooks and read them page by page, with no reader app and no account.",
@@ -156,6 +163,7 @@ export const PAGES = [
   },
   {
     id: "srt",
+    formats: ["srt"],
     name: "SRT subtitles",
     headline: "Edit .srt subtitles in your browser",
     summary:
@@ -170,6 +178,7 @@ export const PAGES = [
   },
   {
     id: "vtt",
+    formats: ["vtt"],
     name: "WebVTT subtitles",
     headline: "Edit .vtt subtitles in your browser",
     summary:
@@ -184,6 +193,7 @@ export const PAGES = [
   },
   {
     id: "ass",
+    formats: ["ass"],
     name: "ASS/SSA subtitles",
     headline: "Edit .ass subtitles, styles and all",
     summary:
@@ -198,6 +208,7 @@ export const PAGES = [
   },
   {
     id: "geojson",
+    formats: ["geojson"],
     name: "GeoJSON",
     headline: "Edit GeoJSON on a map, in the browser",
     summary:
@@ -212,6 +223,7 @@ export const PAGES = [
   },
   {
     id: "kml",
+    formats: ["kml", "kmz"],
     name: "KML",
     headline: "Open a KML file on a map",
     summary:
@@ -222,10 +234,10 @@ export const PAGES = [
       "Move and edit features directly on the map",
       "Open .kmz without unzipping it first",
     ],
-    also: ["kmz"],
   },
   {
     id: "gpx",
+    formats: ["gpx"],
     name: "GPX track",
     headline: "Open a GPX track from your watch or GPS",
     summary:
@@ -239,6 +251,7 @@ export const PAGES = [
   },
   {
     id: "svg",
+    formats: ["svg"],
     name: "SVG",
     headline: "Edit an SVG in your browser",
     summary:
@@ -252,6 +265,7 @@ export const PAGES = [
   },
   {
     id: "eml",
+    formats: ["eml"],
     name: "Email message",
     headline: "Open an .eml file without an email client",
     summary:
@@ -265,6 +279,7 @@ export const PAGES = [
   },
   {
     id: "msg",
+    formats: ["msg"],
     name: "Outlook message",
     headline: "Open an Outlook .msg file without Outlook",
     summary:
@@ -278,6 +293,7 @@ export const PAGES = [
   },
   {
     id: "sqlite",
+    formats: ["sqlite"],
     name: "SQLite database",
     headline: "Browse a SQLite database in your browser",
     summary:
@@ -291,6 +307,7 @@ export const PAGES = [
   },
   {
     id: "ipynb",
+    formats: ["ipynb"],
     name: "Jupyter notebook",
     headline: "Read a Jupyter notebook without Jupyter",
     summary:
@@ -305,6 +322,7 @@ export const PAGES = [
   },
   {
     id: "parquet",
+    formats: ["parquet"],
     name: "Parquet",
     headline: "Look inside a Parquet file in the browser",
     summary:
@@ -318,6 +336,7 @@ export const PAGES = [
   },
   {
     id: "psd",
+    formats: ["psd"],
     name: "Photoshop file",
     headline: "Open a .psd without Photoshop",
     summary: "View Photoshop PSD files in the browser to see what is in them, with nothing uploaded.",
@@ -331,6 +350,7 @@ export const PAGES = [
   },
   {
     id: "heic",
+    formats: ["heic"],
     name: "HEIC photo",
     headline: "Open a HEIC photo from an iPhone",
     summary:
@@ -344,6 +364,7 @@ export const PAGES = [
   },
   {
     id: "dicom",
+    formats: ["dicom"],
     name: "DICOM image",
     headline: "Open a DICOM medical image",
     summary:
@@ -357,7 +378,61 @@ export const PAGES = [
     note: "This is a viewer for looking at a file, not a diagnostic tool.",
   },
   {
+    id: "video",
+    name: "video",
+    formats: ["mp4", "mkv", "mov", "avi", "webmv", "wmv", "ogv", "3gp", "mpegts"],
+    headline: "Play a video file in your browser",
+    summary:
+      "Play MP4, MKV, MOV, AVI and more in the browser, with subtitles, and without uploading the file anywhere.",
+    lead: "Omnitext plays a video straight from your disk, streaming it as it goes, so a film-sized file never has to be loaded into memory or handed to a website. When the browser cannot play the container, it repackages the stream on the fly rather than giving up, without re-encoding and without touching the original.",
+    can: [
+      "Play a file straight from your disk, however large it is",
+      "Watch containers the browser will not open on its own, repackaged as they play",
+      "Show subtitles, both the ones embedded in the file and a separate subtitle file",
+      "Hear audio tracks the browser cannot decode by itself, including Dolby AC-3",
+      "Open the subtitle file itself, in the same app, to fix a line or the timing",
+    ],
+    note: "Video opens for playing, not editing. Nothing is uploaded and nothing is converted on a server: the file stays on your device the whole time.",
+  },
+  {
+    id: "audio",
+    name: "audio",
+    formats: ["mp3", "flac", "wav", "m4a", "aac", "oga", "weba", "mka", "wma"],
+    headline: "Play an audio file in your browser",
+    summary:
+      "Play MP3, FLAC, WAV, M4A and more in the browser. Nothing is uploaded, and nothing needs installing.",
+    lead: "Omnitext plays audio from your disk without an app, a plugin or an upload, including formats a browser will not normally take, such as Apple Lossless.",
+    can: [
+      "Play a file straight from your disk",
+      "Play lossless formats, including FLAC and Apple Lossless",
+      "Open a file someone sent you without installing a player for it",
+    ],
+  },
+  {
+    id: "code",
+    name: "source code",
+    formats: [
+      "javascript", "typescript", "python", "c", "cpp", "java", "csharp", "php", "rust",
+      "go", "ruby", "swift", "kotlin", "sql", "shell", "html", "css", "yaml", "xml",
+      "toml", "ini", "vue", "svelte", "powershell", "lua", "perl", "haskell", "scala",
+      "dart", "clojure", "erlang", "graphql", "asciidoc", "log", "diff",
+    ],
+    headline: "Open a code file with syntax highlighting",
+    summary:
+      "Read and edit source code in the browser with syntax highlighting for 70+ languages. No upload, no account, works offline.",
+    lead: "Omnitext opens source files in a real code editor rather than a plain text box: syntax highlighting, bracket matching, folding and search, for over seventy languages. It runs entirely in the browser, which matters when the file has credentials or customer data in it and pasting it into an online viewer is not an option.",
+    can: [
+      "Read and edit with highlighting, folding, bracket matching and search",
+      "Open a language you did not install anything for",
+      "Work on a file with secrets in it without it leaving your machine",
+      "Open a log or a diff and have it highlighted too",
+      "Keep working with the page offline once it has loaded",
+    ],
+    note: "Anything Omnitext does not have a language for still opens as plain text, so no source file fails to open.",
+  },
+  {
     id: "markdown",
+    formats: ["markdown"],
     name: "Markdown",
     headline: "Write Markdown in your browser",
     summary:
@@ -372,6 +447,7 @@ export const PAGES = [
   },
   {
     id: "latex",
+    formats: ["latex"],
     name: "LaTeX",
     headline: "Edit and preview LaTeX in the browser",
     summary:
@@ -386,6 +462,7 @@ export const PAGES = [
   },
   {
     id: "json",
+    formats: ["json"],
     name: "JSON",
     headline: "Open and edit JSON in your browser",
     summary:
