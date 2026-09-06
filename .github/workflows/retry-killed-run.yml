@@ -1,0 +1,45 @@
+name: Retry a run whose runner was taken away
+
+# GitHub sometimes reclaims a hosted runner mid-job. The job dies wherever it happened to
+# be, with "The runner has received a shutdown signal" and exit 143, and it is reported as a
+# failure like any other. It has happened twice here, both times inside npm ci, and both
+# times an identical re-run passed.
+#
+# The retry loop around npm ci cannot help: the whole machine goes away, not just the
+# command. So this listens for a failed run and re-runs it, but only after reading the log
+# and finding that message. A build that failed on its own merits is left failed, because a
+# red build that quietly goes green on a second try is worse than a flaky one.
+
+on:
+  workflow_run:
+    workflows: ["Build Android APK", "Deploy to GitHub Pages", "CI"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  retry:
+    # Only ever the first attempt, so a rerun that fails again is the end of it.
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt == 1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run it if the runner was shut down under it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/1/logs" > logs.zip 2>/dev/null; then
+            echo "No log for run $RUN_ID; leaving it alone."
+            exit 0
+          fi
+          if unzip -p logs.zip | grep -q "The runner has received a shutdown signal"; then
+            echo "Run $RUN_ID lost its runner. Re-running the failed jobs."
+            gh api --method POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
+          else
+            echo "Run $RUN_ID failed on its own merits. Leaving it failed."
+          fi
