@@ -49,16 +49,18 @@ describe("archive codec", () => {
 describe("which archives can be written back", () => {
   const bytes = (...b: number[]): Uint8Array => new Uint8Array(b);
 
-  it("recognises the three kinds it can write", () => {
+  it("recognises the kinds it can write", () => {
     expect(detectArchiveKind(bytes(0x50, 0x4b, 0x03, 0x04))).toBe("zip");
     expect(detectArchiveKind(bytes(0x1f, 0x8b, 0x08, 0x00))).toBe("tgz");
+    expect(detectArchiveKind(bytes(0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c))).toBe("7z");
     const tar = new Uint8Array(512);
     tar.set([0x75, 0x73, 0x74, 0x61, 0x72], 257); // "ustar"
     expect(detectArchiveKind(tar)).toBe("tar");
   });
 
   it("refuses to name a kind for archives it can only read", () => {
-    expect(detectArchiveKind(bytes(0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c))).toBeNull(); // 7z
+    // RAR because no free compressor exists; xz and bzip2 because a lone compressed file is
+    // not an archive to put an edited entry back into.
     expect(detectArchiveKind(bytes(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00))).toBeNull(); // RAR
     expect(detectArchiveKind(bytes(0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00))).toBeNull(); // xz
     expect(detectArchiveKind(bytes(0x42, 0x5a, 0x68, 0x39))).toBeNull(); // bzip2

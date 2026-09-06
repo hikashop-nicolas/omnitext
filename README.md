@@ -258,3 +258,8 @@ src/main.ts    the app: registers modules, wiring, open/save, detection, autosav
 ```
 
 License: MIT.
+
+Two bundled libraries are LGPL rather than MIT, each loaded on demand as its own
+WebAssembly module and neither inlined into the app: the libav.js audio decoders
+(`public/libav/NOTICE.md`) and 7-Zip, used to write `.7z` archives
+(`public/7z/NOTICE.md`). Using them does not change Omnitext's own licence.

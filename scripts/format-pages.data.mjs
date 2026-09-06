@@ -388,11 +388,12 @@ export const PAGES = [
     can: [
       "See what is inside before you commit to unpacking it",
       "Open one file from within the archive, in the right editor, with nothing written to disk",
+      "Edit it and save it straight back into the archive (zip, tar and 7z)",
       "Extract a single file instead of all of them",
       "Open 7z, RAR, xz and bzip2, not only zip",
       "Look inside a .jar, or read a .cbz comic page by page",
     ],
-    note: "Archives open read-only: Omnitext reads one and takes files out, but does not write one back. Compressed tarballs (.tar.gz, .tgz, .tar.xz, .tar.bz2) are recognised too. An .xz or .bz2 holding a single file opens as that file.",
+    note: "Edit a file from inside a zip, tar or 7z and it saves back into the archive. RAR opens for reading only, since no free RAR compressor exists. Compressed tarballs (.tar.gz, .tgz, .tar.xz, .tar.bz2) are recognised too, and an .xz or .bz2 holding a single file opens as that file.",
   },
   {
     id: "video",

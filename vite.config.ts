@@ -56,6 +56,10 @@ export default defineConfig({
         find: "libarchive-wasm/dist/libarchive.wasm?url",
         replacement: new URL("./src/vendor/libarchive-wasm-url.ts", import.meta.url).pathname,
       },
+      {
+        find: "7z-wasm/7zz.wasm?url",
+        replacement: new URL("./src/vendor/sevenzip-wasm-url.ts", import.meta.url).pathname,
+      },
     ],
   },
 });

@@ -3,11 +3,14 @@ import { readTar, writeTar } from "./tar";
 import { gunzipAsync, gzipAsync, unzipAsync, zipAsync } from "./zip";
 
 // Read/write archives across the formats we support fully client-side: zip (and zip-based
-// .jar/.cbz) via fflate, and tar / tar.gz / .tgz via the tar codec (+ fflate gzip). These
-// are the read/write formats. 7z/RAR/xz/bzip2/zstd/lz4 are extract-only, handled separately
-// by core/libarchive.ts (libarchive-wasm) and surfaced through the archive viewer.
+// .jar/.cbz) via fflate, tar / tar.gz / .tgz via the tar codec (+ fflate gzip), and 7z by
+// reading with libarchive and writing with 7-Zip itself (core/sevenzip.ts). Both of those
+// load only when a 7z turns up, so the zip and tar paths carry none of it.
+//
+// RAR, xz and bzip2 stay extract-only: no free RAR compressor exists, and the other two are
+// single-file streams rather than archives to write back into.
 
-export type ArchiveKind = "zip" | "tar" | "tgz";
+export type ArchiveKind = "zip" | "tar" | "tgz" | "7z";
 
 /**
  * gzip stamps the current time into its header unless told otherwise, which makes the same input
@@ -26,6 +29,8 @@ const isGzip = (b: Uint8Array): boolean => b.length > 2 && b[0] === 0x1f && b[1]
 // tar has no magic at the start; its "ustar" marker sits inside the first header block.
 const isTar = (b: Uint8Array): boolean =>
   b.length >= 262 && b[257] === 0x75 && b[258] === 0x73 && b[259] === 0x74 && b[260] === 0x61 && b[261] === 0x72;
+const isSevenZip = (b: Uint8Array): boolean =>
+  b.length >= 6 && [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c].every((x, i) => b[i] === x);
 
 /**
  * Which of the writable kinds these bytes are, or null for anything else.
@@ -38,6 +43,7 @@ const isTar = (b: Uint8Array): boolean =>
 export function detectArchiveKind(bytes: Uint8Array): ArchiveKind | null {
   if (isZip(bytes)) return "zip";
   if (isGzip(bytes)) return "tgz";
+  if (isSevenZip(bytes)) return "7z";
   if (isTar(bytes)) return "tar";
   return null;
 }
@@ -66,6 +72,11 @@ export function writeArchive(kind: ArchiveKind, entries: ArchiveEntry[]): Uint8A
 export async function readArchiveAsync(bytes: Uint8Array): Promise<ArchiveEntry[]> {
   if (isZip(bytes)) return Object.entries(await unzipAsync(bytes)).map(([name, data]) => ({ name, data }));
   if (isGzip(bytes)) return readTar(await gunzipAsync(bytes));
+  // 7z needs libarchive, imported here so the zip and tar paths never pull in the wasm.
+  if (isSevenZip(bytes)) {
+    const { extractWithLibarchive } = await import("./libarchive");
+    return extractWithLibarchive(bytes, "archive");
+  }
   return readTar(bytes);
 }
 
@@ -74,6 +85,11 @@ export async function writeArchiveAsync(kind: ArchiveKind, entries: ArchiveEntry
     const files: Record<string, Uint8Array> = {};
     for (const e of entries) files[e.name] = new Uint8Array(e.data);
     return zipAsync(files);
+  }
+  if (kind === "7z") {
+    // 7-Zip's own encoder, a chunk of its own, fetched the first time a 7z is saved.
+    const { writeSevenZip } = await import("./sevenzip");
+    return writeSevenZip(entries);
   }
   const tar = writeTar(entries.map((e) => ({ name: e.name, data: new Uint8Array(e.data) })));
   return kind === "tgz" ? gzipAsync(tar) : tar;
