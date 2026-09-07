@@ -14,6 +14,12 @@ const REGISTRY: Record<string, () => Promise<{ default: Dict }>> = {
   en: () => Promise.resolve({ default: en }),
   fr: () => import("./fr"),
   ja: () => import("./ja"),
+  es: () => import("./es"),
+  de: () => import("./de"),
+  pt: () => import("./pt"),
+  ru: () => import("./ru"),
+  // Simplified; also serves a browser asking for zh-TW, since detection matches the base tag.
+  zh: () => import("./zh"),
 };
 
 let active: Dict = en;

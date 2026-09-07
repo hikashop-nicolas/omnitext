@@ -27,7 +27,9 @@ No file ever fails to open: unknown text opens as plain text, unknown binary as 
   [sheetedit](https://github.com/hikashop-nicolas/sheetedit),
   [geoedit](https://github.com/hikashop-nicolas/geoedit)), which you can embed in your
   own apps, commercial ones included.
-- **Multilingual** — the UI auto-detects your language (English, French, Japanese so far).
+- **Multilingual** — the UI auto-detects your language: English, French, Japanese, Spanish,
+  German, Portuguese, Russian and Simplified Chinese. Each loads only when it is the one you
+  need.
 
 **[▶ Live demo](https://hikashop-nicolas.github.io/omnitext/)** — open a file, edit it, and
 save it back, all in your browser.
@@ -137,8 +139,9 @@ with"), edit it in the most suitable surface, and save it back — nothing leave
   where you can browse entries, open one inside Omnitext, extract it, or (for the zip/tar
   family) edit it and save it back into the archive. Anything else opens in a **hex**
   view, so no file ever fails to open.
-- **Multilingual**: the UI auto-detects your language (English, French and Japanese today;
-  adding one is a single file), and each editor library translates its own UI independently.
+- **Multilingual**: the UI auto-detects your language (English, French, Japanese, Spanish,
+  German, Portuguese, Russian and Simplified Chinese; adding one is a single file), and each
+  editor library translates its own UI independently.
 - **Tools**: version **history** with diff, and live **collaboration** (below).
 - **Local-first**: IndexedDB autosave + crash recovery; UTF-8 / BOM and line endings
   preserved so text round-trips byte-for-byte.
