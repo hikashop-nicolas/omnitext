@@ -255,7 +255,7 @@ src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js
                eml/msg, ics/vcf, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
                arrow, raw, the codemirror-formats long-tail table, and binary-viewers for
                images/media/archives)
-src/i18n/      app-shell translations (en, fr, ja) + the auto-detect runtime
+src/i18n/      app-shell translations (en, fr, ja, es, de, pt, ru, zh) + auto-detect
 src/tools/     cross-cutting tools (history / diff)
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery
 ```
