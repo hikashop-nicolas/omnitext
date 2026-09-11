@@ -24,6 +24,8 @@ policy declarations, the first production submission) is done and archived in
 | 1.0 | (initial) | First closed-test build (2026-07-09). |
 | 1.1 | `store-assets/whats-new-1.1.txt` | .doc editing, spreadsheet charts/pivots/Power Query, subtitle editor, media player, many new viewers, map editor, command palette, themes. |
 | 1.2 | `store-assets/whats-new-1.2.txt` | Spreadsheet VBA macros, form/ActiveX controls, printing, protection, freeze/split panes, outline grouping; richer .doc editing; ALAC audio; the Android "Open with" fix for large files; version-history fixes. |
+| 1.3 | `store-assets/whats-new-1.3.txt` | Live collaboration (invite-only, with cursors and chat), printing through Android, DWG/DXF drawings, the build number and update check in Settings, the "Open with" recovery fix. |
+| 1.4 | `store-assets/whats-new-1.4.txt` | Spanish, German, Portuguese, Russian and Chinese; spreadsheet shapes (gallery, rotation, format bar), coloured sheet tabs, a grid that grows as you scroll, cells that keep their formatting when selected; .7z save-back, lone .xz/.bz2; opening a file whose type nobody recognises. |
 
 ## Store assets
 
@@ -61,9 +63,19 @@ Privacy policy URL: https://hikashop-nicolas.github.io/omnitext/privacy.html
 > - Command palette, light and dark themes, and version history to roll back changes.
 > - Private by design: nothing leaves your device.
 
-Keep this in step with what the app actually does. Collaboration, when it ships, changes
-the "nothing leaves your device" claim and the Data safety answers below, so both need
-revisiting before that release goes out (see `COLLABORATION_PLAN.md`).
+Keep this in step with what the app actually does.
+
+> **Outstanding since 1.3: collaboration shipped, and the copy above did not change with
+> it.** "Private by design: nothing leaves your device" is no longer true without a
+> qualifier: a shared session sends the document to the peers the user invites, directly
+> between the two browsers (and through a relay only when the user configures one). It is
+> still true that the app has no account, no tracking, no ads and no server of ours holding
+> anything. Suggested replacement for the last bullet, to use on the next listing edit:
+>
+> > - Private by design: nothing leaves your device unless you share a document, and then
+> >   it goes straight to the people you invite.
+>
+> The Data safety answers need the same look (see below) before the next listing edit.
 
 ## Console answers (for re-declarations)
 
@@ -71,6 +83,12 @@ revisiting before that release goes out (see `COLLABORATION_PLAN.md`).
 - Data safety: **no data collected, no data shared.** Encrypted in transit: not
   applicable. Data deletion: not applicable (local data is cleared by clearing app
   storage).
+  - **Needs re-declaring since 1.3.** A shared session moves the document off the device.
+    Google's form exempts a transfer the user themselves asked for to a recipient they
+    chose, so "no data shared" is arguable, but "encrypted in transit: not applicable" is
+    not: the session is WebRTC, which is encrypted end to end. The answer to check in the
+    console is that one. Nothing here is collected by us either way: no server of ours
+    ever holds the document.
 - Ads: **no ads.**
 - Content rating: Utility/Productivity; no violence, sexual content, profanity,
   controlled substances, user-to-user content or data sharing. Rated Everyone / PEGI 3.
