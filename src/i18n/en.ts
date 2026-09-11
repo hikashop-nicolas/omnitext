@@ -59,7 +59,6 @@ const en: Dict = {
     dirLtr: "Left to right",
     dirRtl: "Right to left (Arabic, Hebrew)",
     dirVertical: "Vertical (Japanese)",
-    docSettingsHint: "For Word and OpenDocument files. Page size applies only when the file specifies none.",
     turnTitle: "Relay server for collaboration",
     turnHint: "Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.",
     turnUrl: "Server address",

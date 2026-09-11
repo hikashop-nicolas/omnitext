@@ -59,7 +59,6 @@ const es: Dict = {
     dirLtr: "De izquierda a derecha",
     dirRtl: "De derecha a izquierda (árabe, hebreo)",
     dirVertical: "Vertical (japonés)",
-    docSettingsHint: "Para archivos de Word y OpenDocument. El tamaño de página solo se aplica cuando el archivo no indica ninguno.",
     turnTitle: "Servidor de retransmisión para la colaboración",
     turnHint: "La mayoría de las sesiones nunca lo necesitan. Dos personas cuyas redes no pueden conectarse directamente necesitan un servidor de retransmisión (TURN) por el que pasar el documento, y esta aplicación no ofrece ninguno: puede indicar el suyo. Se guarda en este navegador, en texto plano, como el resto de estos ajustes.",
     turnUrl: "Dirección del servidor",

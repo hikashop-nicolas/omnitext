@@ -59,7 +59,6 @@ const fr: Dict = {
     dirLtr: "De gauche à droite",
     dirRtl: "De droite à gauche (arabe, hébreu)",
     dirVertical: "Vertical (japonais)",
-    docSettingsHint: "Pour les fichiers Word et OpenDocument. La taille de page ne s'applique que si le fichier n'en précise aucune.",
     turnTitle: "Serveur relais pour la collaboration",
     turnHint: "La plupart des sessions n'en ont pas besoin. Deux personnes dont les réseaux ne peuvent pas être reliés directement ont besoin d'un serveur relais (TURN) par lequel faire passer le document ; cette application n'en fournit aucun, mais vous pouvez indiquer le vôtre. Il est conservé dans ce navigateur, en clair, comme le reste de ces réglages.",
     turnUrl: "Adresse du serveur",

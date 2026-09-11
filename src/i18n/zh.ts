@@ -63,7 +63,6 @@ const zh: Dict = {
     dirLtr: "从左到右",
     dirRtl: "从右到左（阿拉伯文、希伯来文）",
     dirVertical: "竖排（日文）",
-    docSettingsHint: "适用于 Word 和 OpenDocument 文件。仅当文件本身未指定时才套用此页面大小。",
     turnTitle: "协作用的中继服务器",
     turnHint: "大多数会话都用不到。若两人的网络无法直接连通，就需要一台中继（TURN）服务器来转发文档，而本应用并不提供：您可以填入自己的。它和其余设置一样，以明文存放在本浏览器中。",
     turnUrl: "服务器地址",

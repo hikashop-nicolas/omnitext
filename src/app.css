@@ -269,7 +269,7 @@ body {
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.18);
   /* Above the editors' own document chrome, which runs as high as 80 (richdoc's rulers,
      sheetedit's frozen headers): a panel the ruler draws over is a panel with a strip of
-     someone else's UI across it. Below the app's modal (90) and the editors' own dialogs
+     someone else's UI across it. Below the app's modals (2000) and the editors' own dialogs
      (1000), which should still come out on top of a side panel. */
   z-index: 85;
 }
@@ -294,7 +294,10 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 10;
+  /* The app's own dialogs sit above everything the editor below can put on screen: its float
+     bars and menus (up to 80), its frozen-pane headers, and its own dialogs (1000). At 10 they
+     went under all of it, and a settings dialog with a cell toolbar across it is not a dialog. */
+  z-index: 2000;
 }
 .modal[hidden] { display: none; }
 .modal-card {
@@ -443,7 +446,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
   border: 1px solid var(--border);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
   font-size: 13px;
-  z-index: 60;
+  /* Above the app's dialogs (2000): what just happened is worth reading whatever is open. */
+  z-index: 2100;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s, transform 0.15s;
