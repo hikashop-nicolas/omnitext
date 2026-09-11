@@ -371,7 +371,12 @@ describe("three peers, after the one who started it leaves", () => {
     const d = await makePeer({ text: "", name: "Di", colour: "#ff0", roomId: b.session.key.roomId, key: b.session.key });
     await settle(400);
 
-    expect(d.opened.length, "someone handed over the file").toBe(1);
+    // On the rare CI failure this has been 2. The count alone says nothing about which peer sent
+    // the second copy or whether it was even the same document, so report both.
+    expect(
+      d.opened.map((doc) => `${doc.name} ${doc.hash.slice(0, 8)} ${doc.bytes.length}b`),
+      "someone handed over the file, once",
+    ).toHaveLength(1);
     expect(d.editor.text("cue1"), "and the work done since").toBe("Written before Ada left.");
     expect(c.editor.text("cue1"), "the others carry on regardless").toBe("Written before Ada left.");
   });
@@ -385,6 +390,9 @@ describe("three peers, after the one who started it leaves", () => {
 
     // Three peers hold the file and all three offer it. Taking each offer would download
     // the same document three times, on a link that may be someone's phone.
-    expect(d.opened.length, "one transfer, whoever else offered").toBe(1);
+    expect(
+      d.opened.map((doc) => `${doc.name} ${doc.hash.slice(0, 8)} ${doc.bytes.length}b`),
+      "one transfer, whoever else offered",
+    ).toHaveLength(1);
   });
 });
