@@ -722,8 +722,10 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       return;
     }
   }
-  instance.focus();
-  if (!isSwitch && welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered })) showWelcome();
+  const starting = !isSwitch && welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered });
+  // A touch screen raises its keyboard for a focused editor, which would cover the start screen.
+  if (!(starting && (isNative() || matchMedia("(pointer: coarse)").matches))) instance.focus();
+  if (starting) showWelcome();
   else if (!isSwitch) hideWelcome();
 
   const reasonKey = `app.reason.${chosen.reason}`;
