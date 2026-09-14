@@ -1,0 +1,7 @@
+New in this update:
+
+• Writing help in documents (expand, shorten, write) now rewrites your text instead of replying to it
+• It answers in the language your text is written in
+• On phones that cannot run it well, those actions and the formula helper are hidden; translation still works
+
+Still offline unless you choose to share; nothing is stored on a server.
