@@ -31,7 +31,7 @@
     "fake-indexeddb": "^6.2.5",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.3",
