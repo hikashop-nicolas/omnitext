@@ -1350,6 +1350,16 @@ async function saveIntoArchive(a: ArchiveContext): Promise<void> {
 }
 
 // Return to the archive (or other document) the current entry was opened from.
+/** Close the document and return to the start screen. Its recovery copy goes too, or a reload would reopen it. */
+async function closeDocument(): Promise<void> {
+  if (!confirmDiscard()) return;
+  navStack.length = 0;
+  updateBackBtn();
+  const id = session?.id;
+  if (id) await store.remove(id).catch(() => undefined);
+  await mountDoc({ text: "", filename: null, encoding: { label: "utf-8", bom: false } });
+}
+
 async function goBack(): Promise<void> {
   if (!confirmDiscard()) return;
   const snap = navStack.pop();
@@ -1859,6 +1869,7 @@ printBtn.addEventListener("click", printDoc);
 // does not implement). One print path, whichever button was pressed.
 window.addEventListener("omnitext:print", () => printDoc());
 backBtn.addEventListener("click", () => void goBack());
+$("btn-close").addEventListener("click", () => void closeDocument());
 // --- encoding pill: shows the decode in use; click re-decodes the original bytes ----
 const encBtn = $("enc-btn");
 let encPop: HTMLElement | null = null;
@@ -2138,6 +2149,7 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.open"), hint: "Ctrl+O", run: () => void openFile() },
     { label: t("app.save"), hint: "Ctrl+S", run: () => void saveFile() },
     { label: t("app.print"), hint: "Ctrl+P", run: () => printDoc() },
+    { label: t("app.close"), run: () => void closeDocument() },
     { label: t("app.settings"), run: () => openSettings() },
   ];
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });

@@ -184,6 +184,10 @@ body {
 }
 .dirty.is-modified { background: var(--amber); }
 .dirty:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Close: back to the start screen. Quieter than the toolbar buttons, it belongs to the file name. */
+.btn.icon.doc-close { flex: none; padding: 4px; border-color: transparent; background: transparent; color: var(--muted); }
+.btn.icon.doc-close:hover { color: var(--text); border-color: var(--border); }
+.btn.icon.doc-close svg { width: 15px; height: 15px; }
 .ot-tip {
   position: fixed; z-index: 20; pointer-events: none; white-space: nowrap;
   background: var(--text); color: var(--bg); font-size: 12px;
@@ -398,6 +402,9 @@ body {
   /* Hide the Format / View group on phones: it overflows the toolbar off-screen. */
   .field { display: none; }
   #filename { max-width: 110px; }
+  /* With a document open its controls need the room more than the name does; the logo stays. */
+  #app:not(.ot-starting) .brand span { display: none; }
+  #toolbar { gap: 8px; }
 }
 
 /* Skip link: first tab stop, jumps focus to the editor; visible only when focused. */
