@@ -648,8 +648,16 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     instance = editorModule.create(engine.host("app"));
   }
 
+  // A different document gets a session of its own. Reusing the id left the previous document's
+  // recovery copy under it: open an xlsx, then a Markdown file you never edit, and every reload
+  // brought the xlsx back. When the user was looking at a document and moved on (Open, New, a tile),
+  // its copy is dropped with it: they either saved it or agreed to discard it. At launch there is
+  // no such document, and unsaved work waiting to be recovered is left alone.
+  const freshDoc = !isSwitch && !opts.recovered;
+  const previous = session;
+  if (freshDoc && previous?.editor && previous.id) void store.remove(previous.id).catch(() => undefined);
   session = {
-    id: session?.id ?? crypto.randomUUID(),
+    id: freshDoc ? crypto.randomUUID() : (previous?.id ?? crypto.randomUUID()),
     uri: opts.uri ?? null,
     filename: opts.filename,
     formatId,
