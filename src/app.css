@@ -76,6 +76,21 @@
   --sheetedit-text: var(--text);
   --sheetedit-muted: var(--muted);
   --sheetedit-accent: var(--accent);
+  /* The grey desk around Word pages, and the PDF editor's whole chrome, which was dark in the
+     light theme until both libraries took these properties. */
+  --rdoc-desk: var(--surface);
+  --pdfedit-chrome: var(--chrome);
+  --pdfedit-chrome2: var(--surface);
+  --pdfedit-border: var(--border);
+  --pdfedit-text: var(--text);
+  --pdfedit-muted: var(--muted);
+  --pdfedit-btn: var(--surface);
+  --pdfedit-btn-border: var(--border);
+  --pdfedit-input-bg: var(--bg);
+  --pdfedit-accent: var(--accent);
+  --pdfedit-on: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  --pdfedit-on-text: var(--text);
+  --pdfedit-desk: var(--surface);
 }
 
 * { box-sizing: border-box; }
