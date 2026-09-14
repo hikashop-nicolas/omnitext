@@ -50,6 +50,15 @@ function ensureStyles(): void {
       --crepe-color-inline-area: var(--surface);
     }
     .ot-milkdown .milkdown .ProseMirror { color: var(--text); }
+    /* The theme pads the page 60px 120px, sized for a desktop window. On a phone that left about
+       190px of a 432px screen for text, under 42px headings. Keep room on the left for the block
+       handle, and bring the headings down to phone size. */
+    @media (max-width: 600px) {
+      .ot-milkdown .milkdown .ProseMirror { padding: 20px 16px 48px 40px; }
+      .ot-milkdown .milkdown .ProseMirror h1 { font-size: 30px; }
+      .ot-milkdown .milkdown .ProseMirror h2 { font-size: 24px; }
+      .ot-milkdown .milkdown .ProseMirror h3 { font-size: 20px; }
+    }
   `;
   document.head.appendChild(s);
 }
