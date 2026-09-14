@@ -1,8 +1,9 @@
 New in this update:
 
 • A start screen to open or create a file, with your recent files one tap away
-• On Android, Open uses your phone's file picker and Save writes straight back to the file you opened
-• A file you saved no longer comes back as "recovered" work the next time you open the app
+• On Android, Save now writes straight back to the file you opened
+• A saved file no longer comes back as "recovered" work
 • Recent files also work in Chrome and Edge on a computer
+• On phones: Word and Markdown fit the screen, PDFs open fitted, toolbars keep the buttons that fit, and spreadsheet totals show
 
 Still offline unless you choose to share; nothing is stored on a server.
