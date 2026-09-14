@@ -283,6 +283,10 @@ const en: Dict = {
     orNew: "Or create",
     recentGone: "{name} can no longer be opened from here. It may have been moved, renamed or deleted.",
   },
+  loading: {
+    opening: "Opening…",
+    openingFile: "Opening {name}…",
+  },
 };
 
 export default en;

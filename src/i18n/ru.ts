@@ -304,6 +304,10 @@ const ru: Dict = {
     orNew: "Или создать",
     recentGone: "{name} больше нельзя открыть отсюда. Возможно, файл перемещён, переименован или удалён.",
   },
+  loading: {
+    opening: "Открытие…",
+    openingFile: "Открытие {name}…",
+  },
 };
 
 export default ru;

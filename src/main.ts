@@ -544,6 +544,7 @@ interface MountOpts {
 
 async function mountDoc(opts: MountOpts): Promise<void> {
   const binary = !!opts.binary;
+  if (!opts.isSwitch) beginLoading(opts.filename ?? null);
   const text = opts.text ?? "";
   const bytes = opts.bytes ?? null;
 
@@ -684,6 +685,10 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   }
 
   if (mountEl) {
+    // The editor parses its document synchronously inside mount(), so a timer cannot fire during
+    // it: for anything sizeable, put the indicator on screen before starting.
+    const size = bytes?.length ?? opts.blob?.size ?? text.length;
+    if (!isSwitch && size > 100_000) await paintLoading(opts.filename ?? null);
     liveEditors.set(targetId, { instance, el: mountEl, text });
     try {
       instance.mount(mountEl, {
@@ -714,6 +719,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     } catch (e) {
       // A throwing editor must not wedge the app: tell the user and fall back to a
       // safe surface (hex viewer for binary content, the text editor otherwise).
+      endLoading();
       console.error("editor mount failed", e);
       engine.notificationSink.error(t("notify.readFailed", { what: formatId ?? t("notify.documentWord") }));
       try {
@@ -730,6 +736,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       return;
     }
   }
+  endLoading();
   const starting = !isSwitch && welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered });
   // A touch screen raises its keyboard for a focused editor, which would cover the start screen.
   if (!(starting && (isNative() || matchMedia("(pointer: coarse)").matches))) instance.focus();
@@ -1552,6 +1559,42 @@ async function createNew(
     formatId,
     editorId: blankEditor,
   });
+}
+
+// --- opening indicator -------------------------------------------------------
+
+/** A large document is read in one synchronous pass, during which the page cannot paint. Opening
+    anything used to leave the previous screen frozen with no sign that work was happening. */
+let loadingEl: HTMLElement | null = null;
+let loadingTimer = 0;
+function beginLoading(name: string | null): void {
+  endLoading();
+  // Not shown at all for a quick open, so ordinary files do not flash a spinner.
+  loadingTimer = window.setTimeout(() => showLoading(name), 250);
+}
+function showLoading(name: string | null): void {
+  window.clearTimeout(loadingTimer);
+  if (loadingEl) return;
+  const el = document.createElement("div");
+  el.className = "ot-loading";
+  el.setAttribute("role", "status");
+  const label = document.createElement("span");
+  label.className = "ot-loading-label";
+  label.textContent = name ? t("loading.openingFile", { name }) : t("loading.opening");
+  el.append(document.createElement("span"), label);
+  (el.firstElementChild as HTMLElement).className = "ot-loading-spinner";
+  editorEl.appendChild(el);
+  loadingEl = el;
+}
+/** Show now and let it paint, before work that blocks the main thread. */
+async function paintLoading(name: string | null): Promise<void> {
+  showLoading(name);
+  await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+}
+function endLoading(): void {
+  window.clearTimeout(loadingTimer);
+  loadingEl?.remove();
+  loadingEl = null;
 }
 
 // --- start screen ------------------------------------------------------------

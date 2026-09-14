@@ -285,6 +285,10 @@ const zh: Dict = {
     orNew: "或新建",
     recentGone: "无法再从这里打开 {name}，它可能已被移动、重命名或删除。",
   },
+  loading: {
+    opening: "正在打开…",
+    openingFile: "正在打开 {name}…",
+  },
 };
 
 export default zh;

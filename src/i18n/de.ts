@@ -281,6 +281,10 @@ const de: Dict = {
     orNew: "Oder neu erstellen",
     recentGone: "{name} lässt sich hier nicht mehr öffnen. Die Datei wurde vielleicht verschoben, umbenannt oder gelöscht.",
   },
+  loading: {
+    opening: "Wird geöffnet…",
+    openingFile: "{name} wird geöffnet…",
+  },
 };
 
 export default de;

@@ -281,6 +281,10 @@ const pt: Dict = {
     orNew: "Ou criar",
     recentGone: "Já não é possível abrir {name} a partir daqui. Pode ter sido movido, renomeado ou eliminado.",
   },
+  loading: {
+    opening: "A abrir…",
+    openingFile: "A abrir {name}…",
+  },
 };
 
 export default pt;

@@ -283,6 +283,10 @@ const ja: Dict = {
     orNew: "または新規作成",
     recentGone: "{name} はここから開けなくなりました。移動、名前の変更、または削除された可能性があります。",
   },
+  loading: {
+    opening: "開いています…",
+    openingFile: "{name} を開いています…",
+  },
 };
 
 export default ja;

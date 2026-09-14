@@ -281,6 +281,10 @@ const es: Dict = {
     orNew: "O crear",
     recentGone: "{name} ya no se puede abrir desde aquí. Puede que se haya movido, renombrado o eliminado.",
   },
+  loading: {
+    opening: "Abriendo…",
+    openingFile: "Abriendo {name}…",
+  },
 };
 
 export default es;
