@@ -44,6 +44,10 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v4
+        # Only platform-tools: the default also asks for the legacy "tools" package, which the SDK
+        # repository no longer offers, and sdkmanager then fails the whole job.
+        with:
+          packages: platform-tools
       - name: Install SDK packages
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
