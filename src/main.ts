@@ -752,6 +752,8 @@ async function snapshot(): Promise<DocSnapshot | null> {
     formatId: session.formatId,
     encoding: session.encoding,
     updatedAt: Date.now(),
+    nativeUri: session.nativeUri ?? null,
+    nativeWritable: !!session.nativeWritable,
   };
   if (!session.binary) return { ...base, text: session.editor.getText() };
   const bytes = await session.editor.getBytes?.();
@@ -774,8 +776,10 @@ function scheduleAutosave(): void {
       return;
     }
     autosaveBusy = true;
-    void snapshot()
-      .then((snap) => (snap ? store.save(snap) : undefined))
+    // Recovery is for unsaved work. A document with nothing unsaved drops its snapshot, so a
+    // saved file is not brought back at the next launch as though its changes had been lost.
+    const cleanId = session && !session.dirty ? session.id : null;
+    void (cleanId ? store.remove(cleanId) : snapshot().then((snap) => (snap ? store.save(snap) : undefined)))
       .catch((e) => {
         console.error("autosave failed", e);
         // Quota exhaustion even after pruning: tell the user once instead of
@@ -1240,6 +1244,7 @@ async function saveFile(): Promise<void> {
 
   if (!session.binary) session.lastSavedText = savedText;
   session.dirty = false;
+  scheduleAutosave(); // now clean: drops the recovery snapshot through the same queue as a save
   updateUI();
   engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
   setStatus(t("status.saved"));
@@ -1594,6 +1599,7 @@ function recentView(e: RecentEntry): RecentView {
 function relativeTime(at: number): string {
   const rtf = new Intl.RelativeTimeFormat(getLocale(), { numeric: "auto" });
   const mins = Math.round((at - Date.now()) / 60000);
+  if (mins === 0) return rtf.format(0, "second"); // "now", not "this minute"
   if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
   const hours = Math.round(mins / 60);
   if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
@@ -2532,6 +2538,15 @@ async function start(): Promise<void> {
   startupDone = true;
 }
 
+/** Recovered work from a picked Android document still saves back to that document. */
+function keepNativeLink(last: DocSnapshot): void {
+  if (!session || !last.nativeUri) return;
+  session.nativeUri = last.nativeUri;
+  session.nativeWritable = !!last.nativeWritable;
+  session.dirty = true; // it is unsaved work by definition, or it would not have been kept
+  updateUI();
+}
+
 /** Put the crash-recovery snapshot back on screen; false if there was nothing to restore. */
 async function mountRecovered(last: DocSnapshot): Promise<boolean> {
   // A recovered read-only viewer (media/image/archive) has nothing to restore; skip it
@@ -2550,6 +2565,7 @@ async function mountRecovered(last: DocSnapshot): Promise<boolean> {
       mime: last.mime,
       recovered: true,
     });
+    keepNativeLink(last);
     return true;
   }
   if (last.text) {
@@ -2562,6 +2578,7 @@ async function mountRecovered(last: DocSnapshot): Promise<boolean> {
       formatId: last.formatId,
       recovered: true,
     });
+    keepNativeLink(last);
     return true;
   }
   return false;

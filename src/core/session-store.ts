@@ -17,6 +17,9 @@ export interface DocSnapshot {
   bytes?: Uint8Array;
   binary?: boolean;
   mime?: string | null;
+  /** Android: the picked document this work belongs to, so recovered work still saves back to it. */
+  nativeUri?: string | null;
+  nativeWritable?: boolean;
 }
 
 const DB_NAME = "omnitext";
