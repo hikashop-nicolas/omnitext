@@ -16,7 +16,7 @@ export interface RecentHandle {
 
 export type RecentEntry =
   | { id: string; name: string; openedAt: number; kind: "handle"; handle: RecentHandle }
-  | { id: string; name: string; openedAt: number; kind: "android"; uri: string };
+  | { id: string; name: string; openedAt: number; kind: "android"; uri: string; key?: string };
 
 /**
  * Put `entry` first, dropping any older entry for the same file, and keep at most `cap`.
@@ -64,7 +64,8 @@ export async function sameFileIds(list: RecentEntry[], entry: RecentEntry): Prom
   const ids = new Set<string>();
   for (const e of list) {
     if (entry.kind === "android") {
-      if (e.kind === "android" && e.uri === entry.uri) ids.add(e.id);
+      // By identity, not URI: Android can hand out the same file under two different URIs.
+      if (e.kind === "android" && (e.key ?? e.uri) === (entry.key ?? entry.uri)) ids.add(e.id);
     } else if (e.kind === "handle" && e.name === entry.name) {
       try {
         if (await entry.handle.isSameEntry?.(e.handle)) ids.add(e.id);

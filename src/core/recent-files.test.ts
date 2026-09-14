@@ -50,6 +50,16 @@ describe("the stored recent list", () => {
     expect([...(await sameFileIds(list, entry("/tmp/notes.md", "new")))], "same name, other folder").toEqual([]);
   });
 
+  // Android's Downloads provider hands out the same file as a path URI one time and as a media id
+  // the next, which listed every file twice. Entries match on the identity the app computes.
+  it("keeps one entry for a file that came back under another URI", async () => {
+    await rememberRecent({ kind: "android", name: "Project report.docx", uri: "content://downloads/document/raw%3A%2Fstorage%2Femulated%2F0%2FDownload%2FProject%20report.docx", key: "path:Download/Project report.docx", openedAt: 1 });
+    await rememberRecent({ kind: "android", name: "Project report.docx", uri: "content://downloads/document/msf%3A1000010722", key: "path:Download/Project report.docx", openedAt: 2 });
+    const list = await listRecent();
+    expect(list, "one file, one entry").toHaveLength(1);
+    expect((list[0] as { uri: string }).uri, "the newest URI is the one kept").toContain("msf");
+  });
+
   it("forgets a file on request", async () => {
     await rememberRecent({ kind: "android", name: "a.pdf", uri: "content://docs/a", openedAt: 1 });
     const [entry] = await listRecent();

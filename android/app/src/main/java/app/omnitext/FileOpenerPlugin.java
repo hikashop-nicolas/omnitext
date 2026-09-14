@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.UriPermission;
 import android.database.Cursor;
 import android.net.Uri;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 
 import androidx.activity.result.ActivityResult;
@@ -168,8 +170,38 @@ public class FileOpenerPlugin extends Plugin {
             return;
         }
         o.put("uri", uri.toString());
+        o.put("key", stableKey(uri, o.getString("name")));
         o.put("writable", writable);
         call.resolve(withUrl(o));
+    }
+
+    /**
+     * One identity per file, whichever URI the picker handed out for it. The Downloads provider gives
+     * the same file as "raw:/storage/emulated/0/Download/x" one time and as a MediaStore id
+     * ("msf:1000010722") another, depending on whether it has been indexed yet, so the recent list
+     * listed it twice. Both resolve to the file's place on the storage; other providers keep their URI.
+     */
+    private String stableKey(Uri uri, String name) {
+        String docId = null;
+        try {
+            docId = DocumentsContract.getDocumentId(uri);
+        } catch (Exception ignored) {
+        }
+        if (docId != null && docId.startsWith("raw:")) {
+            String path = docId.substring(4);
+            int at = path.indexOf("/storage/emulated/0/");
+            return "path:" + (at >= 0 ? path.substring(at + "/storage/emulated/0/".length()) : path);
+        }
+        try (Cursor c = getContext().getContentResolver().query(uri, new String[] { MediaStore.MediaColumns.RELATIVE_PATH }, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int i = c.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH);
+                String rel = i >= 0 ? c.getString(i) : null;
+                if (rel != null && name != null) return "path:" + (rel.endsWith("/") ? rel : rel + "/") + name;
+            }
+        } catch (Exception ignored) {
+            // A provider without that column (Drive, a USB stick): its URI is the identity.
+        }
+        return uri.toString();
     }
 
     /** Add the http URL the bridge serves a staged file from: a filesystem path means nothing to the WebView. */

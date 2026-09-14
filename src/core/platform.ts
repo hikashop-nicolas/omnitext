@@ -24,6 +24,8 @@ interface OpenedPayload {
   size?: number;
   /** Picked documents only: the content:// URI, kept to write back and to reopen later. */
   uri?: string;
+  /** Picked documents only: one identity per file, whichever URI the picker handed out. */
+  key?: string;
   writable?: boolean;
 }
 interface FileOpenerPlugin {
@@ -142,6 +144,8 @@ async function fetchStaged(p: OpenedPayload): Promise<OpenedFile> {
 /** A document picked through Android's own picker, with what is needed to save to it and reopen it. */
 export interface PickedDocument extends OpenedFile {
   uri: string;
+  /** Stable identity for the recent list (the same file can come back under another URI). */
+  key: string;
   writable: boolean;
 }
 
@@ -149,7 +153,7 @@ export interface PickedDocument extends OpenedFile {
 export async function pickDocumentNative(): Promise<PickedDocument | null> {
   const p = await FileOpener.pickDocument();
   if (!p?.name || !p.uri) return null;
-  return { ...(await fetchStaged(p)), uri: p.uri, writable: !!p.writable };
+  return { ...(await fetchStaged(p)), uri: p.uri, key: p.key || p.uri, writable: !!p.writable };
 }
 
 /** Reopen a document picked earlier. Null when its permission is gone (moved, deleted, or revoked). */
@@ -161,7 +165,7 @@ export async function reopenDocumentNative(uri: string): Promise<PickedDocument 
     return null;
   }
   if (!p?.name) return null;
-  return { ...(await fetchStaged(p)), uri, writable: !!p.writable };
+  return { ...(await fetchStaged(p)), uri, key: p.key || uri, writable: !!p.writable };
 }
 
 /** Write bytes back to a picked document, through a cache file so no bytes cross the bridge twice. */

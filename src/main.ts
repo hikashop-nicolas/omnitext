@@ -1621,7 +1621,7 @@ async function openPicked(picked: PickedDocument): Promise<void> {
     session.nativeUri = picked.uri;
     session.nativeWritable = picked.writable;
   }
-  void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri });
+  void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri, key: picked.key });
 }
 
 async function openRecent(id: string): Promise<void> {
