@@ -30,7 +30,7 @@
     "@types/three": "^0.185.4",
     "fake-indexeddb": "^6.2.5",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vitest": "^5.0.0"
   },
   "dependencies": {
@@ -105,7 +105,7 @@
     "sql.js": "^1.14.2",
     "subedit": "github:hikashop-nicolas/subedit",
     "svgedit": "^7.4.2",
-    "three": "^0.185.1",
+    "three": "^0.186.0",
     "toml": "^5.0.0",
     "trystero": "^0.25.4",
     "utif": "^3.1.0",
