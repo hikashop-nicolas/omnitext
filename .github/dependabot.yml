@@ -21,8 +21,9 @@ updates:
       # 0.3.97 added a `files` field that ships neither `lib/` (its `main`) nor `src/` (its
       # `module`), so the package cannot be imported at all. The version spec is pinned exact
       # for the same reason; drop both when a release ships an entry point that exists.
+      # 0.3.98 has the same layout (reported upstream as intity/epub-js#18).
       - dependency-name: "@intity/epub-js"
-        versions: ["0.3.97"]
+        versions: ["0.3.97", "0.3.98"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
