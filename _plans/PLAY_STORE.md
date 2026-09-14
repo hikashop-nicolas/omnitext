@@ -25,7 +25,7 @@ policy declarations, the first production submission) is done and archived in
 | 1.1 | `store-assets/whats-new-1.1.txt` | .doc editing, spreadsheet charts/pivots/Power Query, subtitle editor, media player, many new viewers, map editor, command palette, themes. |
 | 1.2 | `store-assets/whats-new-1.2.txt` | Spreadsheet VBA macros, form/ActiveX controls, printing, protection, freeze/split panes, outline grouping; richer .doc editing; ALAC audio; the Android "Open with" fix for large files; version-history fixes. |
 | 1.3 | `store-assets/whats-new-1.3.txt` | Live collaboration (invite-only, with cursors and chat), printing through Android, DWG/DXF drawings, the build number and update check in Settings, the "Open with" recovery fix. |
-| 1.4 | `store-assets/whats-new-1.4.txt` | Spanish, German, Portuguese, Russian and Chinese; spreadsheet shapes (gallery, rotation, format bar), coloured sheet tabs, a grid that grows as you scroll, cells that keep their formatting when selected; .7z save-back, lone .xz/.bz2; opening a file whose type nobody recognises. |
+| 1.4 | `store-assets/whats-new-1.4.txt` | Start screen with recent files; Android Save writes back to the opened file; Spanish, German, Portuguese, Russian and Chinese; spreadsheet shapes (gallery, rotation, format bar), coloured sheet tabs, a grid that grows as you scroll, cells that keep their formatting when selected; .7z save-back, lone .xz/.bz2; opening a file whose type nobody recognises. |
 
 ## Store assets
 

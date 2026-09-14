@@ -1,9 +1,9 @@
 New in this update:
 
+• A start screen to open, create or reopen recent files
+• On Android, Save now writes back to the file you opened
 • The app now speaks Spanish, German, Portuguese, Russian and Chinese
-• Spreadsheets: draw shapes and turn them, coloured sheet tabs, and the grid keeps going as you scroll
-• A cell keeps its formatting when you select it, and styling part of a cell's text shows at once
-• Save a file back into a .7z, and open a lone .xz or .bz2
-• Say what an unrecognised file is and open it anyway
+• Spreadsheets: shapes you can turn, coloured sheet tabs, a grid that keeps going, cells that keep their formatting when selected
+• Save back into a .7z, and open a lone .xz or .bz2
 
 Still offline unless you choose to share; nothing is stored on a server.
