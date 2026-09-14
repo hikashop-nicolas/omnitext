@@ -1528,11 +1528,13 @@ function showWelcome(): void {
     { native: isNative(), mac: /Mac|iPhone|iPad/.test(navigator.platform) },
   );
   editorEl.appendChild(welcomeEl);
+  document.getElementById("app")?.classList.add("ot-starting");
 }
 
 function hideWelcome(): void {
   welcomeEl?.remove();
   welcomeEl = null;
+  document.getElementById("app")?.classList.remove("ot-starting");
 }
 
 // --- editor switching (text is the canonical hand-off) -----------------------

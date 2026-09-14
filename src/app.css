@@ -595,3 +595,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 @media (pointer: coarse) {
   .ot-welcome-shortcut, .ot-welcome-link kbd { display: none; }
 }
+/* On the start screen there is no document: keep the brand (Settings), drop what acts on a document. */
+#app.ot-starting #toolbar .sep,
+#app.ot-starting #toolbar .group,
+#app.ot-starting #toolbar .doc,
+#app.ot-starting #toolbar .field,
+#app.ot-starting #reason,
+#app.ot-starting #status { display: none !important; }
+#app.ot-starting #toolbar { min-height: 48px; } /* same height as with its buttons, so opening a file does not shift the page */
