@@ -34,6 +34,11 @@ All generated and in `store-assets/`: `icon-512.png` (512x512 store icon),
 `feature-graphic.png` (1024x500), and `screenshots/`. Regenerate the screenshots when
 the UI changes noticeably.
 
+The screenshots (1.5) are captured on a phone, in English and the light theme, and cropped to
+1080x2160 (below the status bar, above the navigation bar): start screen with recent files,
+Word, spreadsheet, PDF, Markdown. The documents in them are invented demo files, so no real
+name, address or number ever appears in the store listing.
+
 Privacy policy URL: https://hikashop-nicolas.github.io/omnitext/privacy.html
 
 ## Listing copy
