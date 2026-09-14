@@ -261,6 +261,24 @@ const en: Dict = {
     insertColRight: "Insert a column right of the selected cell",
     deleteCol: "Delete the selected column",
   },
+  welcome: {
+    title: "Open any file. Edit it here.",
+    lead: "Documents, spreadsheets, PDFs, code, images and more, in one editor that keeps everything on your device.",
+    openFile: "Open a file",
+    openHintNative: "From your phone or another app",
+    orDrop: "or drop it anywhere",
+    newDoc: "New document",
+    newHint: "Choose from dozens of formats",
+    startWith: "Or start with",
+    private: "Nothing is uploaded. No account, no tracking.",
+    commands: "Commands",
+    justType: "Just start typing",
+    txt: "Plain text",
+    md: "Markdown",
+    docx: "Word document",
+    xlsx: "Spreadsheet",
+    pdf: "PDF",
+  },
 };
 
 export default en;

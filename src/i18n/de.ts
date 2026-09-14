@@ -259,6 +259,24 @@ const de: Dict = {
     insertColRight: "Eine Spalte rechts neben der ausgewählten Zelle einfügen",
     deleteCol: "Die ausgewählte Spalte löschen",
   },
+  welcome: {
+    title: "Jede Datei öffnen. Hier bearbeiten.",
+    lead: "Dokumente, Tabellen, PDFs, Code, Bilder und mehr, in einem Editor, der alles auf Ihrem Gerät behält.",
+    openFile: "Datei öffnen",
+    openHintNative: "Vom Telefon oder aus einer anderen App",
+    orDrop: "oder irgendwo ablegen",
+    newDoc: "Neues Dokument",
+    newHint: "Aus Dutzenden Formaten wählen",
+    startWith: "Oder beginnen mit",
+    private: "Nichts wird hochgeladen. Kein Konto, kein Tracking.",
+    commands: "Befehle",
+    justType: "Einfach lostippen",
+    txt: "Nur Text",
+    md: "Markdown",
+    docx: "Word-Dokument",
+    xlsx: "Tabelle",
+    pdf: "PDF",
+  },
 };
 
 export default de;

@@ -261,6 +261,24 @@ const ja: Dict = {
     insertColRight: "選択したセルの右に列を挿入",
     deleteCol: "選択した列を削除",
   },
+  welcome: {
+    title: "どんなファイルも開いて、ここで編集。",
+    lead: "文書、表計算、PDF、コード、画像などを、すべて端末内で扱える一つのエディターで。",
+    openFile: "ファイルを開く",
+    openHintNative: "端末内や他のアプリから",
+    orDrop: "またはどこにでもドロップ",
+    newDoc: "新規ドキュメント",
+    newHint: "数十種類の形式から選択",
+    startWith: "または次から始める",
+    private: "アップロードは一切なし。アカウントも追跡もありません。",
+    commands: "コマンド",
+    justType: "すぐに入力を始める",
+    txt: "プレーンテキスト",
+    md: "Markdown",
+    docx: "Word 文書",
+    xlsx: "表計算",
+    pdf: "PDF",
+  },
 };
 
 export default ja;

@@ -8,6 +8,7 @@ import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
 import { getOpenedFile, isNative, OpenedFileError, printFileNative, printNative, saveBytesNative } from "./core/platform";
+import { renderWelcome, welcomeWanted, type QuickNew } from "./core/welcome";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
@@ -678,6 +679,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
         // Keep the active editor's cache entry current so a later switch-and-return reuses it.
         const live = liveEditors.get(session.editorId!);
         if (live && !session.binary) live.text = session.editor!.getText();
+        hideWelcome(); // typed straight into the blank start: the start screen has done its job
         updateUI();
         scheduleAutosave();
         engine.events.emit("contentChanged", { sessionId: session.id });
@@ -703,6 +705,8 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     }
   }
   instance.focus();
+  if (!isSwitch && welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered })) showWelcome();
+  else if (!isSwitch) hideWelcome();
 
   const reasonKey = `app.reason.${chosen.reason}`;
   const reasonText = t(reasonKey) === reasonKey ? chosen.reason : t(reasonKey);
@@ -1442,12 +1446,21 @@ async function createNewDocument(): Promise<void> {
   // If the user typed but did not click an option, take the highlighted match.
   const picked = activeOption();
   const formatId = newFormatSelectedId ?? picked?.id ?? null;
-  const descriptor = formatId ? engine.formats.byId(formatId) : null;
   const paper = (newPaperSel.value || "a4") as Paper;
   const orient = newOrientSel.value === "landscape" ? "landscape" : "portrait";
   const paginated = newPaginatedChk.checked;
   const direction = (newDirectionSel.value || "ltr") as "ltr" | "rtl" | "vertical";
   closeNewDialog();
+  await createNew(formatId, { paper, orient, paginated, direction });
+}
+
+/** Create a blank document of a format (null = plain text) and open it in its editor. */
+async function createNew(
+  formatId: string | null,
+  o: { paper: Paper; orient: "portrait" | "landscape"; paginated: boolean; direction: "ltr" | "rtl" | "vertical" },
+): Promise<void> {
+  const { paper, orient, paginated, direction } = o;
+  const descriptor = formatId ? engine.formats.byId(formatId) : null;
   navStack.length = 0; // a new document is a fresh nav root
   updateBackBtn();
 
@@ -1484,6 +1497,42 @@ async function createNewDocument(): Promise<void> {
     formatId,
     editorId: blankEditor,
   });
+}
+
+// --- start screen ------------------------------------------------------------
+
+let welcomeEl: HTMLElement | null = null;
+
+// Word and spreadsheets first: the documents people most often start from scratch.
+const QUICK_NEW = (): QuickNew[] => [
+  { id: "docx", label: t("welcome.docx"), ext: "DOCX", tint: "#2b579a" },
+  { id: "xlsx", label: t("welcome.xlsx"), ext: "XLSX", tint: "#217346" },
+  { id: "pdf", label: t("welcome.pdf"), ext: "PDF", tint: "#d93025" },
+  { id: "markdown", label: t("welcome.md"), ext: "MD", tint: "#7c3aed" },
+  { id: null, label: t("welcome.txt"), ext: "TXT", tint: "#64748b" },
+];
+
+function showWelcome(): void {
+  hideWelcome();
+  const s = getSettings();
+  welcomeEl = renderWelcome(
+    t,
+    QUICK_NEW(),
+    {
+      open: () => void openFile(),
+      newDialog: () => openNewDialog(),
+      create: (id) => void createNew(id, { paper: s.pageSize as Paper, orient: "portrait", paginated: s.paginated, direction: "ltr" }),
+      palette: () => openPalette(),
+      dismiss: () => { hideWelcome(); session?.editor?.focus(); },
+    },
+    { native: isNative(), mac: /Mac|iPhone|iPad/.test(navigator.platform) },
+  );
+  editorEl.appendChild(welcomeEl);
+}
+
+function hideWelcome(): void {
+  welcomeEl?.remove();
+  welcomeEl = null;
 }
 
 // --- editor switching (text is the canonical hand-off) -----------------------

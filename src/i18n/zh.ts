@@ -263,6 +263,24 @@ const zh: Dict = {
     insertColRight: "在所选单元格右侧插入一列",
     deleteCol: "删除所选列",
   },
+  welcome: {
+    title: "打开任何文件，在这里编辑。",
+    lead: "文档、表格、PDF、代码、图片等等，都在一个编辑器里，所有内容都留在您的设备上。",
+    openFile: "打开文件",
+    openHintNative: "从手机或其他应用",
+    orDrop: "或拖放到任意位置",
+    newDoc: "新建文档",
+    newHint: "从数十种格式中选择",
+    startWith: "或从这里开始",
+    private: "不上传任何内容。无需账号，没有跟踪。",
+    commands: "命令",
+    justType: "直接开始输入",
+    txt: "纯文本",
+    md: "Markdown",
+    docx: "Word 文档",
+    xlsx: "电子表格",
+    pdf: "PDF",
+  },
 };
 
 export default zh;

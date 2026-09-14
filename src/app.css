@@ -523,3 +523,75 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
     color: #000; margin: 0;
   }
 }
+
+/* Start screen: shown over the untouched blank document until the user opens, creates or types. */
+#editor { position: relative; }
+.ot-welcome {
+  position: absolute; inset: 0; z-index: 5; overflow: auto;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: clamp(24px, 7vh, 88px) 20px 32px;
+  background:
+    radial-gradient(1200px 520px at 50% -120px, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+    var(--bg);
+}
+.ot-welcome[hidden] { display: none; }
+.ot-welcome-inner { width: 100%; max-width: 680px; display: flex; flex-direction: column; gap: 28px; }
+.ot-welcome-title { margin: 0; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.15; letter-spacing: -0.02em; font-weight: 700; }
+.ot-welcome-lead { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--muted); max-width: 52ch; }
+.ot-welcome-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ot-welcome-action {
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 16px 18px; border-radius: 14px; cursor: pointer; font: inherit; color: var(--text);
+  background: var(--chrome); border: 1px solid var(--border); box-shadow: var(--shadow);
+  transition: border-color .15s, transform .08s, box-shadow .15s;
+}
+.ot-welcome-action:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 6px 22px rgba(0,0,0,.12); }
+.ot-welcome-action:active { transform: translateY(1px); }
+.ot-welcome-action-icon {
+  flex: none; width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--surface); color: var(--accent);
+}
+.ot-welcome-action.primary .ot-welcome-action-icon { background: var(--accent); color: var(--accent-fg); }
+.ot-welcome-action-icon svg { width: 22px; height: 22px; }
+.ot-welcome-action-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ot-welcome-action-label { font-size: 15px; font-weight: 600; }
+.ot-welcome-action-hint { font-size: 12.5px; color: var(--muted); }
+.ot-welcome-subhead { margin: 0 0 -16px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ot-welcome-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+.ot-welcome-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding: 12px; border-radius: 12px; cursor: pointer; font: inherit; color: var(--text); text-align: left;
+  background: var(--chrome); border: 1px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.ot-welcome-tile:hover { border-color: var(--tint); background: color-mix(in srgb, var(--tint) 7%, var(--chrome)); }
+.ot-welcome-tile-badge {
+  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em;
+  padding: 6px 7px; border-radius: 6px; color: #fff; background: var(--tint);
+}
+.ot-welcome-tile-label { font-size: 13px; font-weight: 500; }
+.ot-welcome-action:focus-visible, .ot-welcome-tile:focus-visible, .ot-welcome-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ot-welcome-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  padding-top: 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted);
+}
+.ot-welcome-note { display: inline-flex; align-items: center; gap: 7px; }
+.ot-welcome-note svg { width: 14px; height: 14px; flex: none; color: var(--ok); }
+.ot-welcome-links { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.ot-welcome-link { font: inherit; color: var(--text); background: none; border: 0; padding: 5px 8px; border-radius: 7px; cursor: pointer; }
+.ot-welcome-link:hover { background: var(--surface); }
+.ot-welcome-link kbd {
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 5px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+}
+@media (max-width: 520px) {
+  .ot-welcome { padding-top: 22px; }
+  .ot-welcome-inner { gap: 22px; }
+  .ot-welcome-quick { grid-template-columns: repeat(2, 1fr); }
+  .ot-welcome-tile:last-child:nth-child(odd) { grid-column: 1 / -1; } /* no lone half-width tile */
+}
+@media print { .ot-welcome { display: none !important; } }
+/* A touch screen has no keyboard to press the shortcuts on. */
+@media (pointer: coarse) {
+  .ot-welcome-shortcut, .ot-welcome-link kbd { display: none; }
+}
