@@ -59,6 +59,8 @@ class MilkdownInstance implements EditorInstance {
   private ready = false;
   private edited = false;
   private originalText = "";
+  /** The markdown as the editor itself writes the loaded document, once it is ready. */
+  private baseline: string | null = null;
   private root: HTMLElement | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
@@ -72,8 +74,12 @@ class MilkdownInstance implements EditorInstance {
 
     const crepe = new Crepe({ root, defaultValue: ctx.text });
     crepe.on((listener) => {
-      listener.markdownUpdated(() => {
+      listener.markdownUpdated((_ctx, markdown) => {
         if (!this.ready) return; // ignore changes emitted during creation
+        // Opening a file is not an edit. The editor re-serializes what it loaded ("-" bullets,
+        // table spacing) and reports that as an update, which marked every opened Markdown file
+        // as having unsaved changes. Only a difference from its own first rendering counts.
+        if (markdown === this.baseline) return;
         this.edited = true;
         ctx.onChange();
       });
@@ -82,6 +88,7 @@ class MilkdownInstance implements EditorInstance {
     crepe
       .create()
       .then(() => {
+        this.baseline = crepe.getMarkdown();
         this.ready = true;
       })
       .catch((e: unknown) => console.error("milkdown create failed", e));
