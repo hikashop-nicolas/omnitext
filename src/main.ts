@@ -7,8 +7,21 @@ import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
-import { getOpenedFile, isNative, OpenedFileError, printFileNative, printNative, saveBytesNative } from "./core/platform";
-import { renderWelcome, welcomeWanted, type QuickNew } from "./core/welcome";
+import {
+  forgetDocumentNative,
+  getOpenedFile,
+  isNative,
+  OpenedFileError,
+  pickDocumentNative,
+  printFileNative,
+  printNative,
+  reopenDocumentNative,
+  saveBytesNative,
+  writeDocumentNative,
+  type PickedDocument,
+} from "./core/platform";
+import { renderWelcome, welcomeWanted, type QuickNew, type RecentView } from "./core/welcome";
+import { forgetRecent, getRecent, listRecent, rememberRecent, type RecentEntry } from "./core/recent-files";
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
@@ -134,7 +147,7 @@ import {
   makeGenericViewerFormats,
   makeViewerFormats,
 } from "./formats/binary-viewers";
-import { applyDom, initI18n, t } from "./i18n";
+import { applyDom, getLocale, initI18n, t } from "./i18n";
 import { REPO_URL } from "./core/links";
 import { getSettings, saveSettings } from "./settings";
 import { turnServers, type TurnProblem } from "./tools/collab/turn";
@@ -341,6 +354,9 @@ interface Session {
   blob: Blob | null;
   /** Text documents: the dominant line ending in the opened file (shown in the status bar). */
   lineEnding?: LineEnding;
+  /** Android: the picked document's content:// URI, and whether Save may write back to it. */
+  nativeUri?: string | null;
+  nativeWritable?: boolean;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
 }
@@ -650,6 +666,8 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
     srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
     blob: opts.blob ?? (opts.isSwitch ? (session?.blob ?? null) : null),
+    nativeUri: opts.isSwitch ? (session?.nativeUri ?? null) : null,
+    nativeWritable: opts.isSwitch ? !!session?.nativeWritable : false,
   };
   // The opened file's line ending, for the status-bar indicator (text documents only).
   if (!binary) {
@@ -1026,12 +1044,25 @@ function renameDoc(): void {
 
 async function openFile(): Promise<void> {
   if (!confirmDiscard()) return;
+  if (isNative()) {
+    // Android's document picker rather than the WebView's: its grant can be kept, so Save
+    // writes back to the same document and it can be reopened from the recent list.
+    try {
+      const picked = await pickDocumentNative();
+      if (picked) await openPicked(picked);
+    } catch (e) {
+      console.error("document picker failed", e);
+      engine.notificationSink.error(t("notify.readFailed", { what: t("notify.documentWord") }));
+    }
+    return;
+  }
   if (window.showOpenFilePicker) {
     try {
       const [handle] = await window.showOpenFilePicker();
       if (!handle) return;
       const file = await handle.getFile();
       await openLocalFile(file, "fs", handle);
+      void rememberRecent({ kind: "handle", name: file.name, handle });
     } catch (e) {
       if ((e as DOMException)?.name !== "AbortError") console.error(e);
     }
@@ -1113,6 +1144,7 @@ const i18nReady = initI18n();
     try {
       await i18nReady; // before the read, so a failure is reported in the user's language
       await openLocalFile(await handle.getFile(), "fs", handle);
+      void rememberRecent({ kind: "handle", name: handle.name, handle });
       return true;
     } catch (e) {
       // The OS did ask us to open something. Say that it failed rather than showing a
@@ -1181,10 +1213,18 @@ async function saveFile(): Promise<void> {
     }
     const handle = session.fileHandle;
     if (isNative()) {
-      // The app's WebView exposes the File System Access API, but writing back to a
-      // picked document's content URI is denied by Android, so always route Save
-      // through the native share/save sheet instead of the (broken) handle path.
-      await saveBytesNative(bytes, name);
+      // A document picked with a lasting write grant is saved in place. Anything else (an
+      // "Open with" copy, a new document, a read-only provider) goes to the share/save sheet.
+      if (session.nativeUri && session.nativeWritable) {
+        try {
+          await writeDocumentNative(session.nativeUri, bytes);
+        } catch (e) {
+          console.error("write-back failed, offering the share sheet instead", e);
+          await saveBytesNative(bytes, name);
+        }
+      } else {
+        await saveBytesNative(bytes, name);
+      }
     } else if (handle?.createWritable) {
       const w = await handle.createWritable();
       await w.write(bytes);
@@ -1512,23 +1552,102 @@ const QUICK_NEW = (): QuickNew[] => [
   { id: null, label: t("welcome.txt"), ext: "TXT", tint: "#64748b" },
 ];
 
-function showWelcome(): void {
+function showWelcome(recent?: RecentView[]): void {
   hideWelcome();
   const s = getSettings();
   welcomeEl = renderWelcome(
     t,
     QUICK_NEW(),
     {
+      openRecent: (id) => void openRecent(id),
+      forgetRecent: (id) => void forgetRecentFile(id),
       open: () => void openFile(),
       newDialog: () => openNewDialog(),
       create: (id) => void createNew(id, { paper: s.pageSize as Paper, orient: "portrait", paginated: s.paginated, direction: "ltr" }),
       palette: () => openPalette(),
       dismiss: () => { hideWelcome(); session?.editor?.focus(); },
     },
-    { native: isNative(), mac: /Mac|iPhone|iPad/.test(navigator.platform) },
+    { native: isNative(), mac: /Mac|iPhone|iPad/.test(navigator.platform), recent },
   );
   editorEl.appendChild(welcomeEl);
   document.getElementById("app")?.classList.add("ot-starting");
+  if (!recent) void refreshWelcomeRecent();
+}
+
+/** Only what this platform can reopen: Android documents in the app, file handles in the browser. */
+async function usableRecent(): Promise<RecentEntry[]> {
+  const native = isNative();
+  try {
+    return (await listRecent()).filter((e) => (native ? e.kind === "android" : e.kind === "handle"));
+  } catch {
+    return [];
+  }
+}
+
+const RECENT_TINT: Record<string, string> = { DOCX: "#2b579a", DOC: "#2b579a", ODT: "#2b579a", XLSX: "#217346", XLS: "#217346", ODS: "#217346", CSV: "#217346", PDF: "#d93025", MD: "#7c3aed" };
+
+function recentView(e: RecentEntry): RecentView {
+  const ext = (e.name.includes(".") ? e.name.split(".").pop()! : "").toUpperCase().slice(0, 4) || "FILE";
+  return { id: e.id, name: e.name, ext, tint: RECENT_TINT[ext] ?? "#64748b", when: relativeTime(e.openedAt) };
+}
+
+function relativeTime(at: number): string {
+  const rtf = new Intl.RelativeTimeFormat(getLocale(), { numeric: "auto" });
+  const mins = Math.round((at - Date.now()) / 60000);
+  if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
+  const hours = Math.round(mins / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  const days = Math.round(hours / 24);
+  if (Math.abs(days) < 30) return rtf.format(days, "day");
+  return new Date(at).toLocaleDateString(getLocale());
+}
+
+async function refreshWelcomeRecent(): Promise<void> {
+  const list = await usableRecent();
+  if (welcomeEl && list.length) showWelcome(list.map(recentView));
+}
+
+async function openPicked(picked: PickedDocument): Promise<void> {
+  await openLocalFile(picked.file, "content", null);
+  if (session) {
+    session.nativeUri = picked.uri;
+    session.nativeWritable = picked.writable;
+  }
+  void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri });
+}
+
+async function openRecent(id: string): Promise<void> {
+  const entry = await getRecent(id);
+  if (!entry || !confirmDiscard()) return;
+  const gone = async (): Promise<void> => {
+    await forgetRecentFile(id);
+    engine.notificationSink.warn(t("welcome.recentGone", { name: entry.name }));
+  };
+  try {
+    if (entry.kind === "android") {
+      const picked = await reopenDocumentNative(entry.uri);
+      if (!picked) return gone();
+      await openPicked(picked);
+      return;
+    }
+    // The click is the gesture a browser needs before it will grant access again.
+    const h = entry.handle;
+    let state = (await h.queryPermission?.({ mode: "readwrite" })) ?? "granted";
+    if (state !== "granted") state = (await h.requestPermission?.({ mode: "readwrite" })) ?? "denied";
+    if (state !== "granted") return; // the user said no: leave the entry for another time
+    const file = await h.getFile();
+    await openLocalFile(file, "fs", h as unknown as FsHandle);
+    void rememberRecent({ kind: "handle", name: file.name, handle: h });
+  } catch (e) {
+    console.error("recent file reopen failed", e);
+    await gone();
+  }
+}
+
+async function forgetRecentFile(id: string): Promise<void> {
+  const entry = await forgetRecent(id).catch(() => undefined);
+  if (entry?.kind === "android") void forgetDocumentNative(entry.uri);
+  if (welcomeEl) showWelcome((await usableRecent()).map(recentView));
 }
 
 function hideWelcome(): void {

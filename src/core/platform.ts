@@ -22,9 +22,16 @@ interface OpenedPayload {
   /** An http URL the WebView can fetch, pointing at the staged copy. */
   url?: string;
   size?: number;
+  /** Picked documents only: the content:// URI, kept to write back and to reopen later. */
+  uri?: string;
+  writable?: boolean;
 }
 interface FileOpenerPlugin {
   getPendingFile(): Promise<OpenedPayload>;
+  pickDocument(): Promise<OpenedPayload>;
+  reopenDocument(options: { uri: string }): Promise<OpenedPayload>;
+  writeDocument(options: { uri: string; path: string }): Promise<void>;
+  forgetDocument(options: { uri: string }): Promise<void>;
 }
 const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
 
@@ -110,19 +117,68 @@ export async function getOpenedFile(): Promise<OpenedFile | null> {
     return null;
   }
   if (!p?.name) return null;
-  if (!p.url) throw new OpenedFileError(p.name);
+  return fetchStaged(p);
+}
+
+/** Turn a staged payload into a File the app can open (it streams from the cache copy). */
+async function fetchStaged(p: OpenedPayload): Promise<OpenedFile> {
+  const name = p.name ?? "file";
+  if (!p.url) throw new OpenedFileError(name);
   try {
     const res = await fetch(p.url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const mime = p.mime || blob.type || undefined;
     return {
-      file: new File([blob], p.name, mime ? { type: mime } : {}),
-      name: p.name,
+      file: new File([blob], name, mime ? { type: mime } : {}),
+      name,
       ...(mime ? { mime } : {}),
     };
   } catch (e) {
-    throw new OpenedFileError(p.name, e);
+    throw new OpenedFileError(name, e);
+  }
+}
+
+/** A document picked through Android's own picker, with what is needed to save to it and reopen it. */
+export interface PickedDocument extends OpenedFile {
+  uri: string;
+  writable: boolean;
+}
+
+/** The system document picker (native only). Null when cancelled. */
+export async function pickDocumentNative(): Promise<PickedDocument | null> {
+  const p = await FileOpener.pickDocument();
+  if (!p?.name || !p.uri) return null;
+  return { ...(await fetchStaged(p)), uri: p.uri, writable: !!p.writable };
+}
+
+/** Reopen a document picked earlier. Null when its permission is gone (moved, deleted, or revoked). */
+export async function reopenDocumentNative(uri: string): Promise<PickedDocument | null> {
+  let p: OpenedPayload;
+  try {
+    p = await FileOpener.reopenDocument({ uri });
+  } catch {
+    return null;
+  }
+  if (!p?.name) return null;
+  return { ...(await fetchStaged(p)), uri, writable: !!p.writable };
+}
+
+/** Write bytes back to a picked document, through a cache file so no bytes cross the bridge twice. */
+export async function writeDocumentNative(uri: string, bytes: Uint8Array): Promise<void> {
+  const { Filesystem, Directory } = await import("@capacitor/filesystem");
+  const path = `writeback-${Date.now()}`;
+  await Filesystem.writeFile({ path, data: bytesToBase64(bytes), directory: Directory.Cache });
+  const { uri: fileUri } = await Filesystem.getUri({ path, directory: Directory.Cache });
+  await FileOpener.writeDocument({ uri, path: decodeURIComponent(fileUri.replace(/^file:\/\//, "")) });
+}
+
+/** Release the lasting permission of a document the user removed from the recent list. */
+export async function forgetDocumentNative(uri: string): Promise<void> {
+  try {
+    await FileOpener.forgetDocument({ uri });
+  } catch {
+    /* nothing to give back */
   }
 }
 

@@ -22,12 +22,25 @@ export interface QuickNew {
   tint: string;
 }
 
+/** A recently opened file, ready to show. */
+export interface RecentView {
+  id: string;
+  name: string;
+  /** Extension badge, e.g. "DOCX". */
+  ext: string;
+  tint: string;
+  /** Already formatted, e.g. "2 hours ago". */
+  when: string;
+}
+
 export interface WelcomeActions {
   open(): void;
   newDialog(): void;
   create(id: string | null): void;
   palette(): void;
   dismiss(): void;
+  openRecent(id: string): void;
+  forgetRecent(id: string): void;
 }
 
 const svg = (d: string): string =>
@@ -47,7 +60,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 };
 
 /** Build the welcome panel. `tr` is the app's translate function; `native` hides the drop hint. */
-export function renderWelcome(tr: (k: string) => string, quick: QuickNew[], actions: WelcomeActions, opts: { native: boolean; mac: boolean }): HTMLElement {
+export function renderWelcome(tr: (k: string) => string, quick: QuickNew[], actions: WelcomeActions, opts: { native: boolean; mac: boolean; recent?: RecentView[] }): HTMLElement {
   const root = el("section", "ot-welcome");
   root.setAttribute("aria-labelledby", "ot-welcome-title");
   const inner = el("div", "ot-welcome-inner");
@@ -83,7 +96,31 @@ export function renderWelcome(tr: (k: string) => string, quick: QuickNew[], acti
   );
   inner.appendChild(actionsRow);
 
-  const quickHead = el("h2", "ot-welcome-subhead", tr("welcome.startWith"));
+  if (opts.recent?.length) {
+    const head = el("h2", "ot-welcome-subhead", tr("welcome.recent"));
+    const list = el("ul", "ot-welcome-recent");
+    for (const r of opts.recent) {
+      const li = el("li", "ot-welcome-recent-item");
+      const open = el("button", "ot-welcome-recent-open");
+      open.type = "button";
+      const badge = el("span", "ot-welcome-tile-badge", r.ext);
+      badge.style.setProperty("--tint", r.tint);
+      const text = el("span", "ot-welcome-recent-text");
+      text.append(el("span", "ot-welcome-recent-name", r.name), el("span", "ot-welcome-recent-when", r.when));
+      open.append(badge, text);
+      open.addEventListener("click", () => actions.openRecent(r.id));
+      const forget = el("button", "ot-welcome-recent-forget", "×");
+      forget.type = "button";
+      forget.title = tr("welcome.forget");
+      forget.setAttribute("aria-label", `${tr("welcome.forget")}: ${r.name}`);
+      forget.addEventListener("click", () => actions.forgetRecent(r.id));
+      li.append(open, forget);
+      list.appendChild(li);
+    }
+    inner.append(head, list);
+  }
+
+  const quickHead = el("h2", "ot-welcome-subhead", tr(opts.recent?.length ? "welcome.orNew" : "welcome.startWith"));
   const grid = el("div", "ot-welcome-quick");
   for (const q of quick) {
     const b = el("button", "ot-welcome-tile");

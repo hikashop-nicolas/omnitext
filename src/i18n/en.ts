@@ -278,6 +278,10 @@ const en: Dict = {
     docx: "Word document",
     xlsx: "Spreadsheet",
     pdf: "PDF",
+    recent: "Recent",
+    forget: "Remove from recent",
+    orNew: "Or create",
+    recentGone: "{name} can no longer be opened from here. It may have been moved, renamed or deleted.",
   },
 };
 

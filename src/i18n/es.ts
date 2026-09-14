@@ -276,6 +276,10 @@ const es: Dict = {
     docx: "Documento de Word",
     xlsx: "Hoja de cálculo",
     pdf: "PDF",
+    recent: "Recientes",
+    forget: "Quitar de recientes",
+    orNew: "O crear",
+    recentGone: "{name} ya no se puede abrir desde aquí. Puede que se haya movido, renombrado o eliminado.",
   },
 };
 

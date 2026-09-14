@@ -276,6 +276,10 @@ const de: Dict = {
     docx: "Word-Dokument",
     xlsx: "Tabelle",
     pdf: "PDF",
+    recent: "Zuletzt geöffnet",
+    forget: "Aus der Liste entfernen",
+    orNew: "Oder neu erstellen",
+    recentGone: "{name} lässt sich hier nicht mehr öffnen. Die Datei wurde vielleicht verschoben, umbenannt oder gelöscht.",
   },
 };
 

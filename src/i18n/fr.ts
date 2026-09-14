@@ -279,6 +279,10 @@ const fr: Dict = {
     docx: "Document Word",
     xlsx: "Tableur",
     pdf: "PDF",
+    recent: "Récents",
+    forget: "Retirer des récents",
+    orNew: "Ou créer",
+    recentGone: "{name} ne peut plus être ouvert d'ici. Il a peut-être été déplacé, renommé ou supprimé.",
   },
 };
 

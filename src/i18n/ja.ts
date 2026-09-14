@@ -278,6 +278,10 @@ const ja: Dict = {
     docx: "Word 文書",
     xlsx: "表計算",
     pdf: "PDF",
+    recent: "最近使ったファイル",
+    forget: "履歴から削除",
+    orNew: "または新規作成",
+    recentGone: "{name} はここから開けなくなりました。移動、名前の変更、または削除された可能性があります。",
   },
 };
 

@@ -280,6 +280,10 @@ const zh: Dict = {
     docx: "Word 文档",
     xlsx: "电子表格",
     pdf: "PDF",
+    recent: "最近打开",
+    forget: "从最近列表中移除",
+    orNew: "或新建",
+    recentGone: "无法再从这里打开 {name}，它可能已被移动、重命名或删除。",
   },
 };
 
