@@ -107,6 +107,7 @@ const fr: Dict = {
     recovered: "Travail non enregistré récupéré depuis une session précédente. Utilisez Enregistrer pour écrire le fichier.",
     saved: "Enregistré.",
     savedToArchive: "Enregistré dans {name}.",
+    downloaded: "{name} a été téléchargé.",
     encodingUtf8: "Remarque : l'encodage de ce fichier sera enregistré en UTF-8.",
     tooLargeForText: "Fichier trop volumineux pour l'ouvrir en texte ; aperçu hexadécimal en lecture seule.",
   },

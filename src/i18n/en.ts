@@ -109,6 +109,7 @@ const en: Dict = {
     recovered: "Recovered unsaved work from a previous session. Use Save to write out the file.",
     saved: "Saved.",
     savedToArchive: "Saved into {name}.",
+    downloaded: "Downloaded {name}.",
     encodingUtf8: "Note: this file's encoding will be saved as UTF-8.",
     tooLargeForText: "File too large to open as text; showing a read-only hex preview.",
   },

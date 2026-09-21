@@ -107,6 +107,7 @@ const pt: Dict = {
     recovered: "Foi recuperado trabalho por guardar de uma sessão anterior. Use Guardar para escrever o ficheiro.",
     saved: "Guardado.",
     savedToArchive: "Guardado dentro de {name}.",
+    downloaded: "{name} foi transferido.",
     encodingUtf8: "Nota: a codificação deste ficheiro será guardada como UTF-8.",
     tooLargeForText: "O ficheiro é demasiado grande para abrir como texto; é mostrada uma vista hexadecimal só de leitura.",
   },

@@ -2467,7 +2467,11 @@ const workspace: Workspace = {
   exportFile(name, bytes) {
     // Save/share an in-memory file (e.g. extract one archive entry).
     if (isNative()) void saveBytesNative(bytes, name);
-    else downloadBytes(bytes, name);
+    else {
+      downloadBytes(bytes, name);
+      // A browser download can be silent (no prompt, no bar), so say it happened.
+      setStatus(t("status.downloaded", { name }));
+    }
   },
 };
 

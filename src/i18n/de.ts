@@ -107,6 +107,7 @@ const de: Dict = {
     recovered: "Nicht gespeicherte Arbeit aus einer früheren Sitzung wurde wiederhergestellt. Mit Speichern schreiben Sie die Datei.",
     saved: "Gespeichert.",
     savedToArchive: "In {name} gespeichert.",
+    downloaded: "{name} wurde heruntergeladen.",
     encodingUtf8: "Hinweis: Die Kodierung dieser Datei wird als UTF-8 gespeichert.",
     tooLargeForText: "Die Datei ist zu groß, um sie als Text zu öffnen; es wird eine schreibgeschützte Hex-Ansicht gezeigt.",
   },

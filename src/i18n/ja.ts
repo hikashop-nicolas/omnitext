@@ -109,6 +109,7 @@ const ja: Dict = {
     recovered: "前回のセッションの未保存の作業を復元しました。ファイルに書き出すには「保存」を使用してください。",
     saved: "保存しました。",
     savedToArchive: "{name}に保存しました。",
+    downloaded: "{name} をダウンロードしました。",
     encodingUtf8: "注：このファイルのエンコーディングは UTF-8 として保存されます。",
     tooLargeForText: "テキストとして開くには大きすぎます。読み取り専用の16進プレビューを表示します。",
   },

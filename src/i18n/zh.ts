@@ -111,6 +111,7 @@ const zh: Dict = {
     recovered: "已恢复上一次会话中未保存的内容。点击“保存”写入文件。",
     saved: "已保存。",
     savedToArchive: "已保存到 {name} 中。",
+    downloaded: "已下载 {name}。",
     encodingUtf8: "注意：此文件的编码将以 UTF-8 保存。",
     tooLargeForText: "文件过大，无法以文本方式打开；现以只读的十六进制视图显示。",
   },
