@@ -110,6 +110,16 @@ class BinaryInstance implements EditorInstance {
     const name = this.host.workspace.getActiveDocument()?.filename ?? "file";
     dl.addEventListener("click", () => this.host.workspace.exportFile?.(name, bytes));
     head.append(info, dl);
+    // The sniff can be wrong in one direction only: a file that is really text (a kernel
+    // log in a zero-padded buffer, a record file) shown as hex. This reopens it as text.
+    if (this.host.workspace.openActiveAsText) {
+      const asText = document.createElement("button");
+      asText.type = "button";
+      asText.className = "ot-bin-btn";
+      asText.textContent = t("binary.openAsText");
+      asText.addEventListener("click", () => this.host.workspace.openActiveAsText?.());
+      head.append(asText);
+    }
     wrap.append(head);
 
     const pre = document.createElement("pre");

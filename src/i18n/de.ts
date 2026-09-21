@@ -226,6 +226,7 @@ const de: Dict = {
   },
   binary: {
     download: "Herunterladen",
+    openAsText: "Als Text öffnen",
     truncated: "Es werden die ersten {shown} von {total} gezeigt. Für die ganze Datei Herunterladen verwenden.",
     askKnown: "Omnitext liest {ext}-Dateien noch nicht, daher sehen Sie den rohen Inhalt.",
     askUnknown: "Omnitext hat diese Datei nicht erkannt, daher sehen Sie den rohen Inhalt.",

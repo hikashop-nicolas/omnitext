@@ -2363,6 +2363,24 @@ const workspace: Workspace = {
     if (!session?.editor || !session.binary) return null;
     return (await session.editor.getBytes?.()) ?? null;
   },
+  openActiveAsText() {
+    if (!session?.editor || !session.binary) return;
+    void (async () => {
+      const bytes = (await session?.editor?.getBytes?.()) ?? null;
+      if (!bytes || !session) return;
+      const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      const decoded = decodeBytes(buf);
+      await mountDoc({
+        text: decoded.text,
+        filename: session.filename,
+        encoding: decoded.encoding,
+        uri: session.uri,
+        fileHandle: session.fileHandle,
+        srcBytes: buf,
+      });
+      if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
+    })();
+  },
   getActiveState() {
     if (!session?.editor) return null;
     return session.editor.getState?.() ?? null;

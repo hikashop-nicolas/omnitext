@@ -230,6 +230,7 @@ const zh: Dict = {
   },
   binary: {
     download: "下载",
+    openAsText: "以文本方式打开",
     truncated: "正在显示前 {shown}，共 {total}。要获取整个文件请用“下载”。",
     askKnown: "Omnitext 尚不能读取 {ext} 文件，因此显示的是原始内容。",
     askUnknown: "Omnitext 未能识别此文件，因此显示的是原始内容。",
