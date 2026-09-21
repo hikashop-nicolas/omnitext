@@ -6,7 +6,7 @@ import { printDocument, printPdfBytes } from "./core/print";
 import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, ENCODINGS, type LineEnding } from "./core/encoding";
+import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
   forgetDocumentNative,
   getOpenedFile,
@@ -964,9 +964,9 @@ async function openBuffer(
     });
     return;
   }
-  // Unknown type and the content looks binary (NUL / many control bytes): show the hex
-  // fallback rather than decoding it into garbage text. UTF-16 text is full of NULs,
-  // so a BOM overrides the sniff and routes to the text decoder below.
+  // Unknown type and the content looks binary (scattered NULs / many control bytes): show
+  // the hex fallback rather than decoding it into garbage text. UTF-16 text is full of
+  // NULs, so a BOM overrides the sniff and routes to the text decoder below.
   if (!hasUtf16Bom(buffer) && looksBinary(buffer)) {
     await mountDoc({
       bytes: new Uint8Array(buffer),
@@ -1010,19 +1010,6 @@ async function openBuffer(
     srcBytes: buffer,
   });
   if (decoded.lossyOnSave) setStatus(t("status.encodingUtf8"));
-}
-
-// Heuristic: a NUL byte, or >10% non-text control bytes in the first 8KB, means binary.
-function looksBinary(buffer: ArrayBuffer): boolean {
-  const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 8192));
-  if (bytes.length === 0) return false;
-  let control = 0;
-  for (const b of bytes) {
-    if (b === 0) return true;
-    // Allow tab (9), LF (10), CR (13); count other low control chars.
-    if ((b < 9 || (b > 13 && b < 32)) && b !== 27) control++;
-  }
-  return control / bytes.length > 0.1;
 }
 
 // Replacing the current document (Open / New / drop / Back) must not silently discard

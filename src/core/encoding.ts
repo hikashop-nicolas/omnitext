@@ -18,6 +18,43 @@ export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
   return b.length >= 2 && ((b[0] === 0xff && b[1] === 0xfe) || (b[0] === 0xfe && b[1] === 0xff));
 }
 
+const SNIFF_BYTES = 8192;
+/** A NUL run this long is buffer padding, not content: it says nothing about the file. */
+const PADDING_RUN = 8;
+
+/**
+ * Text vs binary sniff for a file whose type is unknown, over the first 8 KB.
+ *
+ * A NUL byte still means binary, with one exception: a long run of them is a zero-filled
+ * buffer rather than content. Kernel ring-buffer dumps (pstore/ramoops, issue #43) and
+ * other log exports are plain text sitting in such a buffer, and reading them as hex
+ * helps nobody. Scattered NULs (compressed data, BOM-less UTF-16) still route to hex,
+ * where the text would only decode into garbage.
+ */
+export function looksBinary(buffer: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, SNIFF_BYTES));
+  if (bytes.length === 0) return false;
+  let content = 0;
+  let control = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i]!;
+    if (b === 0) {
+      let run = 1;
+      while (i + run < bytes.length && bytes[i + run] === 0) run++;
+      // A run that reaches the end of the sample is padding whatever its length: the file
+      // may well continue with more of it.
+      if (run < PADDING_RUN && i + run < bytes.length) return true;
+      i += run - 1;
+      continue;
+    }
+    content++;
+    // Allow tab (9), LF (10), CR (13), ESC (27); other low control codes are not text.
+    if ((b < 9 || (b > 13 && b < 32)) && b !== 27) control++;
+  }
+  if (content === 0) return true; // nothing but padding: no text to show
+  return control / content > 0.1;
+}
+
 /** Encodings offered by the "reopen with encoding" picker (TextDecoder built-ins). */
 export const ENCODINGS = ["utf-8", "windows-1252", "iso-8859-15", "shift_jis", "euc-jp", "gbk", "big5", "windows-1251", "koi8-r"] as const;
 
