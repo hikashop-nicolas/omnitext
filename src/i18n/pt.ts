@@ -227,6 +227,7 @@ const pt: Dict = {
   binary: {
     download: "Transferir",
     openAsText: "Abrir como texto",
+    looksText: "Parece texto com alguns bytes que não são texto. Abra como texto para o ler.",
     truncated: "A mostrar os primeiros {shown} de {total}. Use Transferir para o ficheiro completo.",
     askKnown: "O Omnitext ainda não lê ficheiros {ext}: este é o conteúdo em bruto.",
     askUnknown: "O Omnitext não reconheceu este ficheiro: este é o conteúdo em bruto.",

@@ -230,6 +230,7 @@ const fr: Dict = {
   binary: {
     download: "Télécharger",
     openAsText: "Ouvrir comme texte",
+    looksText: "Ce fichier semble être du texte contenant quelques octets non textuels. Ouvrez-le comme texte pour le lire.",
     truncated: "Affichage des {shown} premiers sur {total}. Utilisez Télécharger pour le fichier entier.",
     askKnown: "Omnitext ne lit pas encore les fichiers {ext} : voici leur contenu brut.",
     askUnknown: "Omnitext n'a pas reconnu ce fichier : voici son contenu brut.",

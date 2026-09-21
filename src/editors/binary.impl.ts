@@ -46,6 +46,9 @@ function ensureStyles(): void {
     .ot-bin-btn { font:inherit; font-size:12px; padding:4px 12px; border:1px solid var(--border);
       border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer; }
     .ot-bin-btn:hover { border-color:var(--accent); }
+    .ot-bin-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .ot-bin-hint { margin:12px 16px 0; padding:8px 12px; border-left:3px solid var(--accent);
+      background:var(--surface); color:var(--text); font-size:12px; }
     .ot-bin-hex { margin:0; padding:12px 16px; white-space:pre; overflow:auto;
       font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:var(--text); }
     .ot-bin-note { padding:0 16px 16px; color:var(--muted); font-size:12px; }
@@ -64,6 +67,21 @@ function ensureStyles(): void {
     .ot-bin-ask-close:hover { background:var(--chrome); color:var(--text); }
   `;
   document.head.appendChild(s);
+}
+
+/** At least 90% of the first 8 KB, NULs aside, decodes as readable UTF-8 text. */
+export function mostlyText(bytes: Uint8Array): boolean {
+  const sample = new TextDecoder("utf-8").decode(bytes.subarray(0, 8192));
+  let content = 0;
+  let text = 0;
+  for (const ch of sample) {
+    if (ch === "\0") continue;
+    content++;
+    const c = ch.codePointAt(0)!;
+    // U+FFFD is what invalid bytes decode to: compressed data is full of it.
+    if (c === 9 || c === 10 || c === 13 || (c >= 32 && c !== 127 && c !== 0xfffd)) text++;
+  }
+  return content >= 16 && text / content >= 0.9;
 }
 
 const fmtSize = (n: number): string =>
@@ -112,15 +130,23 @@ class BinaryInstance implements EditorInstance {
     head.append(info, dl);
     // The sniff can be wrong in one direction only: a file that is really text (a kernel
     // log in a zero-padded buffer, a record file) shown as hex. This reopens it as text.
+    const textLike = mostlyText(bytes);
     if (this.host.workspace.openActiveAsText) {
       const asText = document.createElement("button");
       asText.type = "button";
-      asText.className = "ot-bin-btn";
+      asText.className = textLike ? "ot-bin-btn ot-bin-primary" : "ot-bin-btn";
       asText.textContent = t("binary.openAsText");
       asText.addEventListener("click", () => this.host.workspace.openActiveAsText?.());
       head.append(asText);
     }
     wrap.append(head);
+    // Say so when the dump is visibly text, or a reader takes the hex for a broken file.
+    if (textLike && this.host.workspace.openActiveAsText) {
+      const hint = document.createElement("div");
+      hint.className = "ot-bin-hint";
+      hint.textContent = t("binary.looksText");
+      wrap.append(hint);
+    }
 
     const pre = document.createElement("pre");
     pre.className = "ot-bin-hex";

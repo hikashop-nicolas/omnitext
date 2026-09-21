@@ -229,6 +229,7 @@ const en: Dict = {
   binary: {
     download: "Download",
     openAsText: "Open as text",
+    looksText: "This looks like text with a few non-text bytes in it. Open as text to read it.",
     truncated: "Showing the first {shown} of {total}. Use Download for the whole file.",
     askKnown: "Omnitext does not read {ext} files yet, so this is the raw content.",
     askUnknown: "Omnitext did not recognise this file, so this is the raw content.",

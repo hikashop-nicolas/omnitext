@@ -229,6 +229,7 @@ const ja: Dict = {
   binary: {
     download: "ダウンロード",
     openAsText: "テキストとして開く",
+    looksText: "テキスト以外のバイトを少し含むテキストのようです。テキストとして開くと読めます。",
     truncated: "先頭 {shown} / 全体 {total} を表示しています。ファイル全体はダウンロードをご利用ください。",
     askKnown: "Omnitext はまだ {ext} ファイルを読めないため、生の内容を表示しています。",
     askUnknown: "Omnitext はこのファイルを認識できなかったため、生の内容を表示しています。",
