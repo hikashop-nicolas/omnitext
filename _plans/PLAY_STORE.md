@@ -74,9 +74,10 @@ Privacy policy URL: https://hikashop-nicolas.github.io/omnitext/privacy.html
 Keep this in step with what the app actually does.
 
 > **For the 1.7 listing edit:** the F-Droid description (fastlane/metadata/android/en-US/
-> full_description.txt) already carries the updated last bullet, which covers both exceptions:
-> sharing, and the AI features' one-time model download that the app now asks about first.
-> Copy it here and into the console.
+> full_description.txt) is the new listing text: it opens on what Omnitext is for (one app that
+> opens any file, without the ads, banners, accounts and uploads of per-format apps), and its
+> privacy line covers both exceptions, sharing and the AI features' one-time model download that
+> the app now asks about first. Copy it here and into the console.
 >
 > **Outstanding since 1.3: collaboration shipped, and the copy above did not change with
 > it.** "Private by design: nothing leaves your device" is no longer true without a

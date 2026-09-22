@@ -1,4 +1,6 @@
-Omnitext is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors, all on your device.
+Omnitext opens practically any file you are sent, in one app. Instead of installing a separate app for each file type, often slow, with ads, upgrade banners, a mandatory account, or uploading your file, you get the right viewer or editor for each file: documents, spreadsheets, PDF, code, maps, subtitles, audio, video, archives and more. It opens quickly, saves back without breaking what it did not change, and never gives up on a file: anything unknown opens as text or hex.
+
+It is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors, all on your device.
 
 Everything runs locally. Your files are never uploaded, there is no account, no tracking, and no ads. Open a file, edit it, and save it back, entirely offline.
 
