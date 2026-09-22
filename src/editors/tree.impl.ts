@@ -4,6 +4,7 @@ import type {
   EditorMountContext,
   TreeView,
 } from "../core/types";
+import { t } from "../i18n";
 
 // Tree editor for structured data (JSON/JSON5/YAML). It asks the format for a "tree"
 // view (a parsed value + a stringify fn), renders an editable collapsible tree, and
@@ -37,6 +38,11 @@ function ensureStyles(): void {
     .ot-tree .ot-toggle:hover { background: var(--surface-hover); color: var(--text); }
     .ot-tree .ot-spacer { width: 18px; flex: 0 0 18px; }
     .ot-tree .ot-type { color: var(--muted); }
+    .ot-tree select.ot-kind {
+      font: inherit; font-size: 12px; padding: 1px 2px; border-radius: 5px; cursor: pointer;
+      border: 1px solid var(--ot-line); background: var(--surface); color: var(--muted);
+    }
+    .ot-tree select.ot-kind:hover { color: var(--text); }
     .ot-tree .ot-key { color: var(--muted); }
     .ot-tree input {
       border: 1px solid var(--ot-line); background: var(--surface); color: var(--text);
@@ -84,6 +90,32 @@ function parseAny(s: string): unknown {
   }
 }
 
+export type Kind = "value" | "list" | "object";
+
+export function kindOf(v: unknown): Kind {
+  return Array.isArray(v) ? "list" : isContainer(v) ? "object" : "value";
+}
+
+/** Convert a value to another kind without losing data, or null when that would drop
+ *  something (a list or object with several entries cannot become one value, and an
+ *  object's keys would be lost as a list). */
+export function convertKind(v: unknown, to: Kind): { value: unknown } | null {
+  const from = kindOf(v);
+  if (from === to) return { value: v };
+  if (from === "value") {
+    const empty = v === "";
+    return { value: to === "list" ? (empty ? [] : [v]) : empty ? {} : { field: v } };
+  }
+  const entries = Object.values(v as Record<string, unknown>);
+  if (to === "value") {
+    if (entries.length === 0) return { value: "" };
+    if (entries.length === 1 && !isContainer(entries[0])) return { value: entries[0] };
+    return null;
+  }
+  if (to === "object") return { value: { ...(v as unknown[]) } }; // list indexes become keys
+  return entries.length === 0 ? { value: [] } : null; // object -> list would drop the keys
+}
+
 class TreeInstance implements EditorInstance {
   private value: unknown = null;
   private stringify: (v: unknown) => string = (v) => JSON.stringify(v, null, 2);
@@ -99,7 +131,7 @@ class TreeInstance implements EditorInstance {
 
     const fmt = ctx.format;
     if (!fmt?.toView) {
-      container.textContent = "No tree view available for this format.";
+      container.textContent = t("tree.unavailable");
       return;
     }
     try {
@@ -109,7 +141,7 @@ class TreeInstance implements EditorInstance {
     } catch (err) {
       const e = document.createElement("div");
       e.className = "ot-tree-error";
-      e.textContent = `Cannot show tree: ${err instanceof Error ? err.message : String(err)}`;
+      e.textContent = t("tree.error", { error: err instanceof Error ? err.message : String(err) });
       container.appendChild(e);
       this.wrap = e;
       return;
@@ -152,13 +184,17 @@ class TreeInstance implements EditorInstance {
       kids.hidden = !open;
       toggle.textContent = open ? "▼" : "▶";
       toggle.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-label", open ? t("tree.collapse") : t("tree.expand"));
     };
     toggle.addEventListener("click", () => setOpen(kids.hidden === true));
     setOpen(true);
 
     const type = document.createElement("span");
     type.className = "ot-type";
-    type.textContent = isArray ? `[ ] ${keys.length} items` : `{ } ${keys.length} keys`;
+    const n = keys.length;
+    type.textContent = isArray
+      ? n === 1 ? t("tree.itemsOne") : t("tree.items", { n })
+      : n === 1 ? t("tree.keysOne") : t("tree.keys", { n });
     head.append(toggle, ...lead, type, ...trail);
 
     for (const key of keys) {
@@ -182,18 +218,19 @@ class TreeInstance implements EditorInstance {
       del.type = "button";
       del.className = "ot-del";
       del.textContent = "×";
-      del.title = "Remove";
+      del.title = t("tree.remove");
+      del.setAttribute("aria-label", t("tree.remove"));
       del.addEventListener("click", () => this.removeEntry(obj, key, isArray));
 
       const child = obj[key];
       if (isContainer(child)) {
-        kids.appendChild(this.buildNode(child, keyEls, [del]));
+        kids.appendChild(this.buildNode(child, [...keyEls, this.buildKind(obj, key)], [del]));
       } else {
         const row = document.createElement("div");
         row.className = "ot-row";
         const spacer = document.createElement("span");
         spacer.className = "ot-spacer"; // lines leaf keys up with the keys of nested nodes
-        row.append(spacer, ...keyEls, this.buildLeaf(child, (v) => (obj[key] = v)), del);
+        row.append(spacer, ...keyEls, this.buildKind(obj, key), this.buildLeaf(child, (v) => (obj[key] = v)), del);
         kids.appendChild(row);
       }
     }
@@ -205,13 +242,42 @@ class TreeInstance implements EditorInstance {
     const addBtn = document.createElement("button");
     addBtn.type = "button";
     addBtn.className = "ot-add";
-    addBtn.textContent = isArray ? "+ item" : "+ field";
+    addBtn.textContent = isArray ? t("tree.addItem") : t("tree.addField");
     addBtn.addEventListener("click", () => this.addEntry(obj, isArray));
     addRow.append(spacer, addBtn);
     kids.appendChild(addRow);
 
     node.append(head, kids);
     return node;
+  }
+
+  /** Value / list / object picker for one entry; converts it in place. */
+  private buildKind(parent: Record<string, unknown>, key: string): HTMLSelectElement {
+    const current = parent[key];
+    const sel = document.createElement("select");
+    sel.className = "ot-kind";
+    sel.title = t("tree.kind");
+    sel.setAttribute("aria-label", t("tree.kind"));
+    const labels: Record<Kind, string> = { value: t("tree.kindValue"), list: t("tree.kindList"), object: t("tree.kindObject") };
+    for (const kind of ["value", "list", "object"] as Kind[]) {
+      const opt = document.createElement("option");
+      opt.value = kind;
+      opt.textContent = labels[kind];
+      opt.selected = kind === kindOf(current);
+      if (!convertKind(current, kind)) {
+        opt.disabled = true;
+        opt.title = t("tree.kindLocked");
+      }
+      sel.appendChild(opt);
+    }
+    sel.addEventListener("change", () => {
+      const next = convertKind(parent[key], sel.value as Kind);
+      if (!next) return this.render();
+      parent[key] = next.value;
+      this.markDirty();
+      this.render();
+    });
+    return sel;
   }
 
   private buildLeaf(value: unknown, set: (v: unknown) => void): HTMLElement {
