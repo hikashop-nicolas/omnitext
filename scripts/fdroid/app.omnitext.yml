@@ -16,7 +16,7 @@ Repo: https://github.com/hikashop-nicolas/omnitext.git
 Builds:
   - versionName: '1.7'
     versionCode: 10700
-    commit: bf5bee43e7ae67a6a4d28cd535222e6de4d3358c
+    commit: d4d2038cfa773a619fb0b64d1336179bb10ee35c
     subdir: android/app
     sudo:
       - apt-get update

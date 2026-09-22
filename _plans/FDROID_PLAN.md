@@ -60,7 +60,7 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
    (registry.gitlab.com/fdroid/docker-executable-fdroidserver, Debian 13) builds
    app.omnitext_10600.apk (21.8 MB) from the recipe, scanner included. What it took: untracking a
    committed public/alac copy (the scanner's only finding), Node 24 like CI (npm 10 misreads the
-   lockfile), libtool-bin, a libtoolize wrapper for fontconfig on Debian 13, serial worker build.
+   lockfile; since then Debian's own Node 20 + npm 9, at the reviewer's request), libtool-bin, a libtoolize wrapper for fontconfig on Debian 13, serial worker build.
    To repeat it: see "Dry run" below.
 3. Store texts and images: done (fastlane/metadata/android/en-US/, from the Play listing with
    the updated privacy wording). First F-Droid version: 1.7 (10700), tagged fdroid-1.7 on the
