@@ -186,11 +186,21 @@ build_libass() {
   emsdk_use 2.0.34
   src="$WORK/JavascriptSubtitlesOctopus"
   [ -d "$src" ] || git -c advice.detachedHead=false clone -q --recurse-submodules --shallow-submodules --depth 1 --branch "v$v" https://github.com/jellyfin/JavascriptSubtitlesOctopus.git "$src"
-  # Libraries first: the Makefile's phony all-src step can race them under -j (upstream builds
-  # without -j), compiling the wrapper before libass is installed. Then only the worker: the full
+  # fontconfig's autogen.sh reads the version off `libtoolize --version` with a regex that breaks
+  # on Debian 13's "2.5.4 Debian-2.5.4-4" and then claims libtool is missing. It honours
+  # LIBTOOLIZE, so point that at a wrapper that drops the Debian suffix from the version line.
+  mkdir -p "$WORK/bin"
+  printf '%s\n' '#!/bin/sh' \
+    'if [ "${1:-}" = --version ]; then libtoolize --version | sed "1s/ Debian-[^ ]*\$//"; else exec libtoolize "$@"; fi' \
+    > "$WORK/bin/libtoolize-plain"
+  chmod +x "$WORK/bin/libtoolize-plain"
+  export LIBTOOLIZE="$WORK/bin/libtoolize-plain"
+  # Libraries first, in parallel; then the worker serially, as upstream builds everything: its
+  # phony all-src step races both the libraries and the generated SubOctpInterface.js under -j.
+  # Only the worker, because the full
   # `dist` also regenerates the licence notice, whose lint fails on Debian's newer licensecheck,
   # and the app keeps npm's COPYRIGHT anyway.
-  (cd "$src" && make -j"$(nproc)" "$src/dist/libraries/lib/libass.a" && make -j"$(nproc)" dist/js/subtitles-octopus-worker.js) >"$WORK/libass-build.log" 2>&1 || { tail -25 "$WORK/libass-build.log"; exit 1; }
+  (cd "$src" && make -j"$(nproc)" "$src/dist/libraries/lib/libass.a" && make dist/js/subtitles-octopus-worker.js) >"$WORK/libass-build.log" 2>&1 || { tail -25 "$WORK/libass-build.log"; exit 1; }
   for f in subtitles-octopus-worker.js subtitles-octopus-worker.wasm; do
     install_over "$src/dist/js/$f" "node_modules/@jellyfin/libass-wasm/dist/js/$f"
   done
