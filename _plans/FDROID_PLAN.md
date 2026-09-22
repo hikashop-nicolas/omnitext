@@ -80,3 +80,12 @@ fdroidserver does not clone it itself). Then:
       build --verbose --on-server --no-tarball app.omnitext:10600
 
 `--on-server` is what runs the recipe's sudo block (packages, Node), as F-Droid's CI does.
+
+## Release (reproducible build)
+
+F-Droid rebuilds each version and publishes our signed APK when its build matches it byte for
+byte (recipe: Binaries + AllowedAPKSigningKeys). Two dry runs of 1.7 gave the same SHA-256. Per
+release: bump fdroidVersionCode/versionName, tag fdroid-<version>, run the dry run above, then
+`scripts/fdroid/sign-apk.sh <dry-run>/unsigned/app.omnitext_<code>.apk <version>` (the user types
+the key password), and attach ~/Downloads/omnitext-fdroid-<version>.apk to a GitHub release on
+the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing.

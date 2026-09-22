@@ -12,6 +12,8 @@ AutoName: Omnitext
 
 RepoType: git
 Repo: https://github.com/hikashop-nicolas/omnitext.git
+Binaries: 
+  https://github.com/hikashop-nicolas/omnitext/releases/download/fdroid-%v/omnitext-fdroid-%v.apk
 
 Builds:
   - versionName: '1.7'
@@ -32,6 +34,8 @@ Builds:
       - scripts/fdroid/build-wasm.sh
       - npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
+
+AllowedAPKSigningKeys: 764e7ec37f86865288d4826095d4c649010d911653fd00ba016e037e5a663261
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^fdroid-
