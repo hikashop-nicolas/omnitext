@@ -12,7 +12,9 @@
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
-# Needs git, python3, perl, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, and sha3sum (Debian: libdigest-sha3-perl). Locally, run it in a
+# Needs git, python3, perl, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, sha3sum
+# (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool itstool python3-ply gettext
+# autopoint automake autoconf m4 gperf licensecheck gawk. Locally, run it in a
 # clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
 set -eu
 
@@ -175,6 +177,25 @@ build_libarchive() {
   install_over "$B/out/libarchive.wasm" node_modules/libarchive-wasm/dist/libarchive.wasm
 }
 
+# libass and its font stack (freetype, harfbuzz, fribidi, fontconfig, expat, brotli), through
+# JavascriptSubtitlesOctopus at the version npm installed: its Makefile builds every dependency
+# from the git submodules it pins, on Emscripten 2.0.34 (its Dockerfile's version).
+build_libass() {
+  v="$(npm_version @jellyfin/libass-wasm)"
+  echo "libass via JavascriptSubtitlesOctopus $v"
+  emsdk_use 2.0.34
+  src="$WORK/JavascriptSubtitlesOctopus"
+  [ -d "$src" ] || git -c advice.detachedHead=false clone -q --recurse-submodules --shallow-submodules --depth 1 --branch "v$v" https://github.com/jellyfin/JavascriptSubtitlesOctopus.git "$src"
+  # Libraries first: the Makefile's phony all-src step can race them under -j (upstream builds
+  # without -j), compiling the wrapper before libass is installed. Then only the worker: the full
+  # `dist` also regenerates the licence notice, whose lint fails on Debian's newer licensecheck,
+  # and the app keeps npm's COPYRIGHT anyway.
+  (cd "$src" && make -j"$(nproc)" "$src/dist/libraries/lib/libass.a" && make -j"$(nproc)" dist/js/subtitles-octopus-worker.js) >"$WORK/libass-build.log" 2>&1 || { tail -25 "$WORK/libass-build.log"; exit 1; }
+  for f in subtitles-octopus-worker.js subtitles-octopus-worker.wasm; do
+    install_over "$src/dist/js/$f" "node_modules/@jellyfin/libass-wasm/dist/js/$f"
+  done
+}
+
 # Put the npm files back (after a local run: a Play or web build must not pick up these).
 build_restore() {
   echo "restore npm binaries"
@@ -182,7 +203,7 @@ build_restore() {
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive"
+ALL="alac sqljs libav 7zip libarchive libass"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
