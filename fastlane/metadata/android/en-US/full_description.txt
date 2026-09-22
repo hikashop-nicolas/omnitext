@@ -1,0 +1,17 @@
+Omnitext is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors, all on your device.
+
+Everything runs locally. Your files are never uploaded, there is no account, no tracking, and no ads. Open a file, edit it, and save it back, entirely offline.
+
+<ul>
+<li>Edit PDFs: change text in place, add text and images, pinch to zoom.</li>
+<li>Edit Word (including legacy .doc), OpenDocument and spreadsheets, preserving the parts you do not touch.</li>
+<li>Spreadsheets with charts, pivot tables, Power Query, conditional formatting, printing, freeze and split panes, form controls and VBA macros that run.</li>
+<li>Code and data editor with syntax highlighting for many formats, and a tree editor for JSON and YAML.</li>
+<li>Edit subtitles (SRT, VTT, ASS and more) and play video and audio with subtitles, including Dolby audio tracks and Apple Lossless.</li>
+<li>Edit maps (GeoJSON, KML, GPX) and view many more formats: PowerPoint, ebooks, 3D models, fonts, SQLite databases, email, archives (zip, 7z, RAR) and images, with on-device text recognition.</li>
+<li>Command palette, light and dark themes, and version history to roll back changes.</li>
+</ul>
+
+Private by design: your files never leave your device unless you share a document, and then it goes straight to the people you invite. The optional AI features (text recognition, translation, writing help, transcription) download their model once, and ask before they do.
+
+Free software under the MIT licence. The same app also runs in any browser.

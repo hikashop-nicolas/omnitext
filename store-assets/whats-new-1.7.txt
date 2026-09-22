@@ -1,0 +1,9 @@
+New in this update:
+
+• Dolby audio (AC-3, DTS, TrueHD) in videos and Apple Lossless music now play
+• JSON editor: clearer fields in dark mode, nested values under their key, a value/list/object picker, and very large files open quickly
+• Logs and other text with stray zero bytes open as text; raw views offer "Open as text"
+• AI features ask once before downloading their model
+• A smaller app
+
+Still offline unless you choose to share; nothing is stored on a server.

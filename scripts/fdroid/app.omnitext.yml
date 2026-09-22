@@ -12,9 +12,9 @@ RepoType: git
 Repo: https://github.com/hikashop-nicolas/omnitext.git
 
 Builds:
-  - versionName: '1.6'
-    versionCode: 10600
-    commit: fdroid-1.6
+  - versionName: '1.7'
+    versionCode: 10700
+    commit: fdroid-1.7
     subdir: android/app
     sudo:
       - apt-get update
@@ -41,5 +41,5 @@ AutoUpdateMode: Version fdroid-%v
 UpdateCheckMode: Tags ^fdroid-
 UpdateCheckData: android/app/build.gradle|fdroidVersionCode = (\d+)|.|versionName
   "(.*)"
-CurrentVersion: '1.6'
-CurrentVersionCode: 10600
+CurrentVersion: '1.7'
+CurrentVersionCode: 10700
