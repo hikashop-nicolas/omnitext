@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '1.7'
     versionCode: 10700
-    commit: d4d2038cfa773a619fb0b64d1336179bb10ee35c
+    commit: b73e31550991feac0f22ebc98b8617ad5d4c2335
     subdir: android/app
     sudo:
       - apt-get update
