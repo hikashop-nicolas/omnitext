@@ -23,13 +23,7 @@ Builds:
       - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
         curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
         ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf
-        m4 gperf licensecheck gawk
-      - curl -Lo /tmp/node.tar.xz https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz
-      - echo "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz"
-        | sha256sum -c
-      - tar xJf /tmp/node.tar.xz -C /opt
-      - ln -sf /opt/node-v24.21.0-linux-x64/bin/node /opt/node-v24.21.0-linux-x64/bin/npm
-        /opt/node-v24.21.0-linux-x64/bin/npx /usr/local/bin/
+        m4 gperf licensecheck gawk nodejs npm
     gradle:
       - yes
     build:
@@ -37,7 +31,7 @@ Builds:
       - npm ci
       - scripts/fdroid/build-wasm.sh
       - npm run build
-      - npx cap sync android
+      - node scripts/fdroid/cap-sync.cjs sync android
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^fdroid-

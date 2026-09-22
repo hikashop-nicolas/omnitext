@@ -123,6 +123,9 @@
     "styled-components": "5.3.11",
     "@aiden0z/pptx-renderer": {
       "pdfjs-dist": "$pdfjs-dist"
+    },
+    "jsdom": {
+      "canvas": "^3.2.3"
     }
   },
   "license": "MIT"
