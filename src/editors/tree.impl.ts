@@ -21,32 +21,37 @@ function ensureStyles(): void {
   s.id = STYLE_ID;
   s.textContent = `
     .ot-tree {
-      height: 100%; overflow: auto; background: var(--canvas); padding: 14px 18px;
+      height: 100%; overflow: auto; background: var(--canvas); color: var(--text); padding: 14px 18px;
       font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
-    .ot-tree details { margin-left: 14px; }
-    .ot-tree > details { margin-left: 0; }
-    .ot-tree summary { cursor: pointer; color: var(--muted); }
-    .ot-tree .ot-row { display: flex; align-items: center; gap: 6px; margin: 3px 0 3px 14px; }
+    .ot-tree .ot-head, .ot-tree .ot-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+    .ot-tree .ot-kids { margin-left: 22px; padding-left: 10px; border-left: 1px solid var(--border); }
+    .ot-tree .ot-kids[hidden] { display: none; }
+    .ot-tree .ot-toggle {
+      width: 18px; height: 18px; flex: 0 0 18px; padding: 0; border: 0; border-radius: 4px;
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; line-height: 18px;
+    }
+    .ot-tree .ot-toggle:hover { background: var(--surface-hover); color: var(--text); }
+    .ot-tree .ot-spacer { width: 18px; flex: 0 0 18px; }
+    .ot-tree .ot-type { color: var(--muted); }
     .ot-tree .ot-key { color: var(--muted); }
     .ot-tree input {
       border: 1px solid var(--border); background: transparent; color: var(--text);
       font: inherit; padding: 2px 7px; border-radius: 5px;
     }
-    .ot-tree input.ot-leaf { min-width: 120px; }
-    .ot-tree input.ot-keyinput { min-width: 70px; width: auto; color: var(--text); }
+    .ot-tree input.ot-leaf { min-width: 160px; }
+    .ot-tree input.ot-keyinput { min-width: 90px; width: auto; color: var(--text); }
     .ot-tree input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
     .ot-tree .ot-del {
       border: 0; background: transparent; color: var(--muted); cursor: pointer;
-      font-size: 15px; line-height: 1; padding: 0 5px; border-radius: 4px;
+      font-size: 15px; line-height: 1; padding: 2px 6px; border-radius: 4px;
     }
-    .ot-tree .ot-del:hover { color: #e5484d; background: var(--surface); }
+    .ot-tree .ot-del:hover { color: #e5484d; background: var(--surface-hover); }
     .ot-tree .ot-add {
       border: 1px dashed var(--border); background: transparent; color: var(--muted);
-      cursor: pointer; font: inherit; font-size: 12px; padding: 2px 9px; border-radius: 6px;
+      cursor: pointer; font: inherit; font-size: 12px; padding: 2px 10px; border-radius: 6px;
     }
     .ot-tree .ot-add:hover { border-color: var(--accent); color: var(--text); }
-    .ot-tree .ot-addrow { margin-left: 14px; }
     .ot-tree-error { padding: 16px; color: var(--muted); }
   `;
   document.head.appendChild(s);
@@ -118,69 +123,91 @@ class TreeInstance implements EditorInstance {
     this.wrap.textContent = "";
     this.wrap.appendChild(
       isContainer(this.value)
-        ? this.buildContainer(this.value)
+        ? this.buildNode(this.value, [], [])
         : this.buildLeaf(this.value, (v) => {
             this.value = v;
           }),
     );
   }
 
-  private buildContainer(obj: Record<string, unknown>): HTMLElement {
+  /** One object/array: a header line (toggle, key, size, remove) with its entries indented
+   *  beneath it, so a nested value reads under its key rather than beside it. Open by default. */
+  private buildNode(obj: Record<string, unknown>, lead: HTMLElement[], trail: HTMLElement[]): HTMLElement {
     const isArray = Array.isArray(obj);
-    const details = document.createElement("details");
-    details.open = true;
     const keys = Object.keys(obj);
-    const summary = document.createElement("summary");
-    summary.textContent = isArray ? `[ ] ${keys.length} items` : `{ } ${keys.length} keys`;
-    details.appendChild(summary);
+    const node = document.createElement("div");
+    const head = document.createElement("div");
+    head.className = "ot-head";
+    const kids = document.createElement("div");
+    kids.className = "ot-kids";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "ot-toggle";
+    const setOpen = (open: boolean) => {
+      kids.hidden = !open;
+      toggle.textContent = open ? "▼" : "▶";
+      toggle.setAttribute("aria-expanded", String(open));
+    };
+    toggle.addEventListener("click", () => setOpen(kids.hidden === true));
+    setOpen(true);
+
+    const type = document.createElement("span");
+    type.className = "ot-type";
+    type.textContent = isArray ? `[ ] ${keys.length} items` : `{ } ${keys.length} keys`;
+    head.append(toggle, ...lead, type, ...trail);
 
     for (const key of keys) {
-      const row = document.createElement("div");
-      row.className = "ot-row";
-
+      const keyEls: HTMLElement[] = [];
       if (isArray) {
         const idx = document.createElement("span");
         idx.className = "ot-key";
         idx.textContent = `${key}:`;
-        row.appendChild(idx);
+        keyEls.push(idx);
       } else {
         const keyInput = document.createElement("input");
         keyInput.className = "ot-keyinput";
         keyInput.value = key;
         keyInput.addEventListener("change", () => this.renameKey(obj, key, keyInput.value));
-        row.appendChild(keyInput);
         const colon = document.createElement("span");
         colon.className = "ot-key";
         colon.textContent = ":";
-        row.appendChild(colon);
+        keyEls.push(keyInput, colon);
       }
-
-      const child = obj[key];
-      if (isContainer(child)) {
-        row.appendChild(this.buildContainer(child));
-      } else {
-        row.appendChild(this.buildLeaf(child, (v) => (obj[key] = v)));
-      }
-
       const del = document.createElement("button");
+      del.type = "button";
       del.className = "ot-del";
       del.textContent = "×";
       del.title = "Remove";
       del.addEventListener("click", () => this.removeEntry(obj, key, isArray));
-      row.appendChild(del);
-      details.appendChild(row);
+
+      const child = obj[key];
+      if (isContainer(child)) {
+        kids.appendChild(this.buildNode(child, keyEls, [del]));
+      } else {
+        const row = document.createElement("div");
+        row.className = "ot-row";
+        const spacer = document.createElement("span");
+        spacer.className = "ot-spacer"; // lines leaf keys up with the keys of nested nodes
+        row.append(spacer, ...keyEls, this.buildLeaf(child, (v) => (obj[key] = v)), del);
+        kids.appendChild(row);
+      }
     }
 
     const addRow = document.createElement("div");
-    addRow.className = "ot-row ot-addrow";
+    addRow.className = "ot-row";
+    const spacer = document.createElement("span");
+    spacer.className = "ot-spacer";
     const addBtn = document.createElement("button");
+    addBtn.type = "button";
     addBtn.className = "ot-add";
     addBtn.textContent = isArray ? "+ item" : "+ field";
     addBtn.addEventListener("click", () => this.addEntry(obj, isArray));
-    addRow.appendChild(addBtn);
-    details.appendChild(addRow);
+    addRow.append(spacer, addBtn);
+    kids.appendChild(addRow);
 
-    return details;
+    node.append(head, kids);
+    return node;
   }
 
   private buildLeaf(value: unknown, set: (v: unknown) => void): HTMLElement {
