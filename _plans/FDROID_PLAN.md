@@ -27,8 +27,8 @@ if transformers.js stops loading from jsDelivr. The web build went from 72 MB to
 
 | Binary | Size | From | Build from source | Effort |
 |---|---|---|---|---|
-| ALAC decoder | 21 KB | mediaplay/alac (our repo) | `alac/build.sh` with emcc, sources in the repo | Low |
-| sql.js | 640 KB | npm sql.js | its Makefile + emsdk | Low |
+| ALAC decoder | 21 KB | mediaplay/alac (our repo) | `alac/build.sh` with emcc 4.0.7, sources in the package | Done: byte-identical |
+| sql.js | 640 KB | npm sql.js | its Makefile, emcc 5.0.0 | Done: byte-identical |
 | libav.js (AC-3/E-AC-3/DTS/TrueHD) | 820 KB | mediaplay/libav (committed binary) | libav.js repo, config documented in mediaplay/libav/NOTICE.md | Medium |
 | 7-Zip (write .7z) | 1.6 MB | npm 7z-wasm | 7z-wasm repo, emscripten | Medium |
 | libarchive (read 7z/rar/xz/bz2) | 600 KB | npm libarchive-wasm | its build, plus zlib/bzip2/xz/lz4 | Medium |
@@ -39,7 +39,8 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
 
 ## Shape of the F-Droid build
 
-- One script in this repo, `scripts/fdroid/build-wasm.sh`, that compiles every binary above from
+- One script in this repo, `scripts/fdroid/build-wasm.sh` (started: ALAC and sql.js; run it locally
+  in a clean Debian with `scripts/fdroid/in-docker.sh`), that compiles every binary above from
   pinned upstream sources with a pinned emsdk and writes them where the npm copies would be.
   The Play build never runs it.
 - A recipe in fdroiddata (a merge request to F-Droid, which the user submits): checkout a tag,
