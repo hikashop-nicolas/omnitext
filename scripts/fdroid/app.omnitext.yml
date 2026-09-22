@@ -39,7 +39,7 @@ Builds:
       - npm run build
       - npx cap sync android
 
-AutoUpdateMode: Version fdroid-%v
+AutoUpdateMode: Version
 UpdateCheckMode: Tags ^fdroid-
 UpdateCheckData: android/app/build.gradle|fdroidVersionCode = (\d+)|.|versionName
   "(.*)"
