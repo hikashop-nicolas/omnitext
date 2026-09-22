@@ -11,7 +11,7 @@
 # Run after `npm ci` and before `npm run build`, from the repository root:
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
-# Needs git, python3, make, curl, unzip, libatomic1, node, and sha3sum (Debian: libdigest-sha3-perl). Locally, run it in a
+# Needs git, python3, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, and sha3sum (Debian: libdigest-sha3-perl). Locally, run it in a
 # clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
 set -eu
 
@@ -69,7 +69,24 @@ build_sqljs() {
   done
 }
 
-ALL="alac sqljs"
+# libav.js audio decoders (AC-3, E-AC-3, DTS, TrueHD), mediaplay's configuration: see
+# node_modules/mediaplay/libav/NOTICE.md. The version comes from the file names it ships.
+build_libav() {
+  v="$(ls node_modules/mediaplay/libav/ | sed -n 's/^libav-\(.*\)-audio\.mjs$/\1/p')"
+  echo "libav.js $v"
+  emsdk_use 5.0.0
+  src="$WORK/libav.js"
+  [ -d "$src" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "v$v" https://github.com/Yahweasel/libav.js.git "$src"
+  (cd "$src/configs" && node mkconfig.js audio '["avcodec","decoder-eac3","decoder-ac3","parser-ac3","decoder-dca","parser-dca","decoder-truehd","decoder-mlp","parser-mlp"]')
+  # From inside the checkout, not make -C: its Makefile installs to $(PWD)/build/inst, and -C
+  # leaves PWD pointing at the caller (the library then lands outside and the link fails).
+  (cd "$src" && PWD="$src" make -j"$(nproc)" build-audio) >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
+  for f in "libav-$v-audio.mjs" "libav-$v-audio.wasm.mjs" "libav-$v-audio.wasm.wasm"; do
+    install_over "$src/dist/$f" "node_modules/mediaplay/libav/$f"
+  done
+}
+
+ALL="alac sqljs libav"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
