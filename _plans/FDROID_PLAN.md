@@ -31,7 +31,7 @@ if transformers.js stops loading from jsDelivr. The web build went from 72 MB to
 | sql.js | 640 KB | npm sql.js | its Makefile, emcc 5.0.0 | Done: byte-identical |
 | libav.js (AC-3/E-AC-3/DTS/TrueHD) | 820 KB | mediaplay/libav | libav.js v6.9.8.1, emcc 5.0.0 (mediaplay's copy rebuilt with that pin; same decoded audio) | Done: byte-identical |
 | 7-Zip (write .7z) | 1.6 MB | npm 7z-wasm | 7-Zip 24.09 (GitHub release, checksum pinned) + 7z-wasm's patch, emcc 4.0.10, built WITHOUT RAR (unRAR licence is non-free for F-Droid; the app only writes .7z) | Done: identical with RAR, and the RAR-free build passes the archive tests |
-| libarchive (read 7z/rar/xz/bz2) | 600 KB | npm libarchive-wasm | its build, plus zlib/bzip2/xz/lz4 | Medium |
+| libarchive (read 7z/rar/xz/bz2) | 600 KB | npm libarchive-wasm | libarchive 3.7.7 + static OpenSSL 3.4.1, zlib, bzip2, xz (all checksums pinned), emcc 4.0.5 | Done: not byte-identical (cross-compiled, other prefix), reads all 13 upstream sample archives identically, app tests pass |
 | libass (styled ASS subtitles) | 2.3 MB | npm @jellyfin/libass-wasm | JavascriptSubtitlesOctopus build (freetype, harfbuzz, fribidi, libass) | Medium to high |
 
 Also to check: the pdf.js wasm decoders (jbig2, openjpeg) are not in dist today, although scanned
@@ -39,7 +39,7 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
 
 ## Shape of the F-Droid build
 
-- One script in this repo, `scripts/fdroid/build-wasm.sh` (ALAC, sql.js, libav.js and 7-Zip so far; run it locally
+- One script in this repo, `scripts/fdroid/build-wasm.sh` (everything but libass so far; run it locally
   in a clean Debian with `scripts/fdroid/in-docker.sh`), that compiles every binary above from
   pinned upstream sources with a pinned emsdk and writes them where the npm copies would be.
   The Play build never runs it.
