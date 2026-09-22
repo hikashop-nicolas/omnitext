@@ -232,7 +232,7 @@ const pt: Dict = {
     truncated: "A mostrar os primeiros {shown} de {total}. Use Transferir para o ficheiro completo.",
     askKnown: "O Omnitext ainda não lê ficheiros {ext}: este é o conteúdo em bruto.",
     askUnknown: "O Omnitext não reconheceu este ficheiro: este é o conteúdo em bruto.",
-    askHint: "Diga-nos o que é este ficheiro e talvez o Omnitext aprenda a abri-lo. O botão abre uma página no GitHub, o site que aloja o código do Omnitext, com o tipo de ficheiro já preenchido; para escrever lá é preciso uma conta gratuita. Não é enviado nada do próprio ficheiro.",
+    askHint: "Diga-nos o que é este ficheiro e talvez o Omnitext aprenda a abri-lo. O botão abre uma página do nosso sistema de gestão de comentários, com o tipo de ficheiro já preenchido; para escrever lá é preciso uma conta gratuita. Não é enviado nada do próprio ficheiro.",
     askAction: "Pedir este formato",
     askDismiss: "Fechar",
   },

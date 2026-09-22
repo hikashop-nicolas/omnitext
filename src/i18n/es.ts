@@ -232,7 +232,7 @@ const es: Dict = {
     truncated: "Se muestran los primeros {shown} de {total}. Use Descargar para el archivo completo.",
     askKnown: "Omnitext todavía no lee los archivos {ext}: este es su contenido en bruto.",
     askUnknown: "Omnitext no reconoció este archivo: este es su contenido en bruto.",
-    askHint: "Díganos qué es este archivo y quizá Omnitext aprenda a abrirlo. El botón abre una página en GitHub, el sitio que aloja el código de Omnitext, con el tipo de archivo ya indicado; para escribir allí hace falta una cuenta gratuita. No se envía nada del archivo en sí.",
+    askHint: "Díganos qué es este archivo y quizá Omnitext aprenda a abrirlo. El botón abre una página de nuestro sistema de seguimiento de comentarios, con el tipo de archivo ya indicado; para escribir allí hace falta una cuenta gratuita. No se envía nada del archivo en sí.",
     askAction: "Pedir este formato",
     askDismiss: "Cerrar",
   },
