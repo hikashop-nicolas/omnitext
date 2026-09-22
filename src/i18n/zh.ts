@@ -233,6 +233,7 @@ const zh: Dict = {
     remove: "删除",
     addItem: "+ 项",
     addField: "+ 字段",
+    showMore: "再显示 {n} 项（还有 {hidden} 项未显示）",
     error: "无法显示树：{error}",
     unavailable: "此格式没有树视图。",
     items: "[ ] {n} 项",

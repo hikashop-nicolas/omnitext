@@ -231,6 +231,7 @@ const ja: Dict = {
     remove: "削除",
     addItem: "+ 項目",
     addField: "+ フィールド",
+    showMore: "さらに {n} 件表示（未表示 {hidden} 件）",
     error: "ツリーを表示できません: {error}",
     unavailable: "この形式にはツリー表示がありません。",
     items: "[ ] {n} 項目",

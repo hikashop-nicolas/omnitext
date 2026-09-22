@@ -232,6 +232,7 @@ const fr: Dict = {
     remove: "Supprimer",
     addItem: "+ élément",
     addField: "+ champ",
+    showMore: "Afficher {n} de plus ({hidden} masqués)",
     error: "Impossible d'afficher l'arbre : {error}",
     unavailable: "Aucune vue en arbre pour ce format.",
     items: "[ ] {n} éléments",

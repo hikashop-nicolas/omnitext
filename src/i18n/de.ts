@@ -229,6 +229,7 @@ const de: Dict = {
     remove: "Entfernen",
     addItem: "+ Element",
     addField: "+ Feld",
+    showMore: "{n} weitere anzeigen ({hidden} ausgeblendet)",
     error: "Baum kann nicht angezeigt werden: {error}",
     unavailable: "Für dieses Format gibt es keine Baumansicht.",
     items: "[ ] {n} Elemente",

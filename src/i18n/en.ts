@@ -231,6 +231,7 @@ const en: Dict = {
     remove: "Remove",
     addItem: "+ item",
     addField: "+ field",
+    showMore: "Show {n} more ({hidden} not shown)",
     error: "Cannot show tree: {error}",
     unavailable: "No tree view available for this format.",
     items: "[ ] {n} items",

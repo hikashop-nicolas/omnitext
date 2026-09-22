@@ -229,6 +229,7 @@ const es: Dict = {
     remove: "Eliminar",
     addItem: "+ elemento",
     addField: "+ campo",
+    showMore: "Mostrar {n} más ({hidden} ocultos)",
     error: "No se puede mostrar el árbol: {error}",
     unavailable: "No hay vista de árbol para este formato.",
     items: "[ ] {n} elementos",

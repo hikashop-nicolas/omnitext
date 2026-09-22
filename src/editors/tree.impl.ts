@@ -15,6 +15,10 @@ import { t } from "../i18n";
 // (which reformats) - an explicitly-lossy convenience view.
 
 const STYLE_ID = "omnitext-tree-style";
+/** Entries shown per object/array before a "Show more" button; the rest stay in the data. */
+export const PAGE = 100;
+/** Nodes deeper than this start folded and build their entries only when opened. */
+export const OPEN_DEPTH = 30;
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -121,6 +125,10 @@ class TreeInstance implements EditorInstance {
   private stringify: (v: unknown) => string = (v) => JSON.stringify(v, null, 2);
   private originalText = "";
   private dirty = false;
+  /** How many entries each object/array shows, and whether it is open: kept per value so
+   *  an edit (which re-renders) does not fold everything back or hide what was revealed. */
+  private shown = new WeakMap<object, number>();
+  private opened = new WeakMap<object, boolean>();
   private notifyChange: () => void = () => {};
   private wrap: HTMLElement | null = null;
 
@@ -159,7 +167,7 @@ class TreeInstance implements EditorInstance {
     this.wrap.textContent = "";
     this.wrap.appendChild(
       isContainer(this.value)
-        ? this.buildNode(this.value, [], [])
+        ? this.buildNode(this.value, [], [], 0)
         : this.buildLeaf(this.value, (v) => {
             this.value = v;
           }),
@@ -167,8 +175,9 @@ class TreeInstance implements EditorInstance {
   }
 
   /** One object/array: a header line (toggle, key, size, remove) with its entries indented
-   *  beneath it, so a nested value reads under its key rather than beside it. Open by default. */
-  private buildNode(obj: Record<string, unknown>, lead: HTMLElement[], trail: HTMLElement[]): HTMLElement {
+   *  beneath it, so a nested value reads under its key rather than beside it. Open by default
+   *  down to OPEN_DEPTH; a large one shows PAGE entries at a time, so a huge file stays usable. */
+  private buildNode(obj: Record<string, unknown>, lead: HTMLElement[], trail: HTMLElement[], depth: number): HTMLElement {
     const isArray = Array.isArray(obj);
     const keys = Object.keys(obj);
     const node = document.createElement("div");
@@ -180,14 +189,20 @@ class TreeInstance implements EditorInstance {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "ot-toggle";
+    let filled = false;
     const setOpen = (open: boolean) => {
+      this.opened.set(obj, open);
+      if (open && !filled) {
+        filled = true;
+        this.fillKids(kids, obj, keys, isArray, depth);
+      }
       kids.hidden = !open;
       toggle.textContent = open ? "▼" : "▶";
       toggle.setAttribute("aria-expanded", String(open));
       toggle.setAttribute("aria-label", open ? t("tree.collapse") : t("tree.expand"));
     };
     toggle.addEventListener("click", () => setOpen(kids.hidden === true));
-    setOpen(true);
+    setOpen(this.opened.get(obj) ?? depth < OPEN_DEPTH);
 
     const type = document.createElement("span");
     type.className = "ot-type";
@@ -197,7 +212,13 @@ class TreeInstance implements EditorInstance {
       : n === 1 ? t("tree.keysOne") : t("tree.keys", { n });
     head.append(toggle, ...lead, type, ...trail);
 
-    for (const key of keys) {
+    node.append(head, kids);
+    return node;
+  }
+
+  private fillKids(kids: HTMLElement, obj: Record<string, unknown>, keys: string[], isArray: boolean, depth: number): void {
+    const limit = Math.max(PAGE, this.shown.get(obj) ?? 0);
+    for (const key of keys.slice(0, limit)) {
       const keyEls: HTMLElement[] = [];
       if (isArray) {
         const idx = document.createElement("span");
@@ -224,7 +245,7 @@ class TreeInstance implements EditorInstance {
 
       const child = obj[key];
       if (isContainer(child)) {
-        kids.appendChild(this.buildNode(child, [...keyEls, this.buildKind(obj, key)], [del]));
+        kids.appendChild(this.buildNode(child, [...keyEls, this.buildKind(obj, key)], [del], depth + 1));
       } else {
         const row = document.createElement("div");
         row.className = "ot-row";
@@ -233,6 +254,24 @@ class TreeInstance implements EditorInstance {
         row.append(spacer, ...keyEls, this.buildKind(obj, key), this.buildLeaf(child, (v) => (obj[key] = v)), del);
         kids.appendChild(row);
       }
+    }
+
+    if (keys.length > limit) {
+      const moreRow = document.createElement("div");
+      moreRow.className = "ot-row";
+      const pad = document.createElement("span");
+      pad.className = "ot-spacer";
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "ot-add";
+      const hidden = keys.length - limit;
+      more.textContent = t("tree.showMore", { n: Math.min(PAGE, hidden), hidden });
+      more.addEventListener("click", () => {
+        this.shown.set(obj, limit + PAGE);
+        this.render();
+      });
+      moreRow.append(pad, more);
+      kids.appendChild(moreRow);
     }
 
     const addRow = document.createElement("div");
@@ -247,8 +286,6 @@ class TreeInstance implements EditorInstance {
     addRow.append(spacer, addBtn);
     kids.appendChild(addRow);
 
-    node.append(head, kids);
-    return node;
   }
 
   /** Value / list / object picker for one entry; converts it in place. */
@@ -318,6 +355,7 @@ class TreeInstance implements EditorInstance {
   }
 
   private addEntry(obj: Record<string, unknown>, isArray: boolean): void {
+    this.shown.set(obj, Object.keys(obj).length + 1); // the new entry lands at the end: show it
     if (isArray) {
       (obj as unknown as unknown[]).push("");
     } else {
