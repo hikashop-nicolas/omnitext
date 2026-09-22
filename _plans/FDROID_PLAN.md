@@ -15,20 +15,13 @@ in a while (not per commit). The Play build stays as it is.
 - No proprietary tracking or ads (none), anti-features labelled. Expect NonFreeNet for the model
   downloads from huggingface.co.
 
-## First: the 23.5 MB onnxruntime binary (affects the Play build too)
+## Done first: the unused onnxruntime binary (2026-09-22)
 
-The build ships `ort-wasm-simd-threaded.asyncify.wasm`, 23.5 MB: two thirds of the 33 MB APK, and
-part of the ~70 MB (23 MB gzipped) the service worker pre-downloads for every web visitor on first
-load. Yet a real translation run fetched its onnxruntime files from cdn.jsdelivr.net. So the
-bundled copy may never be used.
-
-To do: confirm which onnxruntime file each path loads (WebGPU, CPU) in a real run. Then either
-- drop it from the bundle and the precache (lean; the files come from jsDelivr, behind the
-  consent prompt), or
-- point transformers.js at it and stop the jsDelivr fetch (self-contained, but keeps 23.5 MB).
-
-Given "lean first", the expected answer is to drop it. For F-Droid it removes the hardest binary
-to build from source (onnxruntime takes hours and a large toolchain).
+The build shipped `ort-wasm-simd-threaded.asyncify.wasm` (23.5 MB, 5.7 MB compressed in the app
+bundle) although transformers.js always loads onnxruntime from cdn.jsdelivr.net: confirmed in the
+code and in a full translation run. The build now drops it (vite.config.ts), with a test that fails
+if transformers.js stops loading from jsDelivr. The web build went from 72 MB to 49 MB (23.3 MB to
+17.8 MB compressed pre-download), and F-Droid has no onnxruntime to build from source.
 
 ## The binaries, one by one
 
@@ -40,7 +33,6 @@ to build from source (onnxruntime takes hours and a large toolchain).
 | 7-Zip (write .7z) | 1.6 MB | npm 7z-wasm | 7z-wasm repo, emscripten | Medium |
 | libarchive (read 7z/rar/xz/bz2) | 600 KB | npm libarchive-wasm | its build, plus zlib/bzip2/xz/lz4 | Medium |
 | libass (styled ASS subtitles) | 2.3 MB | npm @jellyfin/libass-wasm | JavascriptSubtitlesOctopus build (freetype, harfbuzz, fribidi, libass) | Medium to high |
-| onnxruntime | 23.5 MB | via @huggingface/transformers | see above: likely dropped, not built | (none if dropped) |
 
 Also to check: the pdf.js wasm decoders (jbig2, openjpeg) are not in dist today, although scanned
 PDFs need them (see the pdf.js memory note); find out how pdfedit loads them before the recipe.
@@ -61,8 +53,7 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
 
 ## Order
 
-1. onnxruntime: measure, then drop (or keep) it. Ship the size win to Play and the web first.
-2. Build script, easiest first: ALAC, sql.js, libav.js, 7-Zip, libarchive, libass. Each step
+1. Build script, easiest first: ALAC, sql.js, libav.js, 7-Zip, libarchive, libass. Each step
    checked by building the APK with the script's output and opening a sample file of that type.
-3. Local dry run of the recipe with fdroidserver (`fdroid build` in its Docker image).
-4. The user submits the fdroiddata merge request.
+2. Local dry run of the recipe with fdroidserver (`fdroid build` in its Docker image).
+3. The user submits the fdroiddata merge request.

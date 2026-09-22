@@ -21,8 +21,22 @@ function buildId(): string {
 
 // Static-site build for GitHub Pages. base is "./" so the app works from any
 // repo-subpath without rewriting asset URLs.
+/**
+ * onnxruntime-web's module references its own 23.5 MB wasm, so Vite emits it, but it is never
+ * loaded: transformers.js points onnxruntime at jsDelivr (behind the download prompt). It was 5.7 MB
+ * of the 28 MB app bundle, and 23.5 MB (5.5 MB compressed) of what the service worker pre-downloads
+ * for every web visitor. src/onnxruntime-source.test.ts fails if transformers.js ever stops doing that.
+ */
+const dropUnusedOrtWasm = {
+  name: "omnitext-drop-unused-ort-wasm",
+  generateBundle(_: unknown, bundle: Record<string, unknown>) {
+    for (const file of Object.keys(bundle)) if (/(^|\/)ort-wasm[^/]*\.wasm$/.test(file)) delete bundle[file];
+  },
+};
+
 export default defineConfig({
   base: "./",
+  plugins: [dropUnusedOrtWasm],
   define: { __BUILD_ID__: JSON.stringify(buildId()) },
   // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
