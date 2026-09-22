@@ -23,9 +23,12 @@ function ensureStyles(): void {
     .ot-tree {
       height: 100%; overflow: auto; background: var(--canvas); color: var(--text); padding: 14px 18px;
       font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      /* Borders mixed from the text colour stay visible on both themes; the theme's own
+         --border is tuned for panels and all but vanishes against the dark canvas. */
+      --ot-line: color-mix(in srgb, var(--text) 24%, transparent);
     }
     .ot-tree .ot-head, .ot-tree .ot-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
-    .ot-tree .ot-kids { margin-left: 22px; padding-left: 10px; border-left: 1px solid var(--border); }
+    .ot-tree .ot-kids { margin-left: 22px; padding-left: 10px; border-left: 1px solid var(--ot-line); }
     .ot-tree .ot-kids[hidden] { display: none; }
     .ot-tree .ot-toggle {
       width: 18px; height: 18px; flex: 0 0 18px; padding: 0; border: 0; border-radius: 4px;
@@ -36,22 +39,23 @@ function ensureStyles(): void {
     .ot-tree .ot-type { color: var(--muted); }
     .ot-tree .ot-key { color: var(--muted); }
     .ot-tree input {
-      border: 1px solid var(--border); background: transparent; color: var(--text);
+      border: 1px solid var(--ot-line); background: var(--surface); color: var(--text);
       font: inherit; padding: 2px 7px; border-radius: 5px;
     }
     .ot-tree input.ot-leaf { min-width: 160px; }
-    .ot-tree input.ot-keyinput { min-width: 90px; width: auto; color: var(--text); }
-    .ot-tree input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+    .ot-tree input.ot-keyinput { min-width: 90px; width: auto; color: var(--accent); }
+    .ot-tree input:hover { border-color: color-mix(in srgb, var(--text) 45%, transparent); }
+    .ot-tree input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
     .ot-tree .ot-del {
       border: 0; background: transparent; color: var(--muted); cursor: pointer;
       font-size: 15px; line-height: 1; padding: 2px 6px; border-radius: 4px;
     }
     .ot-tree .ot-del:hover { color: #e5484d; background: var(--surface-hover); }
     .ot-tree .ot-add {
-      border: 1px dashed var(--border); background: transparent; color: var(--muted);
+      border: 1px dashed var(--ot-line); background: transparent; color: var(--text);
       cursor: pointer; font: inherit; font-size: 12px; padding: 2px 10px; border-radius: 6px;
     }
-    .ot-tree .ot-add:hover { border-color: var(--accent); color: var(--text); }
+    .ot-tree .ot-add:hover { border-color: var(--accent); color: var(--accent); }
     .ot-tree-error { padding: 16px; color: var(--muted); }
   `;
   document.head.appendChild(s);
