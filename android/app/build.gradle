@@ -41,7 +41,9 @@ android {
             applicationIdSuffix ".dev"
         }
         release {
-            minifyEnabled false
+            // R8 shrinks the Java side; the plugins Capacitor loads by name are kept by its own rules.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (System.getenv("ANDROID_KEYSTORE_FILE")) {
                 signingConfig signingConfigs.release
