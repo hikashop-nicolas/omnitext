@@ -11,6 +11,7 @@
 # Run after `npm ci` and before `npm run build`, from the repository root:
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
+#   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
 # Needs git, python3, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, and sha3sum (Debian: libdigest-sha3-perl). Locally, run it in a
 # clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
 set -eu
@@ -86,7 +87,42 @@ build_libav() {
   done
 }
 
-ALL="alac sqljs libav"
+# 7-Zip (Omnitext only writes .7z with it), the way 7z-wasm builds it: 7-Zip 24.09 source, its
+# emscripten patch and flags, Emscripten 4.0.10. Built WITHOUT RAR: 7-Zip's RAR code carries the
+# unRAR licence, which F-Droid counts as non-free. Reading RAR goes through libarchive, whose RAR
+# reader is its own BSD code, so nothing is lost; the output differs from npm for that reason.
+SEVENZIP_SRC="https://github.com/ip7z/7zip/releases/download/24.09/7z2409-src.tar.xz"
+SEVENZIP_SHA256="49c05169f49572c1128453579af1632a952409ced028259381dac30726b6133a"
+build_7zip() {
+  v="$(npm_version 7z-wasm)"
+  echo "7-Zip 24.09 via 7z-wasm $v (no RAR)"
+  emsdk_use 4.0.10
+  [ -d "$WORK/7z-wasm" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "v$v" https://github.com/use-strict/7z-wasm.git "$WORK/7z-wasm"
+  tarball="$WORK/7z2409-src.tar.xz"
+  [ -f "$tarball" ] || curl -sSfL -o "$tarball" "$SEVENZIP_SRC"
+  echo "$SEVENZIP_SHA256  $tarball" | sha256sum -c --quiet
+  src="$WORK/7zip" && rm -rf "$src" && mkdir -p "$src" && tar xJf "$tarball" -C "$src"
+  # git apply copes with 7-Zip's CRLF sources (patch does not), but inside Omnitext's repository
+  # it resolves paths against that repository and silently skips these: give it its own.
+  (cd "$src" && git init -q && git apply --ignore-whitespace "$WORK/7z-wasm/7zz-emcc.patch")
+  (
+    cd "$src/CPP/7zip/Bundles/Alone2"
+    # build-es6.env is in docker --env-file format (unquoted values with spaces): export by line.
+    while IFS= read -r line; do [ -n "$line" ] && export "$line"; done < "$WORK/7z-wasm/build-es6.env"
+    emmake make -j"$(nproc)" -f makefile.emcc DISABLE_RAR=1 >"$WORK/7zip-build.log" 2>&1 || { tail -20 "$WORK/7zip-build.log"; exit 1; }
+  )
+  install_over "$src/CPP/7zip/Bundles/Alone2/_o/7zz.js" node_modules/7z-wasm/7zz.es6.js
+  install_over "$src/CPP/7zip/Bundles/Alone2/_o/7zz.wasm" node_modules/7z-wasm/7zz.wasm
+}
+
+# Put the npm files back (after a local run: a Play or web build must not pick up these).
+build_restore() {
+  echo "restore npm binaries"
+  [ -d "$WORK/npm-originals" ] || return 0
+  (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
+}
+
+ALL="alac sqljs libav 7zip"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
