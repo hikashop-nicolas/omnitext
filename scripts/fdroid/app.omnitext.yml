@@ -1,0 +1,45 @@
+Categories:
+  - Local Media Player
+  - Reading
+  - Text Editor
+License: MIT
+SourceCode: https://github.com/hikashop-nicolas/omnitext
+IssueTracker: https://github.com/hikashop-nicolas/omnitext/issues
+
+AutoName: Omnitext
+
+RepoType: git
+Repo: https://github.com/hikashop-nicolas/omnitext.git
+
+Builds:
+  - versionName: '1.6'
+    versionCode: 10600
+    commit: fdroid-1.6
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
+        curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
+        ragel libtool itstool python3-ply gettext autopoint automake autoconf m4 gperf
+        licensecheck gawk
+      - curl -Lo /tmp/node.tar.xz https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.xz
+      - echo "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307  /tmp/node.tar.xz"
+        | sha256sum -c
+      - tar xJf /tmp/node.tar.xz -C /opt
+      - ln -sf /opt/node-v22.23.2-linux-x64/bin/node /opt/node-v22.23.2-linux-x64/bin/npm
+        /opt/node-v22.23.2-linux-x64/bin/npx /usr/local/bin/
+    gradle:
+      - yes
+    build:
+      - cd ../..
+      - npm ci
+      - scripts/fdroid/build-wasm.sh
+      - npm run build
+      - npx cap sync android
+
+AutoUpdateMode: Version fdroid-%v
+UpdateCheckMode: Tags ^fdroid-
+UpdateCheckData: android/app/build.gradle|fdroidVersionCode = (\d+)|.|versionName
+  "(.*)"
+CurrentVersion: '1.6'
+CurrentVersionCode: 10600
