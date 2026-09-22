@@ -56,5 +56,26 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
 
 1. Build script: done 2026-09-22, all six binaries, each checked against npm (byte-identical, or
    by behaviour where the build environment differs).
-2. Local dry run of the recipe with fdroidserver (`fdroid build` in its Docker image).
-3. The user submits the fdroiddata merge request.
+2. Dry run: done 2026-09-22. `fdroid build --on-server` in F-Droid's own image
+   (registry.gitlab.com/fdroid/docker-executable-fdroidserver, Debian 13) builds
+   app.omnitext_10600.apk (21.8 MB) from the recipe, scanner included. What it took: untracking a
+   committed public/alac copy (the scanner's only finding), Node 24 like CI (npm 10 misreads the
+   lockfile), libtool-bin, a libtoolize wrapper for fontconfig on Debian 13, serial worker build.
+   To repeat it: see "Dry run" below.
+3. Store texts and images F-Droid shows (fastlane/metadata/android/ in this repo), then a
+   fdroid-<version> tag on the commit to publish.
+4. The user submits the fdroiddata merge request (scripts/fdroid/app.omnitext.yml as
+   metadata/app.omnitext.yml).
+
+## Dry run
+
+In a scratch folder: `metadata/app.omnitext.yml` (the recipe with `commit:` set to a pushed commit
+until the tag exists), `config.yml` with `sdk_path: $ANDROID_HOME` (mode 600), fdroiddata's
+`config/` folder (for lint), and a clone of the repository at `build/app.omnitext` (this
+fdroidserver does not clone it itself). Then:
+
+    docker run --rm -v "$PWD:/repo" -w /repo \
+      registry.gitlab.com/fdroid/docker-executable-fdroidserver:master \
+      build --verbose --on-server --no-tarball app.omnitext:10600
+
+`--on-server` is what runs the recipe's sudo block (packages, Node), as F-Droid's CI does.
