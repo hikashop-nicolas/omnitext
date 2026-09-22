@@ -237,6 +237,8 @@ const fr: Dict = {
     title: "Téléchargement nécessaire",
     body: "{feature} doit télécharger {what} depuis {hosts}, une seule fois. Ensuite, tout fonctionne hors ligne et vos fichiers ne quittent jamais cet appareil.",
     about: "environ",
+    mb: "{n} Mo",
+    gb: "{n} Go",
     note: "Votre réponse vaut pour toutes les fonctions d'IA. Vous pouvez la changer dans les Réglages.",
     allow: "Autoriser",
     deny: "Ne pas autoriser",

@@ -234,6 +234,8 @@ const es: Dict = {
     title: "Descarga necesaria",
     body: "{feature} necesita descargar {what} desde {hosts}, una sola vez. Después funciona sin conexión y sus archivos nunca salen de este dispositivo.",
     about: "unos",
+    mb: "{n} MB",
+    gb: "{n} GB",
     note: "Su respuesta vale para todas las funciones de IA. Puede cambiarla en Ajustes.",
     allow: "Permitir",
     deny: "No permitir",

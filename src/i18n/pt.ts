@@ -234,6 +234,8 @@ const pt: Dict = {
     title: "Transferência necessária",
     body: "{feature} precisa de transferir {what} de {hosts}, uma única vez. Depois funciona sem ligação e os seus ficheiros nunca saem deste dispositivo.",
     about: "cerca de",
+    mb: "{n} MB",
+    gb: "{n} GB",
     note: "A sua resposta aplica-se a todas as funções de IA. Pode alterá-la nas Definições.",
     allow: "Permitir",
     deny: "Não permitir",

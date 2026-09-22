@@ -234,6 +234,8 @@ const de: Dict = {
     title: "Download erforderlich",
     body: "{feature} muss einmalig {what} von {hosts} herunterladen. Danach funktioniert es offline, und Ihre Dateien verlassen dieses Gerät nie.",
     about: "etwa",
+    mb: "{n} MB",
+    gb: "{n} GB",
     note: "Ihre Antwort gilt für alle KI-Funktionen. Sie können sie in den Einstellungen ändern.",
     allow: "Erlauben",
     deny: "Nicht erlauben",

@@ -11,7 +11,10 @@ import { getSettings, saveSettings } from "./settings";
 
 export function formatSize(mb: number | undefined): string {
   if (!mb) return "";
-  return mb >= 1000 ? `${(mb / 1000).toFixed(1).replace(/\.0$/, "")} GB` : `${mb} MB`;
+  // Units are localized: French writes Mo and Go.
+  return mb >= 1000
+    ? t("consent.gb", { n: (mb / 1000).toFixed(1).replace(/\.0$/, "") })
+    : t("consent.mb", { n: String(mb) });
 }
 
 export function installRemoteConsent(notify: (message: string) => void): void {

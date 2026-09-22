@@ -238,6 +238,8 @@ const zh: Dict = {
     title: "需要下载",
     body: "{feature}需要从 {hosts} 下载 {what}，只需一次。之后可离线使用，您的文件绝不会离开此设备。",
     about: "约",
+    mb: "{n} MB",
+    gb: "{n} GB",
     note: "您的选择适用于所有 AI 功能，可在设置中更改。",
     allow: "允许",
     deny: "不允许",

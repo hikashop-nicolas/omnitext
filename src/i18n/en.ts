@@ -236,6 +236,8 @@ const en: Dict = {
     title: "Download needed",
     body: "{feature} needs to download {what} from {hosts}, once. After that it works offline, and your files never leave this device.",
     about: "about",
+    mb: "{n} MB",
+    gb: "{n} GB",
     note: "Your answer applies to all AI features. You can change it in Settings.",
     allow: "Allow",
     deny: "Don't allow",
