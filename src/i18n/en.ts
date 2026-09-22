@@ -234,7 +234,7 @@ const en: Dict = {
     truncated: "Showing the first {shown} of {total}. Use Download for the whole file.",
     askKnown: "Omnitext does not read {ext} files yet, so this is the raw content.",
     askUnknown: "Omnitext did not recognise this file, so this is the raw content.",
-    askHint: "Tell us what it is and it may become a format Omnitext opens. This opens GitHub with the extension filled in; nothing from the file itself is sent.",
+    askHint: "Tell us what this file is, and Omnitext may learn to open it. The button opens a page on GitHub, the site that hosts Omnitext's code, with the file type already filled in; writing there needs a free account. Nothing from the file itself is sent.",
     askAction: "Ask for this format",
     askDismiss: "Dismiss",
   },

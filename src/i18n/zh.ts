@@ -236,7 +236,7 @@ const zh: Dict = {
     truncated: "正在显示前 {shown}，共 {total}。要获取整个文件请用“下载”。",
     askKnown: "Omnitext 尚不能读取 {ext} 文件，因此显示的是原始内容。",
     askUnknown: "Omnitext 未能识别此文件，因此显示的是原始内容。",
-    askHint: "告诉我们这是什么，它也许会成为 Omnitext 能打开的格式。此链接会打开 GitHub 并已填好扩展名；文件本身的任何内容都不会被发送。",
+    askHint: "告诉我们这是什么文件，Omnitext 也许就能学会打开它。按钮会打开 GitHub（托管 Omnitext 代码的网站）上的一个页面，并已填好文件类型；在那里留言需要一个免费账号。文件本身的任何内容都不会被发送。",
     askAction: "请求支持此格式",
     askDismiss: "关闭",
   },

@@ -235,7 +235,7 @@ const fr: Dict = {
     truncated: "Affichage des {shown} premiers sur {total}. Utilisez Télécharger pour le fichier entier.",
     askKnown: "Omnitext ne lit pas encore les fichiers {ext} : voici leur contenu brut.",
     askUnknown: "Omnitext n'a pas reconnu ce fichier : voici son contenu brut.",
-    askHint: "Dites-nous de quoi il s'agit et ce format pourra être pris en charge. Ce lien ouvre GitHub avec l'extension pré-remplie ; rien du fichier lui-même n'est envoyé.",
+    askHint: "Dites-nous de quoi il s'agit, et Omnitext pourra peut-être l'ouvrir un jour. Le bouton ouvre une page sur GitHub, le site qui héberge le code d'Omnitext, avec le type de fichier déjà indiqué ; il faut un compte gratuit pour y écrire. Rien du fichier lui-même n'est envoyé.",
     askAction: "Demander ce format",
     askDismiss: "Fermer",
   },
