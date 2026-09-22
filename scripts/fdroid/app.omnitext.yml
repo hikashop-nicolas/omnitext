@@ -20,7 +20,7 @@ Builds:
       - apt-get update
       - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
         curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
-        ragel libtool itstool python3-ply gettext autopoint automake autoconf m4 gperf
+        ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf m4 gperf
         licensecheck gawk
       - curl -Lo /tmp/node.tar.xz https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz
       - echo "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6  /tmp/node.tar.xz"

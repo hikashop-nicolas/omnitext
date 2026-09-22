@@ -13,7 +13,7 @@
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
 # Needs git, python3, perl, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, sha3sum
-# (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool itstool python3-ply gettext
+# (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool libtool-bin itstool python3-ply gettext
 # autopoint automake autoconf m4 gperf licensecheck gawk. Locally, run it in a
 # clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
 set -eu
