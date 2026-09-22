@@ -19,7 +19,9 @@ const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit", "mediaplay", "subedi
  * That is how an Android build broke once, on a sheetedit that needed a vbalang export the pinned
  * commit did not have yet. `npm update` re-resolves them to their current HEAD.
  */
-const NESTED = ["mlang", "vbalang", "localml"];
+// mediabunny: mediaplay's fork, pinned by commit in mediaplay and subedit. A stale lockfile entry kept an
+// older fork commit without ALAC demuxing, and Apple Lossless files stopped playing.
+const NESTED = ["mlang", "vbalang", "localml", "mediabunny"];
 /**
  * Run a step, and say which one failed rather than printing a stack trace from inside this
  * script. execSync throws an Error whose message is the command line and whose stack is all
