@@ -41,6 +41,7 @@ public/svgedit/
 # Generated SubtitlesOctopus (libass) worker assets (run scripts/copy-octopus-assets.mjs)
 public/octopus/
 public/libav/
+public/alac/
 
 # F-Droid source builds: upstream checkouts and intermediates
 scripts/fdroid/work/
