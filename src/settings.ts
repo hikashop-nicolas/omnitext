@@ -5,6 +5,8 @@ const KEY = "omnitext:settings";
 
 export type PageSize = "a4" | "letter";
 export type Theme = "system" | "light" | "dark";
+/** Whether AI features may download their model: ask on first use, or the stored answer. */
+export type AiDownloads = "ask" | "allow" | "deny";
 
 export interface Settings {
   name: string;
@@ -22,6 +24,8 @@ export interface Settings {
    * routing everyone's document through a server would undo the point of it.
    */
   turn?: { url: string; username: string; credential: string };
+  /** OCR, translation, the writing assist and transcription fetch a model on first use. */
+  aiDownloads: AiDownloads;
 }
 
 const DEFAULTS: Settings = {
@@ -30,6 +34,7 @@ const DEFAULTS: Settings = {
   paginated: true,
   theme: "system",
   turn: { url: "", username: "", credential: "" },
+  aiDownloads: "ask",
 };
 
 export function getSettings(): Settings {

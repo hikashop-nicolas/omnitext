@@ -5,6 +5,7 @@ import { bootDocument } from "./core/boot";
 import { printDocument, printPdfBytes } from "./core/print";
 import { checkForUpdate, once } from "./core/updates";
 import { BUILD_ID } from "./build-id";
+import { installRemoteConsent } from "./remote-consent";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
@@ -1779,6 +1780,8 @@ engine.notificationSink = {
   warn: (m) => { console.warn("[omnitext]", m); showToast(m, "warn"); },
   error: (m) => { console.error("[omnitext]", m); showToast(m, "error"); },
 };
+// Before any AI feature fetches its model, ask once and remember (Settings > AI downloads).
+installRemoteConsent((m) => showToast(m, "info"));
 
 // Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
 // "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).
@@ -1961,6 +1964,7 @@ const settingNameEl = $("setting-name") as HTMLInputElement;
 const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
 const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
 const settingThemeEl = $("setting-theme") as HTMLSelectElement;
+const settingAiEl = $("setting-ai") as HTMLSelectElement;
 const settingTurnUrlEl = $("setting-turn-url") as HTMLInputElement;
 const settingTurnUserEl = $("setting-turn-user") as HTMLInputElement;
 const settingTurnPassEl = $("setting-turn-pass") as HTMLInputElement;
@@ -2047,6 +2051,7 @@ function openSettings(): void {
   settingPageSizeEl.value = s.pageSize;
   settingPaginatedEl.checked = s.paginated;
   settingThemeEl.value = s.theme;
+  settingAiEl.value = s.aiDownloads;
   settingTurnUrlEl.value = s.turn?.url ?? "";
   settingTurnUserEl.value = s.turn?.username ?? "";
   settingTurnPassEl.value = s.turn?.credential ?? "";
@@ -2081,6 +2086,7 @@ function saveSettingsDialog(): void {
     paginated: settingPaginatedEl.checked,
     theme,
     turn,
+    aiDownloads: settingAiEl.value === "allow" ? "allow" : settingAiEl.value === "deny" ? "deny" : "ask",
   });
   if (themeChanged) applyTheme(theme);
   closeSettings();
