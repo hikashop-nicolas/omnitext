@@ -33,6 +33,11 @@ emsdk_use() {
   (cd "$WORK/emsdk" && ./emsdk install "$1" >/dev/null && ./emsdk activate "$1" >/dev/null)
   # emsdk_env.sh cannot locate itself when sourced from plain sh, so set what it would.
   export EMSDK="$WORK/emsdk" EM_CONFIG="$WORK/emsdk/.emscripten"
+  # Old toolchains build their system libraries in filesystem order, which differs per machine;
+  # sorting those lists is what makes the output the same everywhere. Patching drops the cache.
+  if python3 "$ROOT/scripts/fdroid/emsdk-sort-sources.py" "$EMSDK/upstream/emscripten/tools/system_libs.py"; then
+    rm -rf "$EMSDK/upstream/emscripten/cache"
+  fi
   PATH="$EMSDK/upstream/emscripten:$EMSDK:$(dirname "$(ls -d "$EMSDK"/node/*/bin/node | tail -1)"):$BASE_PATH"
   echo "  emcc $(emcc --version | head -1 | sed 's/.*) //')"
 }
