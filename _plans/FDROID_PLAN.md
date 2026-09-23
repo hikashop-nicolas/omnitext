@@ -89,3 +89,9 @@ release: bump fdroidVersionCode/versionName, tag fdroid-<version>, run the dry r
 `scripts/fdroid/sign-apk.sh <dry-run>/unsigned/app.omnitext_<code>.apk <version>` (the user types
 the key password), and attach ~/Downloads/omnitext-fdroid-<version>.apk to a GitHub release on
 the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing.
+
+Reproducibility rests on two things the wasm build does on purpose: libass is built at a fixed
+absolute path (fontconfig bakes its prefix in), and old Emscripten versions get their system
+library sources sorted (emsdk-sort-sources.py), because otherwise the cached libc, and the layout
+of everything linked against it, follow each machine's directory order. F-Droid's own CI built
+1.7 byte for byte after both.
