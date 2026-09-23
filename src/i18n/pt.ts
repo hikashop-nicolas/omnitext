@@ -229,6 +229,7 @@ const pt: Dict = {
     count: { one: "{n} ficheiro", other: "{n} ficheiros" },
     open: "Abrir",
     extract: "Extrair",
+    extractedHint: "{name} foi transferido. Use Abrir para o ler dentro do Omnitext.",
   },
   consent: {
     title: "Transferência necessária",

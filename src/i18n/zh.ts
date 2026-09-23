@@ -233,6 +233,7 @@ const zh: Dict = {
     count: { other: "{n} 个文件" },
     open: "打开",
     extract: "解压",
+    extractedHint: "{name} 已下载。点击“打开”可在 Omnitext 中查看。",
   },
   consent: {
     title: "需要下载",

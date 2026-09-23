@@ -229,6 +229,7 @@ const de: Dict = {
     count: { one: "{n} Datei", other: "{n} Dateien" },
     open: "Öffnen",
     extract: "Entpacken",
+    extractedHint: "{name} wurde heruntergeladen. Mit Öffnen lesen Sie die Datei in Omnitext.",
   },
   consent: {
     title: "Download erforderlich",

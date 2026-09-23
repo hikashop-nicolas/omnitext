@@ -229,6 +229,7 @@ const es: Dict = {
     count: { one: "{n} archivo", other: "{n} archivos" },
     open: "Abrir",
     extract: "Extraer",
+    extractedHint: "{name} se ha descargado. Use Abrir para leerlo dentro de Omnitext.",
   },
   consent: {
     title: "Descarga necesaria",

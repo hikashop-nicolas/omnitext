@@ -252,6 +252,7 @@ const ru: Dict = {
     },
     open: "Открыть",
     extract: "Извлечь",
+    extractedHint: "Файл {name} загружен. Чтобы прочитать его в Omnitext, нажмите Открыть.",
   },
   consent: {
     title: "Нужна загрузка",

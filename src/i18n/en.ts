@@ -231,6 +231,7 @@ const en: Dict = {
     count: { one: "{n} file", other: "{n} files" },
     open: "Open",
     extract: "Extract",
+    extractedHint: "{name} was downloaded. Use Open to read it inside Omnitext.",
   },
   consent: {
     title: "Download needed",

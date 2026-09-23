@@ -37,6 +37,7 @@ const fmtSize = (n: number): string =>
 class ArchiveInstance implements EditorInstance {
   private wrap: HTMLElement | null = null;
   private bytes: Uint8Array | null = null;
+  private hintShown = false;
   constructor(private host: HostAPI) {}
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
@@ -93,7 +94,18 @@ class ArchiveInstance implements EditorInstance {
         }
       };
       const open = btn(t("archive.open"), withData((data) => this.host.workspace.openFile?.(base, data, undefined, name)));
-      const extract = btn(t("archive.extract"), withData((data) => this.host.workspace.exportFile?.(base, data)));
+      // Extract hands the file to the system (Android then offers its "Open with" chooser,
+      // which cannot open it here): say once that Open is the way to read it in the app.
+      const extract = btn(
+        t("archive.extract"),
+        withData((data) => {
+          this.host.workspace.exportFile?.(base, data);
+          if (!this.hintShown) {
+            this.hintShown = true;
+            this.host.notifications.info(t("archive.extractedHint", { name: base }));
+          }
+        }),
+      );
       row.append(nm, sz, open, extract);
       wrap.append(row);
     }

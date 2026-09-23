@@ -231,6 +231,7 @@ const ja: Dict = {
     count: { one: "{n} 個のファイル", other: "{n} 個のファイル" },
     open: "開く",
     extract: "取り出す",
+    extractedHint: "{name} をダウンロードしました。Omnitext 内で読むには「開く」を使ってください。",
   },
   consent: {
     title: "ダウンロードが必要です",
