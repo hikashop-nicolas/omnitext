@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '1.7'
     versionCode: 10700
-    commit: fdroid-1.7
+    commit: f412f2625f1477d4acc1a26df840013070b0c515
     subdir: android/app
     sudo:
       - apt-get update
