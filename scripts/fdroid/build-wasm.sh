@@ -184,7 +184,9 @@ build_libass() {
   v="$(npm_version @jellyfin/libass-wasm)"
   echo "libass via JavascriptSubtitlesOctopus $v"
   emsdk_use 2.0.34
-  src="$WORK/JavascriptSubtitlesOctopus"
+  # fontconfig bakes its prefix into the wasm, so the checkout has to sit at the same absolute
+  # path everywhere or the output differs between machines (F-Droid builds under /home/vagrant).
+  src="${LIBASS_BUILD_DIR:-/tmp/omnitext-libass}"
   [ -d "$src" ] || git -c advice.detachedHead=false clone -q --recurse-submodules --shallow-submodules --depth 1 --branch "v$v" https://github.com/jellyfin/JavascriptSubtitlesOctopus.git "$src"
   # fontconfig's autogen.sh reads the version off `libtoolize --version` with a regex that breaks
   # on Debian 13's "2.5.4 Debian-2.5.4-4" and then claims libtool is missing. It honours
