@@ -102,7 +102,7 @@ class ArchiveInstance implements EditorInstance {
           this.host.workspace.exportFile?.(base, data);
           if (!this.hintShown) {
             this.hintShown = true;
-            this.host.notifications.info(t("archive.extractedHint", { name: base }));
+            this.hintAfterDownload(base);
           }
         }),
       );
@@ -110,6 +110,22 @@ class ArchiveInstance implements EditorInstance {
       wrap.append(row);
     }
     if (files.length === 0) wrap.append(msg(t("archive.empty")));
+  }
+
+  // The browser's own "Download file?" prompt (and the native share sheet) takes the focus
+  // and covers a message shown right away, so wait until the page has it back.
+  private hintAfterDownload(name: string): void {
+    const show = () => {
+      if (this.wrap) this.host.notifications.info(t("archive.extractedHint", { name }));
+    };
+    setTimeout(() => {
+      if (document.hasFocus()) return show();
+      const onFocus = () => {
+        window.removeEventListener("focus", onFocus);
+        setTimeout(show, 400);
+      };
+      window.addEventListener("focus", onFocus);
+    }, 800);
   }
 
   getText(): string {
