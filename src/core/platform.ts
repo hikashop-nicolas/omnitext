@@ -43,6 +43,25 @@ interface PrinterPlugin {
 }
 const Printer = registerPlugin<PrinterPlugin>("Printer");
 
+interface SystemBarsPlugin {
+  setImmersive(options: { value: boolean }): Promise<void>;
+}
+const SystemBars = registerPlugin<SystemBarsPlugin>("SystemBars");
+
+/**
+ * Hide the Android status and navigation bars while something is fullscreen. The WebView
+ * does not react to the page's Fullscreen API, so without this a fullscreen video still
+ * has the three system buttons sitting on it. No-op on the web and on older app builds.
+ */
+export async function setImmersive(value: boolean): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await SystemBars.setImmersive({ value });
+  } catch {
+    /* build without the plugin */
+  }
+}
+
 /**
  * Print through Android's PrintManager, returning false on the web so the caller falls back
  * to window.print(). A WebView does not implement window.print() at all, so without this the

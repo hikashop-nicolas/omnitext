@@ -18,6 +18,7 @@ import {
   printNative,
   reopenDocumentNative,
   saveBytesNative,
+  setImmersive,
   writeDocumentNative,
   type PickedDocument,
 } from "./core/platform";
@@ -2593,6 +2594,10 @@ async function start(): Promise<void> {
   engine.registerTool(collabTool);
   void SessionStore.requestPersistent();
   void store.prune(session?.id ?? null).catch(() => undefined); // old crash-recovery snapshots go at boot
+
+  // Fullscreen (a video, a slideshow) should own the whole screen on the phone: the
+  // WebView leaves the system bars on top of it unless the app is told to hide them.
+  document.addEventListener("fullscreenchange", () => void setImmersive(!!document.fullscreenElement));
 
   // A file opened while the app is already running arrives on the next resume; pull it then.
   document.addEventListener("visibilitychange", () => {

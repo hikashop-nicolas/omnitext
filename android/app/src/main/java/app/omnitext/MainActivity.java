@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FileOpenerPlugin.class); // must precede super.onCreate
         registerPlugin(PrinterPlugin.class);
+        registerPlugin(SystemBarsPlugin.class);
         super.onCreate(savedInstanceState);
         FileOpenerPlugin.handleIntent(this, getIntent());
     }
