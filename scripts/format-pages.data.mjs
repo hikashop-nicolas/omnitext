@@ -524,6 +524,11 @@ export const PAGES = [
   },
   {
     id: "audio",
+    shot: {
+      name: "audio",
+      caption:
+        "An audio file open in Omnitext, with the player controls over the stage."
+    },
     name: "audio",
     formats: ["mp3", "flac", "wav", "m4a", "aac", "oga", "weba", "mka", "wma"],
     headline: "Play an audio file in your browser",
