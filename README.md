@@ -11,7 +11,10 @@ uploaded, there is no account, and no file ever fails to open.
 [Google Play](https://play.google.com/store/apps/details?id=app.omnitext) &nbsp;·&nbsp;
 [Android APK](https://github.com/hikashop-nicolas/omnitext/releases/download/android-latest/omnitext.apk)
 
-![The Omnitext start screen](docs/screenshots/home.png)
+<picture>
+  <source srcset="public/shots/home-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/home.webp" alt="The Omnitext start screen" width="1400" />
+</picture>
 
 ## Why you might like it
 
@@ -31,20 +34,32 @@ uploaded, there is no account, and no file ever fails to open.
 
 Spreadsheets keep their formulas, and Omnitext recalculates them as you type:
 
-![A spreadsheet open in Omnitext, with recalculated formulas](docs/screenshots/sheet.png)
+<picture>
+  <source srcset="public/shots/sheet-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/sheet.webp" alt="A spreadsheet open in Omnitext, with recalculated formulas" width="1400" />
+</picture>
 
 PDFs are edited in place, so everything you did not touch stays exactly as it was:
 
-![A PDF open in the Omnitext PDF editor](docs/screenshots/pdf.png)
+<picture>
+  <source srcset="public/shots/pdf-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/pdf.webp" alt="A PDF open in the Omnitext PDF editor" width="1400" />
+</picture>
 
 Markdown, Word documents and web pages open as rich text, with the raw source one click away:
 
-![A Markdown file open as rich text](docs/screenshots/markdown.png)
+<picture>
+  <source srcset="public/shots/markdown-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/markdown.webp" alt="A Markdown file open as rich text" width="1400" />
+</picture>
 
 Code and configuration files get highlighting, folding and live checking, in about seventy
 languages:
 
-![A Python file open in the code editor](docs/screenshots/code.png)
+<picture>
+  <source srcset="public/shots/code-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/code.webp" alt="A Python file open in the code editor" width="1400" />
+</picture>
 
 ## What it opens
 

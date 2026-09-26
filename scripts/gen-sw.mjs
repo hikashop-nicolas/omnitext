@@ -20,7 +20,9 @@ function walk(dir, out = []) {
 
 const files = walk(dist)
   .map((p) => relative(dist, p).split("\\").join("/"))
-  .filter((p) => p !== "sw.js" && !p.endsWith(".DS_Store"))
+  // shots/ holds the screenshots the format pages show. They are worth a megabyte on a
+  // marketing page over the network, not in every installed copy of the app.
+  .filter((p) => p !== "sw.js" && !p.endsWith(".DS_Store") && !p.startsWith("shots/"))
   .sort();
 
 // The cache version is a digest of every file's content, so any change in the

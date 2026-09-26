@@ -17,12 +17,22 @@
  * @property {string} lead      Opening paragraph.
  * @property {string[]} can     What you can actually do, most useful first.
  * @property {string} [note]    A caveat or a detail worth knowing. Optional.
+ * @property {{name: string, caption: string}} [shot] Screenshot in public/shots (name.webp
+ *                              plus name-light.webp) and the caption under it. The caption
+ *                              says what is actually in the picture: several pages share a
+ *                              surface, and a shared shot must not claim to be the format
+ *                              the page is about.
  */
 
 /** @type {FormatPage[]} */
 export const PAGES = [
   {
     id: "pdf",
+    shot: {
+      name: "pdf",
+      caption:
+        "A PDF open in Omnitext: the text on the page is edited in place, and the rest of the file is left as it was.",
+    },
     formats: ["pdf"],
     name: "PDF",
     headline: "Edit a PDF in your browser",
@@ -41,6 +51,11 @@ export const PAGES = [
   },
   {
     id: "docx",
+    shot: {
+      name: "docx",
+      caption:
+        "A Word document open in Omnitext, with its headings, table and list intact.",
+    },
     formats: ["docx", "doc"],
     name: "Word document",
     headline: "Open and edit a .docx without Word",
@@ -58,6 +73,11 @@ export const PAGES = [
   },
   {
     id: "odt",
+    shot: {
+      name: "odt",
+      caption:
+        "An OpenDocument text file open in Omnitext, in the same editor Word documents use.",
+    },
     formats: ["odt"],
     name: "OpenDocument text",
     headline: "Open and edit an .odt in your browser",
@@ -73,6 +93,11 @@ export const PAGES = [
   },
   {
     id: "xlsx",
+    shot: {
+      name: "sheet",
+      caption:
+        "An Excel workbook open in Omnitext, with the totals recalculated from the formulas in the file.",
+    },
     formats: ["xlsx", "xls"],
     name: "Excel spreadsheet",
     headline: "Edit an .xlsx and keep the formulas working",
@@ -89,6 +114,11 @@ export const PAGES = [
   },
   {
     id: "ods",
+    shot: {
+      name: "ods",
+      caption:
+        "An OpenDocument spreadsheet open in Omnitext, formulas and all.",
+    },
     formats: ["ods"],
     name: "OpenDocument spreadsheet",
     headline: "Edit an .ods spreadsheet in the browser",
@@ -103,6 +133,11 @@ export const PAGES = [
   },
   {
     id: "csv",
+    shot: {
+      name: "csv",
+      caption:
+        "A CSV file open as a grid, one column per field.",
+    },
     formats: ["csv"],
     name: "CSV",
     headline: "Open a CSV as a table, or as text",
@@ -163,6 +198,11 @@ export const PAGES = [
   },
   {
     id: "srt",
+    shot: {
+      name: "subtitles",
+      caption:
+        "The subtitle editor, here with an .srt file: a cue list, the cue you are editing, and a timeline to retime it.",
+    },
     formats: ["srt"],
     name: "SRT subtitles",
     headline: "Edit .srt subtitles in your browser",
@@ -178,6 +218,11 @@ export const PAGES = [
   },
   {
     id: "vtt",
+    shot: {
+      name: "subtitles",
+      caption:
+        "The subtitle editor, shown here with SRT cues; WebVTT files open exactly the same way.",
+    },
     formats: ["vtt"],
     name: "WebVTT subtitles",
     headline: "Edit .vtt subtitles in your browser",
@@ -193,6 +238,11 @@ export const PAGES = [
   },
   {
     id: "ass",
+    shot: {
+      name: "subtitles",
+      caption:
+        "The subtitle editor, shown here with a simple SRT file; ASS files open the same way and keep their styles.",
+    },
     formats: ["ass"],
     name: "ASS/SSA subtitles",
     headline: "Edit .ass subtitles, styles and all",
@@ -251,6 +301,11 @@ export const PAGES = [
   },
   {
     id: "svg",
+    shot: {
+      name: "svg",
+      caption:
+        "An SVG drawing open in the vector editor, with the shape tools on the left.",
+    },
     formats: ["svg"],
     name: "SVG",
     headline: "Edit an SVG in your browser",
@@ -265,6 +320,11 @@ export const PAGES = [
   },
   {
     id: "eml",
+    shot: {
+      name: "email",
+      caption:
+        "An .eml message open in Omnitext: headers, body, and attachments, with remote content blocked.",
+    },
     formats: ["eml"],
     name: "Email message",
     headline: "Open an .eml file without an email client",
@@ -279,6 +339,11 @@ export const PAGES = [
   },
   {
     id: "msg",
+    shot: {
+      name: "email",
+      caption:
+        "A message open in Omnitext, here from an .eml file; Outlook .msg files are shown the same way.",
+    },
     formats: ["msg"],
     name: "Outlook message",
     headline: "Open an Outlook .msg file without Outlook",
@@ -293,6 +358,11 @@ export const PAGES = [
   },
   {
     id: "sqlite",
+    shot: {
+      name: "sqlite",
+      caption:
+        "A SQLite database open in Omnitext: the tables on the left, the rows on the right, and a query box above them.",
+    },
     formats: ["sqlite"],
     name: "SQLite database",
     headline: "Browse a SQLite database in your browser",
@@ -307,6 +377,11 @@ export const PAGES = [
   },
   {
     id: "ipynb",
+    shot: {
+      name: "notebook",
+      caption:
+        "A Jupyter notebook open in Omnitext, with its markdown, code and saved output.",
+    },
     formats: ["ipynb"],
     name: "Jupyter notebook",
     headline: "Read a Jupyter notebook without Jupyter",
@@ -337,7 +412,7 @@ export const PAGES = [
   {
     id: "psd",
     formats: ["psd"],
-    name: "Photoshop file",
+    name: "Photoshop document",
     headline: "Open a .psd without Photoshop",
     summary: "View Photoshop PSD files in the browser to see what is in them, with nothing uploaded.",
     lead: "Omnitext renders a PSD so you can see the artwork without a Photoshop licence, which is usually all you need when someone sends you one.",
@@ -379,6 +454,11 @@ export const PAGES = [
   },
   {
     id: "archives",
+    shot: {
+      name: "archive",
+      caption:
+        "A zip archive open in Omnitext: every entry listed, ready to open in place or extract.",
+    },
     name: "archive",
     formats: ["zip", "7z", "rar", "tar", "xz", "bzip2", "jar", "cbz"],
     headline: "Open a ZIP, 7z or RAR in your browser",
@@ -428,6 +508,11 @@ export const PAGES = [
   },
   {
     id: "code",
+    shot: {
+      name: "code",
+      caption:
+        "A Python file open in the code editor, with highlighting and folding.",
+    },
     name: "source code",
     formats: [
       "javascript", "typescript", "python", "c", "cpp", "java", "csharp", "php", "rust",
@@ -450,6 +535,11 @@ export const PAGES = [
   },
   {
     id: "markdown",
+    shot: {
+      name: "markdown",
+      caption:
+        "A Markdown file open as rich text; the raw Markdown is one click away in the View switcher.",
+    },
     formats: ["markdown"],
     name: "Markdown",
     headline: "Write Markdown in your browser",
@@ -465,6 +555,11 @@ export const PAGES = [
   },
   {
     id: "latex",
+    shot: {
+      name: "latex",
+      caption:
+        "A .tex file open in the editor; the rendered preview is one click away in the View switcher.",
+    },
     formats: ["latex"],
     name: "LaTeX",
     headline: "Edit and preview LaTeX in the browser",
@@ -480,6 +575,11 @@ export const PAGES = [
   },
   {
     id: "json",
+    shot: {
+      name: "json",
+      caption:
+        "A JSON file open as a tree, with each value editable on its own line.",
+    },
     formats: ["json"],
     name: "JSON",
     headline: "Open and edit JSON in your browser",
