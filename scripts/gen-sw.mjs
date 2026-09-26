@@ -159,16 +159,22 @@ self.addEventListener("fetch", (event) => {
     // The static format pages are navigations too, and they must be answered with
     // themselves. Falling through to the shell below would serve the app to anyone who
     // followed a link to one, since the app is what "any navigation" means here.
+    // Network-first, unlike the shell: a format page is a standalone document that names
+    // no hashed chunk, so a fresh one is always safe, and cache-first left visitors on a
+    // page from whichever deploy their worker installed, for as long as it kept waiting.
     if (/\\/formats(\\.html|\\/)/.test(url.pathname)) {
       event.respondWith((async () => {
         const cache = await caches.open(CACHE);
-        const hit = await cache.match(req, { ignoreSearch: true });
-        if (hit) return hit;
         try {
-          return await fetch(req);
+          const res = await fetch(req);
+          if (res.ok) {
+            await cache.put(req, await sanitize(res.clone()));
+            return res;
+          }
         } catch {
-          return Response.error();
+          /* offline: fall through to the cache */
         }
+        return (await cache.match(req, { ignoreSearch: true })) || Response.error();
       })());
       return;
     }
