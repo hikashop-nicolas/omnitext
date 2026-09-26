@@ -184,6 +184,11 @@ export const PAGES = [
   },
   {
     id: "epub",
+    shot: {
+      name: "epub",
+      caption:
+        "A book open in Omnitext, paginated, with an arrow on each side to turn the page.",
+    },
     formats: ["epub"],
     name: "EPUB book",
     headline: "Read an EPUB in your browser",
@@ -258,6 +263,11 @@ export const PAGES = [
   },
   {
     id: "geojson",
+    shot: {
+      name: "map",
+      caption:
+        "A GeoJSON survey file open in the map editor: the features drawn over the map, with the drawing and measuring tools above.",
+    },
     formats: ["geojson"],
     name: "GeoJSON",
     headline: "Edit GeoJSON on a map, in the browser",
@@ -273,6 +283,11 @@ export const PAGES = [
   },
   {
     id: "kml",
+    shot: {
+      name: "map",
+      caption:
+        "The map editor, here with a GeoJSON file; KML and KMZ open the same way.",
+    },
     formats: ["kml", "kmz"],
     name: "KML",
     headline: "Open a KML file on a map",
@@ -287,6 +302,11 @@ export const PAGES = [
   },
   {
     id: "gpx",
+    shot: {
+      name: "map",
+      caption:
+        "The map editor, here with a GeoJSON file; a GPX track opens the same way.",
+    },
     formats: ["gpx"],
     name: "GPX track",
     headline: "Open a GPX track from your watch or GPS",
@@ -425,6 +445,11 @@ export const PAGES = [
   },
   {
     id: "heic",
+    shot: {
+      name: "heic",
+      caption:
+        "An iPhone HEIC photo decoded and shown in Omnitext.",
+    },
     formats: ["heic"],
     name: "HEIC photo",
     headline: "Open a HEIC photo from an iPhone",
@@ -477,6 +502,11 @@ export const PAGES = [
   },
   {
     id: "video",
+    shot: {
+      name: "video",
+      caption:
+        "A video playing in Omnitext, with the player's own controls: timeline, clock, volume, speed, subtitles and fullscreen.",
+    },
     name: "video",
     formats: ["mp4", "mkv", "mov", "avi", "webmv", "wmv", "ogv", "3gp", "mpegts"],
     headline: "Play a video file in your browser",
