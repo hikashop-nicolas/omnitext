@@ -72,6 +72,7 @@ const fr: Dict = {
     turnBadScheme: "Ce n'est pas une adresse de relais. Elle doit commencer par turn: ou turns:, pas stun:.",
     turnNeedCreds: "Un relais a besoin à la fois d'un nom d'utilisateur et d'un mot de passe.",
     turnOk: "Ce relais sera utilisé lorsqu'une connexion directe est impossible.",
+    moreInfo: "Plus d'informations",
     settingsSections: "Sections des paramètres",
     settingsGeneral: "Général",
     settingsSharing: "Partage",

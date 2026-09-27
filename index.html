@@ -155,20 +155,20 @@
                   </select>
                 </label>
                 <label class="modal-field modal-check"><input id="setting-paginated" type="checkbox" /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
-                <label class="modal-field"><span data-i18n="app.aiDownloads">Downloads for AI features</span>
+                <label class="modal-field"><span class="settings-label"><span data-i18n="app.aiDownloads">Downloads for AI features</span><button class="settings-info" type="button" data-tip="tip-ai" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span>
                   <select id="setting-ai">
                     <option value="ask" data-i18n="app.aiAsk">Ask first</option>
                     <option value="allow" data-i18n="app.aiAllow">Allowed</option>
                     <option value="deny" data-i18n="app.aiDeny">Not allowed</option>
                   </select>
                 </label>
-                <p class="modal-hint" data-i18n="app.aiHint">Text recognition, translation, the writing assist and transcription download a model the first time they are used. Your files are never sent.</p>
+                <p class="settings-tip-text" id="tip-ai" data-i18n="app.aiHint" hidden>Text recognition, translation, the writing assist and transcription download a model the first time they are used. Your files are never sent.</p>
               </div>
               <div class="settings-pane" id="settings-pane-sharing" role="tabpanel" aria-labelledby="settings-tab-sharing" tabindex="0" hidden>
-                <label class="modal-field"><span data-i18n="app.yourName">Your name</span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>
-                <p class="modal-hint" data-i18n="app.yourNameHint">Used as the author of comments and replies you add.</p>
-                <h3 class="settings-heading" data-i18n="app.turnTitle">Relay server for collaboration</h3>
-                <p class="modal-hint settings-lead" data-i18n="app.turnHint">Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.</p>
+                <label class="modal-field"><span class="settings-label"><span data-i18n="app.yourName">Your name</span><button class="settings-info" type="button" data-tip="tip-name" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>
+                <p class="settings-tip-text" id="tip-name" data-i18n="app.yourNameHint" hidden>Used as the author of comments and replies you add.</p>
+                <div class="settings-heading-row"><h3 class="settings-heading" data-i18n="app.turnTitle">Relay server for collaboration</h3><button class="settings-info" type="button" data-tip="tip-turn" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></div>
+                <p class="settings-tip-text" id="tip-turn" data-i18n="app.turnHint" hidden>Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.</p>
                 <label class="modal-field"><span data-i18n="app.turnUrl">Server address</span> <input id="setting-turn-url" type="text" autocomplete="off" spellcheck="false" placeholder="turn:relay.example.org:3478" /></label>
                 <label class="modal-field"><span data-i18n="app.turnUser">Username</span> <input id="setting-turn-user" type="text" autocomplete="off" spellcheck="false" /></label>
                 <label class="modal-field"><span data-i18n="app.turnPass">Password</span> <input id="setting-turn-pass" type="password" autocomplete="off" /></label>
@@ -180,6 +180,7 @@
                   <span><span data-i18n="app.version">Version</span> <span id="setting-build" class="build-id">dev</span></span>
                   <button id="setting-update" class="btn" type="button" hidden data-i18n="app.checkUpdates">Check for updates</button>
                 </div>
+                <div id="setting-update-progress" class="settings-progress" hidden aria-hidden="true"><span></span></div>
                 <p class="modal-hint" id="setting-update-status" role="status"></p>
                 <p class="modal-hint"><a id="setting-source" href="#" target="_blank" rel="noopener noreferrer" data-i18n="app.sourceCode">Source code on GitHub</a></p>
               </div>

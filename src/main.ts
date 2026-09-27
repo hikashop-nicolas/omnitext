@@ -3,9 +3,8 @@ import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/a
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { bootDocument } from "./core/boot";
 import { printDocument, printPdfBytes } from "./core/print";
-import { checkForUpdate, once } from "./core/updates";
-import { BUILD_ID } from "./build-id";
 import { installRemoteConsent } from "./remote-consent";
+import { initSettingsDialog } from "./settings-dialog";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
@@ -150,9 +149,7 @@ import {
   makeViewerFormats,
 } from "./formats/binary-viewers";
 import { applyDom, getLocale, initI18n, t } from "./i18n";
-import { REPO_URL } from "./core/links";
-import { getSettings, saveSettings } from "./settings";
-import { turnServers, type TurnProblem } from "./tools/collab/turn";
+import { getSettings } from "./settings";
 import type {
   EditorInstance,
   EditorResolution,
@@ -1958,179 +1955,20 @@ document.addEventListener("keydown", (e) => {
 });
 
 // --- settings dialog ---------------------------------------------------------
-const settingsDlgEl = $("settingsdlg");
-// The link lives in one place (core/links), not hardcoded in the markup as well.
-($("setting-source") as HTMLAnchorElement).href = REPO_URL;
-const settingNameEl = $("setting-name") as HTMLInputElement;
-const settingPageSizeEl = $("setting-pagesize") as HTMLSelectElement;
-const settingPaginatedEl = $("setting-paginated") as HTMLInputElement;
-const settingThemeEl = $("setting-theme") as HTMLSelectElement;
-const settingAiEl = $("setting-ai") as HTMLSelectElement;
-const settingTurnUrlEl = $("setting-turn-url") as HTMLInputElement;
-const settingTurnUserEl = $("setting-turn-user") as HTMLInputElement;
-const settingTurnPassEl = $("setting-turn-pass") as HTMLInputElement;
-const settingTurnStatusEl = $("setting-turn-status");
-const settingBuildEl = $("setting-build");
-const settingUpdateEl = $("setting-update") as HTMLButtonElement;
-const settingUpdateStatusEl = $("setting-update-status");
-const settingTabs = Array.from(settingsDlgEl.querySelectorAll<HTMLButtonElement>(".settings-tab"));
-
-/** Show one settings pane and mark its tab, moving focus onto the tab unless just opening. */
-function showSettingsPane(pane: string, focus = true): void {
-  for (const tab of settingTabs) {
-    const on = tab.dataset.pane === pane;
-    tab.setAttribute("aria-selected", String(on));
-    tab.tabIndex = on ? 0 : -1; // one tab stop for the rail; arrows move within it
-    ($(tab.getAttribute("aria-controls")!) as HTMLElement).hidden = !on;
-    if (on && focus) tab.focus();
-  }
-}
-for (const [i, tab] of settingTabs.entries()) {
-  tab.addEventListener("click", () => showSettingsPane(tab.dataset.pane!));
-  tab.addEventListener("keydown", (e) => {
-    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
-    showSettingsPane(settingTabs[(i + step + settingTabs.length) % settingTabs.length]!.dataset.pane!);
-  });
-}
-
-/** The service worker registration, once it resolves; null in the app and on the dev server. */
-let swRegistration: ServiceWorkerRegistration | null = null;
-/** Set while this window is deliberately taking an update, so it does not warn itself. */
-let applyingUpdate = false;
-
-/**
- * Check for a newer deploy, and on a second press let it in.
- *
- * The worker holds a new build back until every window is closed, which is right for the
- * chunks a running page may still need and wrong for anyone who keeps the app open. The
- * button is the way to say "now", and the page reloads onto it immediately.
- */
-async function updateButtonPressed(): Promise<void> {
-  const reg = swRegistration;
-  if (!reg) return;
-  if (reg.waiting) {
-    applyingUpdate = true;
-    settingUpdateStatusEl.textContent = t("app.updateApplying");
-    navigator.serviceWorker.addEventListener("controllerchange", once(() => location.reload()));
-    reg.waiting.postMessage("omnitext-skip-waiting");
-    return;
-  }
-  settingUpdateEl.disabled = true;
-  settingUpdateStatusEl.textContent = t("app.updateChecking");
-  const result = await checkForUpdate(reg);
-  settingUpdateEl.disabled = false;
-  settingUpdateStatusEl.textContent =
-    result === "ready" ? t("app.updateFound")
-    : result === "failed" ? t("app.updateCheckFailed")
-    : t("app.updateCurrent");
-  if (result === "ready") settingUpdateEl.textContent = t("app.updateApply");
-}
-
-const turnFromDialog = () => ({
-  url: settingTurnUrlEl.value.trim(),
-  username: settingTurnUserEl.value.trim(),
-  credential: settingTurnPassEl.value,
+// The dialog itself lives in settings-dialog.ts; what a setting means to the running
+// document is decided here.
+const settingsDialog = initSettingsDialog({
+  trapModalTab,
+  // Surfaces that sample colors at mount (CodeMirror and friends) only pick up a new
+  // palette by being rebuilt. Binary/read-only editors (media, image, PDF, ...) draw
+  // their own chrome, so remounting them is pointless and would restart playback.
+  onThemeChanged: () => remountForTheme(),
 });
-
-/**
- * Say whether the relay as typed would be used, and if not, why.
- *
- * A relay that is wrong fails at connection time, minutes later, with nothing pointing at
- * the field that caused it. Saying so here is the whole value of the field having a check.
- */
-function showTurnStatus(): TurnProblem | null {
-  const { problem } = turnServers(turnFromDialog());
-  settingTurnStatusEl.textContent =
-    problem === "scheme"
-      ? t("app.turnBadScheme")
-      : problem === "credentials"
-        ? t("app.turnNeedCreds")
-        : problem === null
-          ? t("app.turnOk")
-          : "";
-  return problem;
-}
-
-// Apply a theme choice: attribute for the palette, then remount the active
-// editor so surfaces that sample colors at mount (CodeMirror and friends)
-// pick up the new palette.
-function applyTheme(theme: "system" | "light" | "dark", remount = true): void {
-  if (theme === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
-  // Binary/read-only editors (media, image, PDF, …) draw their own chrome, not the app
-  // theme, so remounting them on a theme change is pointless (and restarts playback).
-  if (remount && session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
-}
+const remountForTheme = (): void => {
+  if (session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
+};
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (getSettings().theme === "system" && session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
-});
-function openSettings(): void {
-  modalReturnFocus = document.activeElement as HTMLElement | null;
-  const s = getSettings();
-  settingNameEl.value = s.name;
-  settingPageSizeEl.value = s.pageSize;
-  settingPaginatedEl.checked = s.paginated;
-  settingThemeEl.value = s.theme;
-  settingAiEl.value = s.aiDownloads;
-  settingTurnUrlEl.value = s.turn?.url ?? "";
-  settingTurnUserEl.value = s.turn?.username ?? "";
-  settingTurnPassEl.value = s.turn?.credential ?? "";
-  showTurnStatus();
-  settingBuildEl.textContent = BUILD_ID;
-  // No worker means no deploy to check against: the packaged app and the dev server both
-  // carry their build with them, so the number is worth showing and the button is not.
-  settingUpdateEl.hidden = !swRegistration;
-  settingUpdateEl.textContent = swRegistration?.waiting ? t("app.updateApply") : t("app.checkUpdates");
-  settingUpdateStatusEl.textContent = swRegistration?.waiting ? t("app.updateFound") : "";
-  showSettingsPane("general", false); // always open on the pane most people came for
-  settingsDlgEl.hidden = false;
-  settingTabs[0]!.focus(); // the first field is on another pane now; start on the rail
-}
-function closeSettings(): void {
-  settingsDlgEl.hidden = true;
-  modalReturnFocus?.focus();
-  modalReturnFocus = null;
-}
-function saveSettingsDialog(): void {
-  // A typed-in relay that would not be used keeps the dialog open. Saving it silently
-  // would leave the person believing they had configured one.
-  const turn = turnFromDialog();
-  if (turn.url && showTurnStatus() !== null) {
-    showSettingsPane("sharing", false); // the field at fault may be on a pane that is not showing
-    settingTurnUrlEl.focus();
-    return;
-  }
-  const theme = settingThemeEl.value === "light" ? "light" : settingThemeEl.value === "dark" ? "dark" : "system";
-  const themeChanged = theme !== getSettings().theme;
-  saveSettings({
-    name: settingNameEl.value.trim(),
-    pageSize: settingPageSizeEl.value === "letter" ? "letter" : "a4",
-    paginated: settingPaginatedEl.checked,
-    theme,
-    turn,
-    aiDownloads: settingAiEl.value === "allow" ? "allow" : settingAiEl.value === "deny" ? "deny" : "ask",
-  });
-  if (themeChanged) applyTheme(theme);
-  closeSettings();
-}
-for (const el of [settingTurnUrlEl, settingTurnUserEl, settingTurnPassEl]) {
-  el.addEventListener("input", () => void showTurnStatus());
-}
-settingUpdateEl.addEventListener("click", () => void updateButtonPressed());
-$("btn-settings").addEventListener("click", openSettings);
-$("settings-cancel").addEventListener("click", closeSettings);
-$("settings-save").addEventListener("click", saveSettingsDialog);
-settingsDlgEl.addEventListener("click", (e) => {
-  if (e.target === settingsDlgEl) closeSettings();
-});
-settingsDlgEl.addEventListener("keydown", (e) => trapModalTab(settingsDlgEl.querySelector(".modal-card") as HTMLElement, e));
-settingNameEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") saveSettingsDialog();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !settingsDlgEl.hidden) closeSettings();
+  if (getSettings().theme === "system") remountForTheme();
 });
 
 // --- command palette (Cmd/Ctrl+K) ---------------------------------------------
@@ -2167,7 +2005,7 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.save"), hint: "Ctrl+S", run: () => void saveFile() },
     { label: t("app.print"), hint: "Ctrl+P", run: () => printDoc() },
     { label: t("app.close"), run: () => void closeDocument() },
-    { label: t("app.settings"), run: () => openSettings() },
+    { label: t("app.settings"), run: () => settingsDialog.open() },
   ];
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });
   for (const c of viewChoices) {
@@ -2699,7 +2537,7 @@ void start();
 if (import.meta.env.PROD && !isNative() && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").then((reg) => {
-      swRegistration = reg;
+      settingsDialog.setRegistration(reg);
       const announce = (worker: ServiceWorker | null) => {
         worker?.addEventListener("statechange", () => {
           if (worker.state === "installed" && navigator.serviceWorker.controller)
@@ -2714,7 +2552,7 @@ if (import.meta.env.PROD && !isNative() && "serviceWorker" in navigator) {
   // Another window let a new build in, so this one is now the odd one out: its cached
   // chunks are gone from the new cache. Say so before a lazy import fails.
   navigator.serviceWorker.addEventListener("message", (e) => {
-    if ((e.data as { type?: string } | null)?.type === "omnitext-activated" && !applyingUpdate)
+    if ((e.data as { type?: string } | null)?.type === "omnitext-activated" && !settingsDialog.isApplyingUpdate())
       showToast(t("notify.updateApplied"), "info");
   });
 }

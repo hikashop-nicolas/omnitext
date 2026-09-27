@@ -72,6 +72,7 @@ const en: Dict = {
     turnBadScheme: "Not a relay address. It should start with turn: or turns:, not stun:.",
     turnNeedCreds: "A relay needs both a username and a password.",
     turnOk: "This relay will be used when a direct connection cannot be made.",
+    moreInfo: "More information",
     settingsSections: "Settings sections",
     settingsGeneral: "General",
     settingsSharing: "Sharing",

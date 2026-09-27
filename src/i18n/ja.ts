@@ -72,6 +72,7 @@ const ja: Dict = {
     turnBadScheme: "リレーのアドレスではありません。stun: ではなく turn: または turns: で始まる必要があります。",
     turnNeedCreds: "リレーにはユーザー名とパスワードの両方が必要です。",
     turnOk: "直接接続できない場合にこのリレーが使われます。",
+    moreInfo: "詳細",
     settingsSections: "設定のセクション",
     settingsGeneral: "一般",
     settingsSharing: "共有",

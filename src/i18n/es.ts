@@ -72,6 +72,7 @@ const es: Dict = {
     turnBadScheme: "No es una dirección de retransmisión. Debe empezar por turn: o turns:, no por stun:.",
     turnNeedCreds: "Una retransmisión necesita tanto un nombre de usuario como una contraseña.",
     turnOk: "Esta retransmisión se usará cuando no se pueda establecer una conexión directa.",
+    moreInfo: "Más información",
     settingsSections: "Secciones de ajustes",
     settingsGeneral: "General",
     settingsSharing: "Compartir",

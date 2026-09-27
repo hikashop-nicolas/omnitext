@@ -76,6 +76,7 @@ const zh: Dict = {
     turnBadScheme: "这不是中继地址。它应以 turn: 或 turns: 开头，而不是 stun:。",
     turnNeedCreds: "中继需要同时填写用户名和密码。",
     turnOk: "无法直接连接时将使用此中继。",
+    moreInfo: "更多信息",
     settingsSections: "设置分区",
     settingsGeneral: "常规",
     settingsSharing: "共享",

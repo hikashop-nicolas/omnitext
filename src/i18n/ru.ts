@@ -75,6 +75,7 @@ const ru: Dict = {
     turnBadScheme: "Это не адрес ретранслятора. Он должен начинаться с turn: или turns:, а не с stun:.",
     turnNeedCreds: "Ретранслятору нужны и имя пользователя, и пароль.",
     turnOk: "Этот ретранслятор будет использован, когда прямое соединение невозможно.",
+    moreInfo: "Подробнее",
     settingsSections: "Разделы настроек",
     settingsGeneral: "Общие",
     settingsSharing: "Совместная работа",
