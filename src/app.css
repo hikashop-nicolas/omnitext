@@ -251,6 +251,9 @@ body {
   background: var(--ok);
   flex: none;
 }
+/* display:flex beats the hidden attribute on its own, and the bar hides itself when
+   it has nothing to show (a video, say), so the picture gets the row back. */
+#status[hidden] { display: none; }
 #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* View switcher: an eye button pinned bottom-right, always visible (desktop + mobile).
    With two views a click toggles directly; with more it opens a popover. */

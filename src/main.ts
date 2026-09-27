@@ -428,6 +428,8 @@ const backBtn = $<HTMLButtonElement>("btn-back");
 const readOnlyHiddenTools = new Set<HTMLElement>();
 const reasonEl = $("reason");
 const statusTextEl = $("status-text");
+const statusEl = $("status");
+const encBtnEl = $("enc-btn");
 const formatLabelEl = $("format-label");
 const viewBtn = $<HTMLButtonElement>("view-btn");
 const viewLabelEl = $("view-label");
@@ -460,6 +462,7 @@ function populateEditorSelect(choices: EditorResolution[], currentId: string): v
   viewChoices = choices;
   viewBtn.hidden = choices.length <= 1; // nothing to switch to
   viewLabelEl.textContent = editorLabel(currentId);
+  refreshStatusBar();
 }
 
 function updateUI(): void {
@@ -483,19 +486,17 @@ function updateUI(): void {
   if (session?.editorId) viewLabelEl.textContent = editorLabel(session.editorId);
   // Encoding pill: only for text documents whose original bytes are re-decodable. Shows
   // the decode plus the file's BOM and line ending; clicking still reopens with an encoding.
-  const encEl = document.getElementById("enc-btn");
-  if (encEl) {
-    encEl.hidden = !session || session.binary || !session.srcBytes;
-    if (session && !encEl.hidden) {
-      const parts = [session.encoding.label];
-      if (session.encoding.bom) parts.push("BOM");
-      const eol = lineEndingLabel(session.lineEnding);
-      if (eol) parts.push(eol);
-      encEl.textContent = parts.join(" · ");
-    } else {
-      encEl.textContent = "";
-    }
+  encBtnEl.hidden = !session || session.binary || !session.srcBytes;
+  if (session && !encBtnEl.hidden) {
+    const parts = [session.encoding.label];
+    if (session.encoding.bom) parts.push("BOM");
+    const eol = lineEndingLabel(session.lineEnding);
+    if (eol) parts.push(eol);
+    encBtnEl.textContent = parts.join(" · ");
+  } else {
+    encBtnEl.textContent = "";
   }
+  refreshStatusBar();
 }
 
 // Short status-bar label for a line ending; "none" (no line breaks) shows nothing.
@@ -511,6 +512,19 @@ function lineEndingLabel(eol: LineEnding | undefined): string {
 
 function setStatus(msg: string): void {
   statusTextEl.textContent = msg;
+  refreshStatusBar();
+}
+
+/**
+ * Hide the status bar when it has nothing on it.
+ *
+ * It is a strip across the bottom of every screen, so it has to earn its line. With a
+ * video playing there is nothing to say and nothing to press, and the bar was taking a
+ * row off the picture to say so.
+ */
+function refreshStatusBar(): void {
+  const empty = !statusTextEl.textContent && encBtnEl.hidden && viewBtn.hidden;
+  statusEl.hidden = empty;
 }
 
 // --- core flow ---------------------------------------------------------------
@@ -754,7 +768,10 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   // offering Save (which is hidden) describes a document the user does not have.
   setStatus(
     opts.recovered ? t("status.recovered")
-    : session.readOnly ? t("status.readOnly")
+    // A player or a viewer is plainly one: nobody opens a video expecting to edit it, and
+    // the note only costs a row of the picture. Say it for the formats that do look
+    // editable (slides, ebooks, RTF, raw photos), where the missing Save needs a reason.
+    : session.readOnly ? (/^(audio|video|image)\//.test(session.mime ?? "") ? "" : t("status.readOnly"))
     : t("status.ready", { where }),
   );
 }
