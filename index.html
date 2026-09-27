@@ -122,46 +122,69 @@
         </div>
       </div>
       <div id="settingsdlg" class="modal" hidden>
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsdlg-title">
+        <div class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsdlg-title">
           <h2 id="settingsdlg-title" class="modal-title" data-i18n="app.settings">Settings</h2>
-          <label class="modal-field"><span data-i18n="app.yourName">Your name</span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>
-          <p class="modal-hint" data-i18n="app.yourNameHint">Used as the author of comments and replies you add.</p>
-          <label class="modal-field"><span data-i18n="app.pageSize">Default page size</span>
-            <select id="setting-pagesize">
-              <option value="a4" data-i18n="app.pageSizeA4">A4</option>
-              <option value="letter" data-i18n="app.pageSizeLetter">US Letter</option>
-            </select>
-          </label>
-          <label class="modal-field modal-check"><input id="setting-paginated" type="checkbox" /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
-          <label class="modal-field"><span data-i18n="app.theme">Theme</span>
-            <select id="setting-theme">
-              <option value="system" data-i18n="app.themeSystem">System</option>
-              <option value="light" data-i18n="app.themeLight">Light</option>
-              <option value="dark" data-i18n="app.themeDark">Dark</option>
-            </select>
-          </label>
-          <label class="modal-field"><span data-i18n="app.aiDownloads">Downloads for AI features</span>
-            <select id="setting-ai">
-              <option value="ask" data-i18n="app.aiAsk">Ask first</option>
-              <option value="allow" data-i18n="app.aiAllow">Allowed</option>
-              <option value="deny" data-i18n="app.aiDeny">Not allowed</option>
-            </select>
-          </label>
-          <p class="modal-hint" data-i18n="app.aiHint">Text recognition, translation, the writing assist and transcription download a model the first time they are used. Your files are never sent.</p>
-          <details class="modal-adv">
-            <summary data-i18n="app.turnTitle">Relay server for collaboration</summary>
-            <p class="modal-hint" data-i18n="app.turnHint">Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.</p>
-            <label class="modal-field"><span data-i18n="app.turnUrl">Server address</span> <input id="setting-turn-url" type="text" autocomplete="off" spellcheck="false" placeholder="turn:relay.example.org:3478" /></label>
-            <label class="modal-field"><span data-i18n="app.turnUser">Username</span> <input id="setting-turn-user" type="text" autocomplete="off" spellcheck="false" /></label>
-            <label class="modal-field"><span data-i18n="app.turnPass">Password</span> <input id="setting-turn-pass" type="password" autocomplete="off" /></label>
-            <p class="modal-hint" id="setting-turn-status" role="status"></p>
-          </details>
-          <div class="modal-version">
-            <span><span data-i18n="app.version">Version</span> <span id="setting-build" class="build-id">dev</span></span>
-            <button id="setting-update" class="btn" type="button" hidden data-i18n="app.checkUpdates">Check for updates</button>
+          <div class="settings-body">
+            <div class="settings-nav" role="tablist" aria-orientation="vertical" data-i18n-aria="app.settingsSections" aria-label="Settings sections">
+              <button class="settings-tab" id="settings-tab-general" type="button" role="tab" aria-selected="true" aria-controls="settings-pane-general" data-pane="general">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 2h-1a2 2 0 0 0-2 2v.2a1.7 1.7 0 0 1-2.6 1.5l-.2-.1a2 2 0 0 0-2.7.7l-.5.9a2 2 0 0 0 .7 2.7l.2.1a1.7 1.7 0 0 1 0 3l-.2.1a2 2 0 0 0-.7 2.7l.5.9a2 2 0 0 0 2.7.7l.2-.1a1.7 1.7 0 0 1 2.6 1.5v.2a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-.2a1.7 1.7 0 0 1 2.6-1.5l.2.1a2 2 0 0 0 2.7-.7l.5-.9a2 2 0 0 0-.7-2.7l-.2-.1a1.7 1.7 0 0 1 0-3l.2-.1a2 2 0 0 0 .7-2.7l-.5-.9a2 2 0 0 0-2.7-.7l-.2.1A1.7 1.7 0 0 1 14.5 4.2V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span data-i18n="app.settingsGeneral">General</span>
+              </button>
+              <button class="settings-tab" id="settings-tab-sharing" type="button" role="tab" aria-selected="false" aria-controls="settings-pane-sharing" data-pane="sharing" tabindex="-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/></svg>
+                <span data-i18n="app.settingsSharing">Sharing</span>
+              </button>
+              <button class="settings-tab" id="settings-tab-about" type="button" role="tab" aria-selected="false" aria-controls="settings-pane-about" data-pane="about" tabindex="-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg>
+                <span data-i18n="app.settingsAbout">About</span>
+              </button>
+            </div>
+            <div class="settings-panes">
+              <div class="settings-pane" id="settings-pane-general" role="tabpanel" aria-labelledby="settings-tab-general" tabindex="0">
+                <label class="modal-field"><span data-i18n="app.theme">Theme</span>
+                  <select id="setting-theme">
+                    <option value="system" data-i18n="app.themeSystem">System</option>
+                    <option value="light" data-i18n="app.themeLight">Light</option>
+                    <option value="dark" data-i18n="app.themeDark">Dark</option>
+                  </select>
+                </label>
+                <label class="modal-field"><span data-i18n="app.pageSize">Default page size</span>
+                  <select id="setting-pagesize">
+                    <option value="a4" data-i18n="app.pageSizeA4">A4</option>
+                    <option value="letter" data-i18n="app.pageSizeLetter">US Letter</option>
+                  </select>
+                </label>
+                <label class="modal-field modal-check"><input id="setting-paginated" type="checkbox" /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
+                <label class="modal-field"><span data-i18n="app.aiDownloads">Downloads for AI features</span>
+                  <select id="setting-ai">
+                    <option value="ask" data-i18n="app.aiAsk">Ask first</option>
+                    <option value="allow" data-i18n="app.aiAllow">Allowed</option>
+                    <option value="deny" data-i18n="app.aiDeny">Not allowed</option>
+                  </select>
+                </label>
+                <p class="modal-hint" data-i18n="app.aiHint">Text recognition, translation, the writing assist and transcription download a model the first time they are used. Your files are never sent.</p>
+              </div>
+              <div class="settings-pane" id="settings-pane-sharing" role="tabpanel" aria-labelledby="settings-tab-sharing" tabindex="0" hidden>
+                <label class="modal-field"><span data-i18n="app.yourName">Your name</span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>
+                <p class="modal-hint" data-i18n="app.yourNameHint">Used as the author of comments and replies you add.</p>
+                <h3 class="settings-heading" data-i18n="app.turnTitle">Relay server for collaboration</h3>
+                <p class="modal-hint settings-lead" data-i18n="app.turnHint">Most sessions never need this. Two people whose networks cannot be connected directly need a relay (TURN) server to pass the document through, and this app runs none: you can point it at your own. It is stored in this browser, in plain text, like the rest of these settings.</p>
+                <label class="modal-field"><span data-i18n="app.turnUrl">Server address</span> <input id="setting-turn-url" type="text" autocomplete="off" spellcheck="false" placeholder="turn:relay.example.org:3478" /></label>
+                <label class="modal-field"><span data-i18n="app.turnUser">Username</span> <input id="setting-turn-user" type="text" autocomplete="off" spellcheck="false" /></label>
+                <label class="modal-field"><span data-i18n="app.turnPass">Password</span> <input id="setting-turn-pass" type="password" autocomplete="off" /></label>
+                <p class="modal-hint" id="setting-turn-status" role="status"></p>
+              </div>
+              <div class="settings-pane" id="settings-pane-about" role="tabpanel" aria-labelledby="settings-tab-about" tabindex="0" hidden>
+                <p class="settings-about-lead" data-i18n="app.aboutLead">Omnitext opens and edits practically any file, entirely in your browser. No account, no upload, no tracking.</p>
+                <div class="modal-version">
+                  <span><span data-i18n="app.version">Version</span> <span id="setting-build" class="build-id">dev</span></span>
+                  <button id="setting-update" class="btn" type="button" hidden data-i18n="app.checkUpdates">Check for updates</button>
+                </div>
+                <p class="modal-hint" id="setting-update-status" role="status"></p>
+                <p class="modal-hint"><a id="setting-source" href="#" target="_blank" rel="noopener noreferrer" data-i18n="app.sourceCode">Source code on GitHub</a></p>
+              </div>
+            </div>
           </div>
-          <p class="modal-hint"><a id="setting-source" href="#" target="_blank" rel="noopener noreferrer" data-i18n="app.sourceCode">Source code on GitHub</a></p>
-          <p class="modal-hint" id="setting-update-status" role="status"></p>
           <div class="modal-actions">
             <button id="settings-cancel" class="btn" type="button" data-i18n="app.cancel">Cancel</button>
             <button id="settings-save" class="btn btn-primary" type="button" data-i18n="app.save">Save</button>

@@ -1973,6 +1973,27 @@ const settingTurnStatusEl = $("setting-turn-status");
 const settingBuildEl = $("setting-build");
 const settingUpdateEl = $("setting-update") as HTMLButtonElement;
 const settingUpdateStatusEl = $("setting-update-status");
+const settingTabs = Array.from(settingsDlgEl.querySelectorAll<HTMLButtonElement>(".settings-tab"));
+
+/** Show one settings pane and mark its tab, moving focus onto the tab unless just opening. */
+function showSettingsPane(pane: string, focus = true): void {
+  for (const tab of settingTabs) {
+    const on = tab.dataset.pane === pane;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1; // one tab stop for the rail; arrows move within it
+    ($(tab.getAttribute("aria-controls")!) as HTMLElement).hidden = !on;
+    if (on && focus) tab.focus();
+  }
+}
+for (const [i, tab] of settingTabs.entries()) {
+  tab.addEventListener("click", () => showSettingsPane(tab.dataset.pane!));
+  tab.addEventListener("keydown", (e) => {
+    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    showSettingsPane(settingTabs[(i + step + settingTabs.length) % settingTabs.length]!.dataset.pane!);
+  });
+}
 
 /** The service worker registration, once it resolves; null in the app and on the dev server. */
 let swRegistration: ServiceWorkerRegistration | null = null;
@@ -2063,8 +2084,9 @@ function openSettings(): void {
   settingUpdateEl.hidden = !swRegistration;
   settingUpdateEl.textContent = swRegistration?.waiting ? t("app.updateApply") : t("app.checkUpdates");
   settingUpdateStatusEl.textContent = swRegistration?.waiting ? t("app.updateFound") : "";
+  showSettingsPane("general", false); // always open on the pane most people came for
   settingsDlgEl.hidden = false;
-  settingNameEl.focus();
+  settingTabs[0]!.focus(); // the first field is on another pane now; start on the rail
 }
 function closeSettings(): void {
   settingsDlgEl.hidden = true;
@@ -2076,6 +2098,7 @@ function saveSettingsDialog(): void {
   // would leave the person believing they had configured one.
   const turn = turnFromDialog();
   if (turn.url && showTurnStatus() !== null) {
+    showSettingsPane("sharing", false); // the field at fault may be on a pane that is not showing
     settingTurnUrlEl.focus();
     return;
   }

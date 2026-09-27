@@ -388,6 +388,43 @@ body {
   background-position: right 9px center;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Settings: an icon rail on the left, one pane at a time on the right. The dialog holds
+   three unrelated subjects (preferences, a relay server, the build), and one scroll of
+   them stacked meant the version number sat below a password field. */
+.settings-card { width: 560px; }
+.settings-body { display: flex; gap: 18px; margin-bottom: 18px; }
+.settings-nav { display: flex; flex-direction: column; gap: 2px; flex: 0 0 132px; }
+.settings-tab {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border: 1px solid transparent; border-radius: 8px;
+  font: inherit; font-size: 13px; text-align: left;
+  background: none; color: var(--muted, #8b949e); cursor: pointer;
+}
+.settings-tab svg { flex: none; width: 17px; height: 17px; }
+.settings-tab:hover { background: var(--surface); color: var(--text); }
+.settings-tab[aria-selected="true"] { background: var(--surface); border-color: var(--border); color: var(--text); }
+.settings-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A fixed height so switching panes does not resize the dialog under the pointer, and the
+   longest pane scrolls inside it rather than pushing the buttons off a short window. */
+.settings-panes { flex: 1; min-width: 0; height: min(430px, 62vh); overflow-y: auto; }
+.settings-pane[hidden] { display: none; }
+.settings-pane:focus-visible { outline: none; }
+.settings-pane > :last-child { margin-bottom: 0; }
+/* Label over control, unlike the wider dialogs: side by side in a 370px pane, every field
+   got a different input width, and a long label (German, French) squeezed its select. */
+.settings-pane .modal-field { flex-direction: column; align-items: stretch; gap: 5px; margin-bottom: 14px; }
+.settings-pane .modal-field > span { font-size: 12px; color: var(--muted, #8b949e); }
+.settings-pane .modal-check { flex-direction: row; align-items: center; gap: 8px; }
+.settings-pane .modal-check > span { font-size: 13px; color: var(--text); }
+.settings-heading { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+/* A second group in the same pane gets a rule above it: the name and the relay are both
+   about sharing, but one is filled in by everyone and the other by almost nobody. */
+.settings-pane .settings-heading:not(:first-child) {
+  margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+.settings-lead, .settings-about-lead { margin-top: 0; }
+.settings-about-lead { margin: 0 0 16px; font-size: 13px; color: var(--text); }
 /* Which build is running, and the way onto a newer one. Stacked rather than a row:
    "Check for updates" is a long phrase in most languages and wraps badly beside a label. */
 .modal-version {
@@ -405,6 +442,12 @@ body {
   /* With a document open its controls need the room more than the name does; the logo stays. */
   #app:not(.ot-starting) .brand span { display: none; }
   #toolbar { gap: 8px; }
+  /* No room for a rail beside the panes: the tabs become a row of icons above them. */
+  .settings-card { width: 320px; }
+  .settings-body { flex-direction: column; gap: 14px; }
+  .settings-nav { flex-direction: row; flex: none; }
+  .settings-tab { flex: 1; justify-content: center; gap: 6px; padding: 8px 4px; white-space: nowrap; }
+  .settings-panes { height: 46vh; }
 }
 
 /* Skip link: first tab stop, jumps focus to the editor; visible only when focused. */
