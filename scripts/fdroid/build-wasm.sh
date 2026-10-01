@@ -88,7 +88,11 @@ build_libav() {
   (cd "$src/configs" && node mkconfig.js audio '["avcodec","decoder-eac3","decoder-ac3","parser-ac3","decoder-dca","parser-dca","decoder-truehd","decoder-mlp","parser-mlp"]')
   # From inside the checkout, not make -C: its Makefile installs to $(PWD)/build/inst, and -C
   # leaves PWD pointing at the caller (the library then lands outside and the link fails).
-  (cd "$src" && PWD="$src" make -j"$(nproc)" build-audio) >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
+  # Several emcc at once race on Emscripten's cache lock while its system libraries are still
+  # being built (one unlinks cache.lock as another opens it), so finish serially on a failure:
+  # by then the cache is warm, and make resumes where it stopped.
+  (cd "$src" && export PWD="$src" && { make -j"$(nproc)" build-audio || make -j1 build-audio; }) \
+    >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
   for f in "libav-$v-audio.mjs" "libav-$v-audio.wasm.mjs" "libav-$v-audio.wasm.wasm"; do
     install_over "$src/dist/$f" "node_modules/mediaplay/libav/$f"
   done
