@@ -37,7 +37,7 @@ Builds:
 
   - versionName: '1.8'
     versionCode: 10800
-    commit: f0349f68257787a9000990a7eddbbd99ec22ab53
+    commit: 89c55ff6d741a4a964fe8828adc5a13f4f914ed3
     subdir: android/app
     sudo:
       - apt-get update
