@@ -45,3 +45,7 @@ public/alac/
 
 # F-Droid source builds: upstream checkouts and intermediates
 scripts/fdroid/work/
+
+# Built Android artefacts (CI produces the real ones)
+*.aab
+*.apk
