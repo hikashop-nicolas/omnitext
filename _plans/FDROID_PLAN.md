@@ -88,8 +88,8 @@ byte (recipe: Binaries + AllowedAPKSigningKeys). Two dry runs of 1.7 gave the sa
 release: bump fdroidVersionCode/versionName, tag fdroid-<version>, put that tag's full commit hash
 in the recipe's `commit:` (F-Droid refuses a tag or branch there), run the dry run above, then
 `scripts/fdroid/sign-apk.sh <dry-run>/unsigned/app.omnitext_<code>.apk <version>` (the user types
-the key password), and attach ~/Downloads/omnitext-fdroid-<version>.apk to a GitHub release on
-the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing.
+the key password), and attach the omnitext-fdroid-<version>.apk it writes next to the unsigned one
+to a GitHub release on the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing.
 
 Reproducibility rests on two things the wasm build does on purpose: libass is built at a fixed
 absolute path (fontconfig bakes its prefix in), and old Emscripten versions get their system
