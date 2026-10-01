@@ -545,6 +545,9 @@ interface MountOpts {
   gzipName?: string | null;
   srcBytes?: ArrayBuffer | null;
   recovered?: boolean;
+  /** New document the user asked for. A blank plain text one is otherwise indistinguishable
+      from the boot state, and the start screen comes straight back over it. */
+  created?: boolean;
   /** Internal: this mount is already the safe fallback after a mount failure. */
   fallbackMount?: boolean;
   /** A view switch within the same document (keeps other editors alive for undo). */
@@ -750,7 +753,9 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     }
   }
   endLoading();
-  const starting = !isSwitch && welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered });
+  const starting =
+    !isSwitch &&
+    welcomeWanted({ filename: opts.filename, text, binary, formatId, recovered: !!opts.recovered, created: !!opts.created });
   // A touch screen raises its keyboard for a focused editor, which would cover the start screen.
   if (!(starting && (isNative() || matchMedia("(pointer: coarse)").matches))) instance.focus();
   if (starting) showWelcome();
@@ -1554,6 +1559,7 @@ async function createNew(
       formatId,
       editorId: descriptor.manifest.defaultEditor ?? null,
       docOptions: { paginated },
+      created: true,
     });
     return;
   }
@@ -1571,6 +1577,7 @@ async function createNew(
     encoding: { label: "utf-8", bom: false },
     formatId,
     editorId: blankEditor,
+    created: true,
   });
 }
 

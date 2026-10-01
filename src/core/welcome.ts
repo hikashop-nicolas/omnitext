@@ -6,11 +6,13 @@ export interface BlankStart {
   binary: boolean;
   formatId: string | null;
   recovered: boolean;
+  /** The user asked for this blank document; it only looks like the boot state. */
+  created: boolean;
 }
 
 /** Only a fresh, empty, unnamed plain document gets the welcome; anything the user asked for does not. */
 export function welcomeWanted(s: BlankStart): boolean {
-  return !s.filename && !s.text && !s.binary && !s.formatId && !s.recovered;
+  return !s.filename && !s.text && !s.binary && !s.formatId && !s.recovered && !s.created;
 }
 
 export interface QuickNew {

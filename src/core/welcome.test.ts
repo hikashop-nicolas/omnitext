@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { welcomeWanted, type BlankStart } from "./welcome";
 
-const blank: BlankStart = { filename: null, text: "", binary: false, formatId: null, recovered: false };
+const blank: BlankStart = { filename: null, text: "", binary: false, formatId: null, recovered: false, created: false };
 
 describe("when the start screen shows", () => {
   it("shows for the empty unnamed document the app starts with", () => {
@@ -14,5 +14,6 @@ describe("when the start screen shows", () => {
     expect(welcomeWanted({ ...blank, binary: true }), "a binary document").toBe(false);
     expect(welcomeWanted({ ...blank, formatId: "markdown" }), "a new Markdown file is a choice, not a blank start").toBe(false);
     expect(welcomeWanted({ ...blank, recovered: true }), "recovered work").toBe(false);
+    expect(welcomeWanted({ ...blank, created: true }), "a blank plain text document the user asked for").toBe(false);
   });
 });
