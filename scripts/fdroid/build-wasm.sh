@@ -40,6 +40,10 @@ emsdk_use() {
   fi
   PATH="$EMSDK/upstream/emscripten:$EMSDK:$(dirname "$(ls -d "$EMSDK"/node/*/bin/node | tail -1)"):$BASE_PATH"
   echo "  emcc $(emcc --version | head -1 | sed 's/.*) //')"
+  # One compile alone before any parallel make. On a cold cache every concurrent emcc runs the
+  # sanity check, and the one that erases the cache folder pulls it from under the others.
+  mkdir -p "$WORK/warmup" && printf 'int main(void){return 0;}\n' >"$WORK/warmup/warmup.c"
+  emcc "$WORK/warmup/warmup.c" -o "$WORK/warmup/warmup.js" >/dev/null
 }
 
 # Keep the npm file aside (once, under work/, never next to it: some folders ship whole),
@@ -88,11 +92,7 @@ build_libav() {
   (cd "$src/configs" && node mkconfig.js audio '["avcodec","decoder-eac3","decoder-ac3","parser-ac3","decoder-dca","parser-dca","decoder-truehd","decoder-mlp","parser-mlp"]')
   # From inside the checkout, not make -C: its Makefile installs to $(PWD)/build/inst, and -C
   # leaves PWD pointing at the caller (the library then lands outside and the link fails).
-  # Several emcc at once race on Emscripten's cache lock while its system libraries are still
-  # being built (one unlinks cache.lock as another opens it), so finish serially on a failure:
-  # by then the cache is warm, and make resumes where it stopped.
-  (cd "$src" && export PWD="$src" && { make -j"$(nproc)" build-audio || make -j1 build-audio; }) \
-    >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
+  (cd "$src" && PWD="$src" make -j"$(nproc)" build-audio) >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
   for f in "libav-$v-audio.mjs" "libav-$v-audio.wasm.mjs" "libav-$v-audio.wasm.wasm"; do
     install_over "$src/dist/$f" "node_modules/mediaplay/libav/$f"
   done
