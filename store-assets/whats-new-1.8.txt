@@ -1,0 +1,10 @@
+New in this update:
+
+• A new control bar for video and audio: bigger touch controls, drag to seek, fullscreen edge to edge
+• Audio files show their controls, and changing the speed no longer changes the pitch
+• Settings is three tabs: General, Sharing, About
+• The bottom bar steps aside when it has nothing to say
+• The plain text tile on the start screen opens its document
+• Word documents with furigana keep their readings
+
+Still offline unless you choose to share.
