@@ -96,7 +96,7 @@
     "pdf-lib": "^1.17.1",
     "pdfedit": "github:hikashop-nicolas/pdfedit",
     "pdfjs-dist": "^6.3.289",
-    "postal-mime": "^3.0.0",
+    "postal-mime": "^4.0.0",
     "quill": "^2.0.3",
     "react-filerobot-image-editor": "4.8.1",
     "richdoc": "github:hikashop-nicolas/richdoc",
