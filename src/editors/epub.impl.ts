@@ -5,6 +5,10 @@ import { t } from "../i18n";
 // Read-only EPUB reader. @intity/epub-js (BSD-2-Clause, lazy-loaded) renders the
 // book paginated inside an iframe; prev/next arrows and the keyboard turn pages.
 
+/** The rendition forwards the iframe's DOM events (passEvents in rendition.js), but its
+ *  generated types stopped declaring the event-emitter mixin they come from. */
+type WithEvents = Rendition & { on(event: string, handler: (e: KeyboardEvent) => void): void };
+
 const STYLE_ID = "omnitext-epub-style";
 
 function ensureStyles(): void {
@@ -95,7 +99,7 @@ class EpubInstance implements EditorInstance {
       nav("ot-epub-next", t("viewer.nextPage"), () => void rendition.next());
       wrap.tabIndex = 0;
       wrap.addEventListener("keydown", this.onKey);
-      rendition.on("keydown", (e: KeyboardEvent) => this.onKey(e));
+      (rendition as WithEvents).on("keydown", (e: KeyboardEvent) => this.onKey(e));
     } catch (e) {
       page.className = "ot-epub-status";
       page.textContent = t("viewer.failed", { error: e instanceof Error ? e.message : String(e) });
