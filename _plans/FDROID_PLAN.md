@@ -11,7 +11,10 @@ in a while (not per commit). The Play build stays as it is.
   during the build, or left out.
 - No executable code downloaded at run time "without explicit user consent". Done: the consent
   prompt shipped 2026-09-22 (localml/consent + Settings > Downloads for AI features) asks before
-  Tesseract and the onnxruntime files are fetched.
+  Tesseract and the onnxruntime files are fetched. The reviewer asked for more than consent
+  (merge request 49770, point 2), so since 2026-10-03 the F-Droid build packages the Tesseract
+  engine instead (OMNITEXT_BUNDLE_TESSERACT=1): OCR downloads only its language data, which is
+  data, not code. Translation still fetches onnxruntime, and keeps the prompt.
 - No proprietary tracking or ads (none), anti-features labelled. Expect NonFreeNet for the model
   downloads from huggingface.co.
 
@@ -37,6 +40,7 @@ if transformers.js stops loading from jsDelivr. The web build went from 72 MB to
 | xzwasm (lone .xz) | 12 KB | npm xzwasm | xz-embedded + walloc at the pinned commit, Debian clang against its wasi-libc headers (upstream uses the WASI SDK) | Done: not byte-identical, decodes .xz of several sizes and both checksum types to the same bytes as npm's |
 | @webtoon/psd (.psd) | 22 KB | npm @webtoon/psd | Rust wasm32 + wasm-bindgen (CLI built at the version Cargo.lock pins) + wasm-opt, Debian rustc and binaryen | Done: not byte-identical (other rustc), same exports and imports, 148 layer composites identical across the 10 upstream fixtures |
 | libheif (HEIC) | 1.4 MB | npm libheif-js | libheif v1.23.2 + libde265 1.0.15 (checksum pinned), emcc 3.1.61, decoder only: no AOM, no x265, so nothing non-free | Done: byte-identical |
+| Tesseract (OCR) | 3.9 MB | npm tesseract.js-core (fetched from jsDelivr at run time before this) | tesseract.js-core v6.1.2 through its own build-scripts with its nine pinned submodules (zlib, libtiff, openlibm, giflib, libpng, libjpeg, libwebp, leptonica, Balearica's tesseract fork), emcc 3.1.38, only the SIMD LSTM-only variant: the one the app loads. 15 min | Done: not byte-identical (the glue JS matches except for two wasm offsets; the wasm is 2.4 KB larger), reads four test images to exactly npm's text and confidence, and the packaged build OCRs in the app with no jsDelivr request but the language data |
 
 Also to check: the pdf.js wasm decoders (jbig2, openjpeg) are not in dist today, although scanned
 PDFs need them (see the pdf.js memory note); find out how pdfedit loads them before the recipe.

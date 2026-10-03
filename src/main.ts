@@ -3,6 +3,7 @@ import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/a
 import { gunzipAsync, gzipAsync } from "./core/zip";
 import { bootDocument } from "./core/boot";
 import { printDocument, printPdfBytes } from "./core/print";
+import { installBundledOcrEngine } from "./ocr-engine";
 import { installRemoteConsent } from "./remote-consent";
 import { initSettingsDialog } from "./settings-dialog";
 import { OmnitextEngine } from "./core/engine";
@@ -1804,6 +1805,8 @@ engine.notificationSink = {
 };
 // Before any AI feature fetches its model, ask once and remember (Settings > AI downloads).
 installRemoteConsent((m) => showToast(m, "info"));
+// In the build that packages the Tesseract engine, OCR loads it from here, not from the CDN.
+installBundledOcrEngine();
 
 // Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
 // "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).

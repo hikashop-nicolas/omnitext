@@ -32,7 +32,7 @@ Builds:
       - cd ../..
       - ONNXRUNTIME_NODE_INSTALL=skip npm ci
       - scripts/fdroid/build-wasm.sh
-      - npm run build
+      - OMNITEXT_BUNDLE_TESSERACT=1 npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
 
 AllowedAPKSigningKeys: 764e7ec37f86865288d4826095d4c649010d911653fd00ba016e037e5a663261

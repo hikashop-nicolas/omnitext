@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
-import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+import { defineConfig, type Plugin } from "vite";
 
 /**
  * What build this is, so two peers can tell whether they are running the same code.
@@ -34,10 +35,44 @@ const dropUnusedOrtWasm = {
   },
 };
 
+/**
+ * The F-Droid build ships the Tesseract OCR engine instead of fetching it from jsDelivr on first
+ * use, because F-Droid's inclusion policy objects to downloading executable code. With
+ * OMNITEXT_BUNDLE_TESSERACT=1 the engine is emitted into dist/tesseract/ and
+ * __TESSERACT_ENGINE_DIR__ names that folder, which is what src/ocr-engine.ts acts on. Every other
+ * build leaves the define empty and keeps the download (behind the consent prompt) as before.
+ *
+ * One core build, the SIMD LSTM-only one: that is what tesseract.js asks for with OEM 1, which is
+ * how localml creates its worker. Other builds would only add megabytes nothing loads.
+ */
+const bundleTesseract = process.env.OMNITEXT_BUNDLE_TESSERACT === "1";
+const TESSERACT_ENGINE_DIR = "tesseract/";
+const TESSERACT_ENGINE_FILES = [
+  "tesseract.js/dist/worker.min.js",
+  "tesseract.js/dist/worker.min.js.LICENSE.txt",
+  "tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+];
+const bundleTesseractEngine: Plugin = {
+  name: "omnitext-bundle-tesseract",
+  generateBundle() {
+    if (!bundleTesseract) return;
+    for (const file of TESSERACT_ENGINE_FILES) {
+      this.emitFile({
+        type: "asset",
+        fileName: TESSERACT_ENGINE_DIR + file.split("/").pop(),
+        source: readFileSync(`node_modules/${file}`),
+      });
+    }
+  },
+};
+
 export default defineConfig({
   base: "./",
-  plugins: [dropUnusedOrtWasm],
-  define: { __BUILD_ID__: JSON.stringify(buildId()) },
+  plugins: [dropUnusedOrtWasm, bundleTesseractEngine],
+  define: {
+    __BUILD_ID__: JSON.stringify(buildId()),
+    __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
+  },
   // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
   // the browser; alias it to a tiny stub so the ~3MB dep is not bundled.

@@ -9,6 +9,10 @@
 # rebuilt and the string replaced (embed-wasm.py): libheif-js, @webtoon/psd, xzwasm and
 # hysnappy. Nothing the app ships is a prebuilt binary any more.
 #
+# The Tesseract engine is the one binary the app used to download instead of shipping; the
+# F-Droid build now packages it (OMNITEXT_BUNDLE_TESSERACT=1 in vite.config.ts), so it is
+# rebuilt here too.
+#
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.
 #
@@ -18,7 +22,7 @@
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
 # Needs git, python3, perl, make, patch, gcc, clang + lld + wasi-libc (wasm32 target), curl,
 # unzip, pkg-config, libatomic1, node, sha3sum
-# (Debian: libdigest-sha3-perl), cmake (libass, libheif), and for libass: ragel libtool
+# (Debian: libdigest-sha3-perl), cmake (libass, libheif, tesseract), and for libass: ragel libtool
 # libtool-bin itstool python3-ply gettext autopoint automake autoconf m4 gperf licensecheck
 # gawk, and for @webtoon/psd: rustc cargo libstd-rust-dev-wasm32 binaryen libssl-dev (the
 # wasm-bindgen CLI links it). Locally, run it in a clean Debian through
@@ -329,13 +333,40 @@ build_libheif() {
   done
 }
 
+# Tesseract (OCR), the way tesseract.js-core builds it: its nine pinned submodules (zlib, libtiff,
+# openlibm, giflib, libpng, libjpeg, libwebp, leptonica and Balearica's tesseract fork) through its
+# own build-scripts, on Emscripten 3.1.38 (its build-with-docker.sh pin; 4.x rejects the
+# wasm32-unknown-unknown target openlibm's Makefile passes). Only the SIMD + LSTM-only variant:
+# that is the one the app asks for (createWorker with OEM 1, with SIMD), and the only one it ships.
+build_tesseract() {
+  v="$(npm_version tesseract.js-core)"
+  echo "tesseract.js-core $v (simd, LSTM only)"
+  emsdk_use 3.1.38
+  src="$WORK/tesseract.js-core"
+  if [ ! -d "$src" ]; then
+    git -c advice.detachedHead=false clone -q --depth 1 --branch "v$v" https://github.com/naptha/tesseract.js-core.git "$src"
+    # Upstream pins its tesseract fork through an ssh URL, which a build machine has no key for.
+    (cd "$src" && git -c url."https://github.com/".insteadOf="git@github.com:" submodule update -q --init --depth 1)
+    # The checkout ships the built cores too; drop them so only our compile can be installed.
+    rm -f "$src"/tesseract-core*
+    # build.sh builds four variants; BUILD_SINGLE keeps the first, which this points at ours.
+    sed -i 's/^BUILD_SINGLE=0/BUILD_SINGLE=1/' "$src/build-scripts/var.sh"
+    sed -i 's/ -D HAVE_SSE4_1=1$/ -D HAVE_SSE4_1=1 -D DISABLED_LEGACY_ENGINE=1/' "$src/build-scripts/build-tesseract.sh"
+  fi
+  (cd "$src" && bash ./build.sh) >"$WORK/tesseract-build.log" 2>&1 || { tail -25 "$WORK/tesseract-build.log"; exit 1; }
+  # .js + .wasm as a pair, and .wasm.js with the binary inside it: that is the one the app loads.
+  for f in tesseract-core-simd-lstm.js tesseract-core-simd-lstm.wasm tesseract-core-simd-lstm.wasm.js; do
+    install_over "$src/$f" "node_modules/tesseract.js-core/$f"
+  done
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif tesseract"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
