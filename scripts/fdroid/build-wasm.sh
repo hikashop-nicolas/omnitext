@@ -6,8 +6,8 @@
 # so the build that follows packages our compile instead. The Play and web builds never run this.
 #
 # Some binaries are base64 inside a JavaScript file rather than a .wasm beside it; those are
-# rebuilt and the string replaced (embed-wasm.py). Still outstanding: libheif-js (HEIC,
-# ~1.4 MB).
+# rebuilt and the string replaced (embed-wasm.py): libheif-js, @webtoon/psd, xzwasm and
+# hysnappy. Nothing the app ships is a prebuilt binary any more.
 #
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.
@@ -18,11 +18,11 @@
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
 # Needs git, python3, perl, make, patch, gcc, clang + lld + wasi-libc (wasm32 target), curl,
 # unzip, pkg-config, libatomic1, node, sha3sum
-# (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool libtool-bin itstool python3-ply gettext
-# autopoint automake autoconf m4 gperf licensecheck gawk, and for @webtoon/psd: rustc cargo
-# libstd-rust-dev-wasm32 binaryen libssl-dev (the wasm-bindgen CLI links it). Locally, run it
-# in a clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers
-# look like.
+# (Debian: libdigest-sha3-perl), cmake (libass, libheif), and for libass: ragel libtool
+# libtool-bin itstool python3-ply gettext autopoint automake autoconf m4 gperf licensecheck
+# gawk, and for @webtoon/psd: rustc cargo libstd-rust-dev-wasm32 binaryen libssl-dev (the
+# wasm-bindgen CLI links it). Locally, run it in a clean Debian through
+# scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -295,13 +295,47 @@ build_psd() {
   install_over "$WORK/psd-index.js" node_modules/@webtoon/psd/dist/index.js
 }
 
+# HEIC/HEIF decoding: libheif with libde265 for the HEVC bitstream, the way libheif-js gets it.
+# That package ships a binary built by catdad-experiments/libheif-emscripten, which pins libheif
+# by git submodule and runs its build-emscripten.sh on Emscripten 3.1.61 with the wasm target and
+# DYNAMIC_EXECUTION off. Decoder only: no AOM and no x265, so nothing non-free is linked in.
+# The binary lives base64 inside the bundle the app imports, so that string is what we replace.
+LIBHEIF_COMMIT="ac1cb05c39008f01525c991ff8b88f84ddf70fd2" # libheif v1.23.2, as libheif-emscripten v1.23.2 pins it
+LIBDE265_VERSION="1.0.15"
+LIBDE265_SHA256="00251986c29d34d3af7117ed05874950c875dd9292d016be29d3b3762666511d"
+build_libheif() {
+  echo "libheif 1.23.2 + libde265 $LIBDE265_VERSION via libheif-js $(npm_version libheif-js)"
+  emsdk_use 3.1.61
+  # Outside the repository: libde265's configure runs the test binaries it compiles, and node
+  # refuses them under our package.json ("type": "module"). Fixed path, as libass has, so the
+  # build is the same everywhere.
+  src="${LIBHEIF_BUILD_DIR:-/tmp/omnitext-libheif}"
+  if [ ! -d "$src" ]; then
+    git clone -q https://github.com/strukturag/libheif.git "$src"
+    (cd "$src" && git -c advice.detachedHead=false checkout -q "$LIBHEIF_COMMIT")
+  fi
+  # build-emscripten.sh fetches libde265 itself unless the tarball is already in its directory.
+  cp "$(fetch "https://github.com/strukturag/libde265/releases/download/v$LIBDE265_VERSION/libde265-$LIBDE265_VERSION.tar.gz" "$LIBDE265_SHA256")" "$src/libde265-$LIBDE265_VERSION.tar.gz"
+  # USE_TYPESCRIPT=0 only skips the .d.ts emcc would write after the binary (it wants tsc for
+  # that, and the package's types come from npm anyway); the wasm is the same either way.
+  (cd "$src" && USE_WASM=1 USE_UNSAFE_EVAL=0 USE_TYPESCRIPT=0 LIBDE265_VERSION="$LIBDE265_VERSION" \
+    ./build-emscripten.sh .) >"$WORK/libheif-build.log" 2>&1 || { tail -25 "$WORK/libheif-build.log"; exit 1; }
+  install_over "$src/libheif.wasm" node_modules/libheif-js/libheif-wasm/libheif.wasm
+  # The app imports the bundle; the package ships it as CommonJS and as ESM, same binary in both.
+  for f in libheif-bundle.js libheif-bundle.mjs; do
+    python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$src/libheif.wasm" \
+      "node_modules/libheif-js/libheif-wasm/$f" "$WORK/libheif-$f"
+    install_over "$WORK/libheif-$f" "node_modules/libheif-js/libheif-wasm/$f"
+  done
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
