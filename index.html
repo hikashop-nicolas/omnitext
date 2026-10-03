@@ -163,6 +163,14 @@
                   </select>
                 </label>
                 <p class="settings-tip-text" id="tip-ai" data-i18n="app.aiHint" hidden>Text recognition, translation, the writing assist and transcription download a model the first time they are used. Your files are never sent.</p>
+                <label class="modal-field"><span class="settings-label"><span data-i18n="app.mapBasemap">Map background</span><button class="settings-info" type="button" data-tip="tip-map" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span>
+                  <select id="setting-map">
+                    <option value="ask" data-i18n="app.aiAsk">Ask first</option>
+                    <option value="allow" data-i18n="app.aiAllow">Allowed</option>
+                    <option value="deny" data-i18n="app.aiDeny">Not allowed</option>
+                  </select>
+                </label>
+                <p class="settings-tip-text" id="tip-map" data-i18n="app.mapBasemapHint" hidden>The map editor draws your features over tiles from openstreetmap.org.</p>
               </div>
               <div class="settings-pane" id="settings-pane-sharing" role="tabpanel" aria-labelledby="settings-tab-sharing" tabindex="0" hidden>
                 <label class="modal-field"><span class="settings-label"><span data-i18n="app.yourName">Your name</span><button class="settings-info" type="button" data-tip="tip-name" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>

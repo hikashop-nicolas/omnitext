@@ -1,5 +1,6 @@
 import { createGeoEditor, type GeoEditorHandle } from "geoedit";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { requestBasemap } from "../remote-consent";
 
 // Thin adapter wrapping the standalone geoedit library (interactive map editor for
 // GeoJSON / KML / KMZ / GPX / TopoJSON / WKT, byte-lossless in-place editing) as an
@@ -16,6 +17,8 @@ class GeoInstance implements EditorInstance {
       { text: ctx.text, bytes: ctx.bytes ?? undefined, filename: ctx.filename },
       {
         onChange: ctx.onChange,
+        // Tiles are the one thing a map file sends anywhere, so they are asked about.
+        basemap: () => requestBasemap(),
         onExport: (name, bytes) => this.host.workspace.exportFile?.(name, bytes),
         onError: (message) => this.host.notifications.error(message),
       },

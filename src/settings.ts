@@ -26,6 +26,9 @@ export interface Settings {
   turn?: { url: string; username: string; credential: string };
   /** OCR, translation, the writing assist and transcription fetch a model on first use. */
   aiDownloads: AiDownloads;
+  /** The map editor's background tiles come from openstreetmap.org, the only thing a map
+   *  file sends anywhere (the request carries z/x/y, never the file). */
+  mapBasemap: AiDownloads;
 }
 
 const DEFAULTS: Settings = {
@@ -35,6 +38,7 @@ const DEFAULTS: Settings = {
   theme: "system",
   turn: { url: "", username: "", credential: "" },
   aiDownloads: "ask",
+  mapBasemap: "ask",
 };
 
 export function getSettings(): Settings {

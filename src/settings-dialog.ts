@@ -48,6 +48,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const paginatedEl = $("setting-paginated") as HTMLInputElement;
   const themeEl = $("setting-theme") as HTMLSelectElement;
   const aiEl = $("setting-ai") as HTMLSelectElement;
+  const mapEl = $("setting-map") as HTMLSelectElement;
   const turnUrlEl = $("setting-turn-url") as HTMLInputElement;
   const turnUserEl = $("setting-turn-user") as HTMLInputElement;
   const turnPassEl = $("setting-turn-pass") as HTMLInputElement;
@@ -204,6 +205,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
     paginatedEl.checked = s.paginated;
     themeEl.value = s.theme;
     aiEl.value = s.aiDownloads;
+    mapEl.value = s.mapBasemap;
     turnUrlEl.value = s.turn?.url ?? "";
     turnUserEl.value = s.turn?.username ?? "";
     turnPassEl.value = s.turn?.credential ?? "";
@@ -245,6 +247,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       theme,
       turn,
       aiDownloads: aiEl.value === "allow" ? "allow" : aiEl.value === "deny" ? "deny" : "ask",
+      mapBasemap: mapEl.value === "allow" ? "allow" : mapEl.value === "deny" ? "deny" : "ask",
     });
     if (themeChanged) {
       applyThemeAttribute(theme);
