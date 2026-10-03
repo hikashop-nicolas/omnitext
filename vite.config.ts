@@ -1,6 +1,12 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
+import {
+  ORT_BACKEND_MODULE,
+  ORT_ENGINE_DIR,
+  ORT_ENGINE_FILES,
+  rewriteOnnxBackend,
+} from "./src/onnxruntime-engine.ts";
 
 /**
  * What build this is, so two peers can tell whether they are running the same code.
@@ -27,11 +33,47 @@ function buildId(): string {
  * loaded: transformers.js points onnxruntime at jsDelivr (behind the download prompt). It was 5.7 MB
  * of the 28 MB app bundle, and 23.5 MB (5.5 MB compressed) of what the service worker pre-downloads
  * for every web visitor. src/onnxruntime-source.test.ts fails if transformers.js ever stops doing that.
+ * The engine the F-Droid build packages is emitted under ORT_ENGINE_DIR and is not one of these.
  */
 const dropUnusedOrtWasm = {
   name: "omnitext-drop-unused-ort-wasm",
   generateBundle(_: unknown, bundle: Record<string, unknown>) {
-    for (const file of Object.keys(bundle)) if (/(^|\/)ort-wasm[^/]*\.wasm$/.test(file)) delete bundle[file];
+    for (const file of Object.keys(bundle)) {
+      if (/(^|\/)ort-wasm[^/]*\.wasm$/.test(file) && !file.startsWith(ORT_ENGINE_DIR)) delete bundle[file];
+    }
+  },
+};
+
+/**
+ * The F-Droid build ships the onnxruntime engine instead of letting transformers.js fetch it from
+ * jsDelivr on first use, because F-Droid's inclusion policy objects to downloading executable
+ * code. With OMNITEXT_BUNDLE_ONNXRUNTIME=1 the two files it names are emitted into dist/ort/ and
+ * its own source is rewritten to look there (src/onnxruntime-engine.ts). Every other build is
+ * untouched and keeps the download, behind the consent prompt, as before.
+ *
+ * The files are emitted rather than imported so that nothing can drag them into those bundles.
+ */
+const bundleOnnxruntime = process.env.OMNITEXT_BUNDLE_ONNXRUNTIME === "1";
+// Also a worker plugin: transformers.js is imported only inside the three AI workers, and a
+// build-time worker bundle does not inherit the main plugin list.
+const pointOnnxruntimeAtPackage: Plugin = {
+  name: "omnitext-onnxruntime-engine-path",
+  transform(code, id) {
+    if (!bundleOnnxruntime || !id.includes(ORT_BACKEND_MODULE)) return null;
+    return { code: rewriteOnnxBackend(code), map: null };
+  },
+};
+const bundleOnnxruntimeEngine: Plugin = {
+  name: "omnitext-bundle-onnxruntime",
+  generateBundle() {
+    if (!bundleOnnxruntime) return;
+    for (const file of ORT_ENGINE_FILES) {
+      this.emitFile({
+        type: "asset",
+        fileName: ORT_ENGINE_DIR + file,
+        source: readFileSync(`node_modules/onnxruntime-web/dist/${file}`),
+      });
+    }
   },
 };
 
@@ -68,7 +110,8 @@ const bundleTesseractEngine: Plugin = {
 
 export default defineConfig({
   base: "./",
-  plugins: [dropUnusedOrtWasm, bundleTesseractEngine],
+  plugins: [dropUnusedOrtWasm, bundleTesseractEngine, pointOnnxruntimeAtPackage, bundleOnnxruntimeEngine],
+  worker: { plugins: () => [pointOnnxruntimeAtPackage] },
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),

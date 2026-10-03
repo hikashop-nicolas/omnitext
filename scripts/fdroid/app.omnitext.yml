@@ -26,13 +26,14 @@ Builds:
         clang lld wasi-libc curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
         ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf
         m4 gperf licensecheck gawk rustc cargo libstd-rust-dev-wasm32 binaryen libssl-dev nodejs npm
+        g++ ninja-build protobuf-compiler libprotobuf-dev python3-flatbuffers python3-packaging
     gradle:
       - yes
     build:
       - cd ../..
       - ONNXRUNTIME_NODE_INSTALL=skip npm ci
       - scripts/fdroid/build-wasm.sh
-      - OMNITEXT_BUNDLE_TESSERACT=1 npm run build
+      - OMNITEXT_BUNDLE_TESSERACT=1 OMNITEXT_BUNDLE_ONNXRUNTIME=1 npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
 
 AllowedAPKSigningKeys: 764e7ec37f86865288d4826095d4c649010d911653fd00ba016e037e5a663261
