@@ -1,9 +1,14 @@
 #!/bin/sh
 # Compile Omnitext's WebAssembly binaries from source, for the F-Droid build.
 #
-# F-Droid builds apps from source and refuses prebuilt binaries from npm. Every .wasm the app
-# ships is rebuilt here from pinned upstream sources and written over the copy npm installed,
+# F-Droid builds apps from source and refuses prebuilt binaries from npm. Every .wasm FILE the
+# app ships is rebuilt here from pinned upstream sources and written over the copy npm installed,
 # so the build that follows packages our compile instead. The Play and web builds never run this.
+#
+# NOT covered, because the binary is base64 inside a JavaScript file rather than a .wasm beside
+# it: libheif-js (HEIC, ~1.9 MB), @webtoon/psd (.psd), xzwasm (lone .xz) and hysnappy (Snappy in
+# Parquet, through hyparquet-compressors). They are still prebuilt binaries; either they get
+# built here too, or those four formats come out of the F-Droid build.
 #
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.

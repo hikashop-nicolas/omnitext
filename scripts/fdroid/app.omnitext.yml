@@ -16,25 +16,6 @@ Binaries:
   https://github.com/hikashop-nicolas/omnitext/releases/download/fdroid-%v/omnitext-fdroid-%v.apk
 
 Builds:
-  - versionName: '1.7'
-    versionCode: 10700
-    commit: f412f2625f1477d4acc1a26df840013070b0c515
-    subdir: android/app
-    sudo:
-      - apt-get update
-      - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
-        curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
-        ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf
-        m4 gperf licensecheck gawk nodejs npm
-    gradle:
-      - yes
-    build:
-      - cd ../..
-      - npm ci
-      - scripts/fdroid/build-wasm.sh
-      - npm run build
-      - node scripts/fdroid/cap-sync.cjs sync android
-
   - versionName: '1.8'
     versionCode: 10800
     commit: 438f412c164cc188d3a5656851c4d7254c059375
@@ -49,7 +30,7 @@ Builds:
       - yes
     build:
       - cd ../..
-      - npm ci
+      - ONNXRUNTIME_NODE_INSTALL=skip npm ci
       - scripts/fdroid/build-wasm.sh
       - npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
