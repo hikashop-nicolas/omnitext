@@ -7,7 +7,7 @@
 #
 # Some binaries are base64 inside a JavaScript file rather than a .wasm beside it; those are
 # rebuilt and the string replaced (embed-wasm.py). Still outstanding: libheif-js (HEIC,
-# ~1.4 MB) and @webtoon/psd (.psd).
+# ~1.4 MB).
 #
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.
@@ -19,8 +19,10 @@
 # Needs git, python3, perl, make, patch, gcc, clang + lld + wasi-libc (wasm32 target), curl,
 # unzip, pkg-config, libatomic1, node, sha3sum
 # (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool libtool-bin itstool python3-ply gettext
-# autopoint automake autoconf m4 gperf licensecheck gawk. Locally, run it in a
-# clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
+# autopoint automake autoconf m4 gperf licensecheck gawk, and for @webtoon/psd: rustc cargo
+# libstd-rust-dev-wasm32 binaryen libssl-dev (the wasm-bindgen CLI links it). Locally, run it
+# in a clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers
+# look like.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -269,13 +271,37 @@ build_xzwasm() {
   done
 }
 
+# The PSD pixel decoder of @webtoon/psd: Rust compiled to wasm32 with wasm-bindgen, then
+# wasm-opt, the way its wasm-pack build does it. The wasm-bindgen CLI is built from source at
+# the version the crate's Cargo.lock pins, because the glue JS the package ships expects that
+# exact ABI; the binary lives base64 inside dist/index.js, so that string is what we replace.
+build_psd() {
+  v="$(npm_version @webtoon/psd)"
+  echo "@webtoon/psd $v"
+  src="$WORK/webtoon-psd"
+  [ -d "$src" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "$v" https://github.com/webtoon/psd.git "$src"
+  d="$src/packages/decoder"
+  wbg="$(sed -n '/^name = "wasm-bindgen"$/{n;s/version = "\(.*\)"/\1/p;}' "$d/Cargo.lock")"
+  echo "  wasm-bindgen $wbg, $(rustc --version | cut -d' ' -f1-2)"
+  export CARGO_HOME="$WORK/cargo"
+  [ -x "$WORK/wbg/bin/wasm-bindgen" ] || cargo install -q --locked --version "$wbg" wasm-bindgen-cli --root "$WORK/wbg"
+  # Debian's rustc has no rust-lld, the default wasm32 linker; lld's wasm-ld is the same thing.
+  (cd "$d" && RUSTFLAGS="-Clinker=wasm-ld" cargo build -q --release --locked --target wasm32-unknown-unknown)
+  "$WORK/wbg/bin/wasm-bindgen" --out-dir "$WORK/psd-pkg" --out-name webtoon_psd_decoder \
+    --target bundler "$d/target/wasm32-unknown-unknown/release/webtoon_psd_decoder.wasm"
+  wasm-opt -O -o "$WORK/psd-pkg/psd.wasm" "$WORK/psd-pkg/webtoon_psd_decoder_bg.wasm"
+  python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$WORK/psd-pkg/psd.wasm" \
+    node_modules/@webtoon/psd/dist/index.js "$WORK/psd-index.js"
+  install_over "$WORK/psd-index.js" node_modules/@webtoon/psd/dist/index.js
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
