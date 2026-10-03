@@ -16,8 +16,9 @@ src/data.json '{"n":1}\n'
 | `sample.tar.bz2` | the same for bzip2 |
 | `note.txt.xz` | a bare xz of a single file, which carries no name of its own |
 | `note.txt.bz2` | the same for bzip2 |
+| `big.txt.xz` | a lone xz whose contents are larger than one decoder chunk |
 
-The last two do not go through libarchive at all: it will not read a lone compressed file
+The lone-file ones do not go through libarchive at all: it will not read a lone compressed file
 (see `core/decompress-one.ts`), so those unwrap through a decompressor and take their name
 from the caller.
 
@@ -31,6 +32,9 @@ cd fx
 tar -cf - note.txt src | xz -9   > ../sample.tar.xz
 tar -cf - note.txt src | bzip2 -9 > ../sample.tar.bz2
 xz -9 -c note.txt    > ../note.txt.xz
+# big.txt.xz: 4000 numbered lines, so the decoder has to emit several chunks
+python3 -c 'open("big.txt","wb").write(b"".join(b"line %06d: the quick brown fox jumps over the lazy dog\n" % i for i in range(4000)))'
+xz -9 -c big.txt     > ../big.txt.xz
 bzip2 -9 -c note.txt > ../note.txt.bz2
 ```
 

@@ -33,7 +33,27 @@ export async function decompressSingleFile(bytes: Uint8Array): Promise<Uint8Arra
     const XzReadableStream = mod.XzReadableStream ?? mod.default?.XzReadableStream;
     if (!XzReadableStream) throw new Error("xzwasm: no XzReadableStream export");
     const stream = new XzReadableStream(new Response(bytes as BufferSource).body!);
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    // Every chunk is a view on the decoder's own memory, which it writes over as it goes:
+    // collecting them (new Response(stream).arrayBuffer()) keeps references, so the last
+    // chunk's bytes end up repeated through the whole file. Anything past the first chunk,
+    // about 64 KB, came out corrupt. Copy each one as it arrives.
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const copy = new Uint8Array(value);
+      chunks.push(copy);
+      total += copy.length;
+    }
+    const out = new Uint8Array(total);
+    let at = 0;
+    for (const c of chunks) {
+      out.set(c, at);
+      at += c.length;
+    }
+    return out;
   }
   if (startsWith(bytes, BZIP2)) {
     // bz2 exports itself differently depending on where it runs:
