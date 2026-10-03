@@ -7,7 +7,7 @@
 #
 # Some binaries are base64 inside a JavaScript file rather than a .wasm beside it; those are
 # rebuilt and the string replaced (embed-wasm.py). Still outstanding: libheif-js (HEIC,
-# ~1.4 MB), @webtoon/psd (.psd) and xzwasm (lone .xz).
+# ~1.4 MB) and @webtoon/psd (.psd).
 #
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.
@@ -16,7 +16,7 @@
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
-# Needs git, python3, perl, make, patch, gcc, clang + lld (wasm32 target, for hysnappy), curl,
+# Needs git, python3, perl, make, patch, gcc, clang + lld + wasi-libc (wasm32 target), curl,
 # unzip, pkg-config, libatomic1, node, sha3sum
 # (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool libtool-bin itstool python3-ply gettext
 # autopoint automake autoconf m4 gperf licensecheck gawk. Locally, run it in a
@@ -240,13 +240,42 @@ build_hysnappy() {
   done
 }
 
+# xz decoding for a lone .xz file (xzwasm). Upstream has no tags, so the commit is pinned
+# here; its submodules (xz-embedded, walloc) are pinned by that commit in turn. Built with
+# Debian's clang against its wasi headers, which is what upstream's WASI SDK provides.
+XZWASM_COMMIT="75a7519c7c38fe641a9fa9809db1378fe339ac5c"
+build_xzwasm() {
+  echo "xzwasm $(npm_version xzwasm)"
+  src="$WORK/xzwasm"
+  if [ ! -d "$src" ]; then
+    git clone -q https://github.com/SteveSanderson/xzwasm.git "$src"
+    (cd "$src" && git -c advice.detachedHead=false checkout -q "$XZWASM_COMMIT" && git submodule update -q --init --recursive)
+  fi
+  xzlib="$src/module/xz-embedded/linux/lib/xz"
+  clang --target=wasm32 -DNDEBUG -Os -s -nostdlib -Wl,--no-entry \
+    -isystem /usr/include/wasm32-wasi \
+    -DXZ_DEC_CONCATENATED -DXZ_USE_CRC64 \
+    -Wl,--export=create_context -Wl,--export=destroy_context \
+    -Wl,--export=supply_input -Wl,--export=get_next_output \
+    -o "$src/xzwasm.wasm" \
+    -I"$src/module/xz-embedded/userspace/" -I"$src/module/xz-embedded/linux/include/linux/" \
+    "$src/module/walloc/walloc.c" "$src"/src/native/*.c \
+    "$xzlib/xz_crc32.c" "$xzlib/xz_crc64.c" "$xzlib/xz_dec_stream.c" "$xzlib/xz_dec_lzma2.c"
+  # The package ships the same binary in both the plain and the minified bundle.
+  for f in xzwasm.js xzwasm.min.js; do
+    python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$src/xzwasm.wasm" \
+      "node_modules/xzwasm/dist/package/$f" "$WORK/xzwasm-$f"
+    install_over "$WORK/xzwasm-$f" "node_modules/xzwasm/dist/package/$f"
+  done
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm"
 for target in ${*:-$ALL}; do
   "build_$target"
 done

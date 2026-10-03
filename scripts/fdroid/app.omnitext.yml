@@ -23,7 +23,7 @@ Builds:
     sudo:
       - apt-get update
       - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
-        clang lld curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
+        clang lld wasi-libc curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
         ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf
         m4 gperf licensecheck gawk nodejs npm
     gradle:
