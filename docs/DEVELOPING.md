@@ -60,6 +60,14 @@ translation models ([localml](https://github.com/hikashop-nicolas/localml)).
 They are pinned in `package-lock.json`. `npm run bump-libs` reinstalls all of them, then
 typechecks and runs the tests.
 
+`onnxruntime-web`, which transformers.js runs the OCR, translation and transcription models on,
+is pinned by an `overrides` entry in `package.json`. Versions 1.25.x and 1.26.x refuse the q8
+encoder-decoder exports translation uses, so without the pin Translate fails to load a model
+on any device with no WebGPU. `src/onnxruntime-version.test.ts` guards the version;
+`node scripts/check-translate-wasm.mjs` does the real load against `npm run dev` and is run by
+hand, since the models are 500 to 800 MB. Re-check both when transformers.js is upgraded: a
+newer release may pin a clean engine and make the override unnecessary.
+
 ## Scripts
 
 ```
