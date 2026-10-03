@@ -33,13 +33,17 @@ if transformers.js stops loading from jsDelivr. The web build went from 72 MB to
 | 7-Zip (write .7z) | 1.6 MB | npm 7z-wasm | 7-Zip 24.09 (GitHub release, checksum pinned) + 7z-wasm's patch, emcc 4.0.10, built WITHOUT RAR (unRAR licence is non-free for F-Droid; the app only writes .7z) | Done: identical with RAR, and the RAR-free build passes the archive tests |
 | libarchive (read 7z/rar/xz/bz2) | 600 KB | npm libarchive-wasm | libarchive 3.7.7 + static OpenSSL 3.4.1, zlib, bzip2, xz (all checksums pinned), emcc 4.0.5 | Done: not byte-identical (cross-compiled, other prefix), reads all 13 upstream sample archives identically, app tests pass |
 | libass (styled ASS subtitles) | 2.3 MB | npm @jellyfin/libass-wasm | JavascriptSubtitlesOctopus v4.2.4 with its pinned submodules (freetype, harfbuzz, fribidi, fontconfig, expat, brotli, libass), emcc 2.0.34 | Done: not byte-identical, renders a styled ASS test frame pixel-identical to npm's |
+| hysnappy (Snappy in Parquet) | 3 KB | npm hyparquet-compressors, through hysnappy | plain clang targeting wasm32, no Emscripten, as its Makefile does | Done: not byte-identical (other clang), decodes the same bytes as npm's on five inputs both ways round |
+| xzwasm (lone .xz) | 12 KB | npm xzwasm | xz-embedded + walloc at the pinned commit, Debian clang against its wasi-libc headers (upstream uses the WASI SDK) | Done: not byte-identical, decodes .xz of several sizes and both checksum types to the same bytes as npm's |
+| @webtoon/psd (.psd) | 22 KB | npm @webtoon/psd | Rust wasm32 + wasm-bindgen (CLI built at the version Cargo.lock pins) + wasm-opt, Debian rustc and binaryen | Done: not byte-identical (other rustc), same exports and imports, 148 layer composites identical across the 10 upstream fixtures |
+| libheif (HEIC) | 1.4 MB | npm libheif-js | libheif v1.23.2 + libde265 1.0.15 (checksum pinned), emcc 3.1.61, decoder only: no AOM, no x265, so nothing non-free | Done: byte-identical |
 
 Also to check: the pdf.js wasm decoders (jbig2, openjpeg) are not in dist today, although scanned
 PDFs need them (see the pdf.js memory note); find out how pdfedit loads them before the recipe.
 
 ## Shape of the F-Droid build
 
-- One script in this repo, `scripts/fdroid/build-wasm.sh` (all six binaries; run it locally
+- One script in this repo, `scripts/fdroid/build-wasm.sh` (all ten binaries; run it locally
   in a clean Debian with `scripts/fdroid/in-docker.sh`), that compiles every binary above from
   pinned upstream sources with a pinned emsdk and writes them where the npm copies would be.
   The Play build never runs it.
@@ -54,8 +58,10 @@ PDFs need them (see the pdf.js memory note); find out how pdfedit loads them bef
 
 ## Order
 
-1. Build script: done 2026-09-22, all six binaries, each checked against npm (byte-identical, or
-   by behaviour where the build environment differs).
+1. Build script: done 2026-09-22 for the six that ship as .wasm files, each checked against npm
+   (byte-identical, or by behaviour where the build environment differs). The four that ship as
+   base64 inside JavaScript followed on 2026-10-03, after an F-Droid reviewer found them: the
+   script only looked for .wasm files, so they had been missed (merge request 49770, point 4).
 2. Dry run: done 2026-09-22. `fdroid build --on-server` in F-Droid's own image
    (registry.gitlab.com/fdroid/docker-executable-fdroidserver, Debian 13) builds
    app.omnitext_10600.apk (21.8 MB) from the recipe, scanner included. What it took: untracking a
