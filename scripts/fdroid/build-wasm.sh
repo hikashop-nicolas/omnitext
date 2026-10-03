@@ -5,10 +5,9 @@
 # app ships is rebuilt here from pinned upstream sources and written over the copy npm installed,
 # so the build that follows packages our compile instead. The Play and web builds never run this.
 #
-# NOT covered, because the binary is base64 inside a JavaScript file rather than a .wasm beside
-# it: libheif-js (HEIC, ~1.9 MB), @webtoon/psd (.psd), xzwasm (lone .xz) and hysnappy (Snappy in
-# Parquet, through hyparquet-compressors). They are still prebuilt binaries; either they get
-# built here too, or those four formats come out of the F-Droid build.
+# Some binaries are base64 inside a JavaScript file rather than a .wasm beside it; those are
+# rebuilt and the string replaced (embed-wasm.py). Still outstanding: libheif-js (HEIC,
+# ~1.4 MB), @webtoon/psd (.psd) and xzwasm (lone .xz).
 #
 # Each binary pins the Emscripten version its upstream uses, which is what makes the result
 # byte-identical to the npm file: the script reports IDENTICAL or differs for each one.
@@ -17,7 +16,8 @@
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
-# Needs git, python3, perl, make, patch, gcc, curl, unzip, pkg-config, libatomic1, node, sha3sum
+# Needs git, python3, perl, make, patch, gcc, clang + lld (wasm32 target, for hysnappy), curl,
+# unzip, pkg-config, libatomic1, node, sha3sum
 # (Debian: libdigest-sha3-perl), and for libass: cmake ragel libtool libtool-bin itstool python3-ply gettext
 # autopoint automake autoconf m4 gperf licensecheck gawk. Locally, run it in a
 # clean Debian through scripts/fdroid/in-docker.sh, which is what F-Droid's servers look like.
@@ -223,13 +223,30 @@ build_libass() {
 }
 
 # Put the npm files back (after a local run: a Play or web build must not pick up these).
+# Snappy, the one Parquet codec that is WebAssembly (hysnappy, reached through
+# hyparquet-compressors). Plain clang targeting wasm32, no Emscripten, as upstream's
+# Makefile does it; the binary lives base64 inside the JS, so that string is what we replace.
+build_hysnappy() {
+  v="$(npm_version hysnappy)"
+  echo "hysnappy $v"
+  src="$WORK/hysnappy"
+  [ -d "$src" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "v$v" https://github.com/hyparam/hysnappy.git "$src"
+  for part in uncompress compress; do
+    clang --target=wasm32 -O3 -nostdlib -Wl,--export-all -Wl,--no-entry \
+      -o "$src/$part.wasm" "$src/c/$part.c"
+    python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$src/$part.wasm" \
+      "node_modules/hysnappy/js/$part.js" "$WORK/hysnappy-$part.js"
+    install_over "$WORK/hysnappy-$part.js" "node_modules/hysnappy/js/$part.js"
+  done
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
