@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 // scale: model.shared.weight_merged_0_scale". That is the dtype translation asks for on the wasm
 // backend (localml's backend.ts), so on a device without WebGPU, which most Android WebViews are,
 // Translate could not load a model at all. @huggingface/transformers 4.2.0 pins one of those
-// builds, hence the npm override in package.json. 1.24.3 and 1.27.0 are both clean.
+// builds, hence localml asking for 4.3.0, which brings a clean one: an npm override would not do,
+// since npm 9, what the F-Droid build runs, ignores overrides. 1.24.3 and 1.27.0 are also clean.
 //
 // This is a version guard, not a model load: it cannot prove a given engine translates, only that
 // we are not back on an engine known to refuse. scripts/check-translate-wasm.mjs does the real
