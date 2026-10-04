@@ -1,0 +1,8 @@
+New in this update:
+
+• Translation now works on phones without a GPU, where it never ran before
+• Audio plays with a visualiser: an oscilloscope or frequency bars, or neither
+• The map editor asks before it fetches its background from the internet
+• Large .xz files extract correctly instead of coming out damaged
+
+Still offline unless you choose to share.
