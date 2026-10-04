@@ -401,9 +401,11 @@ build_onnxruntime() {
   # No --path_to_protoc_exe: cmake downloads the protoc its own deps.txt pins, for the host
   # architecture, SHA1-checked, which is the version the protobuf it builds against expects.
   # NODE_EXECUTABLE because the Emscripten toolchain hides the host node.
-  # env -u: onnxruntime brings its own emsdk, whose cache starts cold, and the sanity check is
-  # what prepares it. Skipping it here left every cmake compiler test failing.
-  (cd "$src" && env -u EMCC_SKIP_SANITY_CHECK EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
+  # onnxruntime brings its own emsdk, so every trace of ours has to go: emcc reads EM_CONFIG
+  # from the environment whatever toolchain cmake was handed, and the skipped sanity check
+  # leaves its cold cache unprepared. With ours leaking in, every compiler test failed.
+  (cd "$src" && env -u EMSDK -u EM_CONFIG -u EMCC_SKIP_SANITY_CHECK PATH="$BASE_PATH" \
+    EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
     --build_dir "$src/BUILD" --config Release --skip_submodule_sync --parallel \
     --build_wasm --enable_wasm_simd --enable_wasm_threads \
     --use_webgpu --use_webnn --target onnxruntime_webassembly \
