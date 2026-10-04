@@ -371,28 +371,36 @@ build_tesseract() {
 
 # onnxruntime, the engine transformers.js downloads for translation, the writing assist and
 # transcription; the F-Droid build packages it (OMNITEXT_BUNDLE_ONNXRUNTIME=1 in vite.config.ts).
-# npm ships a pre-release snapshot of 1.26.0 taken from an untagged commit, so the release that
-# commit became is pinned instead. One variant, ort-wasm-simd-threaded.asyncify: that is the pair
-# transformers.js names for every browser but Safari, and Safari is not a build target here.
-# Built with upstream's own flags for that artifact (web.yml's wasm_Release job, the
+# npm ships an untagged snapshot of main, and its version string names the commit it was built
+# from, so that commit is what is pinned here. One variant, ort-wasm-simd-threaded.asyncify: that
+# is the pair transformers.js names for every browser but Safari, and Safari is not a build target
+# here. Built with upstream's own flags for that artifact (web.yml's wasm_Release job, the
 # "WebGPU experimental" step, reduced types and all), on the Emscripten its emsdk submodule pins.
-# The npm package is a snapshot of main (1.31.0-dev.20260914-8d85527a0), whose protobuf is newer
-# than Debian's protoc; this tag is the closest release that builds here. Both the glue and the
-# binary are replaced together, so the pair stays consistent.
-ONNXRUNTIME_TAG="v1.26.0"
+# Both the glue and the binary are replaced together, so the pair stays consistent.
+ONNXRUNTIME_COMMIT="8d85527a010e294a26b274749f74294b2a32cec5" # onnxruntime-web 1.31.0-dev.20260914-8d85527a0
 build_onnxruntime() {
   v="$(npm_version onnxruntime-web)"
-  echo "onnxruntime-web $v, built from $ONNXRUNTIME_TAG (simd + threads + webgpu/webnn, asyncify)"
+  echo "onnxruntime-web $v, built from $ONNXRUNTIME_COMMIT (simd + threads + webgpu/webnn, asyncify)"
+  # The npm version ends in the short commit it was built from: refuse to build a different one.
+  case "$v" in
+    *-"$(printf %.9s "$ONNXRUNTIME_COMMIT")") ;;
+    *) echo "  $v was not built from $ONNXRUNTIME_COMMIT; update ONNXRUNTIME_COMMIT" >&2; exit 1 ;;
+  esac
   src="$WORK/onnxruntime"
   if [ ! -d "$src" ]; then
-    git -c advice.detachedHead=false clone -q --depth 1 --branch "$ONNXRUNTIME_TAG" https://github.com/microsoft/onnxruntime.git "$src"
-    (cd "$src" && git submodule update -q --init --depth 1 cmake/external/emsdk cmake/external/onnx)
+    mkdir -p "$src"
+    # Fetch the one commit: it carries no tag, so clone --branch cannot reach it.
+    (cd "$src" && git init -q && git remote add origin https://github.com/microsoft/onnxruntime.git &&
+      git fetch -q --depth 1 origin "$ONNXRUNTIME_COMMIT" &&
+      git -c advice.detachedHead=false checkout -q FETCH_HEAD &&
+      git submodule update -q --init --depth 1 cmake/external/emsdk cmake/external/onnx)
     # Its post-build script uses require(), and the checkout sits under a repository whose
     # package.json says "type": "module"; this stops node reading that one.
     echo '{ "type": "commonjs" }' >"$src/package.json"
   fi
-  # Debian's protobuf-compiler is the version deps.txt pins, and taking it stops cmake fetching
-  # an x86_64 protoc; NODE_EXECUTABLE because the Emscripten toolchain hides the host node.
+  # No --path_to_protoc_exe: cmake downloads the protoc its own deps.txt pins, for the host
+  # architecture, SHA1-checked, which is the version the protobuf it builds against expects.
+  # NODE_EXECUTABLE because the Emscripten toolchain hides the host node.
   # env -u: onnxruntime brings its own emsdk, whose cache starts cold, and the sanity check is
   # what prepares it. Skipping it here left every cmake compiler test failing.
   (cd "$src" && env -u EMCC_SKIP_SANITY_CHECK EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
@@ -404,7 +412,7 @@ build_onnxruntime() {
     --disable_types string float4 float8 optional sparsetensor \
     --include_ops_by_config onnxruntime/wasm/reduced_types.config \
     --enable_reduced_operator_type_support \
-    --allow_running_as_root --path_to_protoc_exe /usr/bin/protoc \
+    --allow_running_as_root \
     --cmake_extra_defines NODE_EXECUTABLE=/usr/bin/node) >"$WORK/onnxruntime-build.log" 2>&1 ||
     { tail -25 "$WORK/onnxruntime-build.log"; exit 1; }
   for f in ort-wasm-simd-threaded.asyncify.mjs ort-wasm-simd-threaded.asyncify.wasm; do
