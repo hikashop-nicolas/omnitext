@@ -58,7 +58,8 @@ emsdk_use() {
   mkdir -p "$WORK/warmup" && printf 'int main(void){return 0;}\n' >"$WORK/warmup/warmup.c"
   emcc "$WORK/warmup/warmup.c" -o "$WORK/warmup/warmup.js" >/dev/null
   # The cache is settled now, so stop every later emcc from checking it again: the check is
-  # what erases the folder, and a build with many variants kept losing that race.
+  # what erases the folder, and a build with many variants kept losing that race. Only for the
+  # emsdk this function manages; a build carrying its own needs its own check to run.
   export EMCC_SKIP_SANITY_CHECK=1
 }
 
@@ -375,6 +376,9 @@ build_tesseract() {
 # transformers.js names for every browser but Safari, and Safari is not a build target here.
 # Built with upstream's own flags for that artifact (web.yml's wasm_Release job, the
 # "WebGPU experimental" step, reduced types and all), on the Emscripten its emsdk submodule pins.
+# The npm package is a snapshot of main (1.31.0-dev.20260914-8d85527a0), whose protobuf is newer
+# than Debian's protoc; this tag is the closest release that builds here. Both the glue and the
+# binary are replaced together, so the pair stays consistent.
 ONNXRUNTIME_TAG="v1.26.0"
 build_onnxruntime() {
   v="$(npm_version onnxruntime-web)"
@@ -389,7 +393,9 @@ build_onnxruntime() {
   fi
   # Debian's protobuf-compiler is the version deps.txt pins, and taking it stops cmake fetching
   # an x86_64 protoc; NODE_EXECUTABLE because the Emscripten toolchain hides the host node.
-  (cd "$src" && EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
+  # env -u: onnxruntime brings its own emsdk, whose cache starts cold, and the sanity check is
+  # what prepares it. Skipping it here left every cmake compiler test failing.
+  (cd "$src" && env -u EMCC_SKIP_SANITY_CHECK EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
     --build_dir "$src/BUILD" --config Release --skip_submodule_sync --parallel \
     --build_wasm --enable_wasm_simd --enable_wasm_threads \
     --use_webgpu --use_webnn --target onnxruntime_webassembly \
