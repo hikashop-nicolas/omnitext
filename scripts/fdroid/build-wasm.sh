@@ -57,6 +57,9 @@ emsdk_use() {
   # sanity check, and the one that erases the cache folder pulls it from under the others.
   mkdir -p "$WORK/warmup" && printf 'int main(void){return 0;}\n' >"$WORK/warmup/warmup.c"
   emcc "$WORK/warmup/warmup.c" -o "$WORK/warmup/warmup.js" >/dev/null
+  # The cache is settled now, so stop every later emcc from checking it again: the check is
+  # what erases the folder, and a build with many variants kept losing that race.
+  export EMCC_SKIP_SANITY_CHECK=1
 }
 
 # Keep the npm file aside (once, under work/, never next to it: some folders ship whole),
@@ -105,7 +108,10 @@ build_libav() {
   (cd "$src/configs" && node mkconfig.js audio '["avcodec","decoder-eac3","decoder-ac3","parser-ac3","decoder-dca","parser-dca","decoder-truehd","decoder-mlp","parser-mlp"]')
   # From inside the checkout, not make -C: its Makefile installs to $(PWD)/build/inst, and -C
   # leaves PWD pointing at the caller (the library then lands outside and the link fails).
-  (cd "$src" && PWD="$src" make -j"$(nproc)" build-audio) >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
+  # Serial second pass if the parallel one trips over the cache anyway: libav builds a dozen
+  # variants, each wanting its own system libraries, which is where the race still showed.
+  (cd "$src" && export PWD="$src" && { make -j"$(nproc)" build-audio || make -j1 build-audio; }) \
+    >"$WORK/libav-build.log" 2>&1 || { tail -20 "$WORK/libav-build.log"; exit 1; }
   for f in "libav-$v-audio.mjs" "libav-$v-audio.wasm.mjs" "libav-$v-audio.wasm.wasm"; do
     install_over "$src/dist/$f" "node_modules/mediaplay/libav/$f"
   done
