@@ -12,8 +12,8 @@ export const ORT_ENGINE_DIR = "ort/";
 
 /**
  * The two files transformers.js names: the wasm and its .mjs glue. Only the asyncify variant,
- * which is the pair it asks for in every browser but Safari. No proxy worker: it pins
- * env.backends.onnx.wasm.proxy to false.
+ * which is the pair it asks for everywhere except an old Safari without WebGPU. No proxy
+ * worker: it pins env.backends.onnx.wasm.proxy to false.
  */
 export const ORT_ENGINE_FILES = ["ort-wasm-simd-threaded.asyncify.mjs", "ort-wasm-simd-threaded.asyncify.wasm"];
 
@@ -22,22 +22,23 @@ export const ORT_BACKEND_MODULE = "@huggingface/transformers/dist/transformers.w
 
 const CDN_PREFIX =
   "const wasmPathPrefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_ENV.versions.web}/dist/`;";
-const SAFARI_TEST = "ONNX_ENV.wasm.wasmPaths = apis.IS_SAFARI";
+// It drops the .asyncify suffix for an old Safari without WebGPU, a pair we do not package.
+const SAFARI_SUFFIX = 'if (apis.IS_SAFARI_BELOW_26 && !apis.IS_WEBGPU_AVAILABLE) {';
 
 /**
  * Point transformers.js at the packaged engine. Resolved against the importing chunk's own URL,
  * since the code runs in workers rather than in the document, and every chunk sits one folder
- * below dist. The Safari test is pinned false because the pair it picks is not packaged.
+ * below dist. The Safari branch is disabled because the pair it picks is not packaged.
  *
  * Throws if either anchor is gone, so an upgrade fails the build instead of quietly going back
  * to the CDN.
  */
 export function rewriteOnnxBackend(code: string): string {
-  for (const anchor of [CDN_PREFIX, SAFARI_TEST]) {
+  for (const anchor of [CDN_PREFIX, SAFARI_SUFFIX]) {
     if (!code.includes(anchor)) throw new Error(`${ORT_BACKEND_MODULE}: cannot find ${anchor}`);
   }
   const dir = JSON.stringify(`../${ORT_ENGINE_DIR}`);
   return code
     .replace(CDN_PREFIX, `const ortEngineDir = ${dir};\nconst wasmPathPrefix = new URL(ortEngineDir, import.meta.url).href;`)
-    .replace(SAFARI_TEST, "ONNX_ENV.wasm.wasmPaths = false");
+    .replace(SAFARI_SUFFIX, "if (false) {");
 }

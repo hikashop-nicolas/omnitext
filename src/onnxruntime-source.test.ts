@@ -17,7 +17,11 @@ describe("where transformers.js loads onnxruntime from", () => {
   });
 
   it("asks for the two files the flagged build packages, and for no proxy worker", () => {
-    for (const file of ORT_ENGINE_FILES) expect(src).toContain(file);
+    // It builds the names from a suffix rather than spelling them out, so check the pieces.
+    expect(src).toContain('let wasmPathSuffix = ".asyncify"');
+    for (const file of ORT_ENGINE_FILES) {
+      expect(src, file).toContain(file.replace(".asyncify", "${wasmPathSuffix}"));
+    }
     expect(src).toContain("ONNX_ENV.wasm.proxy = false");
   });
 
@@ -30,7 +34,9 @@ describe("where transformers.js loads onnxruntime from", () => {
     const rewritten = rewriteOnnxBackend(src);
     expect(rewritten).not.toContain("cdn.jsdelivr.net/npm/onnxruntime-web");
     expect(rewritten).toContain("new URL(ortEngineDir, import.meta.url)");
-    expect(rewritten).toContain("ONNX_ENV.wasm.wasmPaths = false");
+    // The old-Safari branch, whose pair is not packaged, must be unreachable.
+    expect(rewritten).toContain("if (false) {");
+    expect(rewritten).not.toContain("apis.IS_SAFARI_BELOW_26 && !apis.IS_WEBGPU_AVAILABLE");
   });
 
   it("refuses to rewrite a file it no longer recognises", () => {
