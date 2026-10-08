@@ -2,7 +2,7 @@ Omnitext opens practically any file you are sent, in one app. Instead of install
 
 It is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors, all on your device.
 
-Everything runs locally. Your files are never uploaded, there is no account, no tracking, and no ads. Open a file, edit it, and save it back, entirely offline.
+Opening, editing and saving a file runs entirely on your device. Your files are never uploaded, there is no account, no tracking, and no ads. Install it, turn the network off, and every format above still opens.
 
 <ul>
 <li>Edit PDFs: change text in place, add text and images, pinch to zoom.</li>
@@ -14,6 +14,6 @@ Everything runs locally. Your files are never uploaded, there is no account, no 
 <li>Command palette, light and dark themes, and version history to roll back changes.</li>
 </ul>
 
-Private by design: your files never leave your device unless you share a document, and then it goes straight to the people you invite. The optional AI features (text recognition, translation, writing help, transcription) download their model once, and ask before they do.
+Three optional features reach the network, and none of them starts on its own. Sharing a document, which you start yourself, sends it peer to peer to the people you invite, and the peers find each other through public nostr relays and public STUN servers (Google and Cloudflare by default, or your own); the document itself never goes to a server. The map editor can fetch background tiles from openstreetmap.org, and maps still open without them. The AI features (text recognition, translation, writing help, transcription) download their model once and then run on your device. The tiles and the model downloads each ask before the first fetch, and a refusal is remembered. Nothing else is sent anywhere.
 
 Free software under the MIT licence. The same app also runs in any browser.
