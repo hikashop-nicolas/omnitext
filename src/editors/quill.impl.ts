@@ -1,6 +1,17 @@
 import Quill from "quill";
+import QuillCursors from "quill-cursors";
 import "quill/dist/quill.snow.css";
-import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type * as Y from "yjs";
+import type {
+  CollabBinding,
+  CollabContext,
+  EditorInstance,
+  EditorModule,
+  EditorMountContext,
+} from "../core/types";
+
+/** Where the shared rich text lives. One name per editor: a session pins the editor. */
+const SHARED_TEXT = "quill";
 
 // HTML WYSIWYG editor (lazy-loaded), built on Quill. It is a rich-text editor: it
 // normalizes HTML to the formats it supports, so it is best for simple documents and
@@ -32,11 +43,16 @@ function ensureStyles(): void {
   document.head.appendChild(s);
 }
 
+// Remote carets come from the cursors module, which has to exist when the editor is
+// built, so it is registered here rather than when a session starts.
+Quill.register("modules/cursors", QuillCursors);
+
 class QuillInstance implements EditorInstance {
   private quill: Quill | null = null;
   private originalText = "";
   private edited = false;
   private wrap: HTMLElement | null = null;
+  private binding: { destroy(): void } | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -48,15 +64,37 @@ class QuillInstance implements EditorInstance {
     container.appendChild(wrap);
     this.wrap = wrap;
 
-    const quill = new Quill(editorEl, { theme: "snow", modules: { toolbar: TOOLBAR } });
+    const quill = new Quill(editorEl, { theme: "snow", modules: { toolbar: TOOLBAR, cursors: true } });
     if (ctx.text) quill.clipboard.dangerouslyPasteHTML(ctx.text);
     quill.on("text-change", (_delta, _old, source) => {
-      if (source === "user") {
+      // A remote edit arrives as an api change. It is still an edit of this document, so
+      // it marks it dirty and drives autosave exactly as typing does.
+      if (source === "user" || this.binding) {
         this.edited = true;
         ctx.onChange();
       }
     });
     this.quill = quill;
+  }
+
+  collab(): CollabBinding {
+    return {
+      bind: async (ctx: CollabContext) => {
+        const quill = this.quill;
+        if (!quill) return;
+        const { QuillBinding } = await import("y-quill");
+        const ytext = ctx.doc.getText(SHARED_TEXT) as Y.Text;
+        // Exactly one peer puts a document into an empty session; everyone else takes
+        // what is there, which QuillBinding applies to the editor as it attaches.
+        if (ctx.seed && ytext.length === 0) ytext.applyDelta(quill.getContents().ops);
+        this.binding = new QuillBinding(ytext, quill, ctx.awareness as never);
+        if (ctx.readOnly) quill.disable();
+      },
+      unbind: () => {
+        this.binding?.destroy();
+        this.binding = null;
+      },
+    };
   }
 
   getText(): string {
@@ -72,6 +110,8 @@ class QuillInstance implements EditorInstance {
   }
 
   dispose(): void {
+    this.binding?.destroy();
+    this.binding = null;
     this.wrap?.remove();
     this.wrap = null;
     this.quill = null;
