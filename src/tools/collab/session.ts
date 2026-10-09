@@ -207,6 +207,8 @@ export class CollabSession {
   private unsupported = false;
   private wrongEditor = false;
   private wrongBuild = false;
+  /** True while a base document is being opened, which mounts an editor of its own. */
+  private openingBase = false;
   private me: { name: string; colour: string };
   /** True while the name is one we picked, so it may be renumbered as peers appear. */
   private autoName: boolean;
@@ -534,10 +536,30 @@ export class CollabSession {
   }
 
   private async onBaseArrived(doc: BaseDoc): Promise<void> {
-    await this.host.openBase(doc);
+    // Opening mounts an editor, which rebind() also listens for. Held off until the open
+    // has finished, so the two do not bind the same editor twice over.
+    this.openingBase = true;
+    try {
+      await this.host.openBase(doc);
+    } finally {
+      this.openingBase = false;
+    }
     // The editor was replaced along with the document, so ask for its binding again.
     this.binding = null;
     this.bound = false;
+    await this.attachWhenSynced();
+  }
+
+  /**
+   * The editor changed under an unbound session: bind to whatever is now showing.
+   *
+   * Both the "this editor cannot collaborate" and the "the others are in another editor"
+   * messages ask the person to switch, and pinsEditor lets them precisely because they are
+   * not bound. Without this the switch did nothing and the message stayed, so the app was
+   * asking for something it would not then honour.
+   */
+  async rebind(): Promise<void> {
+    if (this.openingBase || this.bound || this.closed) return;
     await this.attachWhenSynced();
   }
 

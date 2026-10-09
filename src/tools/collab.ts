@@ -688,6 +688,9 @@ export const collabTool: ToolModule = {
         ctx.cancel = true;
         host.notifications.warn(t("collab.editorPinned"));
       }),
+      // The other half of that: a session that is not pinned is one that never bound, and
+      // the person was told to switch editor. Bind to the one they switched to.
+      host.events.on("documentOpened", () => void state.session?.rebind()),
       host.commands.register({
         id: "collab.share",
         title: t("app.collaborate"),

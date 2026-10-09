@@ -622,6 +622,102 @@ describe("two peers in different editors", () => {
   });
 });
 
+describe("switching editor after being told to", () => {
+  // Both refusals ask the person to change view, and the pin lets them precisely because
+  // they never bound. The switch then has to be honoured: for an hour it was not, so the
+  // app asked for something it ignored, and the message stayed on screen for good.
+  it("binds the editor the person switched to, when the first one could not collaborate", async () => {
+    const net = new Net();
+    const base = await doc("notes.md", "host text");
+    const h = host({ editor: fakeEditor("host text"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const text = fakeEditor("");
+    let rich = true; // the markdown view the joiner lands in, which has no binding
+    const j = host({ localState: () => null, binding: () => (rich ? null : text.binding) });
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+    expect(joiner.status).toBe("unsupported");
+
+    rich = false; // they switch to the text view
+    await joiner.rebind();
+    await net.settle();
+
+    expect(joiner.status).toBe("editing");
+    expect(text.content).toBe("host text");
+  });
+
+  it("binds the editor the person switched to, when the others were in another one", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    let mine = "codemirror";
+    j.api.editorId = () => mine;
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+    expect(joiner.status).toBe("mismatch");
+
+    mine = "sheet";
+    await joiner.rebind();
+    await net.settle();
+
+    expect(joiner.status).toBe("editing");
+  });
+
+  // Opening the base mounts an editor too, and that path binds on its own. A second bind
+  // of the same editor would seed a shape that is already there.
+  it("leaves the base transfer to bind the editor it opened", async () => {
+    const net = new Net();
+    const base = await doc("notes.txt", "host text");
+    const h = host({ editor: fakeEditor("host text"), currentDoc: async () => base });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const replacement = fakeEditor("");
+    let opened = false;
+    const joiner = new CollabSession(
+      {
+        currentDoc: async () => null,
+        localState: () => null,
+        openBase: async () => {
+          await new Promise((r) => setTimeout(r, 5));
+          opened = true;
+          // What the app does on mount: the editor change the tool listens for.
+          void joiner.rebind();
+        },
+        binding: () => (opened ? replacement.binding : null),
+        editorId: () => "codemirror",
+        notify: () => undefined,
+      },
+      { ...me, key: session.key, makeTransport: () => net.connect("joiner") },
+    );
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("editing");
+    expect(replacement.contexts, "bound once, not twice").toHaveLength(1);
+  });
+});
+
 describe("the name others see", () => {
   it("can be changed mid-session, and reaches the other peer", async () => {
     const net = new Net();
