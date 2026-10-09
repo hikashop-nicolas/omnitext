@@ -86,6 +86,8 @@ export interface SessionHost {
   /** Which editor is showing the document. A binding belongs to one, so two peers in
    *  different editors would sync nothing while looking connected. */
   editorId(): string | null;
+  /** Show the document in another editor, so a joiner can follow the session's. */
+  useEditor?(editorId: string): Promise<void> | void;
   /** Anything the person needs told. */
   notify(message: string): void;
   /** The editor refused something because this session is running. */
@@ -209,6 +211,8 @@ export class CollabSession {
   private wrongBuild = false;
   /** True while a base document is being opened, which mounts an editor of its own. */
   private openingBase = false;
+  /** The editor we have already asked the app to switch to, so one refusal is enough. */
+  private askedForEditor: string | null = null;
   private me: { name: string; colour: string };
   /** True while the name is one we picked, so it may be renumbered as peers appear. */
   private autoName: boolean;
@@ -470,6 +474,14 @@ export class CollabSession {
 
   private async attach(): Promise<void> {
     if (this.bound || this.closed) return;
+
+    // A binding belongs to an editor. If the seeder shared through a different one, the
+    // two would sit in a session that reports itself connected while neither ever sees the
+    // other's edits, which looks exactly like working. Say so instead.
+    const meta = this.provider.doc.getMap<string>(META);
+    const mine = this.host.editorId();
+    if (!this.isHost && (await this.followSharedEditor(meta.get(META_EDITOR), mine))) return;
+
     const binding = this.host.binding();
     if (!binding) {
       this.unsupported = true;
@@ -479,11 +491,6 @@ export class CollabSession {
     }
     this.unsupported = false;
 
-    // A binding belongs to an editor. If the seeder shared through a different one, the
-    // two would sit in a session that reports itself connected while neither ever sees the
-    // other's edits, which looks exactly like working. Say so instead.
-    const meta = this.provider.doc.getMap<string>(META);
-    const mine = this.host.editorId();
     if (this.isHost) {
       if (mine) meta.set(META_EDITOR, mine);
       meta.set(META_BUILD, BUILD_ID);
@@ -548,6 +555,27 @@ export class CollabSession {
     this.binding = null;
     this.bound = false;
     await this.attachWhenSynced();
+  }
+
+  /**
+   * Open the editor the session is shared through, when the app can switch to it.
+   *
+   * A joiner opens the base document in the default editor for its format, which is not
+   * the one the others are in: markdown opens in the rich view, which cannot collaborate
+   * at all, so every joiner landed read-only however the session was started. Asking for
+   * the editor named in the shared document turns both refusals into a switch nobody has
+   * to make by hand. Asked once per editor, so a switch that does not take leaves the
+   * refusal standing rather than looping on it.
+   *
+   * Returns true when a switch was asked for, which binds through rebind() instead.
+   */
+  private async followSharedEditor(theirs: string | undefined, mine: string | null): Promise<boolean> {
+    if (!theirs || !mine || theirs === mine) return false;
+    if (!this.host.useEditor || this.askedForEditor === theirs) return false;
+    this.askedForEditor = theirs;
+    debug("collab", "switching to the editor the session is shared through", () => ({ mine, theirs }));
+    await this.host.useEditor(theirs);
+    return true;
   }
 
   /**

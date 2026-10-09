@@ -204,6 +204,10 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
       return host.workspace.getActiveDocument()?.editorId ?? null;
     },
 
+    async useEditor(editorId) {
+      await host.workspace.useEditor?.(editorId);
+    },
+
     notify(message) {
       host.notifications.warn(message);
     },

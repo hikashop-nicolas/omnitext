@@ -1738,7 +1738,10 @@ function hideWelcome(): void {
 
 // --- editor switching (text is the canonical hand-off) -----------------------
 
-async function changeEditor(editorId: string, opts: { force?: boolean } = {}): Promise<void> {
+async function changeEditor(
+  editorId: string,
+  opts: { force?: boolean; remember?: boolean } = {},
+): Promise<void> {
   if (!session?.editor || (editorId === session.editorId && !opts.force)) return;
   // Switch protocol: serialize current model to canonical text, then remount. The
   // hook lets future tools veto or warn on a lossy hand-off. Binary formats have no text,
@@ -1754,7 +1757,9 @@ async function changeEditor(editorId: string, opts: { force?: boolean } = {}): P
     cancel: false,
   });
   if (ctx.cancel) return;
-  if (session.formatId) {
+  // Remembered as the choice for this format, unless the switch was not the person's:
+  // following a collaboration session into its editor must not rewrite their default.
+  if (session.formatId && opts.remember !== false) {
     prefs[session.formatId] = editorId;
     savePrefs();
   }
@@ -2244,6 +2249,9 @@ const workspace: Workspace = {
   },
   activeCollabBinding() {
     return session?.editor?.collab?.() ?? null;
+  },
+  async useEditor(editorId: string) {
+    await changeEditor(editorId, { remember: false });
   },
   closeActive() {
     // Deleting the crash-recovery snapshot is the part that makes this a close rather

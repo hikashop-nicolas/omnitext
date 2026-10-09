@@ -718,6 +718,107 @@ describe("switching editor after being told to", () => {
   });
 });
 
+describe("following the editor a session is shared through", () => {
+  // A joiner opens the base document in the default editor for its format, which is not
+  // the editor the others are in. For markdown that default cannot collaborate at all, so
+  // every joiner landed read-only whatever the host did. The session names its editor in
+  // the shared document, so the joiner can simply go there.
+  it("switches to the session's editor instead of refusing", async () => {
+    const net = new Net();
+    const base = await doc("notes.md", "host text");
+    const h = host({ editor: fakeEditor("host text"), currentDoc: async () => base });
+    h.api.editorId = () => "codemirror";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const text = fakeEditor("");
+    let mine = "milkdown"; // the rich markdown view, which has no binding
+    const asked: string[] = [];
+    const joiner: CollabSession = new CollabSession(
+      {
+        currentDoc: async () => null,
+        localState: () => null,
+        openBase: () => undefined,
+        binding: () => (mine === "codemirror" ? text.binding : null),
+        editorId: () => mine,
+        useEditor: async (id) => {
+          asked.push(id);
+          mine = id;
+          await joiner.rebind(); // what the app does: the switch mounts an editor
+        },
+        notify: () => undefined,
+      },
+      { ...me, key: session.key, makeTransport: () => net.connect("joiner") },
+    );
+    await joiner.start();
+    await net.settle();
+
+    expect(asked).toEqual(["codemirror"]);
+    expect(joiner.status).toBe("editing");
+    expect(text.content).toBe("host text");
+  });
+
+  it("still says so when the app cannot switch editor", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const j = host({ editor: fakeEditor(""), localState: () => null });
+    j.api.editorId = () => "codemirror";
+    const joiner = new CollabSession(j.api, {
+      ...me,
+      key: session.key,
+      makeTransport: () => net.connect("joiner"),
+    });
+    await joiner.start();
+    await net.settle();
+
+    expect(joiner.status).toBe("mismatch");
+  });
+
+  // A switch that does not take must leave the refusal standing. Asking again on every
+  // attach would be a loop between two editors, with the person watching the view flick.
+  it("asks for an editor once, then reports the mismatch", async () => {
+    const net = new Net();
+    const base = await doc("data.csv", "a,b");
+    const h = host({ editor: fakeEditor("a,b"), currentDoc: async () => base });
+    h.api.editorId = () => "sheet";
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => net.connect("host") });
+    await session.start();
+    await net.settle();
+
+    const asked: string[] = [];
+    const joinEditor = fakeEditor("");
+    const joiner: CollabSession = new CollabSession(
+      {
+        currentDoc: async () => null,
+        localState: () => null,
+        openBase: () => undefined,
+        binding: () => joinEditor.binding,
+        editorId: () => "codemirror",
+        useEditor: async (id) => {
+          asked.push(id); // the app cannot show that editor: nothing changes
+          await joiner.rebind();
+        },
+        notify: () => undefined,
+      },
+      { ...me, key: session.key, makeTransport: () => net.connect("joiner") },
+    );
+    await joiner.start();
+    await net.settle();
+    await joiner.rebind();
+    await net.settle();
+
+    expect(asked).toEqual(["sheet"]);
+    expect(joiner.status).toBe("mismatch");
+  });
+});
+
 describe("the name others see", () => {
   it("can be changed mid-session, and reaches the other peer", async () => {
     const net = new Net();

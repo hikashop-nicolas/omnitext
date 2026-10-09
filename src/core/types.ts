@@ -465,6 +465,9 @@ export interface Workspace {
   openActiveAsText?(): void;
   /** The active editor's collaboration binding, or null when it has none. */
   activeCollabBinding?(): CollabBinding | null;
+  /** Show the document in another editor, without making it the preference for the
+   *  format: a joiner follows the editor a collaboration session is shared through. */
+  useEditor?(editorId: string): Promise<void>;
   /** Close the active document, leaving an empty one and no crash-recovery copy.
    *  Used when this peer is removed from a collaboration session. */
   closeActive?(): void;
