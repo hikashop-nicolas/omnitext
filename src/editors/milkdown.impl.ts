@@ -1,6 +1,15 @@
 import { Crepe } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/common/style.css";
-import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type { CollabService } from "@milkdown/plugin-collab";
+import type { Awareness } from "y-protocols/awareness";
+import type * as Y from "yjs";
+import type {
+  CollabBinding,
+  CollabContext,
+  EditorInstance,
+  EditorModule,
+  EditorMountContext,
+} from "../core/types";
 
 // The frame theme ships separate light/dark stylesheets; load the one matching the OS
 // scheme so the editor doesn't render white-on-dark. Dynamic imports keep both lazy.
@@ -66,6 +75,9 @@ function ensureStyles(): void {
 class MilkdownInstance implements EditorInstance {
   private crepe: Crepe | null = null;
   private ready = false;
+  /** Resolves once the editor exists, so a session can bind whenever it starts. */
+  private created: Promise<void> = Promise.resolve();
+  private collabService: CollabService | null = null;
   private edited = false;
   private originalText = "";
   /** The markdown as the editor itself writes the loaded document, once it is ready. */
@@ -94,13 +106,42 @@ class MilkdownInstance implements EditorInstance {
       });
     });
     this.crepe = crepe;
-    crepe
-      .create()
+    // Collaboration is registered before the editor is created, because that is when
+    // Milkdown builds its plugin pipeline. The service sits idle until a session binds.
+    this.created = import("@milkdown/plugin-collab")
+      .then(({ collab }) => void crepe.editor.use(collab))
+      .then(() => crepe.create())
       .then(() => {
         this.baseline = crepe.getMarkdown();
         this.ready = true;
       })
       .catch((e: unknown) => console.error("milkdown create failed", e));
+  }
+
+  collab(): CollabBinding {
+    return {
+      bind: async (ctx: CollabContext) => {
+        await this.created;
+        const crepe = this.crepe;
+        if (!crepe) return;
+        const { collabServiceCtx } = await import("@milkdown/plugin-collab");
+        crepe.editor.action((c) => {
+          const service = c.get(collabServiceCtx);
+          this.collabService = service;
+          service.bindDoc(ctx.doc as unknown as Y.Doc).setAwareness(ctx.awareness as Awareness);
+          // Exactly one peer puts a document into an empty session. applyTemplate does
+          // nothing once the shared document has content, which is the joiner's case:
+          // it takes what the others have rather than writing its own copy over it.
+          if (ctx.seed) service.applyTemplate(this.getText());
+          service.connect();
+        });
+        if (ctx.readOnly) crepe.setReadonly(true);
+      },
+      unbind: () => {
+        this.collabService?.disconnect();
+        this.collabService = null;
+      },
+    };
   }
 
   getText(): string {
