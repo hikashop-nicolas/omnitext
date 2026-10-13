@@ -91,6 +91,21 @@ public class FileOpenerPlugin extends Plugin {
         resolveStaged(call, uri, writable);
     }
 
+    /** Open the system "create document" sheet, for Save As; resolves with it, or {} when cancelled. */
+    @PluginMethod
+    public void createDocument(PluginCall call) {
+        String name = call.getString("name");
+        String mime = call.getString("mime");
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(mime == null || mime.isEmpty() ? "*/*" : mime);
+        if (name != null) intent.putExtra(Intent.EXTRA_TITLE, name);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(call, intent, "pickResult");
+    }
+
     /** Reopen a document picked earlier; rejects with "gone" when its permission was lost. */
     @PluginMethod
     public void reopenDocument(PluginCall call) {

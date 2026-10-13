@@ -33,6 +33,7 @@ interface OpenedPayload {
 interface FileOpenerPlugin {
   getPendingFile(): Promise<OpenedPayload>;
   pickDocument(): Promise<OpenedPayload>;
+  createDocument(options: { name: string; mime: string }): Promise<OpenedPayload>;
   reopenDocument(options: { uri: string }): Promise<OpenedPayload>;
   writeDocument(options: { uri: string; path: string }): Promise<void>;
   forgetDocument(options: { uri: string }): Promise<void>;
@@ -174,6 +175,13 @@ export interface PickedDocument extends OpenedFile {
   /** Stable identity for the recent list (the same file can come back under another URI). */
   key: string;
   writable: boolean;
+}
+
+/** The system "create document" sheet, for Save As (native only). Null when cancelled. */
+export async function createDocumentNative(name: string, mime: string): Promise<PickedDocument | null> {
+  const p = await FileOpener.createDocument({ name, mime });
+  if (!p?.name || !p.uri) return null;
+  return { ...(await fetchStaged(p)), uri: p.uri, key: p.key || p.uri, writable: !!p.writable };
 }
 
 /** The system document picker (native only). Null when cancelled. */

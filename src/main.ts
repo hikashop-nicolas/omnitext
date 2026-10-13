@@ -9,6 +9,7 @@ import { initSettingsDialog } from "./settings-dialog";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
+  createDocumentNative,
   forgetDocumentNative,
   getOpenedFile,
   isNative,
@@ -1196,6 +1197,31 @@ window.addEventListener("omnitext:open-bytes", async (e) => {
   await openBuffer(copy.buffer as ArrayBuffer, name, "upload", null, mime);
 });
 
+/**
+ * Save to a destination the user picks, then write in place on every later save. False when
+ * they cancelled, so the document stays dirty instead of being called saved.
+ */
+async function saveAsNative(bytes: Uint8Array, name: string): Promise<boolean> {
+  let picked: PickedDocument | null = null;
+  try {
+    const desc = session?.formatId ? engine.formats.byId(session.formatId) : null;
+    picked = await createDocumentNative(name, desc?.manifest.mimeTypes?.[0] || "application/octet-stream");
+  } catch (e) {
+    // An older app build has no document creator: the share sheet is all there is.
+    console.error("save-as unavailable, offering the share sheet instead", e);
+    return saveBytesNative(bytes, name);
+  }
+  if (!picked) return false; // cancelled
+  await writeDocumentNative(picked.uri, bytes);
+  if (session) {
+    session.nativeUri = picked.uri;
+    session.nativeWritable = true;
+    session.filename = picked.name;
+  }
+  void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri, key: picked.key });
+  return true;
+}
+
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
   if (session.archive) {
@@ -1229,10 +1255,16 @@ async function saveFile(): Promise<void> {
 
     // A document that never had a name: ask for one (with the format's extension), so a
     // new DOCX/XLSX/PDF doesn't download binary bytes as "untitled.txt".
+    // The Android save sheet asks for the name itself, so only the web needs the prompt.
+    const willAskNatively = isNative() && !(session.nativeUri && session.nativeWritable);
     if (!session.filename) {
-      const input = window.prompt(t("app.saveAsPrompt"), suggestedName());
-      if (input === null) return; // cancelled: don't save
-      session.filename = input.trim() || suggestedName();
+      if (willAskNatively) {
+        session.filename = suggestedName();
+      } else {
+        const input = window.prompt(t("app.saveAsPrompt"), suggestedName());
+        if (input === null) return; // cancelled: don't save
+        session.filename = input.trim() || suggestedName();
+      }
       updateUI();
     }
     let name = session.filename;
@@ -1244,17 +1276,17 @@ async function saveFile(): Promise<void> {
     const handle = session.fileHandle;
     if (isNative()) {
       // A document opened with a write grant is saved in place. Anything else (a new
-      // document, a read-only provider, a file manager that granted only reading) goes to
-      // the share/save sheet.
+      // document, a read-only provider, a file manager that granted only reading) asks
+      // where to put it, and saves in place from then on.
       if (session.nativeUri && session.nativeWritable) {
         try {
           await writeDocumentNative(session.nativeUri, bytes);
         } catch (e) {
-          console.error("write-back failed, offering the share sheet instead", e);
-          await saveBytesNative(bytes, name);
+          console.error("write-back failed, asking for a destination instead", e);
+          if (!(await saveAsNative(bytes, name))) return;
         }
-      } else {
-        await saveBytesNative(bytes, name);
+      } else if (!(await saveAsNative(bytes, name))) {
+        return;
       }
     } else if (handle?.createWritable) {
       const w = await handle.createWritable();
