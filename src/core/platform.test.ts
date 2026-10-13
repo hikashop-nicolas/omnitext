@@ -71,4 +71,31 @@ describe("getOpenedFile", () => {
     pending.mockRejectedValue(new Error("no such plugin"));
     expect(await getOpenedFile()).toBeNull();
   });
+
+  // A file opened from the Android file explorer used to arrive as a nameless copy, so Save
+  // had nothing to write to and offered the share sheet instead of saving the file.
+  it("carries the document to write back to when the OS granted write access", async () => {
+    pending.mockResolvedValue({
+      name: "notes.md",
+      url: "http://localhost/staged",
+      uri: "content://docs/notes.md",
+      key: "path:Documents/notes.md",
+      writable: true,
+      persisted: true,
+    });
+    globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]))) as typeof fetch;
+    const opened = (await getOpenedFile())!;
+    expect(opened.uri).toBe("content://docs/notes.md");
+    expect(opened.key).toBe("path:Documents/notes.md");
+    expect(opened.writable).toBe(true);
+    expect(opened.persisted).toBe(true);
+  });
+
+  it("leaves no document link when there was no write grant", async () => {
+    pending.mockResolvedValue({ name: "notes.md", url: "http://localhost/staged" });
+    globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]))) as typeof fetch;
+    const opened = (await getOpenedFile())!;
+    expect(opened.uri).toBeUndefined();
+    expect(opened.writable).toBeUndefined();
+  });
 });

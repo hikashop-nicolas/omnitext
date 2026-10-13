@@ -33,7 +33,8 @@ import java.io.OutputStream;
 // pulled via getPendingFile() on startup and on resume (a pull model avoids the timing trap
 // where an onNewIntent fires before JS has a listener). The in-app Open button: the system
 // document picker, whose grant can be made permanent, so the same document can be written back
-// on Save and reopened later from the recent files list.
+// on Save and reopened later from the recent files list. Either way, a URI that came with a
+// write grant is reported as such, so Save writes back to the file instead of sharing a copy.
 //
 // The copy is streamed, and what crosses the bridge is a URL rather than the content: sending
 // bytes as base64 cannot carry the files people open with a player.
@@ -170,8 +171,9 @@ public class FileOpenerPlugin extends Plugin {
             return;
         }
         o.put("uri", uri.toString());
-        o.put("key", stableKey(uri, o.getString("name")));
+        o.put("key", stableKey(getContext(), uri, o.getString("name")));
         o.put("writable", writable);
+        o.put("persisted", true); // the picker grants are taken for keeps, so the file can be listed as recent
         call.resolve(withUrl(o));
     }
 
@@ -181,7 +183,7 @@ public class FileOpenerPlugin extends Plugin {
      * ("msf:1000010722") another, depending on whether it has been indexed yet, so the recent list
      * listed it twice. Both resolve to the file's place on the storage; other providers keep their URI.
      */
-    private String stableKey(Uri uri, String name) {
+    private static String stableKey(Context ctx, Uri uri, String name) {
         String docId = null;
         try {
             docId = DocumentsContract.getDocumentId(uri);
@@ -192,7 +194,7 @@ public class FileOpenerPlugin extends Plugin {
             int at = path.indexOf("/storage/emulated/0/");
             return "path:" + (at >= 0 ? path.substring(at + "/storage/emulated/0/".length()) : path);
         }
-        try (Cursor c = getContext().getContentResolver().query(uri, new String[] { MediaStore.MediaColumns.RELATIVE_PATH }, null, null, null)) {
+        try (Cursor c = ctx.getContentResolver().query(uri, new String[] { MediaStore.MediaColumns.RELATIVE_PATH }, null, null, null)) {
             if (c != null && c.moveToFirst()) {
                 int i = c.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH);
                 String rel = i >= 0 ? c.getString(i) : null;
@@ -227,7 +229,29 @@ public class FileOpenerPlugin extends Plugin {
         }
         if (uri == null) return;
         JSObject payload = stage(ctx, uri);
-        if (payload != null) pending = payload;
+        if (payload == null) return;
+        // A file manager that grants write access means Save writes back to the file, the way
+        // it does for a document picked in the app. Without the grant there is nothing to
+        // write to, and Save asks for a destination instead.
+        boolean writable = Intent.ACTION_VIEW.equals(action)
+            && (intent.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0;
+        boolean persisted = false;
+        if (writable && (intent.getFlags() & Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) {
+            try {
+                ctx.getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                persisted = true;
+            } catch (SecurityException ignored) {
+                // Writable for this run only, which is all Save needs.
+            }
+        }
+        if (writable) {
+            payload.put("uri", uri.toString());
+            payload.put("key", stableKey(ctx, uri, payload.getString("name")));
+            payload.put("writable", true);
+            payload.put("persisted", persisted);
+        }
+        pending = payload;
     }
 
     /**

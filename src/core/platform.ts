@@ -22,11 +22,13 @@ interface OpenedPayload {
   /** An http URL the WebView can fetch, pointing at the staged copy. */
   url?: string;
   size?: number;
-  /** Picked documents only: the content:// URI, kept to write back and to reopen later. */
+  /** The content:// URI, kept to write back and to reopen later. Absent with no write grant. */
   uri?: string;
-  /** Picked documents only: one identity per file, whichever URI the picker handed out. */
+  /** One identity per file, whichever URI the provider handed out. */
   key?: string;
   writable?: boolean;
+  /** True when the grant outlives this run, so the file is worth a recent-list entry. */
+  persisted?: boolean;
 }
 interface FileOpenerPlugin {
   getPendingFile(): Promise<OpenedPayload>;
@@ -114,6 +116,11 @@ export interface OpenedFile {
   file: File;
   name: string;
   mime?: string;
+  /** Set when the OS granted write access: what Save writes back to. */
+  uri?: string;
+  key?: string;
+  writable?: boolean;
+  persisted?: boolean;
 }
 
 /** Raised when the OS asked us to open something and we could not: better said than swallowed. */
@@ -154,6 +161,7 @@ async function fetchStaged(p: OpenedPayload): Promise<OpenedFile> {
       file: new File([blob], name, mime ? { type: mime } : {}),
       name,
       ...(mime ? { mime } : {}),
+      ...(p.uri ? { uri: p.uri, key: p.key || p.uri, writable: !!p.writable, persisted: !!p.persisted } : {}),
     };
   } catch (e) {
     throw new OpenedFileError(name, e);

@@ -1243,8 +1243,9 @@ async function saveFile(): Promise<void> {
     }
     const handle = session.fileHandle;
     if (isNative()) {
-      // A document picked with a lasting write grant is saved in place. Anything else (an
-      // "Open with" copy, a new document, a read-only provider) goes to the share/save sheet.
+      // A document opened with a write grant is saved in place. Anything else (a new
+      // document, a read-only provider, a file manager that granted only reading) goes to
+      // the share/save sheet.
       if (session.nativeUri && session.nativeWritable) {
         try {
           await writeDocumentNative(session.nativeUri, bytes);
@@ -1687,13 +1688,16 @@ async function refreshWelcomeRecent(): Promise<void> {
   if (welcomeEl && list.length) showWelcome(list.map(recentView));
 }
 
-async function openPicked(picked: PickedDocument): Promise<void> {
-  await openLocalFile(picked.file, "content", null);
+async function openPicked(picked: PickedDocument, opts: { source?: string; remember?: boolean } = {}): Promise<void> {
+  await openLocalFile(picked.file, opts.source ?? "content", null);
   if (session) {
     session.nativeUri = picked.uri;
     session.nativeWritable = picked.writable;
   }
-  void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri, key: picked.key });
+  // A grant that dies with this run would leave a recent entry that cannot be reopened.
+  if (opts.remember !== false) {
+    void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri, key: picked.key });
+  }
 }
 
 async function openRecent(id: string): Promise<void> {
@@ -2479,7 +2483,14 @@ async function maybeOpenPendingFile(): Promise<boolean> {
     return false;
   }
   if (!opened) return false;
-  await openLocalFile(opened.file, "intent", null);
+  // Opened from the file explorer with write access: the same link a picked document gets,
+  // so Save writes back to the file rather than offering a copy to share.
+  if (opened.uri && opened.writable) {
+    const key = opened.key || opened.uri;
+    await openPicked({ ...opened, uri: opened.uri, key, writable: true }, { source: "intent", remember: opened.persisted });
+  } else {
+    await openLocalFile(opened.file, "intent", null);
+  }
   return true;
 }
 
