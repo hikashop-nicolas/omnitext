@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '1.9'
     versionCode: 10900
-    commit: 1ab1a78c8e8d456731bae7ae60a666f7acde867a
+    commit: 82e33d230c20ceab60ae3f881e9395bc60660ffd
     subdir: android/app
     sudo:
       - apt-get update
