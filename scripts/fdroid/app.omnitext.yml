@@ -36,11 +36,30 @@ Builds:
       - OMNITEXT_BUNDLE_TESSERACT=1 OMNITEXT_BUNDLE_ONNXRUNTIME=1 npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
 
+  - versionName: '1.10'
+    versionCode: 11000
+    commit: 74665a549db09909da6e7b04e2cace2ab49ea148
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y --no-install-recommends python3 make patch gcc libc6-dev
+        clang lld wasi-libc curl unzip pkg-config libatomic1 perl libdigest-sha3-perl xz-utils bzip2 cmake
+        ragel libtool libtool-bin itstool python3-ply gettext autopoint automake autoconf
+        m4 gperf licensecheck gawk rustc cargo libstd-rust-dev-wasm32 binaryen libssl-dev nodejs npm
+        g++ ninja-build protobuf-compiler libprotobuf-dev python3-flatbuffers python3-packaging
+    gradle:
+      - yes
+    build:
+      - cd ../..
+      - ONNXRUNTIME_NODE_INSTALL=skip npm ci
+      - scripts/fdroid/build-wasm.sh
+      - OMNITEXT_BUNDLE_TESSERACT=1 OMNITEXT_BUNDLE_ONNXRUNTIME=1 npm run build
+      - node scripts/fdroid/cap-sync.cjs sync android
 AllowedAPKSigningKeys: 764e7ec37f86865288d4826095d4c649010d911653fd00ba016e037e5a663261
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^fdroid-
 UpdateCheckData: android/app/build.gradle|fdroidVersionCode = (\d+)|.|versionName
   "(.*)"
-CurrentVersion: '1.9'
-CurrentVersionCode: 10900
+CurrentVersion: '1.10'
+CurrentVersionCode: 11000
