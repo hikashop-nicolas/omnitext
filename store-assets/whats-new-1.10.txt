@@ -1,0 +1,8 @@
+New in this update:
+
+• Joining a shared document now opens the editor it is shared through, and edits arrive as they are typed: before, a joiner was left with a read-only copy
+• Documents can be shared from the rich text views for Markdown and HTML, not only the plain ones
+• A file opened from your file manager saves back to that file; where it cannot be written, Save asks where to put it instead of offering to share a copy
+• Styled subtitles sit on the frame they belong to, so typesetting that follows the picture stays with it
+
+Still offline unless you choose to share.
