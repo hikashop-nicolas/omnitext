@@ -38,7 +38,7 @@ Builds:
 
   - versionName: '1.10'
     versionCode: 11000
-    commit: 74665a549db09909da6e7b04e2cace2ab49ea148
+    commit: d1d0543ab2ca1d295940c8fbddc79ea765adb250
     subdir: android/app
     sudo:
       - apt-get update
