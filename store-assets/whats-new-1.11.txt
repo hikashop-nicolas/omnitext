@@ -1,0 +1,5 @@
+New in this update:
+
+• Text recognition runs from the app on older phones too: this build carries both engine variants, so a phone whose browser engine predates 2021 no longer downloads one
+
+Still offline unless you choose to share.

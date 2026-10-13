@@ -84,8 +84,10 @@ const bundleOnnxruntimeEngine: Plugin = {
  * __TESSERACT_ENGINE_DIR__ names that folder, which is what src/ocr-engine.ts acts on. Every other
  * build leaves the define empty and keeps the download (behind the consent prompt) as before.
  *
- * One core build, the SIMD LSTM-only one: that is what tesseract.js asks for with OEM 1, which is
- * how localml creates its worker. Other builds would only add megabytes nothing loads.
+ * Both LSTM-only cores, the SIMD one and the plain one: OEM 1 is how localml creates its worker,
+ * so those are the two tesseract.js can ask for, and a WebView older than wasm SIMD (before
+ * Chrome 91) would otherwise fall back to the CDN. The two Tesseract cores that carry the legacy
+ * engine are never loaded, so they stay out.
  */
 const bundleTesseract = process.env.OMNITEXT_BUNDLE_TESSERACT === "1";
 const TESSERACT_ENGINE_DIR = "tesseract/";
@@ -93,6 +95,7 @@ const TESSERACT_ENGINE_FILES = [
   "tesseract.js/dist/worker.min.js",
   "tesseract.js/dist/worker.min.js.LICENSE.txt",
   "tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+  "tesseract.js-core/tesseract-core-lstm.wasm.js",
 ];
 const bundleTesseractEngine: Plugin = {
   name: "omnitext-bundle-tesseract",
