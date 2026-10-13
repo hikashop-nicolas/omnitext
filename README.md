@@ -119,6 +119,12 @@ join.
   rebuilt from the latest source. Either way it appears in Android's "Open with" chooser, so
   any app can hand it a file.
 
+On macOS, Chrome registers the installed app for the file types it edits, but tells macOS it
+only views them, which keeps it out of Finder's recommended applications: it is there under
+*All Applications*. Running `scripts/macos-editor-role.sh` claims those types as an editor and
+puts Omnitext in the recommendations. Chrome rewrites its app on update, so run it again if the
+app drops back out.
+
 Settings shows which build you are running, with a *Check for updates* button beside it.
 Installed as an app, Omnitext keeps serving the build it has until every window is closed, so
 a page never loses a piece it might still need. The button is how you say "now" instead of
