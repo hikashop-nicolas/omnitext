@@ -36,6 +36,7 @@ interface FileOpenerPlugin {
   createDocument(options: { name: string; mime: string }): Promise<OpenedPayload>;
   reopenDocument(options: { uri: string }): Promise<OpenedPayload>;
   writeDocument(options: { uri: string; path: string }): Promise<void>;
+  deleteDocument(options: { uri: string }): Promise<void>;
   forgetDocument(options: { uri: string }): Promise<void>;
 }
 const FileOpener = registerPlugin<FileOpenerPlugin>("FileOpener");
@@ -210,6 +211,15 @@ export async function writeDocumentNative(uri: string, bytes: Uint8Array): Promi
   await Filesystem.writeFile({ path, data: bytesToBase64(bytes), directory: Directory.Cache });
   const { uri: fileUri } = await Filesystem.getUri({ path, directory: Directory.Cache });
   await FileOpener.writeDocument({ uri, path: decodeURIComponent(fileUri.replace(/^file:\/\//, "")) });
+}
+
+/** Remove a document, to clear away one just created that could not be written. */
+export async function deleteDocumentNative(uri: string): Promise<void> {
+  try {
+    await FileOpener.deleteDocument({ uri });
+  } catch {
+    /* an empty file left behind is better than a failed save reported twice */
+  }
 }
 
 /** Release the lasting permission of a document the user removed from the recent list. */

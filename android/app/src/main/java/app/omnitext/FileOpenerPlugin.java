@@ -5,11 +5,13 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.UriPermission;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
+import android.os.Process;
 
 import androidx.activity.result.ActivityResult;
 
@@ -88,7 +90,7 @@ public class FileOpenerPlugin extends Plugin {
                 // Readable for now only; reopening later will report it gone.
             }
         }
-        resolveStaged(call, uri, writable);
+        resolveStaged(call, uri, writable && supportsWrite(getContext(), uri));
     }
 
     /** Open the system "create document" sheet, for Save As; resolves with it, or {} when cancelled. */
@@ -120,7 +122,7 @@ public class FileOpenerPlugin extends Plugin {
             call.reject("gone", "gone");
             return;
         }
-        resolveStaged(call, uri, perm.isWritePermission());
+        resolveStaged(call, uri, perm.isWritePermission() && supportsWrite(getContext(), uri));
     }
 
     /** Overwrite a picked document with a file already written to the app cache. */
@@ -153,6 +155,20 @@ public class FileOpenerPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Remove a document, used to clear away one just created that could not be written. */
+    @PluginMethod
+    public void deleteDocument(PluginCall call) {
+        String s = call.getString("uri");
+        if (s != null) {
+            try {
+                DocumentsContract.deleteDocument(getContext().getContentResolver(), Uri.parse(s));
+            } catch (Exception ignored) {
+                // Not a document URI, or already gone: nothing to clear away.
+            }
+        }
+        call.resolve();
+    }
+
     /** Give back the lasting permission of a document removed from the recent list. */
     @PluginMethod
     public void forgetDocument(PluginCall call) {
@@ -170,6 +186,34 @@ public class FileOpenerPlugin extends Plugin {
             }
         }
         call.resolve();
+    }
+
+    /**
+     * Whether this document can really be written: the grant we were given, and the provider
+     * agreeing. The two are separate questions, and a document picked read-write can still be
+     * one its provider refuses to write.
+     */
+    private static boolean writable(Context ctx, Uri uri) {
+        return ctx.checkUriPermission(uri, Process.myPid(), Process.myUid(),
+            Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == PackageManager.PERMISSION_GRANTED
+            && supportsWrite(ctx, uri);
+    }
+
+    /**
+     * A DocumentsProvider states it in the document's flags (DocumentFile.canWrite() does not
+     * read them, and says yes for documents that cannot be written). Anything else, a MediaStore
+     * item or a plain file, has no such column and is taken at its word.
+     */
+    private static boolean supportsWrite(Context ctx, Uri uri) {
+        String[] cols = { DocumentsContract.Document.COLUMN_FLAGS };
+        try (Cursor c = ctx.getContentResolver().query(uri, cols, null, null, null)) {
+            if (c == null || !c.moveToFirst()) return true;
+            int i = c.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS);
+            if (i < 0) return true;
+            return (c.getInt(i) & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0;
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     private UriPermission persisted(Uri uri) {
@@ -248,8 +292,7 @@ public class FileOpenerPlugin extends Plugin {
         // A file manager that grants write access means Save writes back to the file, the way
         // it does for a document picked in the app. Without the grant there is nothing to
         // write to, and Save asks for a destination instead.
-        boolean writable = Intent.ACTION_VIEW.equals(action)
-            && (intent.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0;
+        boolean writable = Intent.ACTION_VIEW.equals(action) && writable(ctx, uri);
         boolean persisted = false;
         if (writable && (intent.getFlags() & Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) {
             try {

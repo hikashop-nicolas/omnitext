@@ -10,6 +10,7 @@ import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
   createDocumentNative,
+  deleteDocumentNative,
   forgetDocumentNative,
   getOpenedFile,
   isNative,
@@ -1201,18 +1202,31 @@ window.addEventListener("omnitext:open-bytes", async (e) => {
  * Save to a destination the user picks, then write in place on every later save. False when
  * they cancelled, so the document stays dirty instead of being called saved.
  */
+let askingWhereToSave = false;
 async function saveAsNative(bytes: Uint8Array, name: string): Promise<boolean> {
+  // A second Save while the sheet is open would open a second one, and the document it
+  // created would be left empty.
+  if (askingWhereToSave) return false;
   let picked: PickedDocument | null = null;
   try {
+    askingWhereToSave = true;
     const desc = session?.formatId ? engine.formats.byId(session.formatId) : null;
     picked = await createDocumentNative(name, desc?.manifest.mimeTypes?.[0] || "application/octet-stream");
   } catch (e) {
     // An older app build has no document creator: the share sheet is all there is.
     console.error("save-as unavailable, offering the share sheet instead", e);
     return saveBytesNative(bytes, name);
+  } finally {
+    askingWhereToSave = false;
   }
   if (!picked) return false; // cancelled
-  await writeDocumentNative(picked.uri, bytes);
+  try {
+    await writeDocumentNative(picked.uri, bytes);
+  } catch (e) {
+    // The sheet has already created the file: clear it away rather than leave it empty.
+    void deleteDocumentNative(picked.uri);
+    throw e;
+  }
   if (session) {
     session.nativeUri = picked.uri;
     session.nativeWritable = true;
