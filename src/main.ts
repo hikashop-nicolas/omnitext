@@ -166,6 +166,7 @@ import type {
 declare global {
   interface Window {
     showOpenFilePicker?: (opts?: unknown) => Promise<FsHandle[]>;
+    showSaveFilePicker?: (opts?: { suggestedName?: string }) => Promise<FsHandle>;
   }
 }
 interface FsHandle {
@@ -1243,6 +1244,20 @@ async function saveFile(): Promise<void> {
     return;
   }
 
+  // A browser writes back only to a file it handed us a handle for. Without one (uploaded,
+  // shared, or newly created) ask where to put it, and keep the handle so later saves write
+  // there. Asked before the document is serialized, because the picker needs the click and
+  // serializing a large document can outlast it.
+  let chosen: FsHandle | null = null;
+  if (!isNative() && !session.fileHandle?.createWritable && window.showSaveFilePicker) {
+    try {
+      chosen = await window.showSaveFilePicker({ suggestedName: session.filename || suggestedName() });
+    } catch (e) {
+      if ((e as DOMException)?.name === "AbortError") return; // dismissed: not a save
+      console.error("save-as picker failed, falling back to a download", e);
+    }
+  }
+
   // Serializing the document (getBytes / getText / encodeText / gzip) and writing it out
   // both run under one try: an editor whose export throws must surface an error, not fail
   // silently and leave the user re-clicking Save on a document that never gets written.
@@ -1269,8 +1284,8 @@ async function saveFile(): Promise<void> {
 
     // A document that never had a name: ask for one (with the format's extension), so a
     // new DOCX/XLSX/PDF doesn't download binary bytes as "untitled.txt".
-    // The Android save sheet asks for the name itself, so only the web needs the prompt.
-    const willAskNatively = isNative() && !(session.nativeUri && session.nativeWritable);
+    // Both save sheets ask for the name themselves, so the prompt is for neither.
+    const willAskNatively = (isNative() && !(session.nativeUri && session.nativeWritable)) || !!chosen;
     if (!session.filename) {
       if (willAskNatively) {
         session.filename = suggestedName();
@@ -1302,10 +1317,16 @@ async function saveFile(): Promise<void> {
       } else if (!(await saveAsNative(bytes, name))) {
         return;
       }
-    } else if (handle?.createWritable) {
-      const w = await handle.createWritable();
+    } else if (chosen || handle?.createWritable) {
+      const target = chosen ?? handle!;
+      const w = await target.createWritable();
       await w.write(bytes);
       await w.close();
+      if (chosen) {
+        session.fileHandle = chosen as unknown as FsHandle;
+        session.filename = chosen.name;
+        void rememberRecent({ kind: "handle", name: chosen.name, handle: chosen });
+      }
     } else {
       downloadBytes(bytes, name);
     }
