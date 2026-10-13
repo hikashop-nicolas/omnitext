@@ -136,3 +136,9 @@ declare module "latex.js" {
   }
   export function parse(latex: string, options: { generator: HtmlGenerator }): LatexResult;
 }
+
+// The F-Droid recipe checker, shared by the pre-commit hook in the fdroiddata clone.
+declare module "*/check-recipe.mjs" {
+  export function checkRecipe(text: string): string[];
+  export function codeFor(versionName: string): number;
+}

@@ -95,6 +95,15 @@ fdroidserver does not clone it itself). Then:
 
 `--on-server` is what runs the recipe's sudo block (packages, Node), as F-Droid's CI does.
 
+## The recipe carries one version
+
+F-Droid wants the recipe to build the version being included, not the ones before it, and we have
+sent it two versions twice. `scripts/fdroid/check-recipe.mjs` refuses that, along with a
+versionCode that does not follow the versionName, a `commit:` that is not a full hash, and a
+CurrentVersion that has fallen behind the build. It runs in the test suite against our copy, and
+`scripts/fdroid/install-recipe-hook.sh` puts it in front of commits in the fdroiddata clone
+(hooks are not cloned, so run it once per checkout).
+
 ## Release (reproducible build)
 
 F-Droid rebuilds each version and publishes our signed APK when its build matches it byte for
