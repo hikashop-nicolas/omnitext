@@ -39,6 +39,12 @@ export function checkRecipe(text) {
     problems.push(`commit must be a full hash, not "${commit}": F-Droid refuses a tag or a branch there`);
   }
 
+  // fdroid rewritemeta rewrites the file its own way and CI fails when the two differ. The one
+  // that keeps catching us: the blank line between the last build and the key after it.
+  if (/^ {6}- .*\n[A-Za-z]/m.test(text)) {
+    problems.push("the Builds block needs a blank line after it, or fdroid rewritemeta rewrites the file and CI refuses it");
+  }
+
   const current = /^CurrentVersion: '([^']+)'/m.exec(text)?.[1];
   const currentCode = /^CurrentVersionCode: (\d+)/m.exec(text)?.[1];
   if (current !== version) problems.push(`CurrentVersion is ${current ?? "missing"}, but the build is ${version}`);

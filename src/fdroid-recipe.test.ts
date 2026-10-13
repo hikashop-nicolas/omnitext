@@ -27,6 +27,11 @@ describe("the F-Droid recipe", () => {
     expect(checkRecipe(recipe.replace(/commit: [0-9a-f]{40}/, "commit: fdroid-1.10")).join(" ")).toMatch(/full hash/);
   });
 
+  it("keeps the blank line that fdroid rewritemeta insists on", () => {
+    const glued = recipe.replace(/\n\nAllowedAPKSigningKeys:/, "\nAllowedAPKSigningKeys:");
+    expect(checkRecipe(glued).join(" ")).toMatch(/blank line/);
+  });
+
   it("numbers versions the way the build file does", () => {
     expect(codeFor("1.9")).toBe(10900);
     expect(codeFor("1.10")).toBe(11000);
