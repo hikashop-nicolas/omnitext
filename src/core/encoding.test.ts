@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, TEXT_DECODE_MAX_BYTES } from "./encoding";
+import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, looksUtf16, TEXT_DECODE_MAX_BYTES } from "./encoding";
 
 const buf = (bytes: number[] | Uint8Array): ArrayBuffer => new Uint8Array(bytes).buffer;
 const textBytes = (s: string) => [...new TextEncoder().encode(s)];
@@ -125,5 +125,37 @@ describe("encoding", () => {
       expect(looksBinary(buf(utf16))).toBe(true);
       expect(looksBinary(buf(utf16.map((_, i) => (i % 2 ? utf16[i - 1]! : 0))))).toBe(true); // big-endian
     });
+  });
+});
+
+// A .csv exported from Windows can be UTF-16 with no BOM: every other byte is NUL, which the
+// binary sniff read as "not text", so the file opened in the hex view (issue #49).
+describe("BOM-less UTF-16", () => {
+  const wide = (text: string, be = false): ArrayBuffer => {
+    const out = new Uint8Array(text.length * 2);
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      out[i * 2 + (be ? 1 : 0)] = code & 0xff;
+      out[i * 2 + (be ? 0 : 1)] = code >> 8;
+    }
+    return out.buffer;
+  };
+  const csv = "name;total\r\nwidget;1 190,00\r\nbolt;70,00\r\n";
+
+  it("is recognised in both byte orders", () => {
+    expect(looksUtf16(wide(csv))).toBe("utf-16le");
+    expect(looksUtf16(wide(csv, true))).toBe("utf-16be");
+  });
+
+  it("decodes as the text it is", () => {
+    expect(decodeBytes(wide(csv)).text).toBe(csv);
+    expect(decodeBytes(wide(csv, true)).text).toBe(csv);
+    expect(decodeBytes(wide(csv)).encoding.label).toBe("utf-16le");
+  });
+
+  it("does not claim ordinary text, or real binary", () => {
+    expect(looksUtf16(new TextEncoder().encode(csv).buffer)).toBeNull();
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(looksUtf16(png.buffer)).toBeNull();
   });
 });

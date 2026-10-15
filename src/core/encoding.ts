@@ -19,8 +19,32 @@ export function hasUtf16Bom(buffer: ArrayBuffer): boolean {
 }
 
 const SNIFF_BYTES = 8192;
+/** How much of a sample must alternate with NUL before it reads as BOM-less UTF-16. */
+const UTF16_SHARE = 0.9;
 /** A NUL run this long is buffer padding, not content: it says nothing about the file. */
 const PADDING_RUN = 8;
+
+/**
+ * BOM-less UTF-16, which a Windows export often is: every other byte of mostly-ASCII text is
+ * NUL, on the odd side for little-endian and the even side for big-endian. Without this it
+ * reads as binary and a .csv full of NULs opened as hex (issue #49).
+ */
+export function looksUtf16(buffer: ArrayBuffer): "utf-16le" | "utf-16be" | null {
+  const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, SNIFF_BYTES));
+  if (bytes.length < 16) return null;
+  const pairs = Math.floor(bytes.length / 2);
+  let le = 0;
+  let be = 0;
+  for (let i = 0; i < pairs; i++) {
+    const lo = bytes[i * 2]!;
+    const hi = bytes[i * 2 + 1]!;
+    if (hi === 0 && lo !== 0) le++;
+    if (lo === 0 && hi !== 0) be++;
+  }
+  if (le / pairs >= UTF16_SHARE) return "utf-16le";
+  if (be / pairs >= UTF16_SHARE) return "utf-16be";
+  return null;
+}
 
 /**
  * Text vs binary sniff for a file whose type is unknown, over the first 8 KB.
@@ -122,6 +146,11 @@ export function decodeBytes(buffer: ArrayBuffer, forced?: string): DecodedText {
   if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
     const text = new TextDecoder("utf-16be").decode(bytes.subarray(2));
     return { text, encoding: { label: "utf-16be", bom: true }, lossyOnSave: true };
+  }
+  // No BOM, but the bytes alternate with NUL: UTF-16 all the same.
+  const wide = looksUtf16(buffer);
+  if (wide) {
+    return { text: new TextDecoder(wide).decode(bytes), encoding: { label: wide, bom: false }, lossyOnSave: true };
   }
 
   // Strict UTF-8 first; anything invalid falls back to windows-1252 (which cannot

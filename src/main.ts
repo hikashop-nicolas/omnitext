@@ -7,7 +7,7 @@ import { installBundledOcrEngine } from "./ocr-engine";
 import { installRemoteConsent } from "./remote-consent";
 import { initSettingsDialog } from "./settings-dialog";
 import { OmnitextEngine } from "./core/engine";
-import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, ENCODINGS, type LineEnding } from "./core/encoding";
+import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, looksUtf16, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
   createDocumentNative,
   deleteDocumentNative,
@@ -992,7 +992,7 @@ async function openBuffer(
   // Unknown type and the content looks binary (scattered NULs / many control bytes): show
   // the hex fallback rather than decoding it into garbage text. UTF-16 text is full of
   // NULs, so a BOM overrides the sniff and routes to the text decoder below.
-  if (!hasUtf16Bom(buffer) && looksBinary(buffer)) {
+  if (!hasUtf16Bom(buffer) && !looksUtf16(buffer) && looksBinary(buffer)) {
     await mountDoc({
       bytes: new Uint8Array(buffer),
       binary: true,
