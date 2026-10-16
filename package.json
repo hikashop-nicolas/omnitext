@@ -99,7 +99,7 @@
     "pdfjs-dist": "^6.4.299",
     "postal-mime": "^4.0.4",
     "quill": "^2.0.3",
-    "quill-cursors": "^4.3.0",
+    "quill-cursors": "^6.0.0",
     "react-filerobot-image-editor": "4.8.1",
     "richdoc": "github:hikashop-nicolas/richdoc",
     "rtf.js": "^3.0.9",
