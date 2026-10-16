@@ -29,6 +29,7 @@
     "@types/sql.js": "^1.4.11",
     "@types/three": "^0.186.0",
     "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^21.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
