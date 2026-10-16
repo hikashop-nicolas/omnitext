@@ -49,3 +49,6 @@ scripts/fdroid/work/
 # Built Android artefacts (CI produces the real ones)
 *.aab
 *.apk
+
+# Local agent worktrees
+.claude/
