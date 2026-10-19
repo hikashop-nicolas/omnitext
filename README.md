@@ -125,6 +125,12 @@ only views them, which keeps it out of Finder's recommended applications: it is 
 puts Omnitext in the recommendations. Chrome rewrites its app on update, so run it again if the
 app drops back out.
 
+To make it the default for a file type, use Finder's *Get Info*, pick Omnitext under *Open
+with*, and press *Change All*. Setting it on the file alone, through *Open With* and *Always
+Open With*, binds that one file instead, and macOS refuses to open a downloaded file through
+such a binding: Gatekeeper claims it cannot verify the file is free of malware. If a file is
+already stuck that way, `xattr -d com.apple.quarantine <file>` opens it again.
+
 Settings shows which build you are running, with a *Check for updates* button beside it.
 Installed as an app, Omnitext keeps serving the build it has until every window is closed, so
 a page never loses a piece it might still need. The button is how you say "now" instead of
