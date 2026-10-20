@@ -1,5 +1,8 @@
 New in this update:
 
 • Text recognition runs from the app on older phones too: this build carries both engine variants, so a phone whose browser engine predates 2021 no longer downloads one
+• Spreadsheets: Delete clears the selected cells, cut and undo work straight from the grid, and a selected block can be dragged by its border to somewhere else
+• CSV files that write numbers the European way, with a comma for the decimal mark, add up instead of counting as zero, and keep that notation when saved
+• Text and CSV files saved as UTF-16 without a byte order mark, as several Windows tools write them, open as text instead of as raw bytes
 
 Still offline unless you choose to share.
