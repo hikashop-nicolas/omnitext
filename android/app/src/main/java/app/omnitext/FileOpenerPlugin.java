@@ -12,6 +12,10 @@ import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.os.Process;
+import android.content.ClipData;
+
+import java.util.ArrayList;
+import com.getcapacitor.JSArray;
 
 import androidx.activity.result.ActivityResult;
 
@@ -65,6 +69,128 @@ public class FileOpenerPlugin extends Plugin {
             | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         startActivityForResult(call, intent, "pickResult");
+    }
+
+    /**
+     * The system picker with several documents allowed. Resolves with the documents DESCRIBED, not
+     * copied: staging a fifty-video queue up front would fill the cache, so each file is staged by
+     * stageDocument() when it is about to play. {} when cancelled.
+     */
+    @PluginMethod
+    public void pickDocuments(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(call, intent, "pickManyResult");
+    }
+
+    @ActivityCallback
+    private void pickManyResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null) {
+            call.resolve(new JSObject());
+            return;
+        }
+        ArrayList<Uri> uris = new ArrayList<>();
+        ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) uris.add(clip.getItemAt(i).getUri());
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        ContentResolver cr = getContext().getContentResolver();
+        JSArray files = new JSArray();
+        for (Uri uri : uris) {
+            // Kept for later where the provider allows it, so a queue survives the app being
+            // backgrounded; a provider that refuses still plays this run.
+            try {
+                cr.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } catch (SecurityException e) {
+                try {
+                    cr.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException ignored) {
+                }
+            }
+            files.put(describe(getContext(), uri));
+        }
+        JSObject ret = new JSObject();
+        ret.put("files", files);
+        call.resolve(ret);
+    }
+
+    /**
+     * The system folder picker. Resolves with the folder's own files described (subfolders are not
+     * entered), or {} when cancelled. Read access is taken for keeps.
+     */
+    @PluginMethod
+    public void pickFolder(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(call, intent, "pickFolderResult");
+    }
+
+    @ActivityCallback
+    private void pickFolderResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) {
+            call.resolve(new JSObject());
+            return;
+        }
+        Uri tree = data.getData();
+        ContentResolver cr = getContext().getContentResolver();
+        try {
+            cr.takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+            // Readable for this run, which is what playing it needs.
+        }
+        String treeId = DocumentsContract.getTreeDocumentId(tree);
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, treeId);
+        String[] cols = {
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_SIZE,
+        };
+        JSArray files = new JSArray();
+        try (Cursor c = cr.query(children, cols, null, null, null)) {
+            while (c != null && c.moveToNext()) {
+                String mime = c.getString(2);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) continue;
+                JSObject o = new JSObject();
+                o.put("uri", DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0)).toString());
+                o.put("name", c.getString(1));
+                o.put("mime", mime == null ? "" : mime);
+                o.put("size", c.isNull(3) ? 0 : c.getLong(3));
+                files.put(o);
+            }
+        } catch (Exception e) {
+            call.reject("could not list the folder", e);
+            return;
+        }
+        int slash = treeId.lastIndexOf('/');
+        int colon = treeId.lastIndexOf(':');
+        JSObject ret = new JSObject();
+        ret.put("name", treeId.substring(Math.max(slash, colon) + 1));
+        ret.put("files", files);
+        call.resolve(ret);
+    }
+
+    /** Copy one document to the cache and describe it, for the file about to play. */
+    @PluginMethod
+    public void stageDocument(PluginCall call) {
+        String s = call.getString("uri");
+        if (s == null) {
+            call.reject("missing uri");
+            return;
+        }
+        Uri uri = Uri.parse(s);
+        resolveStaged(call, uri, writable(getContext(), uri));
     }
 
     @ActivityCallback
@@ -265,6 +391,28 @@ public class FileOpenerPlugin extends Plugin {
         return uri.toString();
     }
 
+    /** A document's name, type and size, without reading it. */
+    private static JSObject describe(Context ctx, Uri uri) {
+        String name = "file";
+        long size = 0;
+        try (Cursor c = ctx.getContentResolver().query(uri, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int n = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (n >= 0 && c.getString(n) != null) name = c.getString(n);
+                int z = c.getColumnIndex(OpenableColumns.SIZE);
+                if (z >= 0 && !c.isNull(z)) size = c.getLong(z);
+            }
+        } catch (Exception ignored) {
+        }
+        String mime = ctx.getContentResolver().getType(uri);
+        JSObject o = new JSObject();
+        o.put("uri", uri.toString());
+        o.put("name", name);
+        o.put("mime", mime == null ? "" : mime);
+        o.put("size", size);
+        return o;
+    }
+
     /** Add the http URL the bridge serves a staged file from: a filesystem path means nothing to the WebView. */
     private JSObject withUrl(JSObject o) {
         String path = o.getString("path");
@@ -281,6 +429,17 @@ public class FileOpenerPlugin extends Plugin {
         if (intent == null) return;
         String action = intent.getAction();
         Uri uri = null;
+        if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            // Several files shared at once: described, not copied, so each is staged as it plays.
+            ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (uris == null || uris.isEmpty()) return;
+            JSArray files = new JSArray();
+            for (Uri u : uris) files.put(describe(ctx, u));
+            JSObject many = new JSObject();
+            many.put("files", files);
+            pending = many;
+            return;
+        }
         if (Intent.ACTION_VIEW.equals(action)) {
             uri = intent.getData();
         } else if (Intent.ACTION_SEND.equals(action)) {

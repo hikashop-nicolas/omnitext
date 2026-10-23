@@ -8,7 +8,7 @@ import {
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { getLocale } from "../i18n";
 import { requestRemoteMedia } from "../remote-consent";
-import { setActiveQueue, takeHandedOverFiles } from "../core/media-handoff";
+import { setActiveQueue, takeHandedOverFiles, type HandedFile } from "../core/media-handoff";
 import { activeQueueOf, entriesFromFiles, pickFolderFiles, playlistKind, queueFromPlaylistFile, sortMedia } from "../core/media-queue";
 
 /** Told to the app when another file of a queue starts, so the title follows what is playing. */
@@ -39,7 +39,13 @@ class MediaInstance implements EditorInstance {
     if (playlistKind(name) && ctx.blob) {
       void this.mountPlaylist(ctx.blob as File, files ?? []);
     } else if (files && sortMedia(files).length > 1) {
-      this.mountQueue(entriesFromFiles(files), 0);
+      const entries = entriesFromFiles(files);
+      // The file this document was opened on is already in hand; do not fetch it a second time.
+      const own = entries.findIndex((e) => e.title === ctx.filename);
+      if (own >= 0 && ctx.blob) {
+        entries[own]!.load = async () => ({ blob: ctx.blob!, mime: ctx.mime, filename: ctx.filename });
+      }
+      this.mountQueue(entries, Math.max(0, own));
     } else {
       this.mountSingle();
     }
@@ -69,7 +75,7 @@ class MediaInstance implements EditorInstance {
 
   /** A playlist file: its lines are looked up among the files handed over, and if none were (it
    *  was opened alone) the list says so and offers to look in a folder. */
-  private async mountPlaylist(file: File, among: File[]): Promise<void> {
+  private async mountPlaylist(file: File, among: HandedFile[]): Promise<void> {
     let entries: QueueEntry[];
     try {
       entries = await queueFromPlaylistFile(file, among);

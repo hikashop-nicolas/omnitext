@@ -2,16 +2,28 @@
 // chunk does not drag the player in: the app only needs to hand files over and ask whether a
 // queue is playing, and the editor (which loads mediaplay anyway) fills in the rest.
 
+/**
+ * A file of a selection: a File, or on Android a description that copies the file out of its
+ * document provider only when asked, since a queue must not copy fifty videos before playing one.
+ */
+export interface HandedFile {
+  name: string;
+  type?: string;
+  /** Where it sat inside a picked folder. */
+  webkitRelativePath?: string;
+  load?: () => Promise<Blob>;
+}
+
 /** The files of a selection, handed to the media editor that mounts for its first file. */
-let handedOver: File[] | null = null;
+let handedOver: HandedFile[] | null = null;
 
 /** Called by the app just before it opens a document that was part of a selection. */
-export function handOverFiles(files: File[] | null): void {
+export function handOverFiles(files: HandedFile[] | null): void {
   handedOver = files;
 }
 
 /** Called by the media editor as it mounts; whoever takes it owns it. */
-export function takeHandedOverFiles(): File[] | null {
+export function takeHandedOverFiles(): HandedFile[] | null {
   const files = handedOver;
   handedOver = null;
   return files;
@@ -37,8 +49,8 @@ export function activeQueue(): ActiveQueue | null {
 }
 
 /** Natural order of picked files: "ep2" before "ep10", a folder's files by their path. */
-export function relativePath(file: File): string {
-  return (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+export function relativePath(file: HandedFile): string {
+  return file.webkitRelativePath || file.name;
 }
 
 export function naturalCompare(a: string, b: string): number {

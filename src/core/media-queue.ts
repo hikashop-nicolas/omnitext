@@ -2,7 +2,7 @@
 // describing the playing queue to the app. What the app and the editor pass each other lives in
 // media-handoff.ts, which does not import the player.
 
-import { pickFolderFiles, relativePath, type ActiveQueue } from "./media-handoff";
+import { pickFolderFiles, relativePath, type ActiveQueue, type HandedFile } from "./media-handoff";
 import {
   entriesFromFiles,
   entriesFromPlaylist,
@@ -30,7 +30,7 @@ export function activeQueueOf(handle: PlaylistHandle): ActiveQueue {
 }
 
 /** The queue for a playlist file and the files it can be resolved against. */
-export async function queueFromPlaylistFile(file: File, among: readonly File[]): Promise<QueueEntry[]> {
+export async function queueFromPlaylistFile(file: File, among: readonly HandedFile[]): Promise<QueueEntry[]> {
   const items = parsePlaylist(await file.text(), file.name);
   return entriesFromPlaylist(items, fileFinder([...among], relativePath(file)));
 }

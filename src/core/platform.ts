@@ -29,10 +29,23 @@ interface OpenedPayload {
   writable?: boolean;
   /** True when the grant outlives this run, so the file is worth a recent-list entry. */
   persisted?: boolean;
+  /** Several files shared at once, described and not yet copied. */
+  files?: NativeDoc[];
+}
+
+/** A document the OS offered, described without having been copied: it is staged when it plays. */
+export interface NativeDoc {
+  uri: string;
+  name: string;
+  mime?: string;
+  size?: number;
 }
 interface FileOpenerPlugin {
   getPendingFile(): Promise<OpenedPayload>;
   pickDocument(): Promise<OpenedPayload>;
+  pickDocuments(): Promise<{ files?: NativeDoc[] }>;
+  pickFolder(): Promise<{ files?: NativeDoc[]; name?: string }>;
+  stageDocument(options: { uri: string }): Promise<OpenedPayload>;
   createDocument(options: { name: string; mime: string }): Promise<OpenedPayload>;
   reopenDocument(options: { uri: string }): Promise<OpenedPayload>;
   writeDocument(options: { uri: string; path: string }): Promise<void>;
@@ -146,8 +159,46 @@ export async function getOpenedFile(): Promise<OpenedFile | null> {
   } catch {
     return null;
   }
+  if (p?.files?.length) {
+    // Several files were shared: no single file to open, the app opens them as a queue.
+    sharedSelection = p.files;
+    return null;
+  }
   if (!p?.name) return null;
   return fetchStaged(p);
+}
+
+let sharedSelection: NativeDoc[] | null = null;
+
+/** The files of a multiple share that getOpenedFile just saw, once. */
+export function takeSharedSelection(): NativeDoc[] | null {
+  const files = sharedSelection;
+  sharedSelection = null;
+  return files;
+}
+
+/** The system picker with several documents allowed (native only). Empty when cancelled. */
+export async function pickDocumentsNative(): Promise<NativeDoc[]> {
+  const p = await FileOpener.pickDocuments();
+  return p?.files ?? [];
+}
+
+/** The system folder picker (native only): the folder's own files, empty when cancelled. */
+export async function pickFolderNative(): Promise<NativeDoc[]> {
+  const p = await FileOpener.pickFolder();
+  return p?.files ?? [];
+}
+
+/** Copy one described document to the app and hand it back, as a picked one would be. */
+export async function stageDocumentNative(uri: string): Promise<PickedDocument> {
+  const p = await FileOpener.stageDocument({ uri });
+  if (!p?.name) throw new OpenedFileError(uri);
+  return { ...(await fetchStaged(p)), uri, key: p.key || uri, writable: !!p.writable };
+}
+
+/** A staged document's bytes as a Blob, for a queue entry that plays it later. */
+export async function stagedBlob(uri: string): Promise<Blob> {
+  return (await stageDocumentNative(uri)).file;
 }
 
 /** Turn a staged payload into a File the app can open (it streams from the cache copy). */

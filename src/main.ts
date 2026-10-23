@@ -13,9 +13,14 @@ import {
   deleteDocumentNative,
   forgetDocumentNative,
   getOpenedFile,
+  pickDocumentsNative,
+  pickFolderNative,
+  stageDocumentNative,
+  stagedBlob,
+  takeSharedSelection,
+  type NativeDoc,
   isNative,
   OpenedFileError,
-  pickDocumentNative,
   printFileNative,
   printNative,
   reopenDocumentNative,
@@ -1111,9 +1116,48 @@ async function openSelection(picked: Picked[], scheme: string): Promise<Picked |
   return first;
 }
 
+/**
+ * What Android's pickers and share sheet hand over, described and not yet copied. One document
+ * opens as it always did. Several become a queue whose files are copied out of their provider
+ * one at a time, as they play, so a long queue costs the cache one file and not all of them.
+ */
+async function openNativeSelection(docs: NativeDoc[]): Promise<void> {
+  const [only] = docs;
+  if (!only) return;
+  if (docs.length === 1) {
+    await openPicked(await stageDocumentNative(only.uri));
+    return;
+  }
+  const lower = (d: NativeDoc): string => d.name.toLowerCase();
+  const isPlaylist = (d: NativeDoc): boolean => binaryFormatFor(d.name)?.manifest.id === "playlist" || /\.(m3u8?|pls|xspf)$/.test(lower(d));
+  const media = docs
+    .filter((d) => !isPlaylist(d) && mediaFormatForFile(d.name, d.mime) !== null)
+    .sort((a, b) => naturalCompare(a.name, b.name));
+  const first = docs.find(isPlaylist) ?? (media.length > 1 ? media[0] : undefined);
+  if (!first) {
+    await openPicked(await stageDocumentNative(only.uri));
+    return;
+  }
+  handOverFiles(docs.map((d) => ({ name: d.name, type: d.mime, load: () => stagedBlob(d.uri) })));
+  try {
+    await openPicked(await stageDocumentNative(first.uri), { remember: false });
+  } finally {
+    handOverFiles(null);
+  }
+}
+
 /** Pick a folder and play what is in it. */
 async function openFolderAsPlaylist(): Promise<void> {
   if (!confirmDiscard()) return;
+  if (isNative()) {
+    const docs = await pickFolderNative();
+    if (!docs.some((d) => mediaFormatForFile(d.name, d.mime) !== null)) {
+      if (docs.length) engine.notificationSink.warn(t("notify.noMediaInFolder"));
+      return;
+    }
+    await openNativeSelection(docs);
+    return;
+  }
   const files = await pickFolderFiles();
   if (!files) return;
   const picked = files.map((file) => ({ file, handle: null }));
@@ -1157,8 +1201,7 @@ async function openFile(): Promise<void> {
     // Android's document picker rather than the WebView's: its grant can be kept, so Save
     // writes back to the same document and it can be reopened from the recent list.
     try {
-      const picked = await pickDocumentNative();
-      if (picked) await openPicked(picked);
+      await openNativeSelection(await pickDocumentsNative());
     } catch (e) {
       console.error("document picker failed", e);
       engine.notificationSink.error(t("notify.readFailed", { what: t("notify.documentWord") }));
@@ -2639,7 +2682,17 @@ async function maybeOpenPendingFile(): Promise<boolean> {
     engine.notificationSink.error(t("notify.readFailed", { what: name || t("notify.documentWord") }));
     return false;
   }
-  if (!opened) return false;
+  if (!opened) {
+    const shared = takeSharedSelection();
+    if (!shared) return false;
+    try {
+      await openNativeSelection(shared);
+    } catch (e) {
+      console.error("shared files open failed", e);
+      engine.notificationSink.error(t("notify.readFailed", { what: t("notify.documentWord") }));
+    }
+    return true;
+  }
   // Opened from the file explorer with write access: the same link a picked document gets,
   // so Save writes back to the file rather than offering a copy to share.
   if (opened.uri && opened.writable) {
