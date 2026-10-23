@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '1.11'
     versionCode: 11100
-    commit: 91b1388a04bfaf243ae6315499a47e0c7d364778
+    commit: 407702668057ab45438ef361305bf6dca6235801
     subdir: android/app
     sudo:
       - apt-get update
