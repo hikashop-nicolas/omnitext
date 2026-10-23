@@ -404,19 +404,27 @@ build_onnxruntime() {
   # onnxruntime brings its own emsdk, so every trace of ours has to go: emcc reads EM_CONFIG
   # from the environment whatever toolchain cmake was handed, and the skipped sanity check
   # leaves its cold cache unprepared. With ours leaking in, every compiler test failed.
-  (cd "$src" && env -u EMSDK -u EM_CONFIG -u EMCC_SKIP_SANITY_CHECK PATH="$BASE_PATH" \
-    EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
-    --build_dir "$src/BUILD" --config Release --skip_submodule_sync --parallel \
-    --build_wasm --enable_wasm_simd --enable_wasm_threads \
-    --use_webgpu --use_webnn --target onnxruntime_webassembly \
-    --skip_tests --disable_rtti --enable_wasm_api_exception_catching \
-    --disable_ml_ops --disable_generation_ops \
-    --disable_types string float4 float8 optional sparsetensor \
-    --include_ops_by_config onnxruntime/wasm/reduced_types.config \
-    --enable_reduced_operator_type_support \
-    --allow_running_as_root \
-    --cmake_extra_defines NODE_EXECUTABLE=/usr/bin/node) >"$WORK/onnxruntime-build.log" 2>&1 ||
-    { tail -25 "$WORK/onnxruntime-build.log"; exit 1; }
+  # A cold Emscripten cache and sixteen parallel jobs race: the build once died at 1% in a
+  # generator that parses another process's half-written output ("Illegal trailing comma"),
+  # having passed on an earlier run of the same commit. The cache is warm after the first try, and
+  # make carries on from what it built, so a second pass is cheap and settles it.
+  : >"$WORK/onnxruntime-build.log"
+  for attempt in 1 2 3; do
+    (cd "$src" && env -u EMSDK -u EM_CONFIG -u EMCC_SKIP_SANITY_CHECK PATH="$BASE_PATH" \
+      EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
+      --build_dir "$src/BUILD" --config Release --skip_submodule_sync --parallel \
+      --build_wasm --enable_wasm_simd --enable_wasm_threads \
+      --use_webgpu --use_webnn --target onnxruntime_webassembly \
+      --skip_tests --disable_rtti --enable_wasm_api_exception_catching \
+      --disable_ml_ops --disable_generation_ops \
+      --disable_types string float4 float8 optional sparsetensor \
+      --include_ops_by_config onnxruntime/wasm/reduced_types.config \
+      --enable_reduced_operator_type_support \
+      --allow_running_as_root \
+      --cmake_extra_defines NODE_EXECUTABLE=/usr/bin/node) >>"$WORK/onnxruntime-build.log" 2>&1 && break
+    if [ "$attempt" = 3 ]; then tail -25 "$WORK/onnxruntime-build.log"; exit 1; fi
+    echo "  onnxruntime build failed (attempt $attempt of 3), going again on the warm cache"
+  done
   for f in ort-wasm-simd-threaded.asyncify.mjs ort-wasm-simd-threaded.asyncify.wasm; do
     install_over "$src/BUILD/Release/$f" "node_modules/onnxruntime-web/dist/$f"
   done
