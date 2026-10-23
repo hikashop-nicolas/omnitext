@@ -72,7 +72,7 @@ a page for each one, generated from the app itself.
 | **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
 | **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor) |
-| **Audio and video** | The usual web formats plus MKV, MOV, AVCHD and more, including Dolby and Apple Lossless audio that browsers normally refuse, with subtitles |
+| **Audio and video** | The usual web formats plus MKV, MOV, AVCHD and more, including Dolby and Apple Lossless audio that browsers normally refuse, with subtitles. Several files, a folder or a playlist (M3U, PLS, XSPF) play as one queue with next, previous, repeat and shuffle |
 | **Maps** | GeoJSON, KML, KMZ and GPX in an interactive map editor, with measuring and drawing |
 | **Subtitles** | SRT, WebVTT, ASS and SSA, with a waveform timeline, transcription and translation |
 | **Archives** | ZIP, TAR, 7z, RAR and friends: browse them, open a file inside, or edit and put it back |
