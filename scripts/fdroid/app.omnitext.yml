@@ -32,7 +32,7 @@ Builds:
       - yes
     build:
       - cd ../..
-      - ONNXRUNTIME_NODE_INSTALL=skip npm ci
+      - export ONNXRUNTIME_NODE_INSTALL=skip; npm ci || npm ci || npm ci
       - scripts/fdroid/build-wasm.sh
       - OMNITEXT_BUNDLE_TESSERACT=1 OMNITEXT_BUNDLE_ONNXRUNTIME=1 npm run build
       - node scripts/fdroid/cap-sync.cjs sync android
