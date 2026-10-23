@@ -24,6 +24,11 @@ updates:
       # 0.3.98 has the same layout (reported upstream as intity/epub-js#18).
       - dependency-name: "@intity/epub-js"
         versions: ["0.3.97", "0.3.98"]
+      # The F-Droid build compiles sql.js from its source at the version npm installed
+      # (scripts/fdroid/build-wasm.sh sqljs), byte-identical to npm's at 1.14.2. A newer one is
+      # bumped by hand once that build has been run against it, so the pin is exact.
+      - dependency-name: "sql.js"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
