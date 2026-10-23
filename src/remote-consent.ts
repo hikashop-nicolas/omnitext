@@ -51,6 +51,13 @@ export async function requestBasemap(): Promise<boolean> {
   return answer === true;
 }
 
+/** A playlist with entries on the web. Asked for each playlist rather than remembered: the
+ *  addresses differ every time, and what they cost is a request that names the file asked for. */
+export async function requestRemoteMedia(hosts: string[]): Promise<boolean> {
+  const answer = await ask(t("consent.mediaBody", { hosts: hosts.join(", ") }), t("consent.mediaNote"));
+  return answer === true;
+}
+
 /** Show the dialog; true = allow, false = don't allow, null = closed without answering. */
 function ask(body: string, note: string): Promise<boolean | null> {
   return new Promise((resolve) => {

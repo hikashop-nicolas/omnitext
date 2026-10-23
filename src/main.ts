@@ -152,6 +152,8 @@ import {
   makeViewerFormats,
 } from "./formats/binary-viewers";
 import { applyDom, getLocale, initI18n, t } from "./i18n";
+import { activeQueue, handOverFiles, naturalCompare, pickFolderFiles, relativePath } from "./core/media-handoff";
+import { readDropped } from "./core/dropped";
 import { getSettings } from "./settings";
 import type {
   EditorInstance,
@@ -1075,6 +1077,80 @@ function renameDoc(): void {
   scheduleAutosave();
 }
 
+/** A file chosen or dropped, with the handle that lets Save write back where it came from. */
+interface Picked {
+  file: File;
+  handle: FsHandle | null;
+}
+
+/**
+ * Several files at once. Audio or video among them, or a playlist file, becomes one queue: the
+ * first file is the document and the rest are handed to the media editor that mounts for it.
+ * Anything else keeps the old rule, that the first file is the one that opens. Returns the one
+ * that opened, so the caller can remember it.
+ */
+async function openSelection(picked: Picked[], scheme: string): Promise<Picked | null> {
+  const [only] = picked;
+  if (!only) return null;
+  const isPlaylist = (f: File): boolean => binaryFormatFor(f.name)?.manifest.id === "playlist";
+  const playlist = picked.find((p) => isPlaylist(p.file));
+  const media = picked
+    .filter((p) => !isPlaylist(p.file) && mediaFormatForFile(p.file.name, p.file.type) !== null)
+    .sort((a, b) => naturalCompare(relativePath(a.file), relativePath(b.file)));
+  const first = picked.length > 1 ? (playlist ?? (media.length > 1 ? media[0] : undefined)) : undefined;
+  if (!first) {
+    await openLocalFile(only.file, scheme, only.handle);
+    return only;
+  }
+  handOverFiles(picked.map((p) => p.file));
+  try {
+    await openLocalFile(first.file, scheme, first.handle);
+  } finally {
+    handOverFiles(null);
+  }
+  return first;
+}
+
+/** Pick a folder and play what is in it. */
+async function openFolderAsPlaylist(): Promise<void> {
+  if (!confirmDiscard()) return;
+  const files = await pickFolderFiles();
+  if (!files) return;
+  const picked = files.map((file) => ({ file, handle: null }));
+  const hasMedia = picked.some((p) => mediaFormatForFile(p.file.name, p.file.type) !== null);
+  if (!hasMedia) {
+    engine.notificationSink.warn(t("notify.noMediaInFolder"));
+    return;
+  }
+  await openSelection(picked, "upload");
+}
+
+/** Write the playing queue out as an M3U8 playlist, wherever this platform lets a file go. */
+async function savePlaylist(): Promise<void> {
+  const queue = activeQueue();
+  if (!queue) return;
+  const bytes = new TextEncoder().encode(queue.toM3u());
+  const name = queue.suggestedName();
+  try {
+    if (isNative()) {
+      const picked = await createDocumentNative(name, "audio/x-mpegurl");
+      if (picked) await writeDocumentNative(picked.uri, bytes);
+    } else if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({ suggestedName: name });
+      const w = await handle.createWritable();
+      await w.write(bytes);
+      await w.close();
+    } else {
+      downloadBytes(bytes, name);
+    }
+  } catch (e) {
+    if ((e as DOMException)?.name !== "AbortError") {
+      console.error("saving the playlist failed", e);
+      engine.notificationSink.error(t("notify.saveFailed"));
+    }
+  }
+}
+
 async function openFile(): Promise<void> {
   if (!confirmDiscard()) return;
   if (isNative()) {
@@ -1091,11 +1167,11 @@ async function openFile(): Promise<void> {
   }
   if (window.showOpenFilePicker) {
     try {
-      const [handle] = await window.showOpenFilePicker();
-      if (!handle) return;
-      const file = await handle.getFile();
-      await openLocalFile(file, "fs", handle);
-      void rememberRecent({ kind: "handle", name: file.name, handle });
+      const handles = await window.showOpenFilePicker({ multiple: true });
+      if (!handles.length) return;
+      const picked = await Promise.all(handles.map(async (handle) => ({ file: await handle.getFile(), handle })));
+      const opened = await openSelection(picked, "fs");
+      if (opened?.handle) void rememberRecent({ kind: "handle", name: opened.file.name, handle: opened.handle });
     } catch (e) {
       if ((e as DOMException)?.name !== "AbortError") console.error(e);
     }
@@ -1105,10 +1181,10 @@ async function openFile(): Promise<void> {
 }
 
 fileInput.addEventListener("change", async () => {
-  const file = fileInput.files?.[0];
-  if (!file) return;
-  await openLocalFile(file, "upload", null);
+  const files = [...(fileInput.files ?? [])];
   fileInput.value = "";
+  if (!files.length) return;
+  await openSelection(files.map((file) => ({ file, handle: null })), "upload");
 });
 
 // Drag-and-drop: dropping a file anywhere on the window opens it (the Open button remains the
@@ -1138,10 +1214,12 @@ window.addEventListener("drop", async (e) => {
   e.preventDefault();
   dragDepth = 0;
   dropzoneEl.classList.remove("show");
-  const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
+  if (!e.dataTransfer) return;
+  // Read the drop before anything is awaited: its entries are gone once the event returns.
+  const files = await readDropped(e.dataTransfer);
+  if (!files.length) return;
   if (!confirmDiscard()) return;
-  await openLocalFile(file, "upload", null);
+  await openSelection(files.map((file) => ({ file, handle: null })), "upload");
 });
 
 // Installed-PWA "Open with" (desktop Chromium): the OS hands files declared in the
@@ -1168,7 +1246,8 @@ let launchOpen: Promise<boolean> | null = null;
 const i18nReady = initI18n();
 
 (window as { launchQueue?: { setConsumer(cb: (p: LaunchParamsLike) => void): void } }).launchQueue?.setConsumer((params) => {
-  const handle = params.files?.[0];
+  const handles = params.files ?? [];
+  const handle = handles[0];
   if (!handle) return; // a plain launch of the installed app: no file to open
   // Already running: the same discard guard a dropped file gets. At boot there is
   // nothing to discard, and asking before the app has drawn would be its own bug.
@@ -1176,8 +1255,9 @@ const i18nReady = initI18n();
   launchOpen = (async () => {
     try {
       await i18nReady; // before the read, so a failure is reported in the user's language
-      await openLocalFile(await handle.getFile(), "fs", handle);
-      void rememberRecent({ kind: "handle", name: handle.name, handle });
+      const picked = await Promise.all(handles.map(async (h) => ({ file: await h.getFile(), handle: h })));
+      const opened = await openSelection(picked, "fs");
+      if (opened?.handle) void rememberRecent({ kind: "handle", name: opened.file.name, handle: opened.handle });
       return true;
     } catch (e) {
       // The OS did ask us to open something. Say that it failed rather than showing a
@@ -2109,7 +2189,9 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.print"), hint: "Ctrl+P", run: () => printDoc() },
     { label: t("app.close"), run: () => void closeDocument() },
     { label: t("app.settings"), run: () => settingsDialog.open() },
+    { label: t("app.openFolder"), run: () => void openFolderAsPlaylist() },
   ];
+  if (activeQueue()) out.push({ label: t("app.savePlaylist"), run: () => void savePlaylist() });
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });
   for (const c of viewChoices) {
     const id = c.editor.manifest.id;
@@ -2292,6 +2374,14 @@ const hideDirtyTip = () => {
 dirtyEl.addEventListener("click", showDirtyTip);
 dirtyEl.addEventListener("focus", showDirtyTip);
 dirtyEl.addEventListener("blur", hideDirtyTip);
+
+// A queue plays one file after another inside one document: the title is the one playing.
+window.addEventListener("omnitext:media-track", (e) => {
+  const title = (e as CustomEvent<{ title?: string }>).detail?.title;
+  if (!title || !session) return;
+  session.filename = title;
+  updateUI();
+});
 
 window.addEventListener("beforeunload", (e) => {
   if (session?.dirty) {

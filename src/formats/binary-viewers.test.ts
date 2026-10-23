@@ -25,6 +25,13 @@ describe("binary viewer formats", () => {
     expect(zip.manifest.binary).toBe(true);
   });
 
+  it("opens playlist files in the media viewer, which reads them as a queue", () => {
+    const playlist = makeViewerFormats().find((d) => d.manifest.id === "playlist")!;
+    expect(playlist.manifest.nativeEditor).toBe("media");
+    expect(playlist.manifest.binary).toBe(true);
+    expect(playlist.manifest.extensions).toEqual([".m3u", ".m3u8", ".pls", ".xspf"]);
+  });
+
   it("provides extensionless generic formats for MIME-class routing", () => {
     const generic = makeGenericViewerFormats();
     const image = generic.find((d) => d.manifest.id === "image")!;

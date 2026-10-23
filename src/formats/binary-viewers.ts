@@ -45,6 +45,9 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "weba", exts: [".weba"], mime: "audio/webm", viewer: "media" },
   { id: "mka", exts: [".mka"], mime: "audio/x-matroska", viewer: "media" },
   { id: "wma", exts: [".wma"], mime: "audio/x-ms-wma", viewer: "media" },
+  // A playlist is text, but what it is for is playing: it opens as a queue in the media viewer,
+  // which reads the file itself.
+  { id: "playlist", exts: [".m3u", ".m3u8", ".pls", ".xspf"], mime: "audio/x-mpegurl", viewer: "media" },
   // Archives (zip-based; docx/xlsx/odt/ods are also zips but have dedicated editors)
   { id: "zip", exts: [".zip"], mime: "application/zip", viewer: "archive" },
   { id: "jar", exts: [".jar"], mime: "application/java-archive", viewer: "archive" },
