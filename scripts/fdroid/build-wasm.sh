@@ -36,6 +36,12 @@ WORK="$ROOT/scripts/fdroid/work"
 EMSDK_TAG="5.0.0" # the emsdk checkout itself; it installs any compiler version below
 mkdir -p "$WORK"
 cd "$ROOT"
+# Every download below, including the ones sql.js and onnxruntime make themselves, goes through
+# curl; retry the flaky ones instead of losing an hour-long build to one broken pipe.
+mkdir -p "$WORK/bin"
+printf '#!/bin/sh\nexec %s --retry 5 --retry-all-errors --retry-delay 5 "$@"\n' "$(command -v curl)" >"$WORK/bin/curl"
+chmod +x "$WORK/bin/curl"
+export PATH="$WORK/bin:$PATH"
 BASE_PATH="$PATH" # each emsdk_use starts from this, so versions do not stack
 
 # Activate one Emscripten version, installing it on first use.
