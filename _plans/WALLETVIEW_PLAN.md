@@ -1,6 +1,6 @@
 # Walletview plan: a viewer library for wallet passes and cards
 
-Status: draft, 2026-10-26. Nothing created yet (no repo, no code).
+Status: phases 0-4 done 2026-10-26 (walletview v0.1.0 public, Omnitext opens .pkpass and .pkpasses, checked on the phone). BCBP, health card and the Google and Samsung readers are still to do.
 
 ## Why
 
