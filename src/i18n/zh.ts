@@ -355,6 +355,7 @@ const zh: Dict = {
     open: "打开",
     wrongPassword: "密码不正确。",
     failed: "无法打开此 PDF：{message}",
+    editFailed: "无法应用此更改：{message}",
     page: "第 {n} 页，共 {total} 页",
     zoomIn: "放大",
     zoomOut: "缩小",

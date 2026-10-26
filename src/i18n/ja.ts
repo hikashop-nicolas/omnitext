@@ -353,6 +353,7 @@ const ja: Dict = {
     open: "開く",
     wrongPassword: "パスワードが違います。",
     failed: "この PDF を開けませんでした：{message}",
+    editFailed: "この変更を適用できませんでした: {message}",
     page: "{total} ページ中 {n} ページ",
     zoomIn: "拡大",
     zoomOut: "縮小",

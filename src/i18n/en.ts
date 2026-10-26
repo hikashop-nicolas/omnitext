@@ -353,6 +353,7 @@ const en: Dict = {
     open: "Open",
     wrongPassword: "That password is not right.",
     failed: "This PDF could not be opened: {message}",
+    editFailed: "This change could not be applied: {message}",
     page: "Page {n} of {total}",
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",

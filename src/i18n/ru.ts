@@ -374,6 +374,7 @@ const ru: Dict = {
     open: "Открыть",
     wrongPassword: "Неверный пароль.",
     failed: "Не удалось открыть этот PDF: {message}",
+    editFailed: "Не удалось применить это изменение: {message}",
     page: "Страница {n} из {total}",
     zoomIn: "Увеличить",
     zoomOut: "Уменьшить",

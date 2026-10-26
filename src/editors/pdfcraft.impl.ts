@@ -1,6 +1,6 @@
 import { EngineError, openPdf, type AnnotationInfo, type Box, type EditCall, type FieldInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
-import type { CollabBinding, CollabContext, EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
 import { openExternal } from "../core/external";
 import { t } from "../i18n";
@@ -184,7 +184,11 @@ const FAMILIES = ["helvetica", "times", "courier"] as const;
 /** The box around a list of boxes. */
 const bounds = (rects: Box[]): Box => [Math.min(...rects.map((r) => r[0])), Math.min(...rects.map((r) => r[1])), Math.max(...rects.map((r) => r[2])), Math.max(...rects.map((r) => r[3]))];
 
+/** Ligature code points (fi, fl...) back to plain letters: the engine's fallback face has no glyph for them. */
+const plainLetters = (s: string): string => s.replace(/[\uFB00-\uFB06]/g, (c) => c.normalize("NFKC"));
+
 class PdfCraftInstance implements EditorInstance {
+  constructor(private readonly host: HostAPI) {}
   private root!: HTMLElement;
   private bar!: HTMLElement;
   private sub!: HTMLElement;
@@ -1277,7 +1281,8 @@ class PdfCraftInstance implements EditorInstance {
     try {
       await edit();
     } catch (e) {
-      this.fail(e);
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      this.renderSelection();
       return;
     }
     this.afterEdit([page]);
@@ -1387,7 +1392,7 @@ class PdfCraftInstance implements EditorInstance {
     const z = this.zoom;
     const [x0, y0, x1, y1] = box;
     const area = el("textarea", "ot-pc-edit");
-    area.value = field?.value ?? obj?.text ?? "";
+    area.value = plainLetters(field?.value ?? obj?.text ?? "");
     area.spellcheck = false;
     const minH = Math.max((y1 - y0) * z + 6, 32);
     area.style.left = `${x0 * z - 2}px`;
@@ -1439,7 +1444,7 @@ class PdfCraftInstance implements EditorInstance {
     }
     if (edit.obj) {
       const obj = edit.obj;
-      if (text === obj.text) {
+      if (text === plainLetters(obj.text ?? "")) {
         this.renderSelection();
         return;
       }
@@ -1601,5 +1606,5 @@ class PdfCraftInstance implements EditorInstance {
 }
 
 export const pdfCraftEditor: EditorModule = {
-  create: () => new PdfCraftInstance(),
+  create: (host) => new PdfCraftInstance(host),
 };
