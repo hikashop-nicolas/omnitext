@@ -72,6 +72,7 @@ function ensureStyles(): void {
     .ot-pc-ov > div { position:absolute; box-sizing:border-box; }
     .ot-pc-field { background:rgba(42,109,244,.10); outline:1px solid rgba(42,109,244,.45); }
     .ot-pc-field.radio { border-radius:50%; background:rgba(255,255,255,.92); outline:1.5px solid rgba(42,109,244,.85); }
+    .ot-pc-field.radio.on::after { content:""; position:absolute; inset:24%; border-radius:50%; background:#2a6df4; }
     .ot-pc-field.check { background:rgba(255,255,255,.92); outline:1.5px solid rgba(42,109,244,.85); display:flex; align-items:center; justify-content:center; color:#2a6df4; font-weight:700; line-height:1; }
     .ot-pc-field.combo::after { content:"\\25BE"; position:absolute; top:0; right:0; bottom:0; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
       background:rgba(42,109,244,.28); color:#1b4fc4; font-size:inherit; line-height:1; }
@@ -278,6 +279,8 @@ class PdfCraftInstance implements EditorInstance {
   private placing: Placing | null = null;
   private menuEl: HTMLElement | null = null;
   private bannerEl: HTMLElement | null = null;
+  /** While radio buttons are being placed: the group they join, so choosing one clears the others. */
+  private radioGroup: { name: string; count: number } | null = null;
   private stroke: { page: number; pts: [number, number][]; el: SVGSVGElement } | null = null;
   private stamps: StampInfo[] | null = null;
   /** After protecting, the file has to be written whole so it is encrypted. */
@@ -547,9 +550,8 @@ class PdfCraftInstance implements EditorInstance {
     for (const f of this.extraCache.get(page)?.fields ?? []) {
       if (f.kind === "button" || f.kind === "signature") continue;
       // a check box, a radio button and the two kinds of choice look like what they are, as far as the page itself does not show it
-      const on = !!f.value && f.value.toLowerCase() !== "off";
-      const kind = f.kind === "choice" ? (f.view[3] - f.view[1] <= 30 ? "combo" : "list") : f.kind === "text" ? "" : f.kind;
-      rect(f.view, `ot-pc-field${kind ? " " + kind : ""}`, f.kind === "check" && on ? "\u2713" : undefined);
+      const kind = f.kind === "choice" ? (f.combo ?? f.view[3] - f.view[1] <= 30 ? "combo" : "list") : f.kind === "text" ? "" : f.kind;
+      rect(f.view, `ot-pc-field${kind ? " " + kind : ""}${f.on ? " on" : ""}`, f.kind === "check" && f.on ? "\u2713" : undefined);
     }
     this.matches.forEach((m, i) => {
       if (m.page === page) for (const r of m.rects) rect(r, i === this.matchIndex ? "ot-pc-hit cur" : "ot-pc-hit");
@@ -580,6 +582,7 @@ class PdfCraftInstance implements EditorInstance {
     this.scroller.classList.toggle("tool", tool === "cover" || tool === "textsel" || tool === "place");
     if (tool !== "place") {
       this.placing = null;
+      this.radioGroup = null;
       this.hideBanner();
     }
     this.closeMenu();
@@ -1085,13 +1088,26 @@ class PdfCraftInstance implements EditorInstance {
     if (link.uri) openExternal(link.uri);
   }
 
-  /** Fills a form field: a check box toggles, text and choices open a box to type in. */
+  /** Fills a form field: a check box toggles, a radio button is chosen, a choice offers its options, text opens a box to type in. */
   private async useField(page: number, field: FieldInfo): Promise<void> {
     if (!this.doc || this.viewOnly) return;
     const keep = this.fieldSelection(page, field);
     if (field.kind === "check") {
-      const on = !!field.value && field.value.toLowerCase() !== "off";
-      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !on } }), keep);
+      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !field.on } }), keep);
+      return;
+    }
+    if (field.kind === "radio") {
+      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { radio: field.export ?? null } }), keep);
+      return;
+    }
+    if (field.kind === "choice" && field.options?.length) {
+      const v = await formDialog(this.root, {
+        title: field.name,
+        ok: t("pdfcraft.ok"),
+        cancel: t("pdfcraft.cancel"),
+        fields: [{ key: "choice", label: field.name, kind: "select", value: field.value ?? undefined, options: field.options }],
+      });
+      if (v) await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { choice: [String(v.choice)] } }), keep);
       return;
     }
     if (field.kind === "text" || field.kind === "choice") {
@@ -1305,7 +1321,15 @@ class PdfCraftInstance implements EditorInstance {
     };
     if (sel.field) {
       const field = sel.field;
-      if (field.kind === "text" || field.kind === "choice" || field.kind === "check") add(field.kind === "check" ? "check" : "edit", t("pdfcraft.editText"), () => void this.useField(sel.page, field));
+      if (field.kind === "text" || field.kind === "choice") add("edit", t("pdfcraft.editText"), () => void this.useField(sel.page, field));
+      if (field.kind === "check" || field.kind === "radio") add("check", t("pdfcraft.choose"), () => void this.useField(sel.page, field), !!field.on);
+      if (field.kind === "radio") {
+        add("plus", t("pdfcraft.radioAdd"), () => {
+          const count = (this.extraCache.get(sel.page)?.fields ?? []).filter((f) => f.name === field.name).length;
+          this.startPlacing({ group: "form", kind: "field", field: "radio", sticky: true });
+          this.radioGroup = { name: field.name, count };
+        });
+      }
       add("sliders", t("pdfcraft.fieldProps"), () => void this.fieldProperties(sel.page, field));
     } else if (sel.ann) {
       const ann = sel.ann;
@@ -1448,7 +1472,7 @@ class PdfCraftInstance implements EditorInstance {
   private async commitField(sel: Selection, box: Box): Promise<void> {
     const field = sel.field;
     if (!field) return;
-    await this.run(sel.page, () => this.commit({ op: "setFieldProps", name: field.name, change: { box } }), sel);
+    await this.run(sel.page, () => this.commit({ op: "setFieldProps", name: field.name, change: { box, widget: field.widget } }), sel);
   }
 
   private async commitResize(sel: Selection, box: Box): Promise<void> {
@@ -1476,7 +1500,8 @@ class PdfCraftInstance implements EditorInstance {
     if (!keep && !pick) return;
     if (keep?.field) {
       const name = keep.field.name;
-      const now = (await this.extras(page)).fields.find((f) => f.name === name);
+      const widget = keep.field.widget;
+      const now = (await this.extras(page)).fields.find((f) => f.name === name && f.widget === widget);
       this.select(now ? this.fieldSelection(page, now) : null);
       return;
     }
@@ -1506,7 +1531,7 @@ class PdfCraftInstance implements EditorInstance {
     this.select(null);
     const ann = sel.ann;
     const field = sel.field;
-    if (field) await this.run(sel.page, () => this.commit({ op: "deleteField", name: field.name }));
+    if (field) await this.run(sel.page, () => this.commit({ op: "deleteFieldWidget", name: field.name, widget: field.widget }));
     else if (ann) await this.run(sel.page, () => this.commit({ op: "deleteAnnotation", page: sel.page, index: ann.index }));
     else await this.run(sel.page, () => this.commit({ op: "deleteObject", page: sel.page, target: this.ref(sel) }));
   }
@@ -1596,7 +1621,7 @@ class PdfCraftInstance implements EditorInstance {
           ]
         : which === "form"
           ? ([["text", "fieldText"], ["multiline", "fieldMultiline"], ["date", "fieldDate"], ["check", "fieldCheck"], ["radio", "fieldRadio"], ["combo", "fieldCombo"], ["list", "fieldList"], ["button", "fieldButton"]] as const).map(
-              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type }) }),
+              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type, sticky: type === "radio" }) }),
             )
           : which === "sign"
             ? [
@@ -1814,12 +1839,24 @@ class PdfCraftInstance implements EditorInstance {
           const side = Math.max(12, Math.min(box[2] - box[0], box[3] - box[1]));
           box = [box[0], box[1], box[0] + side, box[1] + side];
         }
-        const spec = type === "combo" || type === "list" ? { type, options: ["Option 1", "Option 2", "Option 3"] } : { type };
+        const group = this.radioGroup;
+        const spec =
+          type === "combo" || type === "list"
+            ? { type, options: ["Option 1", "Option 2", "Option 3"] }
+            : type === "radio"
+              ? { type, export: `Option ${(group?.count ?? 0) + 1}`, ...(group ? { group: group.name } : {}) }
+              : { type };
         const before = new Set((await this.extras(page)).fields.map((f) => f.name));
         await this.run(page, () => this.commit({ op: "addField", page, view: box, spec }));
+        const added = (await this.extras(page)).fields.filter((f) => !before.has(f.name));
+        if (type === "radio") {
+          // the first button names the group; the next ones join it
+          if (group) group.count++;
+          else if (added[0]) this.radioGroup = { name: added[0].name, count: 1 };
+          return;
+        }
         this.endPlacing();
-        const added = (await this.extras(page)).fields.find((f) => !before.has(f.name));
-        if (added) this.select(this.fieldSelection(page, added));
+        if (added[0]) this.select(this.fieldSelection(page, added[0]));
         return;
       }
       case "signbox":
@@ -2126,7 +2163,7 @@ class PdfCraftInstance implements EditorInstance {
       remove.addEventListener("click", () => {
         this.cancelEdit();
         this.select(null);
-        void this.run(page, () => this.commit({ op: "deleteField", name: info.name }));
+        void this.run(page, () => this.commit({ op: "deleteFieldWidget", name: info.name, widget: info.widget }));
       });
       bar.append(props, remove);
     }

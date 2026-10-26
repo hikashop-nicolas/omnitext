@@ -444,6 +444,8 @@ const zh: Dict = {
     fieldReadOnly: "只读",
     fieldOptions: "选项，每行一个",
     fieldDelete: "删除域",
+    choose: "选择",
+    radioAdd: "向此组添加按钮",
     fieldAdded: "在页面上拖出域的范围。",
     placeHint: "在页面上拖动或点按以放置。",
     editComment: "编辑批注",

@@ -440,6 +440,8 @@ const de: Dict = {
     fieldReadOnly: "Schreibgeschützt",
     fieldOptions: "Auswahl, eine pro Zeile",
     fieldDelete: "Feld löschen",
+    choose: "Wählen",
+    radioAdd: "Schaltfläche zu dieser Gruppe hinzufügen",
     fieldAdded: "Zeichnen Sie das Feld auf die Seite.",
     placeHint: "Auf der Seite ziehen oder tippen, um es zu platzieren.",
     editComment: "Kommentar bearbeiten",

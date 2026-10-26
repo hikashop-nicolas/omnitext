@@ -440,6 +440,8 @@ const pt: Dict = {
     fieldReadOnly: "Só de leitura",
     fieldOptions: "Opções, uma por linha",
     fieldDelete: "Eliminar campo",
+    choose: "Escolher",
+    radioAdd: "Adicionar um botão a este grupo",
     fieldAdded: "Desenhe a caixa do campo na página.",
     placeHint: "Arraste ou toque na página para o colocar.",
     editComment: "Editar comentário",

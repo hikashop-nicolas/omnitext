@@ -443,6 +443,8 @@ const fr: Dict = {
     fieldReadOnly: "Lecture seule",
     fieldOptions: "Choix, un par ligne",
     fieldDelete: "Supprimer le champ",
+    choose: "Choisir",
+    radioAdd: "Ajouter un bouton à ce groupe",
     fieldAdded: "Dessinez la zone du champ sur la page.",
     placeHint: "Faites glisser sur la page, ou touchez, pour le placer.",
     editComment: "Modifier le commentaire",

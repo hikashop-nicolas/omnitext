@@ -442,6 +442,8 @@ const en: Dict = {
     fieldReadOnly: "Read only",
     fieldOptions: "Choices, one per line",
     fieldDelete: "Delete field",
+    choose: "Choose",
+    radioAdd: "Add a button to this group",
     fieldAdded: "Draw the field's box on the page.",
     placeHint: "Drag on the page, or tap, to place it.",
     editComment: "Edit comment",

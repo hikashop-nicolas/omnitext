@@ -81,9 +81,17 @@ export interface FieldInfo {
   kind: FieldKind;
   value: string | null;
   view: Box;
+  /** Which of the field's widgets this is (a radio group has one per button). */
+  widget: number;
+  /** A check box or radio button: whether this one is chosen, and what choosing it sets. */
+  on?: boolean;
+  export?: string | null;
+  /** A choice: a drop-down (true) or a list box, and its choices as [value, label]. */
+  combo?: boolean;
+  options?: [string, string][];
 }
 
-export type FieldValue = { text: string } | { check: boolean } | { choice: string[] };
+export type FieldValue = { text: string } | { check: boolean } | { radio: string | null } | { choice: string[] };
 
 type Rgb = [number, number, number];
 type Point = [number, number];
@@ -131,6 +139,8 @@ export interface FieldChange {
   readOnly?: boolean;
   options?: string[];
   fontSize?: number;
+  /** Which widget `box` moves (default the first). */
+  widget?: number;
   /** Moves and resizes the field: displayed points from the page's top-left. */
   box?: Box;
 }
@@ -205,6 +215,7 @@ export type EditCall =
   | { op: "setAnnotationContents"; page: number; index: number; text: string }
   | { op: "addField"; page: number; view: Box; spec: FieldSpec }
   | { op: "deleteField"; name: string }
+  | { op: "deleteFieldWidget"; name: string; widget: number }
   | { op: "setFieldProps"; name: string; change: FieldChange }
   | { op: "protect"; spec: ProtectSpec }
   | { op: "removeProtection" }
@@ -267,6 +278,7 @@ export declare class PdfDocument {
   stamps(): Promise<StampInfo[]>;
   addField(page: number, view: Box, spec: FieldSpec): Promise<void>;
   deleteField(name: string): Promise<void>;
+  deleteFieldWidget(name: string, widget: number): Promise<void>;
   setFieldProps(name: string, change: FieldChange): Promise<void>;
   protect(spec: ProtectSpec): Promise<void>;
   removeProtection(): Promise<void>;

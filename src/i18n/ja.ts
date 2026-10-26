@@ -442,6 +442,8 @@ const ja: Dict = {
     fieldReadOnly: "読み取り専用",
     fieldOptions: "選択肢（1行に1つ）",
     fieldDelete: "フィールドを削除",
+    choose: "選択",
+    radioAdd: "このグループにボタンを追加",
     fieldAdded: "ページ上でフィールドの範囲をドラッグしてください。",
     placeHint: "ページ上をドラッグまたはタップして配置します。",
     editComment: "コメントを編集",
