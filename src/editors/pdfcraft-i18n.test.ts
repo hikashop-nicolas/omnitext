@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
-import { en } from "../i18n/en";
+import en from "../i18n/en";
 
 // A label asked for by a literal key must exist, or the button shows the key itself.
 describe("the PDF editor's labels", () => {
