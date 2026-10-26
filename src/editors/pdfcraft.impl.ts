@@ -31,34 +31,38 @@ function ensureStyles(): void {
   s.id = STYLE_ID;
   s.textContent = `
     .ot-pc { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); }
-    .ot-pc-bar, .ot-pc-sub, .ot-pc-zoom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
+    .ot-pc-bar, .ot-pc-sub, .ot-pc-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); }
-    .ot-pc-sub, .ot-pc-zoom { background:var(--canvas); }
-    .ot-pc-bar .btn, .ot-pc-sub .btn, .ot-pc-zoom .btn, .ot-pc-float .btn { flex:0 0 auto; position:relative; }
+    .ot-pc-sub { background:var(--canvas); }
+    .ot-pc-bottom { border-bottom:0; border-top:1px solid var(--border); gap:4px; overflow-x:hidden; }
+    .ot-pc-bar .btn, .ot-pc-sub .btn, .ot-pc-bottom .btn, .ot-pc-float .btn { flex:0 0 auto; position:relative; }
     .ot-pc .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
     .ot-pc .btn:disabled { opacity:.45; cursor:default; }
     .ot-pc-bar .sep, .ot-pc-sub .sep { flex:0 0 1px; width:1px; align-self:stretch; background:var(--border); margin:0 2px; }
     .ot-pc-sub[hidden], .ot-pc-sub [hidden], .ot-pc-pill[hidden] { display:none; }
-    .ot-pc-zoom input[type=range] { flex:1 1 auto; min-width:60px; accent-color:var(--accent); }
-    .ot-pc-zoom input[type=number] { flex:0 0 auto; width:58px; font:inherit; padding:4px 6px; color:var(--text);
-      background:var(--surface); border:1px solid var(--border); border-radius:7px; }
-    .ot-pc-zoom span { color:var(--muted); font:13px system-ui, sans-serif; }
+    .ot-pc-bottom input[type=range] { flex:0 1 96px; width:96px; min-width:48px; accent-color:var(--accent); }
+    .ot-pc-bottom input[type=number] { flex:0 0 auto; width:48px; min-width:0; font:inherit; padding:4px 6px; color:var(--text);
+      background:var(--canvas); border:1px solid var(--border); border-radius:7px; }
+    .ot-pc-bottom span { color:var(--muted); font:13px system-ui, sans-serif; }
+    .ot-pc-bottom .grow { flex:1 1 auto; }
+    @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
     .ot-pc-float { position:absolute; z-index:8; display:flex; flex-wrap:wrap; max-width:calc(100% - 8px); gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
     .ot-pc-float input[type=color] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
-    .ot-pc-dot { position:absolute; right:3px; bottom:3px; width:9px; height:9px; border-radius:50%; border:1px solid var(--surface); }
-    .ot-pc-pill { position:absolute; right:10px; bottom:10px; z-index:4; padding:3px 9px; border-radius:999px;
-      background:var(--surface); color:var(--muted); border:1px solid var(--border); font:12px system-ui, sans-serif;
-      pointer-events:none; opacity:.92; }
+    .ot-pc-stripe { position:absolute; left:8px; right:8px; bottom:4px; height:4px; border-radius:2px; border:1px solid var(--border); }
+    .ot-pc-float select { flex:0 0 auto; height:36px; max-width:112px; font:13px system-ui, sans-serif; color:var(--text); background:var(--canvas);
+      border:1px solid var(--border); border-radius:7px; padding:0 6px; cursor:pointer; }
+    .ot-pc-float select:hover { border-color:var(--accent); }
+    .ot-pc-pill { flex:0 0 auto; padding:3px 4px; color:var(--muted); font:13px system-ui, sans-serif; white-space:nowrap; }
     .ot-pc-body { flex:1 1 auto; min-height:0; position:relative; display:flex; }
     .ot-pc-scroll { flex:1 1 auto; min-height:0; overflow:auto; position:relative; touch-action:pan-x pan-y; }
     .ot-pc-scroll.tool { touch-action:none; cursor:crosshair; }
     .ot-pc-content { position:relative; transform-origin:0 0; }
     .ot-pc-slot { position:absolute; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.35); }
     .ot-pc-slot canvas { display:block; width:100%; height:100%; }
-    .ot-pc-sel { position:absolute; z-index:4; box-sizing:border-box; border:2px solid #2a6df4; touch-action:none; cursor:move; }
-    .ot-pc-handle { position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px; box-sizing:border-box; z-index:5;
+    .ot-pc-sel { position:absolute; z-index:4; box-sizing:border-box; outline:2px solid #2a6df4; touch-action:none; cursor:move; }
+    .ot-pc-handle { position:absolute; width:24px; height:24px; margin:-12px 0 0 -12px; box-sizing:border-box; z-index:5;
       background:#fff; border:2px solid #2a6df4; border-radius:50%; touch-action:none; }
     .ot-pc-ov { position:absolute; inset:0; pointer-events:none; z-index:2; }
     .ot-pc-ov > div { position:absolute; box-sizing:border-box; }
@@ -103,7 +107,9 @@ const ICONS = {
   zoomIn: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/>',
   fit: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
   fitWidth: '<path d="m18 8 4 4-4 4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/>',
-  pages: '<path d="M20 7h-3a2 2 0 0 1-2-2V2"/><path d="M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l4 4v10a2 2 0 0 1-2 2Z"/><path d="M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8"/>',
+  pages: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  rotateLeft: '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  textColor: '<path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/>',
   rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   down: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
@@ -180,6 +186,7 @@ interface TextSel {
 }
 
 const FAMILIES = ["helvetica", "times", "courier"] as const;
+const SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
 
 /** The box around a list of boxes. */
 const bounds = (rects: Box[]): Box => [Math.min(...rects.map((r) => r[0])), Math.min(...rects.map((r) => r[1])), Math.max(...rects.map((r) => r[2])), Math.max(...rects.map((r) => r[3]))];
@@ -249,7 +256,7 @@ class PdfCraftInstance implements EditorInstance {
     this.original = ctx.bytes ?? new Uint8Array();
     this.root = el("div", "ot-pc");
     this.bar = el("div", "ot-pc-bar");
-    this.zoomRow = el("div", "ot-pc-zoom");
+    this.zoomRow = el("div", "ot-pc-bottom");
     this.sub = el("div", "ot-pc-sub");
     this.sub.hidden = true;
     this.findRow = el("div", "ot-pc-find");
@@ -260,13 +267,13 @@ class PdfCraftInstance implements EditorInstance {
     this.pill = el("div", "ot-pc-pill");
     this.pill.hidden = true;
     const body = el("div", "ot-pc-body");
-    body.append(this.scroller, this.pill);
+    body.append(this.scroller);
     this.fileInput = el("input");
     this.fileInput.type = "file";
     this.fileInput.accept = "image/*";
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.pickedImage());
-    this.root.append(this.bar, this.zoomRow, this.findRow, this.sub, body, this.fileInput);
+    this.root.append(this.bar, this.findRow, this.sub, body, this.zoomRow, this.fileInput);
     container.appendChild(this.root);
     this.buildBar();
     this.buildZoom();
@@ -330,6 +337,8 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Fit button, zoom slider and the percentage, as the other editors have them. */
   private buildZoom(): void {
+    this.button(this.zoomRow, this.buttons, "find", "search", t("pdfcraft.find"), () => this.toggleFind()).disabled = true;
+    this.zoomRow.append(this.pill, el("span", "grow"));
     this.button(this.zoomRow, this.buttons, "fit", "fit", t("pdfcraft.fitPage"), () => this.fit(this.fitKind === "page" ? "width" : "page")).disabled = true;
     this.zoomRange = el("input");
     this.zoomRange.type = "range";
@@ -349,7 +358,6 @@ class PdfCraftInstance implements EditorInstance {
     this.zoomRange.addEventListener("input", () => this.userZoom(Number(this.zoomRange.value)));
     this.zoomNum.addEventListener("change", () => this.userZoom(Number(this.zoomNum.value)));
     this.zoomRow.append(this.zoomRange, this.zoomNum, pct);
-    this.button(this.zoomRow, this.buttons, "find", "search", t("pdfcraft.find"), () => this.toggleFind()).disabled = true;
   }
 
   private userZoom(percent: number): void {
@@ -998,10 +1006,13 @@ class PdfCraftInstance implements EditorInstance {
 
   private clearTextSelection(): void {
     const had = this.textSel?.page;
+    // the floating bar may belong to a selected object, not to the text selection
+    if (this.textSel) {
+      this.floatEl?.remove();
+      this.floatEl = null;
+    }
     this.textSel = null;
     this.selDrag = null;
-    this.floatEl?.remove();
-    this.floatEl = null;
     if (had !== undefined) this.paintOverlays(had);
   }
 
@@ -1169,25 +1180,42 @@ class PdfCraftInstance implements EditorInstance {
       bar.appendChild(b);
       return b;
     };
-    if (sel.obj.type === "text" && style) {
-      add("edit", t("pdfcraft.editText"), () => this.editSelection());
-      add("bold", t("pdfcraft.bold"), () => void this.toggle("bold"), style.bold);
-      add("italic", t("pdfcraft.italic"), () => void this.toggle("italic"), style.italic);
-      add("smaller", t("pdfcraft.smaller"), () => void this.resizeText(-2));
-      add("larger", t("pdfcraft.larger"), () => void this.resizeText(2));
-      add("family", t("pdfcraft.font"), () => void this.nextFamily());
-      const color = add("color", t("pdfcraft.color"), () => {});
+    const swatch = (glyph: IconName, label: string, value: string, apply: (hexColor: string) => void): void => {
+      const b = add(glyph, label, () => {});
       const input = el("input");
       input.type = "color";
-      input.value = hex(style.color);
-      input.setAttribute("aria-label", t("pdfcraft.color"));
-      input.addEventListener("change", () => void this.styleSelection({ color: rgb(input.value) }));
-      const dot = el("span", "ot-pc-dot");
-      dot.style.background = hex(style.color);
-      color.append(input, dot);
+      input.value = value;
+      input.setAttribute("aria-label", label);
+      const stripe = el("span", "ot-pc-stripe");
+      stripe.style.background = value;
+      input.addEventListener("input", () => (stripe.style.background = input.value));
+      input.addEventListener("change", () => apply(input.value));
+      b.append(input, stripe);
+    };
+    if (sel.obj.type === "text" && style) {
+      add("edit", t("pdfcraft.editText"), () => this.editSelection());
+      const family = el("select");
+      family.setAttribute("aria-label", t("pdfcraft.font"));
+      family.title = t("pdfcraft.font");
+      for (const f of FAMILIES) family.add(new Option(f[0]!.toUpperCase() + f.slice(1), f, false, f === style.family));
+      family.addEventListener("change", () => void this.styleSelection({ family: family.value as TextStyle["family"] }));
+      const size = el("select");
+      size.setAttribute("aria-label", t("pdfcraft.size"));
+      size.title = t("pdfcraft.size");
+      const now = Math.round(style.size);
+      for (const n of [...new Set([...SIZES, now])].sort((a, b) => a - b)) size.add(new Option(String(n), String(n), false, n === now));
+      size.addEventListener("change", () => void this.styleSelection({ size: Number(size.value) }));
+      bar.append(family, size);
+      add("bold", t("pdfcraft.bold"), () => void this.toggle("bold"), style.bold);
+      add("italic", t("pdfcraft.italic"), () => void this.toggle("italic"), style.italic);
+      swatch("textColor", t("pdfcraft.color"), hex(style.color), (v) => void this.styleSelection({ color: rgb(v) }));
+      swatch("highlight", t("pdfcraft.background"), "#ffe14d", (v) => void this.fillBehind(sel, v));
       add("alignLeft", t("pdfcraft.alignLeft"), () => void this.styleSelection({ align: "left" }), style.align === "left" || style.align === null);
       add("alignCenter", t("pdfcraft.alignCenter"), () => void this.styleSelection({ align: "center" }), style.align === "center");
       add("alignRight", t("pdfcraft.alignRight"), () => void this.styleSelection({ align: "right" }), style.align === "right");
+    } else if (sel.obj.type === "image") {
+      add("rotateLeft", t("pdfcraft.rotateLeft"), () => void this.turnPicture(sel, -1));
+      add("rotate", t("pdfcraft.rotateRight"), () => void this.turnPicture(sel, 1));
     }
     add("delete", t("pdfcraft.deleteObject"), () => void this.deleteSelection());
     slot.appendChild(bar);
@@ -1298,20 +1326,18 @@ class PdfCraftInstance implements EditorInstance {
     await this.run(sel.page, () => this.commit({ op: "setText", page: sel.page, target: this.ref(sel), style }), sel);
   }
 
-  private async nextFamily(): Promise<void> {
-    const current = this.sel?.obj.style?.family;
-    if (!current) return;
-    await this.styleSelection({ family: FAMILIES[(FAMILIES.indexOf(current) + 1) % FAMILIES.length]! });
-  }
-
   private async toggle(which: "bold" | "italic"): Promise<void> {
     const style = this.sel?.obj.style;
     if (style) await this.styleSelection({ [which]: !style[which] });
   }
 
-  private async resizeText(delta: number): Promise<void> {
-    const style = this.sel?.obj.style;
-    if (style) await this.styleSelection({ size: Math.min(400, Math.max(4, Math.round(style.size + delta))) });
+  /** A colour behind the text: a highlight over its box, which can be deleted like any note. */
+  private async fillBehind(sel: Selection, color: string): Promise<void> {
+    await this.run(sel.page, () => this.commit({ op: "markup", page: sel.page, kind: "highlight", rects: [sel.obj.view], color: rgb(color) }), sel);
+  }
+
+  private async turnPicture(sel: Selection, quarterTurns: number): Promise<void> {
+    await this.run(sel.page, () => this.commit({ op: "rotateObject", page: sel.page, target: this.ref(sel), quarterTurns }), sel);
   }
 
   private async deleteSelection(): Promise<void> {

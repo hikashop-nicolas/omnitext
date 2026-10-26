@@ -483,7 +483,8 @@ function setFormatLabel(current: string | null): void {
 let viewChoices: EditorResolution[] = [];
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
   viewChoices = choices;
-  viewBtn.hidden = choices.length <= 1; // nothing to switch to
+  // the PDF editor has no second view worth switching to and needs no status line of its own
+  viewBtn.hidden = choices.length <= 1 || currentId === "pdfcraft"; // nothing to switch to
   viewLabelEl.textContent = editorLabel(currentId);
   refreshStatusBar();
 }
@@ -800,6 +801,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     // the note only costs a row of the picture. Say it for the formats that do look
     // editable (slides, ebooks, RTF, raw photos), where the missing Save needs a reason.
     : session.readOnly ? (/^(audio|video|image)\//.test(session.mime ?? "") ? "" : t("status.readOnly"))
+    : chosen.editor.manifest.id === "pdfcraft" ? ""
     : t("status.ready", { where }),
   );
 }
