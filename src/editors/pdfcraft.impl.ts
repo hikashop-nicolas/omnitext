@@ -957,9 +957,9 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     await this.loadPages();
-    // the width of the view, up to a comfortable size; the layout may still be settling, so fit again a few times
-    this.fit("width", 1.5);
-    for (const ms of [0, 150, 500, 1200]) setTimeout(() => !this.disposed && this.fitKind === "width" && !this.editing && this.fit("width", 1.5), ms);
+    // the width of the view, whatever the height; the layout may still be settling, so fit again a few times
+    this.fit("width");
+    for (const ms of [0, 150, 500, 1200]) setTimeout(() => !this.disposed && this.fitKind === "width" && !this.editing && this.fit("width"), ms);
     for (const x of Object.values(this.buttons)) x.disabled = false;
     await this.refreshHistory();
   }
