@@ -408,6 +408,7 @@ const ru: Dict = {
     alignLeft: "По левому краю",
     alignCenter: "По центру",
     alignRight: "По правому краю",
+    alignJustify: "По ширине",
     deleteObject: "Удалить",
     fitPage: "Вся страница",
     zoomLevel: "Масштаб",

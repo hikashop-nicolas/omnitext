@@ -387,6 +387,7 @@ const en: Dict = {
     alignLeft: "Align left",
     alignCenter: "Centre",
     alignRight: "Align right",
+    alignJustify: "Justify",
     deleteObject: "Delete",
     fitPage: "Fit page",
     zoomLevel: "Zoom level",

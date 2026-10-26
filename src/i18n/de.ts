@@ -385,6 +385,7 @@ const de: Dict = {
     alignLeft: "Linksbündig",
     alignCenter: "Zentriert",
     alignRight: "Rechtsbündig",
+    alignJustify: "Blocksatz",
     deleteObject: "Löschen",
     fitPage: "Ganze Seite",
     zoomLevel: "Zoomstufe",

@@ -389,6 +389,7 @@ const zh: Dict = {
     alignLeft: "左对齐",
     alignCenter: "居中",
     alignRight: "右对齐",
+    alignJustify: "两端对齐",
     deleteObject: "删除",
     fitPage: "适合整页",
     zoomLevel: "缩放级别",

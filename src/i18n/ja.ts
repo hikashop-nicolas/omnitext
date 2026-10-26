@@ -387,6 +387,7 @@ const ja: Dict = {
     alignLeft: "左揃え",
     alignCenter: "中央揃え",
     alignRight: "右揃え",
+    alignJustify: "両端揃え",
     deleteObject: "削除",
     fitPage: "ページに合わせる",
     zoomLevel: "ズームレベル",
