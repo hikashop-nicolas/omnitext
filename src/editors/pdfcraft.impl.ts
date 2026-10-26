@@ -278,7 +278,14 @@ class PdfCraftInstance implements EditorInstance {
     void this.open();
   }
 
+  private lastWidth = 0;
+
+  // the on-screen keyboard only changes the height: leave the layout and any open edit alone
   private onResize = (): void => {
+    const width = this.scroller.clientWidth;
+    const same = width === this.lastWidth;
+    this.lastWidth = width;
+    if (same || this.editing) return;
     if (!this.fitKind) {
       this.applyLayout();
       return;
