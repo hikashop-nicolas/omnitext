@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPage, fitZoom, hitBlock, layoutPages, renderScale, visibleRange } from "./pdfcraft-layout";
+import { boxBetween, currentPage, fitPageZoom, fitZoom, hitBlock, layoutPages, newTextBox, renderScale, resizeBox, visibleRange } from "./pdfcraft-layout";
 
 const pages = [
   { w: 200, h: 300 },
@@ -52,5 +52,34 @@ describe("pdfcraft layout", () => {
     expect(hitBlock(boxes, 60, 60)).toBe(0);
     expect(hitBlock(boxes, 500, 500)).toBe(-1);
     expect(hitBlock(boxes, 31.5, 15)).toBe(1); // a little slop around a small block
+  });
+
+  it("fits a whole page, by whichever side is tighter", () => {
+    expect(fitPageZoom(424, 900, { w: 200, h: 300 })).toBeCloseTo((424 - 24) / 200); // width is the limit
+    expect(fitPageZoom(1000, 424, { w: 200, h: 300 })).toBeCloseTo((424 - 24) / 300); // height is the limit
+    expect(fitPageZoom(0, 500, { w: 200, h: 300 })).toBe(1);
+  });
+
+  it("resizes by a handle without inverting or leaving the page", () => {
+    const page = { w: 200, h: 300 };
+    expect(resizeBox([20, 20, 100, 80], "se", 30, 10)).toEqual([20, 20, 130, 90]);
+    expect(resizeBox([20, 20, 100, 80], "nw", 10, 5)).toEqual([30, 25, 100, 80]);
+    expect(resizeBox([20, 20, 100, 80], "e", 40, 99)).toEqual([20, 20, 140, 80]);
+    expect(resizeBox([20, 20, 100, 80], "se", -200, -200)).toEqual([20, 20, 32, 32]); // kept at the minimum
+    expect(resizeBox([20, 20, 100, 80], "se", 500, 500, 12, page)).toEqual([20, 20, 200, 300]);
+    expect(resizeBox([20, 20, 100, 80], "nw", -500, -500, 12, page)).toEqual([0, 0, 100, 80]);
+  });
+
+  it("draws a box between two corners in any order", () => {
+    expect(boxBetween([50, 60], [10, 20], { w: 200, h: 300 })).toEqual([10, 20, 50, 60]);
+    expect(boxBetween([-5, 400], [250, 10], { w: 200, h: 300 })).toEqual([0, 10, 200, 300]);
+  });
+
+  it("puts a new text box where the tap was, inside the page", () => {
+    const page = { w: 200, h: 300 };
+    expect(newTextBox(10, 100, page)).toEqual([10, 100, 170, 136]);
+    expect(newTextBox(50, 100, page)).toEqual([32, 100, 192, 136]); // would stick out on the right: pushed back
+    expect(newTextBox(190, 295, page)).toEqual([32, 256, 192, 292]); // pushed back inside
+    expect(newTextBox(-10, -10, page)).toEqual([8, 8, 168, 44]);
   });
 });

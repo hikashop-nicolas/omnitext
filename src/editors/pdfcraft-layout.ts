@@ -91,3 +91,44 @@ export function hitBlock(boxes: readonly (Box | null)[], x: number, y: number, s
   });
   return best;
 }
+
+/** The zoom at which a whole page fits the view, width and height (less `padding` around it). */
+export function fitPageZoom(containerWidth: number, containerHeight: number, page: PageSize, padding = 12): number {
+  if (!(page.w > 0 && page.h > 0) || !(containerWidth > 0) || !(containerHeight > 0)) return 1;
+  return Math.max(0.05, Math.min((containerWidth - 2 * padding) / page.w, (containerHeight - 2 * padding) / page.h));
+}
+
+export type Handle = "nw" | "ne" | "sw" | "se" | "e";
+
+/**
+ * A box dragged by one of its handles by (dx, dy). The opposite corner (or the left edge, for the
+ * east handle) stays put, and the box never gets smaller than `min` or leaves the page `bounds`.
+ */
+export function resizeBox(box: Box, handle: Handle, dx: number, dy: number, min = 12, bounds?: PageSize): Box {
+  let [x0, y0, x1, y1] = box;
+  if (handle === "nw" || handle === "sw") x0 = Math.min(x0 + dx, x1 - min);
+  if (handle === "ne" || handle === "se" || handle === "e") x1 = Math.max(x1 + dx, x0 + min);
+  if (handle === "nw" || handle === "ne") y0 = Math.min(y0 + dy, y1 - min);
+  if (handle === "sw" || handle === "se") y1 = Math.max(y1 + dy, y0 + min);
+  if (bounds) {
+    x0 = Math.max(0, x0);
+    y0 = Math.max(0, y0);
+    x1 = Math.min(bounds.w, x1);
+    y1 = Math.min(bounds.h, y1);
+  }
+  return [x0, y0, x1, y1];
+}
+
+/** A box between two corners given in any order, kept inside the page. */
+export function boxBetween(a: [number, number], b: [number, number], bounds: PageSize): Box {
+  const clamp = (v: number, max: number) => Math.min(max, Math.max(0, v));
+  return [clamp(Math.min(a[0], b[0]), bounds.w), clamp(Math.min(a[1], b[1]), bounds.h), clamp(Math.max(a[0], b[0]), bounds.w), clamp(Math.max(a[1], b[1]), bounds.h)];
+}
+
+/** Where a new text box goes for a tap at (x, y): `width` wide, `height` tall, inside the page. */
+export function newTextBox(x: number, y: number, page: PageSize, width = 160, height = 36, margin = 8): Box {
+  const w = Math.min(width, page.w - 2 * margin);
+  const left = Math.min(Math.max(margin, x), page.w - margin - w);
+  const top = Math.min(Math.max(margin, y), page.h - margin - height);
+  return [left, top, left + w, top + height];
+}

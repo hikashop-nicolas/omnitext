@@ -20,6 +20,33 @@ export interface TextBlock {
   invisible: boolean;
 }
 
+export type ObjectKind = "text" | "image" | "added";
+export type Box = [x0: number, y0: number, x1: number, y1: number];
+
+export interface TextStyle {
+  family?: "helvetica" | "times" | "courier";
+  bold?: boolean;
+  italic?: boolean;
+  size?: number;
+  color?: [number, number, number];
+  align?: "left" | "center" | "right" | "justify";
+}
+
+export interface ObjectRef {
+  kind: ObjectKind;
+  index: number;
+}
+
+export interface PageObject {
+  kind: ObjectKind;
+  index: number;
+  type: "text" | "image" | "form";
+  text: string | null;
+  /** Where it is drawn: points from the page's top-left, y down. */
+  view: Box;
+  style: (Required<Omit<TextStyle, "align">> & { align: TextStyle["align"] | null }) | null;
+}
+
 export interface Rendered {
   width: number;
   height: number;
@@ -57,6 +84,14 @@ export declare class PdfDocument {
   pageSize(page: number): Promise<[number, number] | null>;
   render(page: number, scale: number, tile?: Tile): Promise<Rendered>;
   textBlocks(page: number): Promise<TextBlock[]>;
+  objects(page: number): Promise<PageObject[]>;
+  moveObjects(page: number, targets: ObjectRef[], dx: number, dy: number): Promise<void>;
+  resizeObject(page: number, target: ObjectRef, view: Box): Promise<void>;
+  addText(page: number, view: Box, text: string, style?: TextStyle): Promise<void>;
+  addImage(page: number, name: string, bytes: Uint8Array, view?: Box): Promise<void>;
+  deleteObject(page: number, target: ObjectRef): Promise<void>;
+  setText(page: number, target: ObjectRef, text?: string, style?: TextStyle): Promise<void>;
+  cover(page: number, view: Box): Promise<void>;
   editTextBlock(page: number, block: number, text: string): Promise<void>;
   deletePages(pages: number[]): Promise<void>;
   rotatePages(pages: number[], degrees: number): Promise<void>;
