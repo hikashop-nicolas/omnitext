@@ -131,6 +131,8 @@ export interface FieldChange {
   readOnly?: boolean;
   options?: string[];
   fontSize?: number;
+  /** Moves and resizes the field: displayed points from the page's top-left. */
+  box?: Box;
 }
 
 export interface ProtectSpec {

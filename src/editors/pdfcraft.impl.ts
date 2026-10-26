@@ -209,6 +209,8 @@ interface Selection {
   obj: PageObject;
   /** Set when the selection is a mark or comment, which can only be deleted. */
   ann?: AnnotationInfo;
+  /** Set when the selection is a form field: it can be moved, resized, changed or deleted. */
+  field?: FieldInfo;
 }
 
 interface Extras {
@@ -1059,7 +1061,7 @@ class PdfCraftInstance implements EditorInstance {
     const extras = await this.extras(at.page);
     const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
     if (field >= 0 && !this.viewOnly) {
-      await this.fieldProperties(at.page, extras.fields[field]!);
+      this.select(this.fieldSelection(at.page, extras.fields[field]!));
       return;
     }
     const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
@@ -1286,7 +1288,10 @@ class PdfCraftInstance implements EditorInstance {
       input.addEventListener("change", () => apply(input.value));
       b.append(input, stripe);
     };
-    if (sel.ann) {
+    if (sel.field) {
+      const field = sel.field;
+      add("edit", t("pdfcraft.fieldProps"), () => void this.fieldProperties(sel.page, field));
+    } else if (sel.ann) {
       const ann = sel.ann;
       if (ann.subtype === "Text" || ann.subtype === "FreeText" || ann.contents) add("edit", t("pdfcraft.editComment"), () => void this.editComment(sel.page, ann));
     } else if (sel.obj.type === "text" && style) {
@@ -1405,13 +1410,36 @@ class PdfCraftInstance implements EditorInstance {
     return { kind: sel.obj.kind, index: sel.obj.index };
   }
 
+  /** A form field as something that can be selected, drawn like any other object. */
+  private fieldSelection(page: number, field: FieldInfo): Selection {
+    return { page, field, obj: { kind: "added", index: -1, type: "image", text: null, view: field.view, style: null } };
+  }
+
   private async commitMove(sel: Selection, dx: number, dy: number): Promise<void> {
     if (!this.doc) return;
+    if (sel.field) {
+      const [x0, y0, x1, y1] = sel.obj.view;
+      const page = this.sizes[sel.page] ?? { w: 612, h: 792 };
+      const mx = Math.min(Math.max(dx, -x0), page.w - x1);
+      const my = Math.min(Math.max(dy, -y0), page.h - y1);
+      await this.commitField(sel, [x0 + mx, y0 + my, x1 + mx, y1 + my]);
+      return;
+    }
     await this.run(sel.page, () => this.commit({ op: "moveObjects", page: sel.page, targets: [this.ref(sel)], dx, dy }), sel);
+  }
+
+  private async commitField(sel: Selection, box: Box): Promise<void> {
+    const field = sel.field;
+    if (!field) return;
+    await this.run(sel.page, () => this.commit({ op: "setFieldProps", name: field.name, change: { box } }), sel);
   }
 
   private async commitResize(sel: Selection, box: Box): Promise<void> {
     if (!this.doc) return;
+    if (sel.field) {
+      await this.commitField(sel, box);
+      return;
+    }
     await this.run(sel.page, () => this.commit({ op: "resizeObject", page: sel.page, target: this.ref(sel), view: box }), sel);
   }
 
@@ -1429,6 +1457,12 @@ class PdfCraftInstance implements EditorInstance {
     }
     this.afterEdit([page]);
     if (!keep && !pick) return;
+    if (keep?.field) {
+      const name = keep.field.name;
+      const now = (await this.extras(page)).fields.find((f) => f.name === name);
+      this.select(now ? this.fieldSelection(page, now) : null);
+      return;
+    }
     const list = await this.objects(page);
     const found = pick ? pick(list) : list.find((o) => o.kind === keep!.obj.kind && o.index === keep!.obj.index && o.type === keep!.obj.type);
     this.select(found ? { page, obj: found } : null);
@@ -1454,7 +1488,9 @@ class PdfCraftInstance implements EditorInstance {
     if (!sel || !this.doc) return;
     this.select(null);
     const ann = sel.ann;
-    if (ann) await this.run(sel.page, () => this.commit({ op: "deleteAnnotation", page: sel.page, index: ann.index }));
+    const field = sel.field;
+    if (field) await this.run(sel.page, () => this.commit({ op: "deleteField", name: field.name }));
+    else if (ann) await this.run(sel.page, () => this.commit({ op: "deleteAnnotation", page: sel.page, index: ann.index }));
     else await this.run(sel.page, () => this.commit({ op: "deleteObject", page: sel.page, target: this.ref(sel) }));
   }
 
@@ -1543,7 +1579,7 @@ class PdfCraftInstance implements EditorInstance {
           ]
         : which === "form"
           ? ([["text", "fieldText"], ["multiline", "fieldMultiline"], ["date", "fieldDate"], ["check", "fieldCheck"], ["radio", "fieldRadio"], ["combo", "fieldCombo"], ["list", "fieldList"], ["button", "fieldButton"]] as const).map(
-              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type, sticky: true }) }),
+              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type }) }),
             )
           : which === "sign"
             ? [
@@ -1756,8 +1792,11 @@ class PdfCraftInstance implements EditorInstance {
       case "field": {
         const type = p.field ?? "text";
         const spec = type === "combo" || type === "list" ? { type, options: ["Option 1", "Option 2", "Option 3"] } : { type };
+        const before = new Set((await this.extras(page)).fields.map((f) => f.name));
         await this.run(page, () => this.commit({ op: "addField", page, view: box, spec }));
         this.endPlacing();
+        const added = (await this.extras(page)).fields.find((f) => !before.has(f.name));
+        if (added) this.select(this.fieldSelection(page, added));
         return;
       }
       case "signbox":
@@ -1845,6 +1884,7 @@ class PdfCraftInstance implements EditorInstance {
     const v = await formDialog(this.root, { title: t("pdfcraft.fieldProps"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), fields });
     if (!v) return;
     if (v.remove) {
+      this.select(null);
       await this.run(page, () => this.commit({ op: "deleteField", name: field.name }));
       return;
     }
@@ -1852,7 +1892,8 @@ class PdfCraftInstance implements EditorInstance {
     if (String(v.name) && v.name !== field.name) change.name = String(v.name);
     if (String(v.tooltip)) change.tooltip = String(v.tooltip);
     if (choice && String(v.options).trim()) change.options = String(v.options).split("\n").map((x) => x.trim()).filter(Boolean);
-    await this.run(page, () => this.commit({ op: "setFieldProps", name: field.name, change }));
+    const renamed = { ...field, name: change.name ?? field.name };
+    await this.run(page, () => this.commit({ op: "setFieldProps", name: field.name, change }), this.fieldSelection(page, renamed));
   }
 
   private async protectDialog(): Promise<void> {
