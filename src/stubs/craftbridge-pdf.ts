@@ -100,6 +100,7 @@ export type EditCall =
   | { op: "rotatePages"; pages: number[]; degrees: number }
   | { op: "movePages"; pages: number[]; to: number }
   | { op: "insertBlankPage"; at: number; width: number; height: number }
+  | { op: "insertPagesFrom"; name: string; bytes: Uint8Array; at: number }
   | { op: "moveObjects"; page: number; targets: ObjectRef[]; dx: number; dy: number }
   | { op: "resizeObject"; page: number; target: ObjectRef; view: Box }
   | { op: "rotateObject"; page: number; target: ObjectRef; quarterTurns: number }
@@ -169,6 +170,7 @@ export declare class PdfDocument {
   deletePages(pages: number[]): Promise<void>;
   rotatePages(pages: number[], degrees: number): Promise<void>;
   movePages(pages: number[], to: number): Promise<void>;
+  insertPagesFrom(name: string, bytes: Uint8Array, at: number): Promise<void>;
   insertBlankPage(at: number, width: number, height: number): Promise<void>;
   history(): Promise<History>;
   undo(): Promise<void>;

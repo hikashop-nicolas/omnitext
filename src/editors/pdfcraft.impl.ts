@@ -110,6 +110,7 @@ const ICONS = {
   pages: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   rotateLeft: '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   textColor: '<path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   down: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
@@ -203,6 +204,7 @@ class PdfCraftInstance implements EditorInstance {
   private content!: HTMLElement;
   private pill!: HTMLElement;
   private fileInput!: HTMLInputElement;
+  private pdfInput!: HTMLInputElement;
   private doc: PdfDocument | null = null;
   private original: Uint8Array = new Uint8Array();
   private onChange: (() => void) | undefined;
@@ -273,7 +275,12 @@ class PdfCraftInstance implements EditorInstance {
     this.fileInput.accept = "image/*";
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.pickedImage());
-    this.root.append(this.bar, this.findRow, this.sub, body, this.zoomRow, this.fileInput);
+    this.pdfInput = el("input");
+    this.pdfInput.type = "file";
+    this.pdfInput.accept = "application/pdf,.pdf";
+    this.pdfInput.hidden = true;
+    this.pdfInput.addEventListener("change", () => void this.pickedPdf());
+    this.root.append(this.bar, this.findRow, this.sub, body, this.zoomRow, this.fileInput, this.pdfInput);
     container.appendChild(this.root);
     this.buildBar();
     this.buildZoom();
@@ -420,7 +427,7 @@ class PdfCraftInstance implements EditorInstance {
     try {
       this.matches = query ? await this.doc.find(query, { limit: 500 }) : [];
     } catch (e) {
-      this.fail(e);
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
       return;
     }
     this.matchIndex = this.matches.length ? 0 : -1;
@@ -495,6 +502,7 @@ class PdfCraftInstance implements EditorInstance {
     b("up", "up", t("pdfcraft.moveUp"), () => void this.pageOp("up"));
     b("down", "down", t("pdfcraft.moveDown"), () => void this.pageOp("down"));
     b("blank", "blank", t("pdfcraft.addBlank"), () => void this.pageOp("blank"));
+    b("append", "plus", t("pdfcraft.appendPdf"), () => this.pdfInput.click());
     b("deletePage", "delete", t("pdfcraft.deletePage"), () => void this.pageOp("delete"));
   }
 
@@ -1392,12 +1400,28 @@ class PdfCraftInstance implements EditorInstance {
     try {
       bytes = new Uint8Array(await file.arrayBuffer());
     } catch (e) {
-      this.fail(e);
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
       return;
     }
     // the new picture is the last added item: select it so it can be moved and sized straight away
     await this.run(page, () => this.commit({ op: "addImage", page, name: file.name, bytes }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
     this.setTool("select");
+  }
+
+  /** Appends every page of the chosen PDF after the last page, then shows the first new one. */
+  private async pickedPdf(): Promise<void> {
+    const file = this.pdfInput.files?.[0];
+    this.pdfInput.value = "";
+    if (!file || !this.doc) return;
+    const first = this.sizes.length;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await this.commit({ op: "insertPagesFrom", name: file.name, bytes, at: first });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      return;
+    }
+    await this.reloadPages(first);
   }
 
   // ------------------------------------------------------------------ editing text
@@ -1519,7 +1543,7 @@ class PdfCraftInstance implements EditorInstance {
       } else if (op === "delete" && count > 1) await this.commit({ op: "deletePages", pages: [page] });
       else return;
     } catch (e) {
-      this.fail(e);
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
       return;
     }
     await this.reloadPages(op === "up" ? page - 1 : op === "down" || op === "blank" ? page + 1 : Math.min(page, this.sizes.length));
@@ -1531,7 +1555,7 @@ class PdfCraftInstance implements EditorInstance {
       if (this.shared) await (which === "undo" ? this.shared.undo() : this.shared.redo());
       else await this.doc.execute({ op: which });
     } catch (e) {
-      this.fail(e);
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
       return;
     }
     await this.reloadPages(this.currentIndex());

@@ -23,7 +23,10 @@ import type { EditCall } from "craftbridge/pdf";
 export const LOG = "pdfcraft.log";
 
 /** An edit as it is stored: a picture travels as a hash and is fetched from the blob store. */
-export type StoredCall = Exclude<EditCall, { op: "addImage" }> | { op: "addImage"; page: number; name: string; sha: string; view?: [number, number, number, number] };
+export type StoredCall =
+  | Exclude<EditCall, { op: "addImage" | "insertPagesFrom" }>
+  | { op: "addImage"; page: number; name: string; sha: string; view?: [number, number, number, number] }
+  | { op: "insertPagesFrom"; name: string; sha: string; at: number };
 
 export interface Entry {
   /** Unique, so the same entry is never taken for two. */
@@ -179,9 +182,9 @@ export class PdfLog {
     this.sequencer = new Sequencer(
       {
         apply: async (op) => {
-          if (op.op !== "addImage") return engine.run(op);
+          if (op.op !== "addImage" && op.op !== "insertPagesFrom") return engine.run(op);
           const bytes = this.ctx.blobs?.get(op.sha) ?? (await this.ctx.blobs?.fetch(op.sha)) ?? null;
-          if (!bytes) throw new Error("the picture never arrived");
+          if (!bytes) throw new Error("the file never arrived");
           const { sha: _sha, ...rest } = op;
           return engine.run({ ...rest, bytes });
         },
@@ -218,9 +221,9 @@ export class PdfLog {
     if (call.op === "undo") return this.undo();
     if (call.op === "redo") return this.redo();
     let op: StoredCall;
-    if (call.op === "addImage") {
+    if (call.op === "addImage" || call.op === "insertPagesFrom") {
       const sha = await this.ctx.blobs?.put(call.bytes);
-      if (!sha) throw new Error("pictures cannot be shared in this session");
+      if (!sha) throw new Error("files cannot be shared in this session");
       const { bytes: _bytes, ...rest } = call;
       op = { ...rest, sha };
     } else op = call;
