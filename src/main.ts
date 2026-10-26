@@ -190,13 +190,15 @@ interface FsHandle {
 
 // --- engine + module registration (descriptors only; impls load on demand) ----
 
-const engine = new OmnitextEngine({ fallbackEditorId: "codemirror" });
+// In builds that carry the new PDF engine (see vite.config.ts) it is the default PDF editor; the others keep the classic one.
+const engine = new OmnitextEngine({ fallbackEditorId: "codemirror", preferredByFormat: __CRAFT_PDF__ ? { pdf: "pdfcraft" } : undefined });
 engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
 engine.registerEditor(previewEditor);
 engine.registerEditor(treeEditor);
 engine.registerEditor(milkdownEditor);
 engine.registerEditor(quillEditor);
+if (__CRAFT_PDF__) engine.registerEditor(pdfCraftEditor);
 engine.registerEditor(pdfEditor);
 engine.registerEditor(rtfEditor);
 engine.registerEditor(odtEditor);
@@ -219,8 +221,6 @@ engine.registerEditor(ipynbViewer);
 engine.registerEditor(emailViewer);
 engine.registerEditor(pimViewer);
 engine.registerEditor(walletViewer);
-// The new PDF engine, in builds that carry it (see vite.config.ts); the classic editor stays the default.
-if (__CRAFT_PDF__) engine.registerEditor(pdfCraftEditor);
 engine.registerEditor(tiffViewer);
 engine.registerEditor(torrentViewer);
 engine.registerEditor(model3dViewer);
