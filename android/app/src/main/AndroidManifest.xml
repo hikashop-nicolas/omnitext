@@ -54,6 +54,8 @@
                 <data android:mimeType="application/acad" />
                 <data android:mimeType="image/vnd.dxf" />
                 <data android:mimeType="application/dxf" />
+                <data android:mimeType="application/vnd.apple.pkpass" />
+                <data android:mimeType="application/vnd.apple.pkpasses" />
                 <!-- File managers report anything they do not recognise as this, which
                      is how a drawing usually arrives. Omnitext opens almost any file, so
                      offering it for an unknown one is honest rather than noise. -->
@@ -92,6 +94,8 @@
                 <data android:mimeType="application/acad" />
                 <data android:mimeType="image/vnd.dxf" />
                 <data android:mimeType="application/dxf" />
+                <data android:mimeType="application/vnd.apple.pkpass" />
+                <data android:mimeType="application/vnd.apple.pkpasses" />
                 <!-- File managers report anything they do not recognise as this, which
                      is how a drawing usually arrives. Omnitext opens almost any file, so
                      offering it for an unknown one is honest rather than noise. -->

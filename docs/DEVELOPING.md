@@ -52,7 +52,7 @@ That is a courtesy, not a security boundary, and the app says so.
 
 The dedicated editor libraries live in their own MIT repos and are consumed here as git
 dependencies, so each one is reusable on its own: pdfedit, richdoc, sheetedit, geoedit,
-subedit, imageview, mediaplay. Those libraries have their own libraries in turn: sheetedit's
+subedit, imageview, mediaplay, walletview. Those libraries have their own libraries in turn: sheetedit's
 Power Query engine ([mlang](https://github.com/hikashop-nicolas/mlang)) and VBA engine
 ([vbalang](https://github.com/hikashop-nicolas/vbalang)), and the shared on-device OCR and
 translation models ([localml](https://github.com/hikashop-nicolas/localml)).
@@ -86,13 +86,13 @@ src/core/      engine, event bus, registries, editor resolution, host types, enc
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
                odt, sheet, svgeditor, geoeditor, latexpreview, filerobot image editor) and
                read-only viewers (rtf, pptx, epub, image, media, archive, psdviewer, aiviewer,
-               fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, tiffviewer,
+               fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, walletviewer, tiffviewer,
                torrentviewer, model3dviewer, parquetviewer, heicviewer, ebookviewer,
                dxfviewer, dicomviewer, recordsviewer, rawviewer, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
                pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, font, sqlite, ipynb,
-               eml/msg, ics/vcf, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
+               eml/msg, ics/vcf, pkpass, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
                arrow, raw, the codemirror-formats long-tail table, and binary-viewers for
                images/media/archives)
 src/i18n/      app-shell translations (en, fr, ja, es, de, pt, ru, zh) + auto-detect

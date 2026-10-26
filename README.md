@@ -68,7 +68,7 @@ a page for each one, generated from the app itself.
 
 | | |
 | --- | --- |
-| **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks |
+| **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets) |
 | **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
 | **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor) |
@@ -145,8 +145,9 @@ can embed in your own projects, commercial ones included:
 [sheetedit](https://github.com/hikashop-nicolas/sheetedit),
 [geoedit](https://github.com/hikashop-nicolas/geoedit),
 [subedit](https://github.com/hikashop-nicolas/subedit),
-[imageview](https://github.com/hikashop-nicolas/imageview) and
-[mediaplay](https://github.com/hikashop-nicolas/mediaplay).
+[imageview](https://github.com/hikashop-nicolas/imageview),
+[mediaplay](https://github.com/hikashop-nicolas/mediaplay) and
+[walletview](https://github.com/hikashop-nicolas/walletview).
 
 Architecture, the module system, the build and how to add a format or an editor:
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**.
