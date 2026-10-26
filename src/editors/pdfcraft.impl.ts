@@ -1884,14 +1884,8 @@ class PdfCraftInstance implements EditorInstance {
       { key: "readOnly", label: t("pdfcraft.fieldReadOnly"), kind: "check", value: false },
     ];
     if (choice) fields.push({ key: "options", label: t("pdfcraft.fieldOptions"), kind: "textarea", value: "" });
-    fields.push({ key: "remove", label: t("pdfcraft.fieldDelete"), kind: "check", value: false });
     const v = await formDialog(this.root, { title: t("pdfcraft.fieldProps"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), fields });
     if (!v) return;
-    if (v.remove) {
-      this.select(null);
-      await this.run(page, () => this.commit({ op: "deleteField", name: field.name }));
-      return;
-    }
     const change: { name?: string; tooltip?: string; required?: boolean; readOnly?: boolean; options?: string[] } = { required: !!v.required, readOnly: !!v.readOnly };
     if (String(v.name) && v.name !== field.name) change.name = String(v.name);
     if (String(v.tooltip)) change.tooltip = String(v.tooltip);
