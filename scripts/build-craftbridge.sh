@@ -7,9 +7,11 @@ set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 rev=$(tr -d '[:space:]' < "$here/craftbridge.rev")
 dir="$here/vendor/craftbridge"
+# A folder that already holds build output (a CI cache) is not a clone yet: start the repository in place.
 if [ ! -d "$dir/.git" ]; then
-  git clone --quiet https://github.com/hikashop-nicolas/craftbridge.git "$dir"
+  git init --quiet "$dir"
+  git -C "$dir" remote add origin https://github.com/hikashop-nicolas/craftbridge.git
 fi
-git -C "$dir" fetch --quiet origin
+git -C "$dir" fetch --quiet origin "$rev"
 git -C "$dir" checkout --quiet --detach "$rev"
 sh "$dir/scripts/build-wasm.sh"
