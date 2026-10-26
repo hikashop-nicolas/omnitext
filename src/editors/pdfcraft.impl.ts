@@ -46,7 +46,7 @@ function ensureStyles(): void {
     .ot-pc-bottom span { color:var(--muted); font:13px system-ui, sans-serif; }
     .ot-pc-bottom .grow { flex:1 1 auto; }
     @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
-    .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; max-width:calc(100% - 8px); gap:4px; padding:4px; background:var(--surface); color:var(--text);
+    .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
     .ot-pc-row { display:flex; gap:4px; }
@@ -309,6 +309,7 @@ class PdfCraftInstance implements EditorInstance {
     const same = width === this.lastWidth;
     this.lastWidth = width;
     if (same || this.editing) return;
+    queueMicrotask(() => this.renderSelection());
     if (!this.fitKind) {
       this.applyLayout();
       return;
@@ -1186,7 +1187,9 @@ class PdfCraftInstance implements EditorInstance {
     const extra = el("div", "ot-pc-row");
     extra.hidden = !this.floatMore;
     bar.append(main, extra);
-    let row = main;
+    // what folds away behind the "more" button when the bar does not fit on one line
+    const folds: HTMLElement[] = [];
+    let folding = false;
     const style = sel.obj.style;
     const add = (glyph: IconName, label: string, onClick: () => void, on = false): HTMLButtonElement => {
       const b = el("button", `btn icon${on ? " on" : ""}`);
@@ -1195,7 +1198,8 @@ class PdfCraftInstance implements EditorInstance {
       b.title = label;
       b.setAttribute("aria-label", label);
       b.addEventListener("click", onClick);
-      row.appendChild(b);
+      main.appendChild(b);
+      if (folding) folds.push(b);
       return b;
     };
     const swatch = (glyph: IconName, label: string, value: string, apply: (hexColor: string) => void): void => {
@@ -1227,13 +1231,7 @@ class PdfCraftInstance implements EditorInstance {
       add("bold", t("pdfcraft.bold"), () => void this.toggle("bold"), style.bold);
       add("italic", t("pdfcraft.italic"), () => void this.toggle("italic"), style.italic);
       swatch("textColor", t("pdfcraft.color"), hex(style.color), (v) => void this.styleSelection({ color: rgb(v) }));
-      const more = add("more", t("pdfcraft.more"), () => {
-        this.floatMore = !this.floatMore;
-        extra.hidden = !this.floatMore;
-        more.classList.toggle("on", this.floatMore);
-        this.placeFloat(bar, sel.page, sel.obj.view);
-      }, this.floatMore);
-      row = extra;
+      folding = true;
       add("alignLeft", t("pdfcraft.alignLeft"), () => void this.styleSelection({ align: "left" }), style.align === "left" || style.align === null);
       add("alignCenter", t("pdfcraft.alignCenter"), () => void this.styleSelection({ align: "center" }), style.align === "center");
       add("alignRight", t("pdfcraft.alignRight"), () => void this.styleSelection({ align: "right" }), style.align === "right");
@@ -1244,6 +1242,17 @@ class PdfCraftInstance implements EditorInstance {
     add("delete", t("pdfcraft.deleteObject"), () => void this.deleteSelection());
     slot.appendChild(bar);
     this.floatEl = bar;
+    if (folds.length && bar.offsetWidth > this.scroller.clientWidth - 12) {
+      folding = false;
+      extra.hidden = !this.floatMore;
+      extra.append(...folds);
+      const more = add("more", t("pdfcraft.more"), () => {
+        this.floatMore = !this.floatMore;
+        extra.hidden = !this.floatMore;
+        more.classList.toggle("on", this.floatMore);
+        this.placeFloat(bar, sel.page, sel.obj.view);
+      }, this.floatMore);
+    } else extra.remove();
     this.placeFloat(bar, sel.page, sel.obj.view);
   }
 
@@ -1253,7 +1262,12 @@ class PdfCraftInstance implements EditorInstance {
     const w = bar.offsetWidth;
     const h = bar.offsetHeight;
     const pageW = this.layout.widths[page] ?? 0;
-    bar.style.left = `${Math.min(Math.max(0, box[0] * z), Math.max(0, pageW - w))}px`;
+    let left = Math.min(Math.max(0, box[0] * z), Math.max(0, pageW - w));
+    // and always inside what is on screen, whatever the page's own width
+    const slotLeft = bar.parentElement?.getBoundingClientRect().left ?? 0;
+    const view = this.scroller.getBoundingClientRect();
+    left = Math.max(view.left + 4 - slotLeft, Math.min(left, view.right - 4 - w - slotLeft));
+    bar.style.left = `${left}px`;
     const above = box[1] * z - h - 10;
     bar.style.top = `${above >= 0 ? above : box[3] * z + 10}px`;
   }
