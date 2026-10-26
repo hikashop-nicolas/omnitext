@@ -17,6 +17,6 @@ runs:
       shell: bash
       run: |
         rustup target add wasm32-unknown-unknown
-        sudo apt-get install -y --no-install-recommends binaryen > /dev/null 2>&1 || echo "no wasm-opt, the wasm stays larger"
+        # no wasm-opt: the runner's binaryen is too old for the engine's reference types and breaks the module at start
         INSTALL_WASM_BINDGEN=1 sh scripts/build-craftbridge.sh
         echo "CRAFTBRIDGE_DIR=$GITHUB_WORKSPACE/vendor/craftbridge" >> "$GITHUB_ENV"
