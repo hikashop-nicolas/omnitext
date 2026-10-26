@@ -126,6 +126,7 @@ const ICONS = {
   comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   form: '<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
   signPen: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
+  sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
   more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
@@ -262,7 +263,7 @@ class PdfCraftInstance implements EditorInstance {
   private sel: Selection | null = null;
   private selEl: HTMLElement | null = null;
   private pagesOpen = false;
-  private editing: { page: number; obj: PageObject | null; box: Box; area: HTMLTextAreaElement; bar: HTMLElement; field?: { value: string; save: (text: string) => Promise<void> } } | null = null;
+  private editing: { page: number; obj: PageObject | null; box: Box; area: HTMLTextAreaElement; bar: HTMLElement; field?: { value: string; info?: FieldInfo; save: (text: string) => Promise<void> } } | null = null;
   private buttons: Record<string, HTMLButtonElement> = {};
   private subButtons: Record<string, HTMLButtonElement> = {};
   private zoomRow!: HTMLElement;
@@ -1034,18 +1035,17 @@ class PdfCraftInstance implements EditorInstance {
     const objects = await this.objects(at.page);
     const extras = await this.extras(at.page);
     // the smallest thing under the finger wins; a mark beats the text it sits on when they are the same size
-    const candidates: { view: Box; obj?: PageObject; ann?: AnnotationInfo }[] = [...extras.annotations.map((ann) => ({ view: ann.view, ann })), ...objects.map((obj) => ({ view: obj.view, obj }))];
+    const candidates: { view: Box; obj?: PageObject; ann?: AnnotationInfo; fld?: FieldInfo }[] = [
+      ...extras.annotations.map((ann) => ({ view: ann.view, ann })),
+      ...extras.fields.map((fld) => ({ view: fld.view, fld })),
+      ...objects.map((obj) => ({ view: obj.view, obj })),
+    ];
     const hit = hitBlock(candidates.map((c) => c.view), at.x, at.y);
     if (hit >= 0) {
       const c = candidates[hit]!;
       if (c.obj) this.select({ page: at.page, obj: c.obj });
+      else if (c.fld) this.select(this.fieldSelection(at.page, c.fld));
       else if (c.ann) this.select({ page: at.page, ann: c.ann, obj: { kind: "added", index: -1, type: "image", text: null, view: c.ann.view, style: null } });
-      return;
-    }
-    const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
-    if (field >= 0) {
-      this.select(null);
-      void this.useField(at.page, extras.fields[field]!);
       return;
     }
     this.select(null);
@@ -1059,11 +1059,6 @@ class PdfCraftInstance implements EditorInstance {
     const at = this.pageAt(clientX, clientY);
     if (!at) return;
     const extras = await this.extras(at.page);
-    const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
-    if (field >= 0 && !this.viewOnly) {
-      this.select(this.fieldSelection(at.page, extras.fields[field]!));
-      return;
-    }
     const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
     if (link >= 0) this.followLink(extras.links[link]!);
   }
@@ -1079,14 +1074,21 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Fills a form field: a check box toggles, text and choices open a box to type in. */
   private async useField(page: number, field: FieldInfo): Promise<void> {
-    if (!this.doc) return;
+    if (!this.doc || this.viewOnly) return;
+    const keep = this.fieldSelection(page, field);
     if (field.kind === "check") {
       const on = !!field.value && field.value.toLowerCase() !== "off";
-      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !on } }));
+      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !on } }), keep);
       return;
     }
     if (field.kind === "text" || field.kind === "choice") {
-      this.startEdit(page, null, field.view, { value: field.value ?? "", save: (text) => this.commit({ op: "setField", name: field.name, value: field.kind === "choice" ? { choice: [text] } : { text } }) });
+      this.startEdit(page, null, field.view, {
+        value: field.value ?? "",
+        info: field,
+        save: async (text) => {
+          await this.commit({ op: "setField", name: field.name, value: field.kind === "choice" ? { choice: [text] } : { text } });
+        },
+      });
     }
   }
 
@@ -1290,7 +1292,8 @@ class PdfCraftInstance implements EditorInstance {
     };
     if (sel.field) {
       const field = sel.field;
-      add("edit", t("pdfcraft.fieldProps"), () => void this.fieldProperties(sel.page, field));
+      if (field.kind === "text" || field.kind === "choice" || field.kind === "check") add(field.kind === "check" ? "check" : "edit", t("pdfcraft.editText"), () => void this.useField(sel.page, field));
+      add("sliders", t("pdfcraft.fieldProps"), () => void this.fieldProperties(sel.page, field));
     } else if (sel.ann) {
       const ann = sel.ann;
       if (ann.subtype === "Text" || ann.subtype === "FreeText" || ann.contents) add("edit", t("pdfcraft.editComment"), () => void this.editComment(sel.page, ann));
@@ -1374,6 +1377,7 @@ class PdfCraftInstance implements EditorInstance {
       const dy = (e.clientY - start.y) / this.zoom;
       if (moved && (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)) void this.commitMove(sel, dx, dy);
       else if (isText) this.editSelection(); // a tap on the selected text edits it
+      else if (sel.field) void this.useField(sel.page, sel.field); // and a tap on the selected field fills it
     };
     box.addEventListener("pointermove", move);
     box.addEventListener("pointerup", up);
@@ -2064,7 +2068,7 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Opens the text box over `box` for an existing text object, or for a new one (`obj` null). */
-  private startEdit(page: number, obj: PageObject | null, box: Box, field?: { value: string; save: (text: string) => Promise<void> }): void {
+  private startEdit(page: number, obj: PageObject | null, box: Box, field?: { value: string; info?: FieldInfo; save: (text: string) => Promise<void> }): void {
     const slot = this.slots[page]?.box;
     if (!slot) return;
     this.cancelEdit();
@@ -2092,6 +2096,27 @@ class PdfCraftInstance implements EditorInstance {
     done.addEventListener("click", () => void this.finishEdit(true));
     cancel.addEventListener("click", () => void this.finishEdit(false));
     bar.append(done, cancel);
+    const info = field?.info;
+    if (info) {
+      // the same buttons as the floating bar of a selected field, beside OK and Cancel
+      const props = el("button", "btn icon");
+      const remove = el("button", "btn icon");
+      props.type = remove.type = "button";
+      props.innerHTML = icon("sliders");
+      remove.innerHTML = icon("delete");
+      props.title = props.ariaLabel = t("pdfcraft.fieldProps");
+      remove.title = remove.ariaLabel = t("pdfcraft.fieldDelete");
+      props.addEventListener("click", () => {
+        this.cancelEdit();
+        void this.fieldProperties(page, info);
+      });
+      remove.addEventListener("click", () => {
+        this.cancelEdit();
+        this.select(null);
+        void this.run(page, () => this.commit({ op: "deleteField", name: info.name }));
+      });
+      bar.append(props, remove);
+    }
     slot.append(area, bar);
     // Grow to show all the text, up to a limit; the buttons follow the box.
     const grown = Math.min(Math.max(area.scrollHeight + 4, minH), 360);
@@ -2120,7 +2145,9 @@ class PdfCraftInstance implements EditorInstance {
     }
     if (edit.field) {
       const save = edit.field.save;
-      if (text !== edit.field.value) await this.run(edit.page, () => save(text));
+      const info = edit.field.info;
+      if (text !== edit.field.value) await this.run(edit.page, () => save(text), info ? this.fieldSelection(edit.page, info) : null);
+      else if (info) this.select(this.fieldSelection(edit.page, info));
       return;
     }
     if (edit.obj) {
