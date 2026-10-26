@@ -155,8 +155,8 @@ type Tool = "select" | "text" | "cover" | "textsel";
 interface Slot {
   box: HTMLElement;
   canvas: HTMLCanvasElement | null;
-  /** Zoom and edit generation the canvas was drawn at. */
-  drawn: { zoom: number; gen: number } | null;
+  /** Zoom and edit generation the canvas was drawn at; `tile` is the part of the page it covers (CSS px), when only a part was drawn. */
+  drawn: { zoom: number; gen: number; tile?: Box } | null;
 }
 
 interface Selection {
@@ -637,6 +637,13 @@ class PdfCraftInstance implements EditorInstance {
     const docY = (this.scroller.scrollTop + cy) / before;
     const docX = (this.scroller.scrollLeft + cx) / before;
     this.zoom = zoom;
+    for (const slot of this.slots) {
+      if (slot.drawn?.tile) {
+        slot.canvas?.remove();
+        slot.canvas = null;
+        slot.drawn = null;
+      }
+    }
     this.zoomRange.value = String(Math.round(zoom * 100));
     this.zoomNum.value = String(Math.round(zoom * 100));
     this.cancelEdit();
@@ -668,7 +675,10 @@ class PdfCraftInstance implements EditorInstance {
         if (!range) return;
         const stale = (i: number) => {
           const d = this.slots[i]?.drawn;
-          return !d || d.zoom !== this.zoom || d.gen !== this.gen;
+          if (!d || d.zoom !== this.zoom || d.gen !== this.gen) return true;
+          if (!d.tile) return false;
+          const need = this.visibleRegion(i, 0);
+          return need[0] < d.tile[0] - 1 || need[1] < d.tile[1] - 1 || need[2] > d.tile[2] + 1 || need[3] > d.tile[3] + 1;
         };
         let target = -1;
         for (let i = range[0]; i <= range[1]; i++) {
@@ -696,6 +706,20 @@ class PdfCraftInstance implements EditorInstance {
     });
   }
 
+  /** The part of a page in view (CSS px from its top-left), widened by `margin` times the view's size. */
+  private visibleRegion(page: number, margin: number): Box {
+    const slot = this.slots[page]!.box;
+    const w = this.layout.widths[page] ?? 0;
+    const h = this.layout.heights[page] ?? 0;
+    const mx = this.scroller.clientWidth * margin;
+    const my = this.scroller.clientHeight * margin;
+    const x0 = this.scroller.scrollLeft - slot.offsetLeft - mx;
+    const y0 = this.scroller.scrollTop - (this.layout.tops[page] ?? 0) - my;
+    const x1 = x0 + this.scroller.clientWidth + 2 * mx;
+    const y1 = y0 + this.scroller.clientHeight + 2 * my;
+    return [Math.max(0, x0), Math.max(0, y0), Math.min(w, x1), Math.min(h, y1)];
+  }
+
   private async draw(page: number): Promise<boolean> {
     const doc = this.doc;
     const slot = this.slots[page];
@@ -704,8 +728,21 @@ class PdfCraftInstance implements EditorInstance {
     const zoom = this.zoom;
     const gen = this.gen;
     try {
-      const scale = renderScale(zoom, window.devicePixelRatio || 1, size);
-      const r = await doc.render(page, scale);
+      const dpr = window.devicePixelRatio || 1;
+      const wanted = Math.min(400, Math.max(0.1, zoom * dpr));
+      // A page drawn whole is capped by a pixel budget; past that, draw only the part in view, sharp.
+      const tiled = renderScale(zoom, dpr, size) < wanted - 1e-6;
+      let tile: [number, number, number, number] | undefined;
+      let area: Box | undefined;
+      if (tiled) {
+        area = this.visibleRegion(page, 0.5);
+        const x = Math.floor(area[0] * dpr);
+        const y = Math.floor(area[1] * dpr);
+        const w = Math.max(1, Math.min(4096, Math.ceil((area[2] - area[0]) * dpr), Math.floor(size.w * wanted) - x));
+        const h = Math.max(1, Math.min(4096, Math.ceil((area[3] - area[1]) * dpr), Math.floor(size.h * wanted) - y));
+        tile = [x, y, w, h];
+      }
+      const r = await doc.render(page, tiled ? wanted : renderScale(zoom, dpr, size), tile);
       if (this.disposed || zoom !== this.zoom || gen !== this.gen || this.slots[page] !== slot) return true;
       const canvas = el("canvas");
       canvas.width = r.width;
@@ -713,10 +750,16 @@ class PdfCraftInstance implements EditorInstance {
       const c2d = canvas.getContext("2d");
       if (!c2d) return false;
       c2d.putImageData(new ImageData(new Uint8ClampedArray(r.rgba.buffer as ArrayBuffer), r.width, r.height), 0, 0);
+      let covered: Box | undefined;
+      if (tile) {
+        const [x, y] = tile;
+        canvas.style.cssText = `position:absolute;left:${x / dpr}px;top:${y / dpr}px;width:${r.width / dpr}px;height:${r.height / dpr}px`;
+        covered = [x / dpr, y / dpr, (x + r.width) / dpr, (y + r.height) / dpr];
+      }
       slot.canvas?.remove();
       slot.box.prepend(canvas);
       slot.canvas = canvas;
-      slot.drawn = { zoom, gen };
+      slot.drawn = { zoom, gen, ...(covered ? { tile: covered } : {}) };
       this.paintOverlays(page);
       void this.extras(page).then(() => this.paintOverlays(page));
       return true;
