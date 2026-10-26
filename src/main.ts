@@ -129,6 +129,8 @@ import { psdFormat } from "./formats/psd";
 import { aiFormat } from "./formats/ai";
 import { fontFormat } from "./formats/font";
 import { pkpassFormat } from "./formats/pkpass";
+import { healthCardFormat } from "./formats/healthcard";
+import { boardingPassFormat } from "./formats/boardingpass";
 import { sqliteFormat } from "./formats/sqlite";
 import { ipynbFormat } from "./formats/ipynb";
 import { emlFormat } from "./formats/eml";
@@ -294,6 +296,8 @@ engine.registerFormat(epubFormat);
 // editor); font/sqlite/eml/msg/tiff/torrent are binary.
 engine.registerFormat(fontFormat);
 engine.registerFormat(pkpassFormat);
+engine.registerFormat(healthCardFormat);
+engine.registerFormat(boardingPassFormat);
 engine.registerFormat(sqliteFormat);
 engine.registerFormat(ipynbFormat);
 engine.registerFormat(emlFormat);

@@ -49,4 +49,14 @@ describe("content detection across every format", () => {
   it("still detects real JSON", () => {
     expect(detected('{\n  "device": "demo",\n  "logs": [1, 2, 3]\n}')).toBe("json");
   });
+
+  it("picks the wallet viewer for a health card and a boarding pass string", () => {
+    expect(detected('{\n  "verifiableCredential": [\n    "eyJ6aXAiOiJERUYifQ.abc.def"\n  ]\n}')).toBe("healthcard");
+    expect(detected("shc:/56762909524320603460292437404460312229595326546034602925407728043360287028647167")).toBe("healthcard");
+    expect(detected("M1DESMARAIS/LUC       EABC123 YULFRAAC 0834 226F001A0025 106>60000")).toBe("bcbp");
+  });
+
+  it("does not take ordinary text for a boarding pass", () => {
+    expect(detected("M1 is the first milestone. Meeting notes for Monday, nothing else to report here.")).toBe("plain text");
+  });
 });

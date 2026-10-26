@@ -92,7 +92,7 @@ src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdo
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
                pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, font, sqlite, ipynb,
-               eml/msg, ics/vcf, pkpass, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
+               eml/msg, ics/vcf, pkpass, healthcard, bcbp, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
                arrow, raw, the codemirror-formats long-tail table, and binary-viewers for
                images/media/archives)
 src/i18n/      app-shell translations (en, fr, ja, es, de, pt, ru, zh) + auto-detect

@@ -68,7 +68,7 @@ a page for each one, generated from the app itself.
 
 | | |
 | --- | --- |
-| **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets) |
+| **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets), SMART Health Cards |
 | **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
 | **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor) |

@@ -1,6 +1,6 @@
 # Walletview plan: a viewer library for wallet passes and cards
 
-Status: phases 0-4 done 2026-10-26 (walletview v0.1.0 public, Omnitext opens .pkpass and .pkpasses, checked on the phone). BCBP, health card and the Google and Samsung readers are still to do.
+Status: phases 0-5 done 2026-10-26 (walletview v0.2.0: pkpass, pkpasses, SMART Health Cards, BCBP text; wired in Omnitext and checked on the phone). Google and Samsung link readers wait until a real case turns up.
 
 ## Why
 

@@ -11,7 +11,7 @@ class WalletInstance implements EditorInstance {
       "height:100%;--wv-canvas:var(--canvas);--wv-text:var(--text);--wv-muted:var(--muted);--wv-surface:var(--surface);--wv-border:var(--border)";
     container.appendChild(root);
     this.root = root;
-    this.handle = createWalletView(root, { bytes: ctx.bytes ?? new Uint8Array(), filename: ctx.filename });
+    this.handle = createWalletView(root, { bytes: ctx.bytes ?? new TextEncoder().encode(ctx.text), filename: ctx.filename });
   }
 
   getText(): string {
