@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import {
   ORT_BACKEND_MODULE,
@@ -111,12 +112,32 @@ const bundleTesseractEngine: Plugin = {
   },
 };
 
+/**
+ * The new PDF engine (PdfCraft's, compiled to wasm, through craftbridge) is opt-in at build time.
+ * A build that finds craftbridge with its wasm built (set CRAFTBRIDGE_DIR, or install the package)
+ * registers the "PDF (new engine)" editor; any other build aliases it to a stub and leaves the
+ * editor out, so nothing else needs a Rust toolchain.
+ */
+const craftDir = resolve(process.env.CRAFTBRIDGE_DIR ?? "node_modules/craftbridge");
+const craftReady =
+  existsSync(`${craftDir}/wasm/pdf/pdfcraft_wasm_bg.wasm`) && existsSync(`${craftDir}/src/pdf/index.ts`);
+const craftAliases = craftReady
+  ? [
+      { find: /^craftbridge\/pdf\/worker/, replacement: `${craftDir}/src/pdf/worker.ts` },
+      { find: /^craftbridge\/pdf$/, replacement: `${craftDir}/src/pdf/index.ts` },
+    ]
+  : [
+      { find: /^craftbridge\/pdf\/worker/, replacement: new URL("./src/stubs/craftbridge-pdf-worker.ts", import.meta.url).pathname },
+      { find: /^craftbridge\/pdf$/, replacement: new URL("./src/stubs/craftbridge-pdf.ts", import.meta.url).pathname },
+    ];
+
 export default defineConfig({
   base: "./",
   plugins: [dropUnusedOrtWasm, bundleTesseractEngine, pointOnnxruntimeAtPackage, bundleOnnxruntimeEngine],
   worker: { plugins: () => [pointOnnxruntimeAtPackage] },
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
+    __CRAFT_PDF__: JSON.stringify(craftReady),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
   },
   // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
@@ -126,8 +147,9 @@ export default defineConfig({
     // three: the 3D model viewer and dxf-viewer both use it; keep a single instance so
     // cross-instance objects (e.g. a THREE.Color passed to dxf-viewer) work correctly.
     dedupe: ["pdfjs-dist", "pdf-lib", "three"],
-    alias: { jsdom: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname },
+    alias: [{ find: "jsdom", replacement: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname }, ...craftAliases],
   },
+  server: { fs: { allow: [".", craftDir] } },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every
   // LaTeX command; serve its raw ESM instead.
   optimizeDeps: { exclude: ["temml"] },

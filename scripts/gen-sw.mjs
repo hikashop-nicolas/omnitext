@@ -23,6 +23,9 @@ const files = walk(dist)
   // shots/ holds the screenshots the format pages show. They are worth a megabyte on a
   // marketing page over the network, not in every installed copy of the app.
   .filter((p) => p !== "sw.js" && !p.endsWith(".DS_Store") && !p.startsWith("shots/"))
+  // The new PDF engine is 21 MB of wasm that only its own editor loads: left to the network, not
+  // downloaded for every visitor who installs the app.
+  .filter((p) => !/pdfcraft_wasm_bg[^/]*\.wasm$/.test(p))
   .sort();
 
 // The cache version is a digest of every file's content, so any change in the

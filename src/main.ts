@@ -89,6 +89,7 @@ import { ipynbViewer } from "./editors/ipynbviewer";
 import { emailViewer } from "./editors/emailviewer";
 import { pimViewer } from "./editors/pimviewer";
 import { walletViewer } from "./editors/walletviewer";
+import { pdfCraftEditor } from "./editors/pdfcraft";
 import { tiffViewer } from "./editors/tiffviewer";
 import { torrentViewer } from "./editors/torrentviewer";
 import { model3dViewer } from "./editors/model3dviewer";
@@ -217,6 +218,8 @@ engine.registerEditor(ipynbViewer);
 engine.registerEditor(emailViewer);
 engine.registerEditor(pimViewer);
 engine.registerEditor(walletViewer);
+// The new PDF engine, in builds that carry it (see vite.config.ts); the classic editor stays the default.
+if (__CRAFT_PDF__) engine.registerEditor(pdfCraftEditor);
 engine.registerEditor(tiffViewer);
 engine.registerEditor(torrentViewer);
 engine.registerEditor(model3dViewer);

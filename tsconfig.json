@@ -20,7 +20,9 @@
     // hides the declarations its own "types" field points at (upstream issue 18). Point at
     // them directly, so the editor keeps real types instead of an implicit any.
     "paths": {
-      "@intity/epub-js": ["./node_modules/@intity/epub-js/types/index.d.ts"]
+      "@intity/epub-js": ["./node_modules/@intity/epub-js/types/index.d.ts"],
+      // Checked against the stub; vite.config.ts points the real build at craftbridge itself.
+      "craftbridge/pdf": ["./src/stubs/craftbridge-pdf.ts"]
     }
   },
   "include": ["src"]
