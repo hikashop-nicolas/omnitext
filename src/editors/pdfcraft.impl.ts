@@ -35,6 +35,7 @@ function ensureStyles(): void {
     .ot-pc-bar, .ot-pc-sub, .ot-pc-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); }
     .ot-pc-sub { background:var(--canvas); }
+    .ot-pc-bar { flex-wrap:wrap; overflow-x:visible; }
     .ot-pc-bottom { border-bottom:0; border-top:1px solid var(--border); gap:4px; overflow-x:hidden; }
     .ot-pc-bar .btn, .ot-pc-sub .btn, .ot-pc-bottom .btn, .ot-pc-float .btn { flex:0 0 auto; position:relative; }
     .ot-pc .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
