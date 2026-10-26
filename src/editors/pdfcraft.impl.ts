@@ -88,6 +88,9 @@ function ensureStyles(): void {
     .ot-pc-menu button { text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit; font:14px system-ui, sans-serif; cursor:pointer; }
     .ot-pc-menu button:hover, .ot-pc-menu button:focus-visible { background:var(--canvas); }
     .ot-pc-menu .sep { height:1px; margin:4px 2px; background:var(--border); }
+    .ot-pc-banner { position:absolute; left:8px; right:8px; top:8px; margin:0 auto; width:fit-content; z-index:15; display:flex; align-items:center; gap:10px; padding:6px 8px 6px 12px; border-radius:999px; background:var(--surface); color:var(--text); border:1px solid var(--border);
+      box-shadow:0 2px 10px rgba(0,0,0,.35); font:13px system-ui, sans-serif; }
+    .ot-pc-banner .btn { padding:3px 12px; border-radius:999px; }
     .ot-pc-stroke { position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; overflow:visible; }
     .ot-pc-rubber { position:absolute; z-index:4; box-sizing:border-box; border:1.5px dashed #2a6df4; background:rgba(42,109,244,.12); pointer-events:none; }
     .ot-pc-edit { position:absolute; z-index:6; box-sizing:border-box; resize:none; margin:0; padding:1px 2px;
@@ -266,6 +269,7 @@ class PdfCraftInstance implements EditorInstance {
   private floatEl: HTMLElement | null = null;
   private placing: Placing | null = null;
   private menuEl: HTMLElement | null = null;
+  private bannerEl: HTMLElement | null = null;
   private stroke: { page: number; pts: [number, number][]; el: SVGSVGElement } | null = null;
   private stamps: StampInfo[] | null = null;
   /** After protecting, the file has to be written whole so it is encrypted. */
@@ -558,7 +562,10 @@ class PdfCraftInstance implements EditorInstance {
     this.cancelEdit();
     for (const [k, b] of Object.entries(this.buttons)) if (k === "select" || k === "text" || k === "cover" || k === "textsel") b.classList.toggle("on", k === tool);
     this.scroller.classList.toggle("tool", tool === "cover" || tool === "textsel" || tool === "place");
-    if (tool !== "place") this.placing = null;
+    if (tool !== "place") {
+      this.placing = null;
+      this.hideBanner();
+    }
     this.closeMenu();
     for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", this.placing?.group === group);
     if (tool !== "select") this.select(null);
@@ -1536,7 +1543,7 @@ class PdfCraftInstance implements EditorInstance {
           ]
         : which === "form"
           ? ([["text", "fieldText"], ["multiline", "fieldMultiline"], ["date", "fieldDate"], ["check", "fieldCheck"], ["radio", "fieldRadio"], ["combo", "fieldCombo"], ["list", "fieldList"], ["button", "fieldButton"]] as const).map(
-              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type }) }),
+              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type, sticky: true }) }),
             )
           : which === "sign"
             ? [
@@ -1594,7 +1601,26 @@ class PdfCraftInstance implements EditorInstance {
     this.setTool("place");
     this.placing = p;
     for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", p.group === group);
-    this.host.notifications.info(t("pdfcraft.placeHint"));
+    this.showBanner();
+  }
+
+  /** Says what the next drag does and offers a way out, for as long as a tool is waiting for the page. */
+  private showBanner(): void {
+    this.hideBanner();
+    const bar = el("div", "ot-pc-banner");
+    bar.setAttribute("role", "status");
+    bar.appendChild(el("span", undefined, t("pdfcraft.placeHint")));
+    const done = el("button", "btn", t("pdfcraft.done"));
+    done.type = "button";
+    done.addEventListener("click", () => this.setTool("select"));
+    bar.appendChild(done);
+    this.bannerEl = bar;
+    this.root.querySelector(".ot-pc-body")?.appendChild(bar);
+  }
+
+  private hideBanner(): void {
+    this.bannerEl?.remove();
+    this.bannerEl = null;
   }
 
   private endPlacing(): void {
@@ -1943,8 +1969,7 @@ class PdfCraftInstance implements EditorInstance {
       this.onChange?.();
       this.host.notifications.info(t("pdfcraft.signDone"));
     } catch (e) {
-      const why = message(e);
-      this.host.notifications.error(/RSA/.test(why) ? t("pdfcraft.signRsa") : t("pdfcraft.signFailed", { message: why }));
+      this.host.notifications.error(t("pdfcraft.signFailed", { message: message(e) }));
     }
   }
 
