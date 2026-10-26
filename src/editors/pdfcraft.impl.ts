@@ -71,6 +71,11 @@ function ensureStyles(): void {
     .ot-pc-ov { position:absolute; inset:0; pointer-events:none; z-index:2; }
     .ot-pc-ov > div { position:absolute; box-sizing:border-box; }
     .ot-pc-field { background:rgba(42,109,244,.10); outline:1px solid rgba(42,109,244,.45); }
+    .ot-pc-field.radio { border-radius:50%; background:rgba(255,255,255,.92); outline:1.5px solid rgba(42,109,244,.85); }
+    .ot-pc-field.check { background:rgba(255,255,255,.92); outline:1.5px solid rgba(42,109,244,.85); display:flex; align-items:center; justify-content:center; color:#2a6df4; font-weight:700; line-height:1; }
+    .ot-pc-field.combo::after { content:"\\25BE"; position:absolute; top:0; right:0; bottom:0; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+      background:rgba(42,109,244,.28); color:#1b4fc4; font-size:inherit; line-height:1; }
+    .ot-pc-field.list::after { content:""; position:absolute; top:0; right:0; bottom:0; width:10px; background:rgba(42,109,244,.25); }
     .ot-pc-hit { background:rgba(255,213,0,.45); }
     .ot-pc-hit.cur { background:rgba(255,140,0,.55); outline:2px solid rgba(255,140,0,.9); }
     .ot-pc-tsel { background:rgba(42,109,244,.28); }
@@ -532,12 +537,20 @@ class PdfCraftInstance implements EditorInstance {
     slot.box.querySelector(":scope > .ot-pc-ov")?.remove();
     const ov = el("div", "ot-pc-ov");
     const z = this.zoom;
-    const rect = (b: Box, cls: string) => {
+    const rect = (b: Box, cls: string, text?: string) => {
       const d = el("div", cls);
-      d.style.cssText = `left:${b[0] * z}px;top:${b[1] * z}px;width:${(b[2] - b[0]) * z}px;height:${(b[3] - b[1]) * z}px`;
+      const h = (b[3] - b[1]) * z;
+      d.style.cssText = `left:${b[0] * z}px;top:${b[1] * z}px;width:${(b[2] - b[0]) * z}px;height:${h}px;font-size:${Math.max(8, h * 0.7)}px`;
+      if (text) d.textContent = text;
       ov.appendChild(d);
     };
-    for (const f of this.extraCache.get(page)?.fields ?? []) if (f.kind !== "button" && f.kind !== "signature") rect(f.view, "ot-pc-field");
+    for (const f of this.extraCache.get(page)?.fields ?? []) {
+      if (f.kind === "button" || f.kind === "signature") continue;
+      // a check box, a radio button and the two kinds of choice look like what they are, as far as the page itself does not show it
+      const on = !!f.value && f.value.toLowerCase() !== "off";
+      const kind = f.kind === "choice" ? (f.view[3] - f.view[1] <= 30 ? "combo" : "list") : f.kind === "text" ? "" : f.kind;
+      rect(f.view, `ot-pc-field${kind ? " " + kind : ""}`, f.kind === "check" && on ? "\u2713" : undefined);
+    }
     this.matches.forEach((m, i) => {
       if (m.page === page) for (const r of m.rects) rect(r, i === this.matchIndex ? "ot-pc-hit cur" : "ot-pc-hit");
     });
@@ -1755,7 +1768,8 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Puts what is being placed over a box the person dragged (or the default one a tap made). */
-  private async placeBox(page: number, box: Box, from: [number, number], to: [number, number]): Promise<void> {
+  private async placeBox(page: number, area: Box, from: [number, number], to: [number, number]): Promise<void> {
+    let box = area;
     const p = this.placing;
     if (!p || !this.doc) return;
     const w = box[2] - box[0];
@@ -1795,6 +1809,11 @@ class PdfCraftInstance implements EditorInstance {
       }
       case "field": {
         const type = p.field ?? "text";
+        // a check box and a radio button are square, whatever was dragged
+        if (type === "check" || type === "radio") {
+          const side = Math.max(12, Math.min(box[2] - box[0], box[3] - box[1]));
+          box = [box[0], box[1], box[0] + side, box[1] + side];
+        }
         const spec = type === "combo" || type === "list" ? { type, options: ["Option 1", "Option 2", "Option 3"] } : { type };
         const before = new Set((await this.extras(page)).fields.map((f) => f.name));
         await this.run(page, () => this.commit({ op: "addField", page, view: box, spec }));
