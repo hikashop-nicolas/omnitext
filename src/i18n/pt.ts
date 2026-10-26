@@ -442,6 +442,7 @@ const pt: Dict = {
     fieldDelete: "Eliminar campo",
     choose: "Escolher",
     radioAdd: "Adicionar um botão a este grupo",
+    close: "Fechar",
     shortcuts: "Atalhos de teclado",
     actualSize: "Tamanho real",
     firstPage: "Primeira página",

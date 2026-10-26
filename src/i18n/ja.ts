@@ -444,6 +444,7 @@ const ja: Dict = {
     fieldDelete: "フィールドを削除",
     choose: "選択",
     radioAdd: "このグループにボタンを追加",
+    close: "閉じる",
     shortcuts: "キーボードショートカット",
     actualSize: "実際のサイズ",
     firstPage: "最初のページ",

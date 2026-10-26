@@ -442,6 +442,7 @@ const de: Dict = {
     fieldDelete: "Feld löschen",
     choose: "Wählen",
     radioAdd: "Schaltfläche zu dieser Gruppe hinzufügen",
+    close: "Schließen",
     shortcuts: "Tastenkürzel",
     actualSize: "Originalgröße",
     firstPage: "Erste Seite",

@@ -446,6 +446,7 @@ const zh: Dict = {
     fieldDelete: "删除域",
     choose: "选择",
     radioAdd: "向此组添加按钮",
+    close: "关闭",
     shortcuts: "键盘快捷键",
     actualSize: "实际大小",
     firstPage: "第一页",

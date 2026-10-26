@@ -442,6 +442,7 @@ const es: Dict = {
     fieldDelete: "Eliminar campo",
     choose: "Elegir",
     radioAdd: "Añadir un botón a este grupo",
+    close: "Cerrar",
     shortcuts: "Atajos de teclado",
     actualSize: "Tamaño real",
     firstPage: "Primera página",

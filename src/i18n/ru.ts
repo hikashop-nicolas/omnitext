@@ -465,6 +465,7 @@ const ru: Dict = {
     fieldDelete: "Удалить поле",
     choose: "Выбрать",
     radioAdd: "Добавить кнопку в эту группу",
+    close: "Закрыть",
     shortcuts: "Сочетания клавиш",
     actualSize: "Реальный размер",
     firstPage: "Первая страница",
