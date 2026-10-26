@@ -1,0 +1,22 @@
+name: Build the PDF engine
+description: Builds PdfCraft's engine to wasm (craftbridge) and points the build at it with CRAFTBRIDGE_DIR.
+runs:
+  using: composite
+  steps:
+    # The Rust build is the slow part; its registry, tools and compiled crates are kept between runs.
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.cargo/bin
+          vendor/craftbridge/vendor/pdfcraft/target
+        key: pdf-engine-${{ runner.os }}-${{ hashFiles('craftbridge.rev') }}
+        restore-keys: pdf-engine-${{ runner.os }}-
+    - name: Build the engine
+      shell: bash
+      run: |
+        rustup target add wasm32-unknown-unknown
+        sudo apt-get install -y --no-install-recommends binaryen > /dev/null 2>&1 || echo "no wasm-opt, the wasm stays larger"
+        INSTALL_WASM_BINDGEN=1 sh scripts/build-craftbridge.sh
+        echo "CRAFTBRIDGE_DIR=$GITHUB_WORKSPACE/vendor/craftbridge" >> "$GITHUB_ENV"

@@ -52,3 +52,6 @@ scripts/fdroid/work/
 
 # Local agent worktrees
 .claude/
+
+# The PDF engine build (scripts/build-craftbridge.sh)
+vendor/

@@ -36,6 +36,7 @@ jobs:
           done
           echo "npm ci failed after 3 attempts"
           exit 1
+      - uses: ./.github/actions/pdf-engine # the new PDF editor needs the engine built first
       - run: npm run test # don't ship an APK from a bundle whose tests fail
       - run: npm run build # the same web build GitHub Pages uses
 
