@@ -1,6 +1,7 @@
-import { EngineError, openPdf, type AnnotationInfo, type Box, type FieldInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, openPdf, type AnnotationInfo, type Box, type EditCall, type FieldInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
-import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import type { CollabBinding, CollabContext, EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import { PdfLog, type Change } from "./pdfcraft-collab";
 import { openExternal } from "../core/external";
 import { t } from "../i18n";
 import {
@@ -216,6 +217,14 @@ class PdfCraftInstance implements EditorInstance {
   private zoomRange!: HTMLInputElement;
   private zoomNum!: HTMLInputElement;
   private floatEl: HTMLElement | null = null;
+  private password: string | undefined;
+  /** Set while this peer is in a sharing session: every edit goes through the shared log. */
+  private shared: PdfLog | null = null;
+  private viewOnly = false;
+  private localEdits = 0;
+  /** The file every peer started the session from, and the bytes offered for it before the session binds. */
+  private sessionBase: Uint8Array | null = null;
+  private pendingBase: Uint8Array | null = null;
   private extraCache = new Map<number, Extras>();
   private textSel: TextSel | null = null;
   private selDrag: { page: number; from: [number, number]; busy: boolean; pending: [number, number] | null } | null = null;
@@ -487,9 +496,31 @@ class PdfCraftInstance implements EditorInstance {
 
   private async refreshHistory(): Promise<void> {
     if (!this.doc) return;
+    if (this.shared) {
+      this.buttons.undo!.disabled = this.viewOnly || !this.shared.canUndo();
+      this.buttons.redo!.disabled = this.viewOnly || !this.shared.canRedo();
+      return;
+    }
     const h = await this.doc.history();
     this.buttons.undo!.disabled = !h.undo;
     this.buttons.redo!.disabled = !h.redo;
+  }
+
+  /** Every change to the document goes through here: straight to the engine, or through the shared log in a session. */
+  private async commit(call: EditCall): Promise<void> {
+    const doc = this.doc;
+    if (!doc) return;
+    if (this.viewOnly) throw new Error("this session is view-only");
+    if (!this.shared) {
+      await doc.execute(call);
+      return;
+    }
+    this.localEdits++;
+    try {
+      await this.shared.perform(call);
+    } finally {
+      this.localEdits--;
+    }
   }
 
   // ------------------------------------------------------------------ opening
@@ -510,6 +541,7 @@ class PdfCraftInstance implements EditorInstance {
   private async open(password?: string, wrong = false): Promise<void> {
     try {
       this.doc = await openPdf(this.original, { password, worker: new PdfWorker() });
+      this.password = password;
     } catch (e) {
       if (this.disposed) return;
       if (e instanceof EngineError && (e.code === "needs-password" || e.code === "wrong-password")) this.askPassword(wrong || e.code === "wrong-password");
@@ -943,11 +975,11 @@ class PdfCraftInstance implements EditorInstance {
     if (!this.doc) return;
     if (field.kind === "check") {
       const on = !!field.value && field.value.toLowerCase() !== "off";
-      await this.run(page, () => this.doc!.setField(field.name, { check: !on }));
+      await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !on } }));
       return;
     }
     if (field.kind === "text" || field.kind === "choice") {
-      this.startEdit(page, null, field.view, { value: field.value ?? "", save: (text) => this.doc!.setField(field.name, field.kind === "choice" ? { choice: [text] } : { text }) });
+      this.startEdit(page, null, field.view, { value: field.value ?? "", save: (text) => this.commit({ op: "setField", name: field.name, value: field.kind === "choice" ? { choice: [text] } : { text } }) });
     }
   }
 
@@ -1028,7 +1060,7 @@ class PdfCraftInstance implements EditorInstance {
     const sel = this.textSel;
     if (!sel || !this.doc) return;
     this.clearTextSelection();
-    await this.run(sel.page, () => this.doc!.markup(sel.page, kind, sel.rects));
+    await this.run(sel.page, () => this.commit({ op: "markup", page: sel.page, kind, rects: sel.rects }));
   }
 
   /** Swaps the selection's tools for a box to type the link's address in. */
@@ -1065,7 +1097,7 @@ class PdfCraftInstance implements EditorInstance {
     const sel = this.textSel;
     if (!sel || !this.doc) return;
     this.clearTextSelection();
-    await this.run(sel.page, () => this.doc!.addLink(sel.page, bounds(sel.rects), target));
+    await this.run(sel.page, () => this.commit({ op: "addLink", page: sel.page, view: bounds(sel.rects), target }));
   }
 
   private select(sel: Selection | null): void {
@@ -1222,12 +1254,12 @@ class PdfCraftInstance implements EditorInstance {
 
   private async commitMove(sel: Selection, dx: number, dy: number): Promise<void> {
     if (!this.doc) return;
-    await this.run(sel.page, () => this.doc!.moveObjects(sel.page, [this.ref(sel)], dx, dy), sel);
+    await this.run(sel.page, () => this.commit({ op: "moveObjects", page: sel.page, targets: [this.ref(sel)], dx, dy }), sel);
   }
 
   private async commitResize(sel: Selection, box: Box): Promise<void> {
     if (!this.doc) return;
-    await this.run(sel.page, () => this.doc!.resizeObject(sel.page, this.ref(sel), box), sel);
+    await this.run(sel.page, () => this.commit({ op: "resizeObject", page: sel.page, target: this.ref(sel), view: box }), sel);
   }
 
   /**
@@ -1251,7 +1283,7 @@ class PdfCraftInstance implements EditorInstance {
   private async styleSelection(style: TextStyle): Promise<void> {
     const sel = this.sel;
     if (!sel || !this.doc || sel.obj.type !== "text") return;
-    await this.run(sel.page, () => this.doc!.setText(sel.page, this.ref(sel), undefined, style), sel);
+    await this.run(sel.page, () => this.commit({ op: "setText", page: sel.page, target: this.ref(sel), style }), sel);
   }
 
   private async nextFamily(): Promise<void> {
@@ -1275,8 +1307,8 @@ class PdfCraftInstance implements EditorInstance {
     if (!sel || !this.doc) return;
     this.select(null);
     const ann = sel.ann;
-    if (ann) await this.run(sel.page, () => this.doc!.deleteAnnotation(sel.page, ann.index));
-    else await this.run(sel.page, () => this.doc!.deleteObject(sel.page, this.ref(sel)));
+    if (ann) await this.run(sel.page, () => this.commit({ op: "deleteAnnotation", page: sel.page, index: ann.index }));
+    else await this.run(sel.page, () => this.commit({ op: "deleteObject", page: sel.page, target: this.ref(sel) }));
   }
 
   // ------------------------------------------------------------------ cover, images
@@ -1309,7 +1341,7 @@ class PdfCraftInstance implements EditorInstance {
     if (!rubber || !this.doc) return;
     const box = boxBetween(rubber.from, to, this.sizes[rubber.page]!);
     if (box[2] - box[0] < 4 || box[3] - box[1] < 4) return;
-    await this.run(rubber.page, () => this.doc!.cover(rubber.page, box));
+    await this.run(rubber.page, () => this.commit({ op: "cover", page: rubber.page, view: box }));
     this.setTool("select");
   }
 
@@ -1326,7 +1358,7 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     // the new picture is the last added item: select it so it can be moved and sized straight away
-    await this.run(page, () => this.doc!.addImage(page, file.name, bytes), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
+    await this.run(page, () => this.commit({ op: "addImage", page, name: file.name, bytes }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
     this.setTool("select");
   }
 
@@ -1393,7 +1425,6 @@ class PdfCraftInstance implements EditorInstance {
       this.renderSelection();
       return;
     }
-    const doc = this.doc;
     if (edit.field) {
       const save = edit.field.save;
       if (text !== edit.field.value) await this.run(edit.page, () => save(text));
@@ -1405,9 +1436,9 @@ class PdfCraftInstance implements EditorInstance {
         this.renderSelection();
         return;
       }
-      await this.run(edit.page, () => doc.setText(edit.page, { kind: obj.kind, index: obj.index }, text), { page: edit.page, obj });
+      await this.run(edit.page, () => this.commit({ op: "setText", page: edit.page, target: { kind: obj.kind, index: obj.index }, text }), { page: edit.page, obj });
     } else if (text.trim()) {
-      await this.run(edit.page, () => doc.addText(edit.page, edit.box, text), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "text"));
+      await this.run(edit.page, () => this.commit({ op: "addText", page: edit.page, view: edit.box, text }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "text"));
       this.setTool("select");
     }
   }
@@ -1441,13 +1472,13 @@ class PdfCraftInstance implements EditorInstance {
     const page = this.currentIndex();
     const count = this.sizes.length;
     try {
-      if (op === "rotate") await doc.rotatePages([page], 90);
-      else if (op === "up" && page > 0) await doc.movePages([page], page - 1);
-      else if (op === "down" && page < count - 1) await doc.movePages([page], page + 1);
+      if (op === "rotate") await this.commit({ op: "rotatePages", pages: [page], degrees: 90 });
+      else if (op === "up" && page > 0) await this.commit({ op: "movePages", pages: [page], to: page - 1 });
+      else if (op === "down" && page < count - 1) await this.commit({ op: "movePages", pages: [page], to: page + 1 });
       else if (op === "blank") {
         const s = this.sizes[page] ?? { w: 612, h: 792 };
-        await doc.insertBlankPage(page + 1, s.w, s.h);
-      } else if (op === "delete" && count > 1) await doc.deletePages([page]);
+        await this.commit({ op: "insertBlankPage", at: page + 1, width: s.w, height: s.h });
+      } else if (op === "delete" && count > 1) await this.commit({ op: "deletePages", pages: [page] });
       else return;
     } catch (e) {
       this.fail(e);
@@ -1459,7 +1490,8 @@ class PdfCraftInstance implements EditorInstance {
   private async history(which: "undo" | "redo"): Promise<void> {
     if (!this.doc) return;
     try {
-      await (which === "undo" ? this.doc.undo() : this.doc.redo());
+      if (this.shared) await (which === "undo" ? this.shared.undo() : this.shared.redo());
+      else await this.doc.execute({ op: which });
     } catch (e) {
       this.fail(e);
       return;
@@ -1488,6 +1520,53 @@ class PdfCraftInstance implements EditorInstance {
   async getBytes(): Promise<Uint8Array> {
     if (!this.doc || !this.edited) return this.original;
     return this.doc.save();
+  }
+
+  /** What the other peers start from: the file as this session began, or the document as it is now. */
+  async collabBase(): Promise<Uint8Array> {
+    if (this.sessionBase) return this.sessionBase;
+    this.pendingBase = await this.getBytes();
+    return this.pendingBase;
+  }
+
+  collab(): CollabBinding {
+    return {
+      bind: (ctx) => this.joinSession(ctx),
+      unbind: () => this.leaveSession(),
+    };
+  }
+
+  private async joinSession(ctx: CollabContext): Promise<void> {
+    const base = ctx.seed ? (this.pendingBase ?? (await this.getBytes())) : this.original;
+    this.pendingBase = null;
+    this.sessionBase = base;
+    this.viewOnly = ctx.readOnly;
+    // every peer starts from the same file, so the same edits give the same document
+    this.doc?.close();
+    this.doc = await openPdf(base, { password: this.password, worker: new PdfWorker() });
+    const doc = this.doc;
+    this.shared = new PdfLog({ doc: ctx.doc as never, readOnly: ctx.readOnly, blobs: ctx.blobs }, { run: (call) => doc.execute(call), undo: () => doc.execute({ op: "undo" }) }, (change) => this.onSharedChange(change));
+    await this.shared.start();
+    for (const k of ["text", "image", "cover", "textsel", "pages"]) if (this.buttons[k]) this.buttons[k]!.disabled = this.viewOnly;
+    await this.reloadPages(this.currentIndex());
+    await this.refreshHistory();
+  }
+
+  private leaveSession(): void {
+    this.shared?.stop();
+    this.shared = null;
+    this.sessionBase = null;
+    this.viewOnly = false;
+    for (const k of ["text", "image", "cover", "textsel", "pages"]) if (this.buttons[k]) this.buttons[k]!.disabled = false;
+    void this.refreshHistory();
+  }
+
+  /** The log changed the document: a lone edit of ours is already on screen, anything else needs a redraw. */
+  private onSharedChange(change: Change): void {
+    if (this.disposed) return;
+    if (this.localEdits > 0 && change.undone === 0 && change.applied === 1) return;
+    this.edited = true;
+    void this.reloadPages(this.currentIndex()).then(() => this.refreshHistory());
   }
 
   async printableFile(): Promise<{ bytes: Uint8Array; mime: string }> {

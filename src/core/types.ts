@@ -284,6 +284,8 @@ export interface EditorInstance {
   countStateChanges?(state: unknown): number;
   /** How this editor joins a collaboration session, or null if it cannot yet. */
   collab?(): CollabBinding | null;
+  /** The file a session starts from, when that is not simply the current bytes (see Workspace.getCollabBase). */
+  collabBase?(): Promise<Uint8Array | undefined>;
   /**
    * A complete rendering of the document for printing, or null to print the live surface.
    *
@@ -446,6 +448,10 @@ export interface Workspace {
   setActiveText(text: string): void;
   /** Current bytes for a binary document, else null (re-runs the editor's export). */
   getActiveBytes(): Promise<Uint8Array | null>;
+  /** The bytes a collaboration session starts every peer from: the editor's own choice when it
+   *  has one (an editor that bakes edits in sends the file as the session began, not as it is
+   *  now), else the current bytes. */
+  getCollabBase?(): Promise<Uint8Array | null>;
   /** Replace a binary document's content with raw bytes (e.g. restore a version). */
   setActiveBytes(bytes: Uint8Array): void;
   /** A lossless editing-session snapshot when the editor supports it (e.g. PDF), else null. */

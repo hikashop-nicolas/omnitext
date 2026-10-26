@@ -2482,6 +2482,10 @@ const workspace: Workspace = {
     if (!session?.editor || !session.binary) return null;
     return (await session.editor.getBytes?.()) ?? null;
   },
+  async getCollabBase() {
+    if (!session?.editor || !session.binary) return null;
+    return (await session.editor.collabBase?.()) ?? (await session.editor.getBytes?.()) ?? null;
+  },
   openActiveAsText() {
     if (!session?.editor || !session.binary) return;
     void (async () => {

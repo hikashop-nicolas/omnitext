@@ -93,6 +93,28 @@ export interface Rendered {
   warnings: string[];
 }
 
+/** The calls that change the document: the ones a session records and replays. */
+export type EditCall =
+  | { op: "editTextBlock"; page: number; block: number; text: string }
+  | { op: "deletePages"; pages: number[] }
+  | { op: "rotatePages"; pages: number[]; degrees: number }
+  | { op: "movePages"; pages: number[]; to: number }
+  | { op: "insertBlankPage"; at: number; width: number; height: number }
+  | { op: "moveObjects"; page: number; targets: ObjectRef[]; dx: number; dy: number }
+  | { op: "resizeObject"; page: number; target: ObjectRef; view: Box }
+  | { op: "addText"; page: number; view: Box; text: string; style?: TextStyle }
+  | { op: "addImage"; page: number; name: string; bytes: Uint8Array; view?: Box }
+  | { op: "deleteObject"; page: number; target: ObjectRef }
+  | { op: "setText"; page: number; target: ObjectRef; text?: string; style?: TextStyle }
+  | { op: "cover"; page: number; view: Box }
+  | { op: "markup"; page: number; kind: MarkupKind; rects: Box[]; color?: [number, number, number] }
+  | { op: "addLink"; page: number; view: Box; target: string }
+  | { op: "deleteLink"; page: number; index: number }
+  | { op: "deleteAnnotation"; page: number; index: number }
+  | { op: "setField"; name: string; value: FieldValue }
+  | { op: "undo" }
+  | { op: "redo" };
+
 export interface History {
   undo: string | null;
   redo: string | null;
@@ -130,6 +152,7 @@ export declare class PdfDocument {
   deleteObject(page: number, target: ObjectRef): Promise<void>;
   setText(page: number, target: ObjectRef, text?: string, style?: TextStyle): Promise<void>;
   cover(page: number, view: Box): Promise<void>;
+  execute(call: EditCall): Promise<void>;
   find(query: string, options?: { caseSensitive?: boolean; wholeWords?: boolean; limit?: number }): Promise<FindMatch[]>;
   selectText(page: number, from: [number, number], to: [number, number]): Promise<TextSelection>;
   markup(page: number, kind: MarkupKind, rects: Box[], color?: [number, number, number]): Promise<void>;

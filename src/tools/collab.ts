@@ -158,7 +158,7 @@ function sessionHostFor(host: HostAPI, state: ToolState, store: VersionStore): S
       const doc = host.workspace.getActiveDocument();
       if (!doc) return null;
       const bytes = doc.binary
-        ? await host.workspace.getActiveBytes()
+        ? await (host.workspace.getCollabBase?.() ?? host.workspace.getActiveBytes())
         : new TextEncoder().encode(doc.text);
       if (!bytes) return null;
       return { name: baseName(host, doc.filename, doc.formatId), bytes, hash: await hashBytes(bytes) };
