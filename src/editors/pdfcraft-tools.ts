@@ -27,8 +27,8 @@ function ensureStyles(): void {
     .ot-pcd-card input[type=color] { height:38px; padding:2px 4px; }
     .ot-pcd-list { display:flex; flex-direction:column; gap:2px; max-height:50vh; overflow:auto; }
     .ot-pcd-item { display:flex; align-items:center; gap:6px; padding:4px 2px; border-bottom:1px solid var(--border); }
-    .ot-pcd-item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .ot-pcd-item .name small { color:var(--muted); margin-inline-start:6px; }
+    .ot-pcd-item .name { flex:1; min-width:0; display:flex; gap:12px; justify-content:space-between; overflow:hidden; white-space:nowrap; }
+    .ot-pcd-item .name small { color:var(--muted); margin-inline-start:auto; }
     .ot-pcd-item .btn { padding:3px 8px; font-size:12px; }
     .ot-pcd-actions { display:flex; justify-content:flex-end; gap:8px; }
     .ot-pcd-pad { width:100%; height:180px; touch-action:none; background:#fff; border:1px solid var(--border); border-radius:8px; cursor:crosshair; }
@@ -232,14 +232,14 @@ export function listDialog(root: HTMLElement, o: { title: string; close: string;
       }
     };
     for (const x of o.extra) s.actions.appendChild(button(x.label, false, () => void Promise.resolve(x.run()).then(refresh)));
-    s.actions.appendChild(
-      button(o.close, true, () => {
-        s.close();
-        resolve();
-      }),
-    );
+    const closeBtn = button(o.close, true, () => {
+      s.close();
+      resolve();
+    });
+    s.actions.appendChild(closeBtn);
     s.card.appendChild(s.actions);
     void refresh();
+    closeBtn.focus();
   });
 }
 

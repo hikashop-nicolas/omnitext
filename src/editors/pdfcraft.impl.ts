@@ -2,6 +2,7 @@ import { EngineError, openPdf, type FieldAction, type FieldActionInfo, type JsOu
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
+import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pdfcraft-keys";
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
@@ -37,7 +38,7 @@ function ensureStyles(): void {
     .ot-pc-bar, .ot-pc-sub, .ot-pc-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); }
     .ot-pc-sub { background:var(--canvas); }
-    .ot-pc-bar { flex-wrap:wrap; overflow-x:visible; }
+    .ot-pc-bar { flex-wrap:nowrap; overflow:hidden; }
     .ot-pc-bottom { border-bottom:0; border-top:1px solid var(--border); gap:4px; overflow-x:hidden; }
     .ot-pc-bar .btn, .ot-pc-sub .btn, .ot-pc-bottom .btn, .ot-pc-float .btn { flex:0 0 auto; position:relative; }
     .ot-pc .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
@@ -93,7 +94,8 @@ function ensureStyles(): void {
       border:1px solid var(--border); border-radius:7px; }
     .ot-pc-menu { position:absolute; z-index:20; display:flex; flex-direction:column; min-width:200px; padding:4px; border-radius:10px;
       background:var(--surface); color:var(--text); border:1px solid var(--border); box-shadow:0 6px 20px rgba(0,0,0,.4); }
-    .ot-pc-menu button { text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit; font:14px system-ui, sans-serif; cursor:pointer; }
+    .ot-pc-menu button .keys { margin-inline-start:auto; padding-inline-start:18px; color:var(--muted); font-size:12px; }
+    .ot-pc-menu button { display:flex; align-items:center; text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit; font:14px system-ui, sans-serif; cursor:pointer; }
     .ot-pc-menu button:hover, .ot-pc-menu button:focus-visible { background:var(--canvas); }
     .ot-pc-menu .sep { height:1px; margin:4px 2px; background:var(--border); }
     .ot-pc-banner { position:absolute; left:8px; right:8px; top:8px; margin:0 auto; width:fit-content; z-index:15; display:flex; align-items:center; gap:10px; padding:6px 8px 6px 12px; border-radius:999px; background:var(--surface); color:var(--text); border:1px solid var(--border);
@@ -134,6 +136,15 @@ const ICONS = {
   comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   form: '<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
   signPen: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
+  lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  badge: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/>',
+  droplet: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+  panelTop: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/>',
+  bucket: '<path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/>',
+  bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  keyboard: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>',
   redact: '<rect x="3" y="9" width="18" height="6" rx="1" fill="currentColor"/><path d="M3 4h18"/><path d="M3 20h13"/>',
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
@@ -241,7 +252,7 @@ interface Placing {
   sign?: { p12: Uint8Array; password: string; reason: string; location: string; certify: boolean };
 }
 
-const EDIT_BUTTONS = ["text", "image", "cover", "textsel", "pages", "comment", "form", "sign", "redact"];
+const EDIT_BUTTONS = ["text", "image", "cover", "textsel", "pages", "comment", "form", "sign", "redact", "protect", "watermark", "headerFooter", "background", "bookmarks", "attachments"];
 
 interface Slot {
   box: HTMLElement;
@@ -310,6 +321,12 @@ class PdfCraftInstance implements EditorInstance {
   private pagesOpen = false;
   private editing: { page: number; obj: PageObject | null; box: Box; area: HTMLTextAreaElement; bar: HTMLElement; field?: { value: string; info?: FieldInfo; save: (text: string) => Promise<void> } } | null = null;
   private buttons: Record<string, HTMLButtonElement> = {};
+  /** Everything on the top bar in order, so what does not fit can move behind the "..." button. */
+  private barItems: { el: HTMLElement; label: string; run: () => void; sep?: boolean }[] = [];
+  private moreBtn!: HTMLButtonElement;
+  private barObserver: ResizeObserver | null = null;
+  private tipObserver: MutationObserver | null = null;
+  private mac = isMac();
   private subButtons: Record<string, HTMLButtonElement> = {};
   private zoomRow!: HTMLElement;
   private zoomRange!: HTMLInputElement;
@@ -389,6 +406,13 @@ class PdfCraftInstance implements EditorInstance {
     this.scroller.addEventListener("pointercancel", (e) => this.onPointerEnd(e));
     this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     window.addEventListener("resize", this.onResize);
+    document.addEventListener("keydown", this.onKey);
+    this.barObserver = new ResizeObserver(() => this.layoutBar());
+    this.barObserver.observe(this.bar);
+    // every control gets a tooltip, the ones made later (floating bars, dialogs) included
+    this.tipObserver = new MutationObserver(() => this.addTooltips());
+    this.tipObserver.observe(this.root, { childList: true, subtree: true });
+    this.addTooltips();
     void this.open();
   }
 
@@ -405,7 +429,7 @@ class PdfCraftInstance implements EditorInstance {
       this.applyLayout();
       return;
     }
-    this.fit(this.fitKind);
+    this.fit(this.fitKind, this.fitCap);
   };
 
   // ------------------------------------------------------------------ toolbars
@@ -423,8 +447,15 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   private buildBar(): void {
-    const sep = () => this.bar.appendChild(el("span", "sep"));
-    const b = (key: string, glyph: IconName, label: string, onClick: () => void, cls?: string) => this.button(this.bar, this.buttons, key, glyph, label, onClick, cls);
+    const sep = () => {
+      const s = el("span", "sep");
+      this.bar.appendChild(s);
+      this.barItems.push({ el: s, label: "", run: () => {}, sep: true });
+    };
+    const b = (key: string, glyph: IconName, label: string, onClick: () => void, cls?: string) => {
+      const x = this.button(this.bar, this.buttons, key, glyph, label, onClick, cls);
+      this.barItems.push({ el: x, label, run: onClick });
+    };
     b("undo", "undo", t("pdfcraft.undo"), () => void this.history("undo"));
     b("redo", "redo", t("pdfcraft.redo"), () => void this.history("redo"));
     sep();
@@ -435,13 +466,239 @@ class PdfCraftInstance implements EditorInstance {
     b("textsel", "textSelect", t("pdfcraft.selectText"), () => this.setTool("textsel"));
     sep();
     b("pages", "pages", t("pdfcraft.pages"), () => this.togglePages());
-    b("comment", "comment", t("pdfcraft.comment"), () => this.openMenu("comment"));
-    b("form", "form", t("pdfcraft.form"), () => this.openMenu("form"));
-    b("sign", "signPen", t("pdfcraft.sign"), () => this.openMenu("sign"));
-    b("redact", "redact", t("pdfcraft.redact"), () => this.openMenu("redact"));
-    b("moreTools", "more", t("pdfcraft.moreTools"), () => this.openMenu("more"));
+    b("comment", "comment", t("pdfcraft.comment"), () => this.openMenu("comment", this.barAnchor("comment")));
+    b("form", "form", t("pdfcraft.form"), () => this.openMenu("form", this.barAnchor("form")));
+    b("sign", "signPen", t("pdfcraft.sign"), () => this.openMenu("sign", this.barAnchor("sign")));
+    b("redact", "redact", t("pdfcraft.redact"), () => this.openMenu("redact", this.barAnchor("redact")));
+    sep();
+    b("protect", "lock", t("pdfcraft.protect"), () => void this.protectDialog());
+    b("layers", "layers", t("pdfcraft.layers"), () => void this.layersDialog());
+    b("signatures", "badge", t("pdfcraft.signatures"), () => void this.signaturesDialog());
+    b("watermark", "droplet", t("pdfcraft.moreWatermark"), () => void this.pageMark(watermarkDialog));
+    b("headerFooter", "panelTop", t("pdfcraft.moreHeader"), () => void this.pageMark(headerFooterDialog));
+    b("background", "bucket", t("pdfcraft.moreBackground"), () => void this.pageMark(backgroundDialog));
+    b("bookmarks", "bookmark", t("pdfcraft.moreBookmarks"), () => void this.bookmarksDialog());
+    b("attachments", "clip", t("pdfcraft.moreAttachments"), () => void this.attachmentsDialog());
+    b("shortcuts", "keyboard", t("pdfcraft.shortcuts"), () => void this.shortcutsDialog());
+    // what does not fit goes behind this button, which only shows then
+    this.moreBtn = this.button(this.bar, this.buttons, "moreTools", "more", t("pdfcraft.moreTools"), () => this.openMenu("more"));
+    this.moreBtn.style.display = "none";
+    this.moreBtn.setAttribute("aria-haspopup", "menu");
     for (const x of Object.values(this.buttons)) x.disabled = true;
     this.buttons.select!.classList.add("on");
+    const hints: Record<string, string> = { undo: "Mod+Z", redo: this.mac ? "Mod+Shift+Z" : "Mod+Y", select: "V", text: "T", textsel: "U", shortcuts: "F1" };
+    for (const [k, spec] of Object.entries(hints)) {
+      const x = this.buttons[k];
+      if (x) x.title = `${x.getAttribute("aria-label")} (${keyLabel(spec, this.mac)})`;
+    }
+    this.layoutBar();
+  }
+
+  /** Shows as many bar buttons as fit on one row; the rest are listed under the "..." button. */
+  private layoutBar = (): void => {
+    if (!this.moreBtn) return;
+    for (const it of this.barItems) it.el.style.display = "";
+    this.moreBtn.style.display = "none";
+    const fits = (): boolean => this.bar.scrollWidth <= this.bar.clientWidth + 1;
+    if (fits()) return;
+    this.moreBtn.style.display = "";
+    for (let i = this.barItems.length - 1; i >= 0 && !fits(); i--) if (!this.barItems[i]!.sep) this.barItems[i]!.el.style.display = "none";
+    // a separator with nothing to separate goes too
+    let seen = false;
+    for (const it of this.barItems) {
+      if (!it.sep) {
+        if (it.el.style.display !== "none") seen = true;
+      } else it.el.style.display = seen ? "" : "none";
+    }
+    for (let i = this.barItems.length - 1, any = false; i >= 0; i--) {
+      const it = this.barItems[i]!;
+      if (it.sep) it.el.style.display = any ? it.el.style.display : "none";
+      else if (it.el.style.display !== "none") any = true;
+    }
+    if (!this.barItems.some((it) => !it.sep && it.el.style.display === "none")) this.moreBtn.style.display = "none";
+  };
+
+  /** Where a menu opens from: its own button, or the "..." button when that one is folded away. */
+  private barAnchor(key: string): HTMLElement {
+    const b = this.buttons[key];
+    return b && b.style.display !== "none" ? b : this.moreBtn;
+  }
+
+  /** A tooltip on every control that has a name but no title. */
+  private addTooltips = (): void => {
+    for (const e of this.root.querySelectorAll<HTMLElement>("button, input, select, textarea, [role=button]")) {
+      if (e.title || (e instanceof HTMLInputElement && e.type === "hidden")) continue;
+      const label = e.getAttribute("aria-label") || e.getAttribute("placeholder");
+      if (label) e.title = label;
+    }
+  };
+
+  // ------------------------------------------------------------------ keyboard
+
+  private onKey = (e: KeyboardEvent): void => {
+    if (this.disposed || !this.doc || !this.root.isConnected || this.root.offsetParent === null) return;
+    // a dialog or the app's own overlays have the keys
+    if (this.root.querySelector(".ot-pcd") || document.querySelector(".modal:not([hidden]), #palette:not([hidden])")) return;
+    const target = e.target as HTMLElement | null;
+    const typing = !!target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+    const sc = shortcutFor(e, this.mac);
+    if (!sc) return;
+    const finding = sc.action === "find" || sc.action === "findNext" || sc.action === "findPrevious";
+    if (typing && !finding) return;
+    if (this.run_shortcut(sc, e)) e.preventDefault();
+  };
+
+  /** Does what a shortcut says; true when it was used (so the browser's own meaning is held back). */
+  private run_shortcut(sc: Shortcut, e: KeyboardEvent): boolean {
+    const editable = !this.viewOnly;
+    const place = (p: Placing): boolean => {
+      if (!editable) return false;
+      this.startPlacing(p);
+      return true;
+    };
+    switch (sc.action) {
+      case "undo":
+      case "redo":
+        if (!editable) return false;
+        void this.history(sc.action);
+        return true;
+      case "find":
+        this.toggleFind(true);
+        return true;
+      case "findNext":
+      case "findPrevious":
+        if (!this.matches.length) return false;
+        this.stepFind(sc.action === "findNext" ? 1 : -1);
+        return true;
+      case "zoomIn":
+        this.userZoom(this.zoom * 125);
+        return true;
+      case "zoomOut":
+        this.userZoom(this.zoom * 80);
+        return true;
+      case "fitPage":
+        this.fit("page");
+        return true;
+      case "fitWidth":
+        this.fit("width");
+        return true;
+      case "actualSize":
+        this.userZoom(100);
+        return true;
+      case "firstPage":
+        this.goToPage(0);
+        return true;
+      case "lastPage":
+        this.goToPage(this.sizes.length - 1);
+        return true;
+      case "goToPage":
+        void this.askPage();
+        return true;
+      case "toolSelect":
+        if (!editable) return false;
+        this.setTool("select");
+        return true;
+      case "toolText":
+        if (!editable) return false;
+        this.setTool("text");
+        return true;
+      case "toolHighlight":
+        if (!editable) return false;
+        this.setTool("textsel");
+        return true;
+      case "toolRedact":
+        return place({ group: "redact", kind: "redact", sticky: true });
+      case "toolNote":
+        return place({ group: "comment", kind: "note" });
+      case "toolTextBox":
+        return place({ group: "comment", kind: "textbox" });
+      case "toolPen":
+        return place({ group: "comment", kind: "ink", sticky: true });
+      case "toolField":
+        return place({ group: "form", kind: "field", field: "text" });
+      case "toolStamp":
+        if (!editable) return false;
+        void this.chooseStamp();
+        return true;
+      case "escape": {
+        const busy = this.tool !== "select" || !!this.sel || !!this.textSel || !!this.menuEl;
+        if (!busy) return false;
+        this.closeMenu();
+        this.clearTextSelection();
+        this.setTool("select");
+        this.select(null);
+        return true;
+      }
+      case "delete":
+        if (!editable || !this.sel) return false;
+        void this.deleteSelection();
+        return true;
+      case "bold":
+      case "italic":
+        if (!editable || this.sel?.obj.type !== "text") return false;
+        void this.toggle(sc.action);
+        return true;
+      case "copy": {
+        const sel = this.textSel;
+        if (!sel) return false;
+        void navigator.clipboard?.writeText(sel.text).catch(() => {});
+        return true;
+      }
+      case "nudge": {
+        const sel = this.sel;
+        const dx = sc.dx ?? 0;
+        const dy = sc.dy ?? 0;
+        if (sel && editable && !sel.ann) {
+          const step = e.shiftKey ? 10 : 1;
+          void this.commitMove(sel, dx * step, dy * step);
+          return true;
+        }
+        // nothing selected: left and right turn pages, up and down scroll as they do
+        if (!sel && dx) {
+          this.goToPage(this.currentIndex() + dx);
+          return true;
+        }
+        return false;
+      }
+      case "blankPage":
+        if (!editable) return false;
+        void this.pageOp("blank");
+        return true;
+      case "deletePage":
+        if (!editable) return false;
+        void this.confirmDeletePage();
+        return true;
+      case "appendPdf":
+        if (!editable) return false;
+        this.pdfInput.click();
+        return true;
+      case "help":
+        void this.shortcutsDialog();
+        return true;
+    }
+    return false;
+  }
+
+  private async askPage(): Promise<void> {
+    const text = await askText(this.root, { title: t("pdfcraft.goToPage"), label: t("pdfcraft.goToPageLabel", { total: this.sizes.length }), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+    const n = parseInt(text ?? "", 10);
+    if (Number.isFinite(n)) this.goToPage(Math.min(this.sizes.length, Math.max(1, n)) - 1);
+  }
+
+  private async confirmDeletePage(): Promise<void> {
+    if (this.sizes.length < 2) return;
+    const n = this.currentIndex() + 1;
+    if (await messageDialog(this.root, { title: t("pdfcraft.deletePage"), message: t("pdfcraft.deletePageAsk", { n }), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") })) await this.pageOp("delete");
+  }
+
+  private async shortcutsDialog(): Promise<void> {
+    await listDialog(this.root, {
+      title: t("pdfcraft.shortcuts"),
+      close: t("pdfcraft.close"),
+      empty: "",
+      load: async () => SHORTCUT_LIST.map(([k, keys]) => ({ label: t(`pdfcraft.${k}`), detail: keyLabel(k === "redo" && this.mac ? "Mod+Shift+Z" : keys, this.mac), actions: [] })),
+      extra: [],
+    });
   }
 
   /** Fit button, zoom slider and the percentage, as the other editors have them. */
@@ -700,7 +957,9 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     await this.loadPages();
-    this.fit("page");
+    // the width of the view, up to a comfortable size; the layout may still be settling, so fit again a few times
+    this.fit("width", 1.5);
+    for (const ms of [0, 150, 500, 1200]) setTimeout(() => !this.disposed && this.fitKind === "width" && !this.editing && this.fit("width", 1.5), ms);
     for (const x of Object.values(this.buttons)) x.disabled = false;
     await this.refreshHistory();
   }
@@ -787,19 +1046,23 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Fits the whole page, or only its width, to the view, and remembers which until the person zooms. */
-  private fit(kind: "page" | "width"): void {
+  private fitCap = Infinity;
+
+  private fit(kind: "page" | "width", cap = Infinity): void {
     this.fitKind = kind;
+    this.fitCap = cap;
     const w = this.scroller.clientWidth || 360;
     const h = this.scroller.clientHeight || 640;
     const page = this.sizes[kind === "page" ? this.currentIndex() : 0] ?? this.sizes[0] ?? { w: 612, h: 792 };
-    this.setZoom(kind === "page" ? fitPageZoom(w, h, page) : fitZoom(w, this.sizes), false);
+    this.setZoom(Math.min(cap, kind === "page" ? fitPageZoom(w, h, page) : fitZoom(w, this.sizes)), false);
     if (kind === "page") this.scroller.scrollTop = Math.max(0, (this.layout.tops[this.currentIndex()] ?? GAP) - GAP);
     const b = this.buttons.fit;
     if (b) {
       const next = kind === "page" ? "fitWidth" : "fit";
       b.innerHTML = icon(next);
-      b.title = t(kind === "page" ? "pdfcraft.fit" : "pdfcraft.fitPage");
-      b.setAttribute("aria-label", b.title);
+      const label = t(kind === "page" ? "pdfcraft.fit" : "pdfcraft.fitPage");
+      b.setAttribute("aria-label", label);
+      b.title = `${label} (${keyLabel(kind === "page" ? "Mod+2" : "Mod+0", this.mac)})`;
     }
   }
 
@@ -1653,27 +1916,27 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Opens a menu of tools under the top bar. */
-  private openMenu(which: "comment" | "form" | "sign" | "redact" | "more"): void {
+  private openMenu(which: "comment" | "form" | "sign" | "redact" | "more", anchorEl?: HTMLElement): void {
     const open = this.menuEl?.dataset.which === which;
     this.closeMenu();
     if (open) return;
-    type Item = { label: string; run: () => void } | "sep";
+    type Item = { label: string; run: () => void; keys?: string } | "sep";
     const place = (group: Placing["group"], p: Omit<Placing, "group">) => () => this.startPlacing({ group, ...p });
     const items: Item[] =
       which === "comment"
         ? [
-            { label: t("pdfcraft.note"), run: place("comment", { kind: "note" }) },
-            { label: t("pdfcraft.textbox"), run: place("comment", { kind: "textbox" }) },
+            { label: t("pdfcraft.note"), run: place("comment", { kind: "note" }), keys: "S" },
+            { label: t("pdfcraft.textbox"), run: place("comment", { kind: "textbox" }), keys: "X" },
             { label: t("pdfcraft.rect"), run: place("comment", { kind: "rect" }) },
             { label: t("pdfcraft.oval"), run: place("comment", { kind: "oval" }) },
             { label: t("pdfcraft.line"), run: place("comment", { kind: "line" }) },
             { label: t("pdfcraft.arrow"), run: place("comment", { kind: "arrow" }) },
-            { label: t("pdfcraft.pen"), run: place("comment", { kind: "ink", sticky: true }) },
-            { label: t("pdfcraft.stamp"), run: () => void this.chooseStamp() },
+            { label: t("pdfcraft.pen"), run: place("comment", { kind: "ink", sticky: true }), keys: "D" },
+            { label: t("pdfcraft.stamp"), run: () => void this.chooseStamp(), keys: "K" },
           ]
         : which === "form"
           ? ([["text", "fieldText"], ["multiline", "fieldMultiline"], ["date", "fieldDate"], ["check", "fieldCheck"], ["radio", "fieldRadio"], ["combo", "fieldCombo"], ["list", "fieldList"], ["button", "fieldButton"]] as const).map(
-              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type, sticky: type === "radio" }) }),
+              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type, sticky: type === "radio" }), ...(type === "text" ? { keys: "F" } : {}) }),
             )
           : which === "sign"
             ? [
@@ -1691,7 +1954,7 @@ class PdfCraftInstance implements EditorInstance {
               ]
             : which === "redact"
               ? [
-                  { label: t("pdfcraft.redactArea"), run: place("redact", { kind: "redact", sticky: true }) },
+                  { label: t("pdfcraft.redactArea"), run: place("redact", { kind: "redact", sticky: true }), keys: "Y" },
                   { label: t("pdfcraft.redactSearch"), run: () => void this.redactSearch() },
                   "sep",
                   { label: t("pdfcraft.redactApply", { n: this.redactCount }), run: () => void this.applyRedactions() },
@@ -1699,18 +1962,9 @@ class PdfCraftInstance implements EditorInstance {
                   "sep",
                   { label: t("pdfcraft.redactHidden"), run: () => void this.hiddenInfoDialog() },
                 ]
-              : [
-                  { label: t("pdfcraft.protect"), run: () => void this.protectDialog() },
-                  { label: t("pdfcraft.layers"), run: () => void this.layersDialog() },
-                  { label: t("pdfcraft.signatures"), run: () => void this.signaturesDialog() },
-                  "sep",
-                  { label: t("pdfcraft.moreWatermark"), run: () => void this.pageMark(watermarkDialog) },
-                  { label: t("pdfcraft.moreHeader"), run: () => void this.pageMark(headerFooterDialog) },
-                  { label: t("pdfcraft.moreBackground"), run: () => void this.pageMark(backgroundDialog) },
-                  "sep",
-                  { label: t("pdfcraft.moreBookmarks"), run: () => void this.bookmarksDialog() },
-                  { label: t("pdfcraft.moreAttachments"), run: () => void this.attachmentsDialog() },
-                ];
+              : this.barItems
+                  .filter((it) => !it.sep && it.el.style.display === "none")
+                  .map((it): Item => ({ label: it.label, run: it.run }));
     const menu = el("div", "ot-pc-menu");
     menu.dataset.which = which;
     menu.setAttribute("role", "menu");
@@ -1722,13 +1976,14 @@ class PdfCraftInstance implements EditorInstance {
       const b = el("button", undefined, item.label);
       b.type = "button";
       b.setAttribute("role", "menuitem");
+      if (item.keys) b.appendChild(el("span", "keys", keyLabel(item.keys, this.mac)));
       b.addEventListener("click", () => {
         this.closeMenu();
         item.run();
       });
       menu.appendChild(b);
     }
-    const anchor = this.buttons[which === "more" ? "moreTools" : which]!;
+    const anchor = anchorEl ?? this.buttons[which === "more" ? "moreTools" : which]!;
     const root = this.root.getBoundingClientRect();
     const a = anchor.getBoundingClientRect();
     this.root.appendChild(menu);
@@ -2687,7 +2942,7 @@ class PdfCraftInstance implements EditorInstance {
     this.sel = null;
     await this.loadPages();
     // A turned page can be wider than the view: fit again unless the person chose a zoom.
-    if (this.fitKind) this.setZoom(this.fitKind === "page" ? fitPageZoom(this.scroller.clientWidth || 360, this.scroller.clientHeight || 640, this.sizes[Math.min(page, this.sizes.length - 1)] ?? { w: 612, h: 792 }) : fitZoom(this.scroller.clientWidth || 360, this.sizes), false);
+    if (this.fitKind) this.setZoom(Math.min(this.fitCap, this.fitKind === "page" ? fitPageZoom(this.scroller.clientWidth || 360, this.scroller.clientHeight || 640, this.sizes[Math.min(page, this.sizes.length - 1)] ?? { w: 612, h: 792 }) : fitZoom(this.scroller.clientWidth || 360, this.sizes)), false);
     this.afterEdit("all");
     const target = Math.max(0, Math.min(page, this.sizes.length - 1));
     this.scroller.scrollTop = this.layout.tops[target] !== undefined ? this.layout.tops[target]! - GAP : before;
@@ -2766,6 +3021,9 @@ class PdfCraftInstance implements EditorInstance {
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.findTimer);
     window.removeEventListener("resize", this.onResize);
+    document.removeEventListener("keydown", this.onKey);
+    this.barObserver?.disconnect();
+    this.tipObserver?.disconnect();
     this.cancelEdit();
     this.cancelRubber();
     this.release(null);
