@@ -24,6 +24,8 @@ export interface Rendered {
   width: number;
   height: number;
   rgba: Uint8Array;
+  /** Why the picture is partial or approximate: "content-truncated", "colour-fallback". */
+  warnings: string[];
 }
 
 export interface History {
