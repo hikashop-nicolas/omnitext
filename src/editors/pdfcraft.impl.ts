@@ -1,7 +1,8 @@
-import { EngineError, openPdf, type AnnotationInfo, type Box, type EditCall, type FieldInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, openPdf, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
+import { askText, formDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
 import { t } from "../i18n";
 import {
@@ -81,6 +82,12 @@ function ensureStyles(): void {
     .ot-pc-link-entry { display:flex; gap:4px; align-items:center; }
     .ot-pc-link-entry input { width:210px; max-width:60vw; font:inherit; padding:5px 8px; color:var(--text); background:var(--canvas);
       border:1px solid var(--border); border-radius:7px; }
+    .ot-pc-menu { position:absolute; z-index:20; display:flex; flex-direction:column; min-width:200px; padding:4px; border-radius:10px;
+      background:var(--surface); color:var(--text); border:1px solid var(--border); box-shadow:0 6px 20px rgba(0,0,0,.4); }
+    .ot-pc-menu button { text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit; font:14px system-ui, sans-serif; cursor:pointer; }
+    .ot-pc-menu button:hover, .ot-pc-menu button:focus-visible { background:var(--canvas); }
+    .ot-pc-menu .sep { height:1px; margin:4px 2px; background:var(--border); }
+    .ot-pc-stroke { position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; overflow:visible; }
     .ot-pc-rubber { position:absolute; z-index:4; box-sizing:border-box; border:1.5px dashed #2a6df4; background:rgba(42,109,244,.12); pointer-events:none; }
     .ot-pc-edit { position:absolute; z-index:6; box-sizing:border-box; resize:none; margin:0; padding:1px 2px;
       font-family:system-ui, sans-serif; line-height:1.15; color:#000; background:rgba(255,255,230,.97);
@@ -112,6 +119,9 @@ const ICONS = {
   pages: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   rotateLeft: '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   textColor: '<path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/>',
+  comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  form: '<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
+  signPen: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
   more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
@@ -162,7 +172,26 @@ const hex = (c: [number, number, number]): string => "#" + c.map((v) => Math.rou
 const rgb = (h: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-type Tool = "select" | "text" | "cover" | "textsel";
+type Tool = "select" | "text" | "cover" | "textsel" | "place";
+
+/** What the next gesture on a page puts there. */
+interface Placing {
+  kind: "note" | "rect" | "oval" | "line" | "arrow" | "ink" | "textbox" | "typewriter" | "mark" | "stamp" | "picture" | "drawn" | "typed" | "field" | "signbox";
+  /** Which top bar button it belongs to, so that one shows as on. */
+  group: "comment" | "form" | "sign";
+  stamp?: StampInfo;
+  mark?: "check" | "cross";
+  field?: FieldType;
+  picture?: { name: string; bytes: Uint8Array; ratio: number; stamp: boolean };
+  drawn?: DrawnSignature;
+  text?: string;
+  /** Kept after one use (the pen), instead of going back to Select. */
+  sticky?: boolean;
+  /** For "signbox": the signing to do once the box is drawn. */
+  sign?: { p12: Uint8Array; password: string; reason: string; location: string; certify: boolean };
+}
+
+const EDIT_BUTTONS = ["text", "image", "cover", "textsel", "pages", "comment", "form", "sign"];
 
 interface Slot {
   box: HTMLElement;
@@ -234,6 +263,12 @@ class PdfCraftInstance implements EditorInstance {
   private zoomRange!: HTMLInputElement;
   private zoomNum!: HTMLInputElement;
   private floatEl: HTMLElement | null = null;
+  private placing: Placing | null = null;
+  private menuEl: HTMLElement | null = null;
+  private stroke: { page: number; pts: [number, number][]; el: SVGSVGElement } | null = null;
+  private stamps: StampInfo[] | null = null;
+  /** After protecting, the file has to be written whole so it is encrypted. */
+  private fullSave = false;
   /** Whether the floating text bar shows its second row (alignment and delete). */
   private floatMore = false;
   private password: string | undefined;
@@ -345,6 +380,10 @@ class PdfCraftInstance implements EditorInstance {
     b("textsel", "textSelect", t("pdfcraft.selectText"), () => this.setTool("textsel"));
     sep();
     b("pages", "pages", t("pdfcraft.pages"), () => this.togglePages());
+    b("comment", "comment", t("pdfcraft.comment"), () => this.openMenu("comment"));
+    b("form", "form", t("pdfcraft.form"), () => this.openMenu("form"));
+    b("sign", "signPen", t("pdfcraft.sign"), () => this.openMenu("sign"));
+    b("moreTools", "more", t("pdfcraft.moreTools"), () => this.openMenu("more"));
     for (const x of Object.values(this.buttons)) x.disabled = true;
     this.buttons.select!.classList.add("on");
   }
@@ -517,7 +556,10 @@ class PdfCraftInstance implements EditorInstance {
     this.tool = tool;
     this.cancelEdit();
     for (const [k, b] of Object.entries(this.buttons)) if (k === "select" || k === "text" || k === "cover" || k === "textsel") b.classList.toggle("on", k === tool);
-    this.scroller.classList.toggle("tool", tool === "cover" || tool === "textsel");
+    this.scroller.classList.toggle("tool", tool === "cover" || tool === "textsel" || tool === "place");
+    if (tool !== "place") this.placing = null;
+    this.closeMenu();
+    for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", this.placing?.group === group);
     if (tool !== "select") this.select(null);
     if (tool !== "textsel") this.clearTextSelection();
   }
@@ -536,8 +578,8 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     const h = await this.doc.history();
-    this.buttons.undo!.disabled = !h.undo;
-    this.buttons.redo!.disabled = !h.redo;
+    this.buttons.undo!.disabled = this.viewOnly || !h.undo;
+    this.buttons.redo!.disabled = this.viewOnly || !h.redo;
   }
 
   /** Every change to the document goes through here: straight to the engine, or through the shared log in a session. */
@@ -545,6 +587,7 @@ class PdfCraftInstance implements EditorInstance {
     const doc = this.doc;
     if (!doc) return;
     if (this.viewOnly) throw new Error("this session is view-only");
+    if (this.shared && call.op === "protect") throw new Error(t("pdfcraft.protectBlocked"));
     if (!this.shared) {
       await doc.execute(call);
       return;
@@ -875,6 +918,11 @@ class PdfCraftInstance implements EditorInstance {
       const at = this.pageAt(e.clientX, e.clientY);
       this.clearTextSelection();
       if (at) this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
+    } else if (this.tool === "place" && this.placing && this.pointers.size === 1) {
+      const at = this.pageAt(e.clientX, e.clientY);
+      if (!at) return;
+      if (this.placing.kind === "ink") this.startStroke(at.page, [at.x, at.y]);
+      else if (this.placing.kind !== "note" && this.placing.kind !== "typed" && this.placing.kind !== "mark") this.startRubber(at.page, [at.x, at.y]);
     }
   }
 
@@ -891,6 +939,10 @@ class PdfCraftInstance implements EditorInstance {
     if (this.selDrag) {
       const r = this.slots[this.selDrag.page]!.box.getBoundingClientRect();
       void this.updateSelection([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
+    }
+    if (this.stroke) {
+      const r = this.slots[this.stroke.page]!.box.getBoundingClientRect();
+      this.extendStroke([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
     if (this.pinch && this.pointers.size >= 2) {
       const [a, b] = [...this.pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
@@ -915,8 +967,10 @@ class PdfCraftInstance implements EditorInstance {
       this.selDrag = null;
       void this.finishSelection(drag, [(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
+    const stroked = !!this.stroke;
+    if (stroked) void this.finishStroke();
     this.onPointerEnd(e);
-    if (tap && !tap.moved && !rubber && !drag && !wasPinch) {
+    if (tap && !tap.moved && !rubber && !drag && !wasPinch && !stroked) {
       const held = Date.now() - tap.time;
       if (held < 500) void this.onTap(e.clientX, e.clientY);
       else void this.onLongPress(e.clientX, e.clientY);
@@ -958,6 +1012,10 @@ class PdfCraftInstance implements EditorInstance {
       this.startEdit(at.page, null, newTextBox(at.x, at.y, this.sizes[at.page]!));
       return;
     }
+    if (this.tool === "place") {
+      await this.placeAt(at.page, [at.x, at.y]);
+      return;
+    }
     if (this.tool === "textsel") {
       this.clearTextSelection();
       return;
@@ -991,6 +1049,11 @@ class PdfCraftInstance implements EditorInstance {
     const at = this.pageAt(clientX, clientY);
     if (!at) return;
     const extras = await this.extras(at.page);
+    const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
+    if (field >= 0 && !this.viewOnly) {
+      await this.fieldProperties(at.page, extras.fields[field]!);
+      return;
+    }
     const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
     if (link >= 0) this.followLink(extras.links[link]!);
   }
@@ -1215,7 +1278,10 @@ class PdfCraftInstance implements EditorInstance {
       input.addEventListener("change", () => apply(input.value));
       b.append(input, stripe);
     };
-    if (sel.obj.type === "text" && style) {
+    if (sel.ann) {
+      const ann = sel.ann;
+      if (ann.subtype === "Text" || ann.subtype === "FreeText" || ann.contents) add("edit", t("pdfcraft.editComment"), () => void this.editComment(sel.page, ann));
+    } else if (sel.obj.type === "text" && style) {
       add("edit", t("pdfcraft.editText"), () => this.editSelection());
       const family = el("select");
       family.setAttribute("aria-label", t("pdfcraft.font"));
@@ -1237,7 +1303,7 @@ class PdfCraftInstance implements EditorInstance {
       add("alignCenter", t("pdfcraft.alignCenter"), () => void this.styleSelection({ align: "center" }), style.align === "center");
       add("alignRight", t("pdfcraft.alignRight"), () => void this.styleSelection({ align: "right" }), style.align === "right");
       add("alignJustify", t("pdfcraft.alignJustify"), () => void this.styleSelection({ align: "justify" }), style.align === "justify");
-    } else if (sel.obj.type === "image") {
+    } else if (sel.obj.type === "image" && !sel.ann) {
       add("rotateLeft", t("pdfcraft.rotateLeft"), () => void this.turnPicture(sel, -1));
       add("rotate", t("pdfcraft.rotateRight"), () => void this.turnPicture(sel, 1));
     }
@@ -1413,6 +1479,12 @@ class PdfCraftInstance implements EditorInstance {
     this.cancelRubber();
     if (!rubber || !this.doc) return;
     const box = boxBetween(rubber.from, to, this.sizes[rubber.page]!);
+    if (this.tool === "place") {
+      const small = box[2] - box[0] < 6 && box[3] - box[1] < 6;
+      if (small) await this.placeAt(rubber.page, rubber.from);
+      else await this.placeBox(rubber.page, box, rubber.from, to);
+      return;
+    }
     if (box[2] - box[0] < 4 || box[3] - box[1] < 4) return;
     await this.run(rubber.page, () => this.commit({ op: "cover", page: rubber.page, view: box }));
     this.setTool("select");
@@ -1433,6 +1505,471 @@ class PdfCraftInstance implements EditorInstance {
     // the new picture is the last added item: select it so it can be moved and sized straight away
     await this.run(page, () => this.commit({ op: "addImage", page, name: file.name, bytes }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
     this.setTool("select");
+  }
+
+  // ------------------------------------------------------------------ comments, stamps, fields, signing, protection
+
+  private closeMenu(): void {
+    this.menuEl?.remove();
+    this.menuEl = null;
+  }
+
+  /** Opens a menu of tools under the top bar. */
+  private openMenu(which: "comment" | "form" | "sign" | "more"): void {
+    const open = this.menuEl?.dataset.which === which;
+    this.closeMenu();
+    if (open) return;
+    type Item = { label: string; run: () => void } | "sep";
+    const place = (group: Placing["group"], p: Omit<Placing, "group">) => () => this.startPlacing({ group, ...p });
+    const items: Item[] =
+      which === "comment"
+        ? [
+            { label: t("pdfcraft.note"), run: place("comment", { kind: "note" }) },
+            { label: t("pdfcraft.textbox"), run: place("comment", { kind: "textbox" }) },
+            { label: t("pdfcraft.rect"), run: place("comment", { kind: "rect" }) },
+            { label: t("pdfcraft.oval"), run: place("comment", { kind: "oval" }) },
+            { label: t("pdfcraft.line"), run: place("comment", { kind: "line" }) },
+            { label: t("pdfcraft.arrow"), run: place("comment", { kind: "arrow" }) },
+            { label: t("pdfcraft.pen"), run: place("comment", { kind: "ink", sticky: true }) },
+            { label: t("pdfcraft.stamp"), run: () => void this.chooseStamp() },
+          ]
+        : which === "form"
+          ? ([["text", "fieldText"], ["multiline", "fieldMultiline"], ["date", "fieldDate"], ["check", "fieldCheck"], ["radio", "fieldRadio"], ["combo", "fieldCombo"], ["list", "fieldList"], ["button", "fieldButton"]] as const).map(
+              ([type, key]) => ({ label: t(`pdfcraft.${key}`), run: place("form", { kind: "field", field: type }) }),
+            )
+          : which === "sign"
+            ? [
+                { label: t("pdfcraft.signDraw"), run: () => void this.chooseDrawnSignature() },
+                { label: t("pdfcraft.signType"), run: () => void this.chooseTypedSignature() },
+                { label: t("pdfcraft.signPicture"), run: () => void this.choosePicture(false) },
+                { label: t("pdfcraft.signCheck"), run: place("sign", { kind: "mark", mark: "check" }) },
+                { label: t("pdfcraft.signCross"), run: place("sign", { kind: "mark", mark: "cross" }) },
+                { label: t("pdfcraft.signTyped"), run: place("sign", { kind: "typewriter" }) },
+                "sep",
+                { label: t("pdfcraft.signFlatten"), run: () => void this.flattenMarks() },
+                "sep",
+                { label: t("pdfcraft.signCertificate"), run: () => void this.signWithCertificate() },
+                { label: t("pdfcraft.signMakeId"), run: () => void this.makeDigitalId() },
+              ]
+            : [
+                { label: t("pdfcraft.protect"), run: () => void this.protectDialog() },
+                { label: t("pdfcraft.layers"), run: () => void this.layersDialog() },
+                { label: t("pdfcraft.signatures"), run: () => void this.signaturesDialog() },
+              ];
+    const menu = el("div", "ot-pc-menu");
+    menu.dataset.which = which;
+    menu.setAttribute("role", "menu");
+    for (const item of items) {
+      if (item === "sep") {
+        menu.appendChild(el("div", "sep"));
+        continue;
+      }
+      const b = el("button", undefined, item.label);
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.addEventListener("click", () => {
+        this.closeMenu();
+        item.run();
+      });
+      menu.appendChild(b);
+    }
+    const anchor = this.buttons[which === "more" ? "moreTools" : which]!;
+    const root = this.root.getBoundingClientRect();
+    const a = anchor.getBoundingClientRect();
+    this.root.appendChild(menu);
+    menu.style.top = `${a.bottom - root.top + 4}px`;
+    menu.style.left = `${Math.max(4, Math.min(a.left - root.left, root.width - menu.offsetWidth - 4))}px`;
+    this.menuEl = menu;
+    const close = (e: PointerEvent): void => {
+      if (menu.contains(e.target as Node) || anchor.contains(e.target as Node)) return;
+      document.removeEventListener("pointerdown", close, true);
+      if (this.menuEl === menu) this.closeMenu();
+    };
+    document.addEventListener("pointerdown", close, true);
+  }
+
+  private startPlacing(p: Placing): void {
+    this.placing = p;
+    this.setTool("place");
+    this.placing = p;
+    for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", p.group === group);
+    this.host.notifications.info(t("pdfcraft.placeHint"));
+  }
+
+  private endPlacing(): void {
+    if (this.placing?.sticky) return;
+    this.setTool("select");
+  }
+
+  private async chooseStamp(): Promise<void> {
+    if (!this.doc) return;
+    try {
+      this.stamps ??= await this.doc.stamps();
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      return;
+    }
+    const stamps = this.stamps;
+    const values = await formDialog(this.root, {
+      title: t("pdfcraft.stampsTitle"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      fields: [{ key: "stamp", label: t("pdfcraft.stamp"), kind: "select", value: stamps[0]?.name, options: [...stamps.map((x): [string, string] => [x.name, x.label.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w/g, (c) => c.toLowerCase())]), ["picture", t("pdfcraft.stampPicture")]] }],
+    });
+    if (!values) return;
+    if (values.stamp === "picture") {
+      await this.choosePicture(true);
+      return;
+    }
+    const stamp = stamps.find((x) => x.name === values.stamp);
+    if (stamp) this.startPlacing({ group: "comment", kind: "stamp", stamp });
+  }
+
+  /** Reads a picture file the person picks, for a stamp or a signature. */
+  private async choosePicture(stamp: boolean): Promise<void> {
+    const values = await formDialog(this.root, {
+      title: stamp ? t("pdfcraft.stampPicture") : t("pdfcraft.signPicture"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      fields: [{ key: "file", label: t("pdfcraft.addImage"), kind: "file", accept: "image/*" }],
+      validate: (v) => (v.file ? null : t("pdfcraft.addImage")),
+    });
+    const file = values?.file;
+    if (!(file instanceof File)) return;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const bitmap = await createImageBitmap(file);
+      const ratio = bitmap.height / Math.max(1, bitmap.width);
+      bitmap.close();
+      this.startPlacing({ group: stamp ? "comment" : "sign", kind: "picture", picture: { name: file.name, bytes, ratio, stamp } });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+    }
+  }
+
+  private async chooseDrawnSignature(): Promise<void> {
+    const drawn = await signaturePad(this.root, { title: t("pdfcraft.drawTitle"), hint: t("pdfcraft.drawHint"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), clear: t("pdfcraft.clear") });
+    if (drawn) this.startPlacing({ group: "sign", kind: "drawn", drawn });
+  }
+
+  private async chooseTypedSignature(): Promise<void> {
+    const text = await askText(this.root, { title: t("pdfcraft.typedTitle"), label: t("pdfcraft.typedName"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+    if (text?.trim()) this.startPlacing({ group: "sign", kind: "typed", text: text.trim() });
+  }
+
+  /** What a tap puts at a point: a note, a mark, a typed signature, or a default-sized version of a box tool. */
+  private async placeAt(page: number, at: [number, number]): Promise<void> {
+    const p = this.placing;
+    if (!p) return;
+    const size = this.sizes[page] ?? { w: 612, h: 792 };
+    const around = (w: number, h: number): Box => {
+      const x0 = Math.min(Math.max(0, at[0] - w / 2), Math.max(0, size.w - w));
+      const y0 = Math.min(Math.max(0, at[1] - h / 2), Math.max(0, size.h - h));
+      return [x0, y0, x0 + w, y0 + h];
+    };
+    const fixed: Partial<Record<Placing["kind"], [number, number]>> = { rect: [90, 60], oval: [90, 60], textbox: [160, 28], typewriter: [120, 20], mark: [16, 16], line: [80, 0], arrow: [80, 0] };
+    if (p.kind === "note") return this.commitComment(page, { type: "note", at }, true);
+    if (p.kind === "typed") return this.commitComment(page, { type: "typedSignature", at: [at[0], at[1]], text: p.text ?? "", height: 36 });
+    if (p.kind === "stamp" && p.stamp) return this.placeBox(page, around(p.stamp.size[0], p.stamp.size[1]), at, at);
+    if (p.kind === "picture" && p.picture) return this.placeBox(page, around(120, 120 * p.picture.ratio), at, at);
+    if (p.kind === "drawn" && p.drawn) return this.placeBox(page, around(140, 140 * p.drawn.ratio), at, at);
+    if (p.kind === "field") {
+      const dims: Record<FieldType, [number, number]> = { text: [140, 22], multiline: [160, 60], date: [100, 22], check: [16, 16], radio: [16, 16], combo: [140, 22], list: [140, 70], button: [90, 28] };
+      const [w, h] = dims[p.field ?? "text"];
+      return this.placeBox(page, around(w, h), at, at);
+    }
+    const dim = fixed[p.kind];
+    if (dim) {
+      const [w, h] = dim;
+      if (p.kind === "line" || p.kind === "arrow") return this.placeBox(page, around(w, 1), [at[0] - w / 2, at[1]], [at[0] + w / 2, at[1]]);
+      return this.placeBox(page, around(w, h), at, at);
+    }
+    if (p.kind === "signbox") return this.placeBox(page, around(160, 56), at, at);
+  }
+
+  /** Puts what is being placed over a box the person dragged (or the default one a tap made). */
+  private async placeBox(page: number, box: Box, from: [number, number], to: [number, number]): Promise<void> {
+    const p = this.placing;
+    if (!p || !this.doc) return;
+    const w = box[2] - box[0];
+    switch (p.kind) {
+      case "rect":
+      case "oval":
+        return this.commitComment(page, { type: p.kind, box, color: [0.85, 0.1, 0.1], width: 2 });
+      case "line":
+      case "arrow":
+        return this.commitComment(page, { type: p.kind, from, to, color: [0.85, 0.1, 0.1], width: 2 });
+      case "textbox":
+      case "typewriter": {
+        const text = await askText(this.root, { title: t("pdfcraft.textbox"), label: t("pdfcraft.typeLabel"), multiline: true, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+        if (!text?.trim()) return;
+        const fontSize = Math.max(8, Math.min(48, Math.round((box[3] - box[1]) * 0.7)));
+        return this.commitComment(page, { type: p.kind, box, fontSize, contents: text, color: p.kind === "typewriter" ? [0, 0, 0] : [0.1, 0.1, 0.6] });
+      }
+      case "mark":
+        return this.commitComment(page, { type: "mark", box, mark: p.mark ?? "check", color: [0, 0, 0] });
+      case "stamp":
+        return this.commitComment(page, { type: "stamp", box, stamp: p.stamp?.name ?? "Approved" });
+      case "typed": {
+        const height = Math.max(16, Math.min(120, box[3] - box[1]));
+        return this.commitComment(page, { type: "typedSignature", at: [box[0], (box[1] + box[3]) / 2], text: p.text ?? "", height });
+      }
+      case "drawn": {
+        if (!p.drawn) return;
+        const strokes = p.drawn.strokes.map((st) => st.map(([x, y]): [number, number] => [box[0] + x * w, box[1] + y * w]));
+        return this.commitComment(page, { type: "signature", strokes, color: [0, 0, 0.45], width: 1.5 });
+      }
+      case "picture": {
+        if (!p.picture) return;
+        const { name, bytes } = p.picture;
+        await this.run(page, () => this.commit({ op: "addPictureStamp", page, view: box, name, bytes }));
+        this.endPlacing();
+        return;
+      }
+      case "field": {
+        const type = p.field ?? "text";
+        const spec = type === "combo" || type === "list" ? { type, options: ["Option 1", "Option 2", "Option 3"] } : { type };
+        await this.run(page, () => this.commit({ op: "addField", page, view: box, spec }));
+        this.endPlacing();
+        return;
+      }
+      case "signbox":
+        if (p.sign) await this.finishCertificateSign(page, box, p.sign);
+        return;
+      default:
+        return;
+    }
+  }
+
+  private async commitComment(page: number, spec: CommentSpec, askContents = false): Promise<void> {
+    let full = spec;
+    if (askContents) {
+      const text = await askText(this.root, { title: t("pdfcraft.note"), label: t("pdfcraft.noteLabel"), multiline: true, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+      if (text === null) return;
+      full = { ...spec, contents: text };
+    }
+    try {
+      await this.run(page, () => this.commit({ op: "addAnnotation", page, spec: full }));
+    } finally {
+      this.endPlacing();
+    }
+  }
+
+  private async editComment(page: number, ann: AnnotationInfo): Promise<void> {
+    const text = await askText(this.root, { title: t("pdfcraft.editComment"), label: t("pdfcraft.noteLabel"), value: ann.contents ?? "", multiline: true, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+    if (text === null) return;
+    await this.run(page, () => this.commit({ op: "setAnnotationContents", page, index: ann.index, text }));
+  }
+
+  // the pen: strokes are drawn as a line while the finger is down and added when it lifts
+  private startStroke(page: number, at: [number, number]): void {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "ot-pc-stroke");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#d91a1a");
+    path.setAttribute("stroke-width", String(2 * this.zoom));
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+    this.slots[page]!.box.appendChild(svg);
+    this.stroke = { page, pts: [at], el: svg };
+    this.extendStroke(at);
+  }
+
+  private extendStroke(at: [number, number]): void {
+    const s = this.stroke;
+    if (!s) return;
+    const last = s.pts[s.pts.length - 1]!;
+    if (s.pts.length > 1 && Math.hypot(at[0] - last[0], at[1] - last[1]) < 0.5) return;
+    if (s.pts.length > 1 || at !== last) s.pts.push(at);
+    s.el.firstElementChild!.setAttribute("points", s.pts.map(([x, y]) => `${x * this.zoom},${y * this.zoom}`).join(" "));
+  }
+
+  private async finishStroke(): Promise<void> {
+    const s = this.stroke;
+    this.stroke = null;
+    s?.el.remove();
+    if (!s || s.pts.length < 2 || !this.doc) return;
+    await this.run(s.page, () => this.commit({ op: "addAnnotation", page: s.page, spec: { type: "ink", strokes: [s.pts], color: [0.85, 0.1, 0.1], width: 2 } }));
+  }
+
+  private async flattenMarks(): Promise<void> {
+    if (!this.doc) return;
+    try {
+      await this.commit({ op: "flattenFillSign" });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      return;
+    }
+    await this.reloadPages(this.currentIndex());
+  }
+
+  /** Name, tooltip and choices of a form field, or its removal. */
+  private async fieldProperties(page: number, field: FieldInfo): Promise<void> {
+    const choice = field.kind === "choice";
+    const fields: Field[] = [
+      { key: "name", label: t("pdfcraft.fieldName"), kind: "text", value: field.name },
+      { key: "tooltip", label: t("pdfcraft.fieldTooltip"), kind: "text", value: "" },
+      { key: "required", label: t("pdfcraft.fieldRequired"), kind: "check", value: false },
+      { key: "readOnly", label: t("pdfcraft.fieldReadOnly"), kind: "check", value: false },
+    ];
+    if (choice) fields.push({ key: "options", label: t("pdfcraft.fieldOptions"), kind: "textarea", value: "" });
+    fields.push({ key: "remove", label: t("pdfcraft.fieldDelete"), kind: "check", value: false });
+    const v = await formDialog(this.root, { title: t("pdfcraft.fieldProps"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), fields });
+    if (!v) return;
+    if (v.remove) {
+      await this.run(page, () => this.commit({ op: "deleteField", name: field.name }));
+      return;
+    }
+    const change: { name?: string; tooltip?: string; required?: boolean; readOnly?: boolean; options?: string[] } = { required: !!v.required, readOnly: !!v.readOnly };
+    if (String(v.name) && v.name !== field.name) change.name = String(v.name);
+    if (String(v.tooltip)) change.tooltip = String(v.tooltip);
+    if (choice && String(v.options).trim()) change.options = String(v.options).split("\n").map((x) => x.trim()).filter(Boolean);
+    await this.run(page, () => this.commit({ op: "setFieldProps", name: field.name, change }));
+  }
+
+  private async protectDialog(): Promise<void> {
+    if (!this.doc) return;
+    if (this.shared) {
+      this.host.notifications.warn(t("pdfcraft.protectBlocked"));
+      return;
+    }
+    const v = await formDialog(this.root, {
+      title: t("pdfcraft.protectTitle"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      note: t("pdfcraft.protectNote"),
+      fields: [
+        { key: "open", label: t("pdfcraft.openPassword"), kind: "password" },
+        { key: "owner", label: t("pdfcraft.ownerPassword"), kind: "password" },
+        { key: "printing", label: t("pdfcraft.printing"), kind: "select", value: "high", options: [["high", t("pdfcraft.printHigh")], ["low", t("pdfcraft.printLow")], ["none", t("pdfcraft.printNone")]] },
+        { key: "changes", label: t("pdfcraft.changes"), kind: "select", value: "none", options: [["none", t("pdfcraft.changesNone")], ["pages", t("pdfcraft.changesPages")], ["fill", t("pdfcraft.changesFill")], ["comment", t("pdfcraft.changesComment")], ["any", t("pdfcraft.changesAny")]] },
+        { key: "copy", label: t("pdfcraft.allowCopy"), kind: "check", value: false },
+      ],
+      validate: (x) => (String(x.open) || String(x.owner) ? null : t("pdfcraft.needPassword")),
+    });
+    if (!v) return;
+    try {
+      await this.commit({
+        op: "protect",
+        spec: { open: String(v.open) || undefined, owner: String(v.owner) || undefined, printing: v.printing as "none" | "low" | "high", changes: v.changes as "none" | "pages" | "fill" | "comment" | "any", copy: !!v.copy },
+      });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      return;
+    }
+    this.fullSave = true;
+    this.edited = true;
+    this.onChange?.();
+    this.host.notifications.info(t("pdfcraft.protectDone"));
+  }
+
+  private async layersDialog(): Promise<void> {
+    if (!this.doc) return;
+    const layers = await this.doc.layers();
+    if (!layers.length) {
+      this.host.notifications.info(t("pdfcraft.layersNone"));
+      return;
+    }
+    const v = await formDialog(this.root, {
+      title: t("pdfcraft.layers"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      fields: layers.map((l): Field => ({ key: String(l.index), label: l.name || `#${l.index + 1}`, kind: "check", value: l.visible })),
+    });
+    if (!v) return;
+    let changed = false;
+    for (const l of layers) changed = (await this.doc.setLayerVisible(l.index, !!v[String(l.index)])) || changed;
+    if (changed) this.redrawAll();
+  }
+
+  /** Draws every page again without changing the document (a layer was shown or hidden). */
+  private redrawAll(): void {
+    this.gen++;
+    for (const slot of this.slots) slot.drawn = null;
+    this.scheduleRender();
+  }
+
+  private async signaturesDialog(): Promise<void> {
+    if (!this.doc) return;
+    const sigs = await this.doc.signatures();
+    const lines = sigs.map((x) => (x.signed ? `${t("pdfcraft.signedBy", { name: x.signer ?? x.field })}: ${x.summary}` : `${x.field}: ${t("pdfcraft.unsigned")}`));
+    await formDialog(this.root, { title: t("pdfcraft.signaturesTitle"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), fields: [], note: lines.length ? lines.join("\n") : t("pdfcraft.signaturesNone") });
+  }
+
+  private async signWithCertificate(): Promise<void> {
+    if (!this.doc) return;
+    const v = await formDialog(this.root, {
+      title: t("pdfcraft.certTitle"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      fields: [
+        { key: "file", label: t("pdfcraft.certFile"), kind: "file", accept: ".p12,.pfx,application/x-pkcs12" },
+        { key: "password", label: t("pdfcraft.certPassword"), kind: "password" },
+        { key: "reason", label: t("pdfcraft.reason"), kind: "text" },
+        { key: "location", label: t("pdfcraft.location"), kind: "text" },
+        { key: "visible", label: t("pdfcraft.signVisible"), kind: "check", value: true },
+        { key: "certify", label: t("pdfcraft.signCertify"), kind: "check", value: false },
+      ],
+      validate: (x) => (x.file ? null : t("pdfcraft.signNeedFile")),
+    });
+    const file = v?.file;
+    if (!v || !(file instanceof File)) return;
+    const sign = { p12: new Uint8Array(await file.arrayBuffer()), password: String(v.password), reason: String(v.reason), location: String(v.location), certify: !!v.certify };
+    if (v.visible) {
+      this.startPlacing({ group: "sign", kind: "signbox", sign });
+      return;
+    }
+    await this.finishCertificateSign(0, null, sign);
+  }
+
+  /** Signs, then opens the signed file as the document: it is final, so nothing can be edited after. */
+  private async finishCertificateSign(page: number, box: Box | null, sign: NonNullable<Placing["sign"]>): Promise<void> {
+    const doc = this.doc;
+    if (!doc) return;
+    this.setTool("select");
+    try {
+      const signed = await doc.signWithCertificate(sign.p12, sign.password, { page, ...(box ? { box } : {}), reason: sign.reason || undefined, location: sign.location || undefined, ...(sign.certify ? { certify: 2 as const } : {}) });
+      this.doc?.close();
+      this.original = signed;
+      this.doc = await openPdf(signed, { password: this.password, worker: new PdfWorker() });
+      this.edited = false;
+      this.fullSave = false;
+      this.viewOnly = true;
+      for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = true;
+      await this.reloadPages(page);
+      await this.refreshHistory();
+      this.onChange?.();
+      this.host.notifications.info(t("pdfcraft.signDone"));
+    } catch (e) {
+      const why = message(e);
+      this.host.notifications.error(/RSA/.test(why) ? t("pdfcraft.signRsa") : t("pdfcraft.signFailed", { message: why }));
+    }
+  }
+
+  private async makeDigitalId(): Promise<void> {
+    if (!this.doc) return;
+    const v = await formDialog(this.root, {
+      title: t("pdfcraft.idTitle"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      note: t("pdfcraft.idNote"),
+      fields: [
+        { key: "name", label: t("pdfcraft.idName"), kind: "text" },
+        { key: "org", label: t("pdfcraft.idOrg"), kind: "text" },
+        { key: "email", label: t("pdfcraft.idEmail"), kind: "text" },
+        { key: "password", label: t("pdfcraft.idPassword"), kind: "password" },
+        { key: "years", label: t("pdfcraft.idYears"), kind: "number", value: 5, min: 1, max: 30 },
+      ],
+      validate: (x) => (String(x.name).trim() && String(x.password) ? null : t("pdfcraft.idNeed")),
+    });
+    if (!v) return;
+    try {
+      const bytes = await this.doc.createDigitalId(String(v.name).trim(), String(v.org).trim(), String(v.email).trim(), String(v.password), Number(v.years) || 5);
+      await saveFile(bytes, `${String(v.name).trim().replace(/[^\w.-]+/g, "-") || "digital-id"}.p12`, "application/x-pkcs12");
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.signFailed", { message: message(e) }));
+    }
   }
 
   /** Appends every page of the chosen PDF after the last page, then shows the first new one. */
@@ -1608,7 +2145,7 @@ class PdfCraftInstance implements EditorInstance {
 
   async getBytes(): Promise<Uint8Array> {
     if (!this.doc || !this.edited) return this.original;
-    return this.doc.save();
+    return this.doc.save(this.fullSave);
   }
 
   /** What the other peers start from: the file as this session began, or the document as it is now. */
@@ -1636,7 +2173,7 @@ class PdfCraftInstance implements EditorInstance {
     const doc = this.doc;
     this.shared = new PdfLog({ doc: ctx.doc as never, readOnly: ctx.readOnly, blobs: ctx.blobs }, { run: (call) => doc.execute(call), undo: () => doc.execute({ op: "undo" }) }, (change) => this.onSharedChange(change));
     await this.shared.start();
-    for (const k of ["text", "image", "cover", "textsel", "pages"]) if (this.buttons[k]) this.buttons[k]!.disabled = this.viewOnly;
+    for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = this.viewOnly;
     await this.reloadPages(this.currentIndex());
     await this.refreshHistory();
   }
@@ -1646,7 +2183,7 @@ class PdfCraftInstance implements EditorInstance {
     this.shared = null;
     this.sessionBase = null;
     this.viewOnly = false;
-    for (const k of ["text", "image", "cover", "textsel", "pages"]) if (this.buttons[k]) this.buttons[k]!.disabled = false;
+    for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = false;
     void this.refreshHistory();
   }
 

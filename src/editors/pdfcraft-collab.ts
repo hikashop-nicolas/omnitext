@@ -24,9 +24,10 @@ export const LOG = "pdfcraft.log";
 
 /** An edit as it is stored: a picture travels as a hash and is fetched from the blob store. */
 export type StoredCall =
-  | Exclude<EditCall, { op: "addImage" | "insertPagesFrom" }>
+  | Exclude<EditCall, { op: "addImage" | "insertPagesFrom" | "addPictureStamp" }>
   | { op: "addImage"; page: number; name: string; sha: string; view?: [number, number, number, number] }
-  | { op: "insertPagesFrom"; name: string; sha: string; at: number };
+  | { op: "insertPagesFrom"; name: string; sha: string; at: number }
+  | { op: "addPictureStamp"; page: number; view: [number, number, number, number]; name: string; sha: string };
 
 export interface Entry {
   /** Unique, so the same entry is never taken for two. */
@@ -182,7 +183,7 @@ export class PdfLog {
     this.sequencer = new Sequencer(
       {
         apply: async (op) => {
-          if (op.op !== "addImage" && op.op !== "insertPagesFrom") return engine.run(op);
+          if (op.op !== "addImage" && op.op !== "insertPagesFrom" && op.op !== "addPictureStamp") return engine.run(op);
           const bytes = this.ctx.blobs?.get(op.sha) ?? (await this.ctx.blobs?.fetch(op.sha)) ?? null;
           if (!bytes) throw new Error("the file never arrived");
           const { sha: _sha, ...rest } = op;
@@ -221,7 +222,7 @@ export class PdfLog {
     if (call.op === "undo") return this.undo();
     if (call.op === "redo") return this.redo();
     let op: StoredCall;
-    if (call.op === "addImage" || call.op === "insertPagesFrom") {
+    if (call.op === "addImage" || call.op === "insertPagesFrom" || call.op === "addPictureStamp") {
       const sha = await this.ctx.blobs?.put(call.bytes);
       if (!sha) throw new Error("files cannot be shared in this session");
       const { bytes: _bytes, ...rest } = call;

@@ -85,6 +85,91 @@ export interface FieldInfo {
 
 export type FieldValue = { text: string } | { check: boolean } | { choice: string[] };
 
+type Rgb = [number, number, number];
+type Point = [number, number];
+
+export type CommentSpec = (
+  | { type: "note"; at: Point }
+  | { type: "rect"; box: Box }
+  | { type: "oval"; box: Box }
+  | { type: "line"; from: Point; to: Point }
+  | { type: "arrow"; from: Point; to: Point }
+  | { type: "ink"; strokes: Point[][] }
+  | { type: "textbox"; box: Box; fontSize?: number }
+  | { type: "typewriter"; box: Box; fontSize?: number }
+  | { type: "mark"; box: Box; mark?: "check" | "cross" | "dot" | "line" }
+  | { type: "signature"; strokes: Point[][] }
+  | { type: "typedSignature"; at: Point; text: string; height?: number }
+  | { type: "stamp"; box: Box; stamp: string; by?: string }
+) & { contents?: string; author?: string; color?: Rgb; fill?: Rgb; width?: number; opacity?: number };
+
+export interface StampInfo {
+  name: string;
+  label: string;
+  group: "dynamic" | "signHere" | "business";
+  size: [number, number];
+  color: Rgb;
+}
+
+export type FieldType = "text" | "multiline" | "date" | "check" | "radio" | "combo" | "list" | "button";
+
+export interface FieldSpec {
+  type: FieldType;
+  name?: string;
+  options?: string[];
+  editable?: boolean;
+  multi?: boolean;
+  group?: string;
+  export?: string;
+  caption?: string;
+}
+
+export interface FieldChange {
+  name?: string;
+  tooltip?: string;
+  required?: boolean;
+  readOnly?: boolean;
+  options?: string[];
+  fontSize?: number;
+}
+
+export interface ProtectSpec {
+  open?: string;
+  owner?: string;
+  printing?: "none" | "low" | "high";
+  changes?: "none" | "pages" | "fill" | "comment" | "any";
+  copy?: boolean;
+  accessibility?: boolean;
+}
+
+export interface LayerInfo {
+  index: number;
+  name: string;
+  visible: boolean;
+}
+
+export interface SignatureInfo {
+  field: string;
+  signed: boolean;
+  signer: string | null;
+  date: string | null;
+  reason: string | null;
+  page: number | null;
+  summary: string;
+  status: string;
+}
+
+export interface SignSpec {
+  page?: number;
+  box?: Box;
+  field?: string;
+  name?: string;
+  reason?: string;
+  location?: string;
+  contact?: string;
+  certify?: 1 | 2 | 3;
+}
+
 export interface Rendered {
   width: number;
   height: number;
@@ -114,6 +199,15 @@ export type EditCall =
   | { op: "deleteLink"; page: number; index: number }
   | { op: "deleteAnnotation"; page: number; index: number }
   | { op: "setField"; name: string; value: FieldValue }
+  | { op: "addAnnotation"; page: number; spec: CommentSpec }
+  | { op: "setAnnotationContents"; page: number; index: number; text: string }
+  | { op: "addField"; page: number; view: Box; spec: FieldSpec }
+  | { op: "deleteField"; name: string }
+  | { op: "setFieldProps"; name: string; change: FieldChange }
+  | { op: "protect"; spec: ProtectSpec }
+  | { op: "removeProtection" }
+  | { op: "addPictureStamp"; page: number; view: Box; name: string; bytes: Uint8Array }
+  | { op: "flattenFillSign" }
   | { op: "undo" }
   | { op: "redo" };
 
@@ -166,6 +260,21 @@ export declare class PdfDocument {
   deleteAnnotation(page: number, index: number): Promise<void>;
   fields(page: number): Promise<FieldInfo[]>;
   setField(name: string, value: FieldValue): Promise<void>;
+  addAnnotation(page: number, spec: CommentSpec): Promise<void>;
+  setAnnotationContents(page: number, index: number, text: string): Promise<void>;
+  stamps(): Promise<StampInfo[]>;
+  addField(page: number, view: Box, spec: FieldSpec): Promise<void>;
+  deleteField(name: string): Promise<void>;
+  setFieldProps(name: string, change: FieldChange): Promise<void>;
+  protect(spec: ProtectSpec): Promise<void>;
+  removeProtection(): Promise<void>;
+  layers(): Promise<LayerInfo[]>;
+  setLayerVisible(index: number, visible: boolean): Promise<boolean>;
+  addPictureStamp(page: number, view: Box, name: string, bytes: Uint8Array): Promise<void>;
+  flattenFillSign(): Promise<void>;
+  signatures(): Promise<SignatureInfo[]>;
+  signWithCertificate(p12: Uint8Array, password: string, spec?: SignSpec): Promise<Uint8Array>;
+  createDigitalId(name: string, organisation: string, email: string, password: string, years?: number): Promise<Uint8Array>;
   editTextBlock(page: number, block: number, text: string): Promise<void>;
   deletePages(pages: number[]): Promise<void>;
   rotatePages(pages: number[], degrees: number): Promise<void>;
