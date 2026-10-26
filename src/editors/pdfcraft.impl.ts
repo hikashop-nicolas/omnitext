@@ -1,9 +1,10 @@
-import { EngineError, openPdf, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, openPdf, type FieldAction, type FieldActionInfo, type JsOutput, type JsRequest, type ScriptEvent, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
-import { askText, formDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
+import { askText, formDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
+import { isNative } from "../core/platform";
 import { t } from "../i18n";
 import {
   boxBetween,
@@ -132,6 +133,8 @@ const ICONS = {
   comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   form: '<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
   signPen: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
   more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
@@ -181,6 +184,40 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 
 const hex = (c: [number, number, number]): string => "#" + c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
 const rgb = (h: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+/** What a click can do, as the properties dialog lists it: the choice id and the string key of its name. */
+const ACTION_CHOICES: [string, string][] = [
+  ["none", "actNone"], ["javascript", "actJs"], ["uri", "actUri"], ["reset", "actReset"], ["show", "actShow"], ["hide", "actHide"], ["goto", "actPage"],
+  ["Print", "actPrint"], ["NextPage", "actNext"], ["PrevPage", "actPrev"], ["FirstPage", "actFirst"], ["LastPage", "actLast"], ["submit", "actSubmit"], ["keep", "actKeep"],
+];
+const MENU_ITEMS = ["Print", "NextPage", "PrevPage", "FirstPage", "LastPage"];
+
+function actionChoice(a: FieldAction): string {
+  if (a.kind === "named") return MENU_ITEMS.includes(a.name) ? a.name : "keep";
+  if (a.kind === "showhide") return a.hide ? "hide" : "show";
+  if (a.kind === "other") return "keep";
+  return a.kind;
+}
+
+function actionDetails(a: FieldAction): string {
+  if (a.kind === "javascript") return a.script;
+  if (a.kind === "uri" || a.kind === "submit") return a.url;
+  if (a.kind === "reset" || a.kind === "showhide") return a.fields.join(", ");
+  if (a.kind === "goto") return String(a.page + 1);
+  return "";
+}
+
+function actionFrom(choice: string, details: string): FieldAction | null {
+  const names = details.split(",").map((x) => x.trim()).filter(Boolean);
+  if (choice === "javascript") return { kind: "javascript", script: details };
+  if (choice === "uri") return { kind: "uri", url: details.trim() };
+  if (choice === "submit") return { kind: "submit", url: details.trim() };
+  if (choice === "reset") return { kind: "reset", fields: names };
+  if (choice === "show" || choice === "hide") return { kind: "showhide", fields: names, hide: choice === "hide" };
+  if (choice === "goto") return { kind: "goto", page: Math.max(0, (parseInt(details, 10) || 1) - 1) };
+  if (MENU_ITEMS.includes(choice)) return { kind: "named", name: choice };
+  return null;
+}
+
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 type Tool = "select" | "text" | "cover" | "textsel" | "place";
@@ -617,6 +654,7 @@ class PdfCraftInstance implements EditorInstance {
     if (this.shared && call.op === "protect") throw new Error(t("pdfcraft.protectBlocked"));
     if (!this.shared) {
       await doc.execute(call);
+      if (call.op === "setField" || call.op === "setFieldScript") void this.flushScriptOutput();
       return;
     }
     this.localEdits++;
@@ -1092,12 +1130,18 @@ class PdfCraftInstance implements EditorInstance {
   private async useField(page: number, field: FieldInfo): Promise<void> {
     if (!this.doc || this.viewOnly) return;
     const keep = this.fieldSelection(page, field);
+    if (field.kind === "button") {
+      await this.pressButton(page, field);
+      return;
+    }
     if (field.kind === "check") {
       await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { check: !field.on } }), keep);
+      await this.pressButton(page, field);
       return;
     }
     if (field.kind === "radio") {
       await this.run(page, () => this.commit({ op: "setField", name: field.name, value: { radio: field.export ?? null } }), keep);
+      await this.pressButton(page, field);
       return;
     }
     if (field.kind === "choice" && field.options?.length) {
@@ -1321,7 +1365,9 @@ class PdfCraftInstance implements EditorInstance {
     };
     if (sel.field) {
       const field = sel.field;
+      if (field.kind === "button") add("play", t("pdfcraft.press"), () => void this.useField(sel.page, field));
       if (field.kind === "text" || field.kind === "choice") add("edit", t("pdfcraft.editText"), () => void this.useField(sel.page, field));
+      if (field.kind === "text" || field.kind === "choice") add("code", t("pdfcraft.fieldScripts"), () => void this.fieldScripts(sel.page, field));
       if (field.kind === "check" || field.kind === "radio") add("check", t("pdfcraft.choose"), () => void this.useField(sel.page, field), !!field.on);
       if (field.kind === "radio") {
         add("plus", t("pdfcraft.radioAdd"), () => {
@@ -1940,14 +1986,144 @@ class PdfCraftInstance implements EditorInstance {
       { key: "readOnly", label: t("pdfcraft.fieldReadOnly"), kind: "check", value: false },
     ];
     if (choice) fields.push({ key: "options", label: t("pdfcraft.fieldOptions"), kind: "textarea", value: "" });
+    if (field.kind === "button") fields.splice(1, 0, { key: "caption", label: t("pdfcraft.fieldCaption"), kind: "text", value: field.caption ?? "" });
+    const actions = await this.doc?.fieldActions(field.name).catch(() => [] as FieldActionInfo[]) ?? [];
+    const current = actions.find((a) => a.trigger === "mouse_up");
+    const choiceOf = current ? actionChoice(current) : "none";
+    fields.push({ key: "action", label: t("pdfcraft.actionWhen"), kind: "select", value: choiceOf, options: ACTION_CHOICES.filter(([k]) => k !== "keep" || choiceOf === "keep").map(([k, key]) => [k, t(`pdfcraft.${key}`)] as [string, string]) });
+    fields.push({ key: "details", label: t("pdfcraft.actionDetails"), kind: "textarea", value: current ? actionDetails(current) : "" });
     const v = await formDialog(this.root, { title: t("pdfcraft.fieldProps"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel"), fields });
     if (!v) return;
-    const change: { name?: string; tooltip?: string; required?: boolean; readOnly?: boolean; options?: string[] } = { required: !!v.required, readOnly: !!v.readOnly };
+    const chosen = String(v.action) === "keep" ? current : actionFrom(String(v.action), String(v.details));
+    const changed = JSON.stringify(chosen ?? null) !== JSON.stringify(current ?? null);
+    const change: { name?: string; tooltip?: string; required?: boolean; readOnly?: boolean; options?: string[]; caption?: string; widget?: number } = { required: !!v.required, readOnly: !!v.readOnly };
+    if (field.kind === "button" && String(v.caption) !== (field.caption ?? "")) Object.assign(change, { caption: String(v.caption), widget: field.widget });
     if (String(v.name) && v.name !== field.name) change.name = String(v.name);
     if (String(v.tooltip)) change.tooltip = String(v.tooltip);
     if (choice && String(v.options).trim()) change.options = String(v.options).split("\n").map((x) => x.trim()).filter(Boolean);
     const renamed = { ...field, name: change.name ?? field.name };
-    await this.run(page, () => this.commit({ op: "setFieldProps", name: field.name, change }), this.fieldSelection(page, renamed));
+    await this.run(page, async () => {
+      if (changed) {
+        const list = actions.filter((a) => a.trigger !== "mouse_up");
+        if (chosen) list.push({ ...chosen, trigger: "mouse_up" } as FieldActionInfo);
+        await this.commit({ op: "setFieldActions", name: field.name, actions: list });
+      }
+      await this.commit({ op: "setFieldProps", name: field.name, change });
+    }, this.fieldSelection(page, renamed));
+  }
+
+  /** A field's own scripts: what it works out, checks, shows and filters as it is used. */
+  private async fieldScripts(page: number, field: FieldInfo): Promise<void> {
+    if (!this.doc) return;
+    const current = await this.doc.fieldScripts(field.name).catch(() => ({}) as Partial<Record<ScriptEvent, string>>);
+    const events: [ScriptEvent, string][] = [["calculate", "scriptCalculate"], ["validate", "scriptValidate"], ["format", "scriptFormat"], ["keystroke", "scriptKeystroke"]];
+    const v = await formDialog(this.root, {
+      title: t("pdfcraft.fieldScripts"),
+      ok: t("pdfcraft.ok"),
+      cancel: t("pdfcraft.cancel"),
+      note: t("pdfcraft.scriptsNote"),
+      fields: events.map(([key, label]) => ({ key, label: t(`pdfcraft.${label}`), kind: "textarea" as const, value: current[key] ?? "" })),
+    });
+    if (!v) return;
+    await this.run(page, async () => {
+      for (const [key] of events) if (String(v[key]) !== (current[key] ?? "")) await this.commit({ op: "setFieldScript", name: field.name, event: key, script: String(v[key]) });
+    }, this.fieldSelection(page, field));
+    this.afterEdit("all");
+  }
+
+  /** Presses a button: runs the action it has for a click, then does what the script asked of the page. */
+  private async pressButton(page: number, field: FieldInfo): Promise<void> {
+    const doc = this.doc;
+    if (!doc || this.viewOnly) return;
+    const actions = await doc.fieldActions(field.name).catch(() => [] as FieldActionInfo[]);
+    const action = actions.find((a) => a.trigger === "mouse_up");
+    if (!action || action.kind === "other") return;
+    if (this.shared) {
+      this.host.notifications.warn(t("pdfcraft.buttonsShared"));
+      return;
+    }
+    const { trigger: _trigger, ...plain } = action;
+    let out: JsOutput | null = null;
+    await this.run(page, async () => {
+      out = await doc.runAction(plain as FieldAction, field.name);
+    }, this.fieldSelection(page, field));
+    this.afterEdit("all");
+    if (out) await this.handleScriptOutput(out);
+  }
+
+  private async flushScriptOutput(): Promise<void> {
+    try {
+      const out = await this.doc?.takeJsOutput();
+      if (out) await this.handleScriptOutput(out);
+    } catch {
+      // output is a courtesy; the edit itself has been reported
+    }
+  }
+
+  /** Shows what scripts said and does what they asked of the page. */
+  private async handleScriptOutput(out: JsOutput): Promise<void> {
+    for (const text of out.alerts.slice(0, 5)) await messageDialog(this.root, { title: t("pdfcraft.formMessage"), message: text, ok: t("pdfcraft.ok") });
+    for (const error of out.errors.slice(0, 3)) this.host.notifications.warn(error);
+    for (const request of out.requests.slice(0, 5)) await this.doRequest(request);
+  }
+
+  private goToPage(page: number): void {
+    if (page < 0 || page >= this.sizes.length) return;
+    this.scroller.scrollTop = Math.max(0, (this.layout.tops[page] ?? GAP) - GAP);
+  }
+
+  private async doRequest(r: JsRequest): Promise<void> {
+    if (r.type === "goto") this.goToPage(r.page);
+    else if (r.type === "named") {
+      const here = this.currentIndex();
+      const target: Record<string, number> = { NextPage: here + 1, PrevPage: here - 1, FirstPage: 0, LastPage: this.sizes.length - 1 };
+      if (r.name in target) this.goToPage(target[r.name]!);
+    } else if (r.type === "print") this.printDocument();
+    else if (r.type === "url") {
+      if (!/^(https?:|mailto:)/i.test(r.url)) return;
+      if (await messageDialog(this.root, { title: t("pdfcraft.formMessage"), message: t("pdfcraft.openLinkAsk", { url: r.url }), ok: t("pdfcraft.openLink"), cancel: t("pdfcraft.cancel") })) openExternal(r.url);
+    } else if (r.type === "submit") await this.submitForm(r.url);
+  }
+
+  /** Prints the document as it is now, where the browser can; the Android app has no print path. */
+  private printDocument(): void {
+    if (isNative() || !this.doc) {
+      this.host.notifications.warn(t("pdfcraft.printUnavailable"));
+      return;
+    }
+    void this.getBytes().then((bytes) => {
+      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+      const frame = document.createElement("iframe");
+      frame.style.cssText = "position:fixed;width:0;height:0;border:0";
+      frame.addEventListener("load", () => {
+        try {
+          frame.contentWindow?.print();
+        } catch {
+          this.host.notifications.warn(t("pdfcraft.printUnavailable"));
+        }
+        setTimeout(() => {
+          frame.remove();
+          URL.revokeObjectURL(url);
+        }, 60000);
+      });
+      frame.src = url;
+      document.body.appendChild(frame);
+    });
+  }
+
+  /** Sends the form's values to a web address, after the person has seen where they go. */
+  private async submitForm(url: string): Promise<void> {
+    const doc = this.doc;
+    if (!doc || !/^https?:/i.test(url)) return;
+    if (!(await messageDialog(this.root, { title: t("pdfcraft.formMessage"), message: t("pdfcraft.submitAsk", { url }), ok: t("pdfcraft.submit"), cancel: t("pdfcraft.cancel") }))) return;
+    const body = new URLSearchParams();
+    for (let p = 0; p < this.sizes.length; p++) for (const f of await doc.fields(p)) if (f.value != null && !body.has(f.name)) body.set(f.name, f.value);
+    try {
+      await fetch(url, { method: "POST", mode: "no-cors", body });
+      this.host.notifications.info(t("pdfcraft.submitDone", { url }));
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+    }
   }
 
   private async protectDialog(): Promise<void> {

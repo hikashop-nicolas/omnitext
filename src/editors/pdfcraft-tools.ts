@@ -172,6 +172,25 @@ export function formDialog(root: HTMLElement, options: FormOptions): Promise<Val
   });
 }
 
+/** Shows a message and waits for OK; with `cancel` it asks, and resolves to whether the person agreed. */
+export function messageDialog(root: HTMLElement, o: { title: string; message: string; ok: string; cancel?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    const done = (v: boolean): void => {
+      s.close();
+      resolve(v);
+    };
+    const s = shell(root, o.title, () => done(false));
+    const text = el("div", "ot-pcd-note", o.message);
+    text.style.fontSize = "14px";
+    s.card.appendChild(text);
+    if (o.cancel) s.actions.appendChild(button(o.cancel, false, () => done(false)));
+    const ok = button(o.ok, true, () => done(true));
+    s.actions.appendChild(ok);
+    s.card.appendChild(s.actions);
+    ok.focus();
+  });
+}
+
 /** Asks for some text: a line, or a paragraph when `multiline`. */
 export async function askText(root: HTMLElement, o: { title: string; value?: string; multiline?: boolean; ok: string; cancel: string; label: string }): Promise<string | null> {
   const values = await formDialog(root, { title: o.title, ok: o.ok, cancel: o.cancel, fields: [{ key: "text", label: o.label, kind: o.multiline ? "textarea" : "text", value: o.value }] });

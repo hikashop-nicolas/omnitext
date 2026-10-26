@@ -89,6 +89,7 @@ export interface FieldInfo {
   /** A choice: a drop-down (true) or a list box, and its choices as [value, label]. */
   combo?: boolean;
   options?: [string, string][];
+  caption?: string | null;
 }
 
 export type FieldValue = { text: string } | { check: boolean } | { radio: string | null } | { choice: string[] };
@@ -139,7 +140,8 @@ export interface FieldChange {
   readOnly?: boolean;
   options?: string[];
   fontSize?: number;
-  /** Which widget `box` moves (default the first). */
+  caption?: string;
+  /** Which widget `box` and `caption` apply to (default the first). */
   widget?: number;
   /** Moves and resizes the field: displayed points from the page's top-left. */
   box?: Box;
@@ -217,12 +219,51 @@ export type EditCall =
   | { op: "deleteField"; name: string }
   | { op: "deleteFieldWidget"; name: string; widget: number }
   | { op: "setFieldProps"; name: string; change: FieldChange }
+  | { op: "setFieldActions"; name: string; actions: FieldActionInfo[] }
+  | { op: "runAction"; action: FieldAction; target?: string }
+  | { op: "setFieldScript"; name: string; event: ScriptEvent; script: string }
   | { op: "protect"; spec: ProtectSpec }
   | { op: "removeProtection" }
   | { op: "addPictureStamp"; page: number; view: Box; name: string; bytes: Uint8Array }
   | { op: "flattenFillSign" }
   | { op: "undo" }
   | { op: "redo" };
+
+export type ActionTrigger = "mouse_up" | "mouse_down" | "mouse_enter" | "mouse_exit" | "on_focus" | "on_blur";
+
+export type FieldAction =
+  | { kind: "javascript"; script: string }
+  | { kind: "uri"; url: string }
+  | { kind: "reset"; fields: string[] }
+  | { kind: "named"; name: string }
+  | { kind: "goto"; page: number }
+  | { kind: "showhide"; fields: string[]; hide: boolean }
+  | { kind: "submit"; url: string }
+  | { kind: "other"; text: string };
+
+export type FieldActionInfo = FieldAction & { trigger: ActionTrigger };
+
+export type JsRequest =
+  | { type: "print" }
+  | { type: "goto"; page: number }
+  | { type: "url"; url: string }
+  | { type: "submit"; url: string }
+  | { type: "named"; name: string }
+  | { type: "reset"; fields: string[] }
+  | { type: "focus"; field: string }
+  | { type: "beep" }
+  | { type: "saveAs" }
+  | { type: "panel"; panel: string };
+
+export interface JsOutput {
+  alerts: string[];
+  console: string[];
+  requests: JsRequest[];
+  errors: string[];
+  result?: string | null;
+}
+
+export type ScriptEvent = "keystroke" | "format" | "validate" | "calculate";
 
 export interface History {
   undo: string | null;
@@ -280,6 +321,12 @@ export declare class PdfDocument {
   deleteField(name: string): Promise<void>;
   deleteFieldWidget(name: string, widget: number): Promise<void>;
   setFieldProps(name: string, change: FieldChange): Promise<void>;
+  fieldActions(name: string): Promise<FieldActionInfo[]>;
+  setFieldActions(name: string, actions: FieldActionInfo[]): Promise<void>;
+  runAction(action: FieldAction, target?: string): Promise<JsOutput>;
+  takeJsOutput(): Promise<JsOutput>;
+  fieldScripts(name: string): Promise<Partial<Record<ScriptEvent, string>>>;
+  setFieldScript(name: string, event: ScriptEvent, script: string): Promise<void>;
   protect(spec: ProtectSpec): Promise<void>;
   removeProtection(): Promise<void>;
   layers(): Promise<LayerInfo[]>;
