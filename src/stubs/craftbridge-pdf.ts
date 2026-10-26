@@ -222,6 +222,21 @@ export type EditCall =
   | { op: "setFieldActions"; name: string; actions: FieldActionInfo[] }
   | { op: "runAction"; action: FieldAction; target?: string }
   | { op: "setFieldScript"; name: string; event: ScriptEvent; script: string }
+  | { op: "addRedaction"; page: number; boxes: Box[]; overlay?: string }
+  | { op: "applyRedactions" }
+  | { op: "clearRedactions" }
+  | { op: "removeHidden"; ids: string[] }
+  | { op: "addWatermark"; spec: WatermarkSpec; picture?: { name: string; bytes: Uint8Array } }
+  | { op: "addHeaderFooter"; spec: HeaderFooterSpec }
+  | { op: "addBackground"; spec: BackgroundSpec; picture?: { name: string; bytes: Uint8Array } }
+  | { op: "removeMarks"; kind: MarkKind }
+  | { op: "addBookmark"; parent: number[]; index: number; title: string; page: number }
+  | { op: "renameBookmark"; path: number[]; title: string }
+  | { op: "deleteBookmark"; path: number[] }
+  | { op: "moveBookmark"; from: number[]; toParent: number[]; index: number }
+  | { op: "setBookmarkPage"; path: number[]; page: number }
+  | { op: "addAttachment"; name: string; bytes: Uint8Array; description?: string }
+  | { op: "deleteAttachment"; key: string }
   | { op: "protect"; spec: ProtectSpec }
   | { op: "removeProtection" }
   | { op: "addPictureStamp"; page: number; view: Box; name: string; bytes: Uint8Array }
@@ -261,6 +276,60 @@ export interface JsOutput {
   requests: JsRequest[];
   errors: string[];
   result?: string | null;
+}
+
+export interface HiddenInfo {
+  id: string;
+  count: number;
+}
+
+export interface WatermarkSpec {
+  text?: string;
+  size?: number;
+  color?: [number, number, number];
+  opacity?: number;
+  rotation?: number;
+  behind?: boolean;
+  scale?: number;
+  pages?: number[];
+}
+
+export interface HeaderFooterSpec {
+  text: [string, string, string, string, string, string];
+  size?: number;
+  color?: [number, number, number];
+  margins?: [number, number, number, number];
+  start?: number;
+  shrink?: boolean;
+  pages?: number[];
+}
+
+export interface BackgroundSpec {
+  color?: [number, number, number];
+  opacity?: number;
+  scale?: number;
+  pages?: number[];
+}
+
+export type MarkKind = "headerFooter" | "watermark" | "background";
+
+export interface BookmarkInfo {
+  path: number[];
+  title: string;
+  page: number | null;
+  open: boolean;
+  bold: boolean;
+  italic: boolean;
+}
+
+export interface AttachmentInfo {
+  index: number;
+  name: string;
+  description: string | null;
+  size: number | null;
+  where: "document" | "page";
+  key?: string;
+  page?: number;
 }
 
 export type ScriptEvent = "keystroke" | "format" | "validate" | "calculate";
@@ -327,6 +396,26 @@ export declare class PdfDocument {
   takeJsOutput(): Promise<JsOutput>;
   fieldScripts(name: string): Promise<Partial<Record<ScriptEvent, string>>>;
   setFieldScript(name: string, event: ScriptEvent, script: string): Promise<void>;
+  addRedaction(page: number, boxes: Box[], overlay?: string): Promise<void>;
+  redactionCount(): Promise<number>;
+  applyRedactions(): Promise<void>;
+  clearRedactions(): Promise<void>;
+  hiddenInfo(): Promise<HiddenInfo[]>;
+  removeHidden(ids: string[]): Promise<void>;
+  addWatermark(spec: WatermarkSpec, picture?: { name: string; bytes: Uint8Array }): Promise<void>;
+  addHeaderFooter(spec: HeaderFooterSpec): Promise<void>;
+  addBackground(spec: BackgroundSpec, picture?: { name: string; bytes: Uint8Array }): Promise<void>;
+  removeMarks(kind: MarkKind): Promise<void>;
+  bookmarks(): Promise<BookmarkInfo[]>;
+  addBookmark(parent: number[], index: number, title: string, page: number): Promise<void>;
+  renameBookmark(path: number[], title: string): Promise<void>;
+  deleteBookmark(path: number[]): Promise<void>;
+  moveBookmark(from: number[], toParent: number[], index: number): Promise<void>;
+  setBookmarkPage(path: number[], page: number): Promise<void>;
+  attachments(): Promise<AttachmentInfo[]>;
+  addAttachment(name: string, bytes: Uint8Array, description?: string): Promise<void>;
+  deleteAttachment(key: string): Promise<void>;
+  attachmentBytes(index: number): Promise<Uint8Array>;
   protect(spec: ProtectSpec): Promise<void>;
   removeProtection(): Promise<void>;
   layers(): Promise<LayerInfo[]>;

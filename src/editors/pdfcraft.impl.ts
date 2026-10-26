@@ -2,7 +2,8 @@ import { EngineError, openPdf, type FieldAction, type FieldActionInfo, type JsOu
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
-import { askText, formDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
+import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
+import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
 import { isNative } from "../core/platform";
 import { t } from "../i18n";
@@ -133,6 +134,7 @@ const ICONS = {
   comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   form: '<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
   signPen: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
+  redact: '<rect x="3" y="9" width="18" height="6" rx="1" fill="currentColor"/><path d="M3 4h18"/><path d="M3 20h13"/>',
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
@@ -224,9 +226,9 @@ type Tool = "select" | "text" | "cover" | "textsel" | "place";
 
 /** What the next gesture on a page puts there. */
 interface Placing {
-  kind: "note" | "rect" | "oval" | "line" | "arrow" | "ink" | "textbox" | "typewriter" | "mark" | "stamp" | "picture" | "drawn" | "typed" | "field" | "signbox";
+  kind: "note" | "rect" | "oval" | "line" | "arrow" | "ink" | "textbox" | "typewriter" | "mark" | "stamp" | "picture" | "drawn" | "typed" | "field" | "signbox" | "redact";
   /** Which top bar button it belongs to, so that one shows as on. */
-  group: "comment" | "form" | "sign";
+  group: "comment" | "form" | "sign" | "redact";
   stamp?: StampInfo;
   mark?: "check" | "cross";
   field?: FieldType;
@@ -239,7 +241,7 @@ interface Placing {
   sign?: { p12: Uint8Array; password: string; reason: string; location: string; certify: boolean };
 }
 
-const EDIT_BUTTONS = ["text", "image", "cover", "textsel", "pages", "comment", "form", "sign"];
+const EDIT_BUTTONS = ["text", "image", "cover", "textsel", "pages", "comment", "form", "sign", "redact"];
 
 interface Slot {
   box: HTMLElement;
@@ -436,6 +438,7 @@ class PdfCraftInstance implements EditorInstance {
     b("comment", "comment", t("pdfcraft.comment"), () => this.openMenu("comment"));
     b("form", "form", t("pdfcraft.form"), () => this.openMenu("form"));
     b("sign", "signPen", t("pdfcraft.sign"), () => this.openMenu("sign"));
+    b("redact", "redact", t("pdfcraft.redact"), () => this.openMenu("redact"));
     b("moreTools", "more", t("pdfcraft.moreTools"), () => this.openMenu("more"));
     for (const x of Object.values(this.buttons)) x.disabled = true;
     this.buttons.select!.classList.add("on");
@@ -623,7 +626,7 @@ class PdfCraftInstance implements EditorInstance {
       this.hideBanner();
     }
     this.closeMenu();
-    for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", this.placing?.group === group);
+    for (const group of ["comment", "form", "sign", "redact"] as const) this.buttons[group]?.classList.toggle("on", this.placing?.group === group);
     if (tool !== "select") this.select(null);
     if (tool !== "textsel") this.clearTextSelection();
   }
@@ -652,6 +655,8 @@ class PdfCraftInstance implements EditorInstance {
     if (!doc) return;
     if (this.viewOnly) throw new Error("this session is view-only");
     if (this.shared && call.op === "protect") throw new Error(t("pdfcraft.protectBlocked"));
+    // a file's bytes do not travel through a shared session's log, except the pictures it keeps in its blob store
+    if (this.shared && (call.op === "addAttachment" || ((call.op === "addWatermark" || call.op === "addBackground") && call.picture))) throw new Error(t("pdfcraft.notShared"));
     if (!this.shared) {
       await doc.execute(call);
       if (call.op === "setField" || call.op === "setFieldScript") void this.flushScriptOutput();
@@ -1233,6 +1238,7 @@ class PdfCraftInstance implements EditorInstance {
     add("highlight", t("pdfcraft.highlight"), mark("highlight"));
     add("underline", t("pdfcraft.underline"), mark("underline"));
     add("strike", t("pdfcraft.strikeout"), mark("strikeout"));
+    add("redact", t("pdfcraft.redactMarkText"), () => void this.redactSelection());
     add("copy", t("pdfcraft.copy"), () => void navigator.clipboard?.writeText(sel.text).catch(() => {}));
     add("link", t("pdfcraft.addLink"), () => this.askLink(bar));
     add("close", t("pdfcraft.cancel"), () => this.clearTextSelection());
@@ -1647,7 +1653,7 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Opens a menu of tools under the top bar. */
-  private openMenu(which: "comment" | "form" | "sign" | "more"): void {
+  private openMenu(which: "comment" | "form" | "sign" | "redact" | "more"): void {
     const open = this.menuEl?.dataset.which === which;
     this.closeMenu();
     if (open) return;
@@ -1683,11 +1689,28 @@ class PdfCraftInstance implements EditorInstance {
                 { label: t("pdfcraft.signCertificate"), run: () => void this.signWithCertificate() },
                 { label: t("pdfcraft.signMakeId"), run: () => void this.makeDigitalId() },
               ]
-            : [
-                { label: t("pdfcraft.protect"), run: () => void this.protectDialog() },
-                { label: t("pdfcraft.layers"), run: () => void this.layersDialog() },
-                { label: t("pdfcraft.signatures"), run: () => void this.signaturesDialog() },
-              ];
+            : which === "redact"
+              ? [
+                  { label: t("pdfcraft.redactArea"), run: place("redact", { kind: "redact", sticky: true }) },
+                  { label: t("pdfcraft.redactSearch"), run: () => void this.redactSearch() },
+                  "sep",
+                  { label: t("pdfcraft.redactApply", { n: this.redactCount }), run: () => void this.applyRedactions() },
+                  { label: t("pdfcraft.redactClear"), run: () => void this.clearRedactions() },
+                  "sep",
+                  { label: t("pdfcraft.redactHidden"), run: () => void this.hiddenInfoDialog() },
+                ]
+              : [
+                  { label: t("pdfcraft.protect"), run: () => void this.protectDialog() },
+                  { label: t("pdfcraft.layers"), run: () => void this.layersDialog() },
+                  { label: t("pdfcraft.signatures"), run: () => void this.signaturesDialog() },
+                  "sep",
+                  { label: t("pdfcraft.moreWatermark"), run: () => void this.pageMark(watermarkDialog) },
+                  { label: t("pdfcraft.moreHeader"), run: () => void this.pageMark(headerFooterDialog) },
+                  { label: t("pdfcraft.moreBackground"), run: () => void this.pageMark(backgroundDialog) },
+                  "sep",
+                  { label: t("pdfcraft.moreBookmarks"), run: () => void this.bookmarksDialog() },
+                  { label: t("pdfcraft.moreAttachments"), run: () => void this.attachmentsDialog() },
+                ];
     const menu = el("div", "ot-pc-menu");
     menu.dataset.which = which;
     menu.setAttribute("role", "menu");
@@ -1724,7 +1747,7 @@ class PdfCraftInstance implements EditorInstance {
     this.placing = p;
     this.setTool("place");
     this.placing = p;
-    for (const group of ["comment", "form", "sign"] as const) this.buttons[group]?.classList.toggle("on", p.group === group);
+    for (const group of ["comment", "form", "sign", "redact"] as const) this.buttons[group]?.classList.toggle("on", p.group === group);
     this.showBanner();
   }
 
@@ -1858,6 +1881,9 @@ class PdfCraftInstance implements EditorInstance {
         const fontSize = Math.max(8, Math.min(48, Math.round((box[3] - box[1]) * 0.7)));
         return this.commitComment(page, { type: p.kind, box, fontSize, contents: text, color: p.kind === "typewriter" ? [0, 0, 0] : [0.1, 0.1, 0.6] });
       }
+      case "redact":
+        await this.run(page, () => this.commit({ op: "addRedaction", page, boxes: [box] }));
+        return;
       case "mark":
         return this.commitComment(page, { type: "mark", box, mark: p.mark ?? "check", color: [0, 0, 0] });
       case "stamp":
@@ -2010,6 +2036,216 @@ class PdfCraftInstance implements EditorInstance {
       }
       await this.commit({ op: "setFieldProps", name: field.name, change });
     }, this.fieldSelection(page, renamed));
+  }
+
+  // ------------------------------------------------------------------ redaction, page marks, bookmarks, attachments
+
+  /** How many redaction marks waited the last time we looked (the menu shows it). */
+  private redactCount = 0;
+
+  /** Runs an edit that changes the whole document and shows the result. */
+  private async wholeDoc(edit: () => Promise<void>): Promise<boolean> {
+    try {
+      await edit();
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      return false;
+    }
+    await this.reloadPages(this.currentIndex());
+    return true;
+  }
+
+  private async redactSelection(): Promise<void> {
+    const sel = this.textSel;
+    if (!sel || !this.doc) return;
+    this.clearTextSelection();
+    await this.run(sel.page, () => this.commit({ op: "addRedaction", page: sel.page, boxes: sel.rects }));
+    await this.countRedactions();
+  }
+
+  private async countRedactions(): Promise<number> {
+    this.redactCount = (await this.doc?.redactionCount().catch(() => 0)) ?? 0;
+    return this.redactCount;
+  }
+
+  /** Marks every match of a search for redaction. */
+  private async redactSearch(): Promise<void> {
+    const doc = this.doc;
+    if (!doc) return;
+    const query = await askText(this.root, { title: t("pdfcraft.redactSearch"), label: t("pdfcraft.redactSearchLabel"), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+    if (!query?.trim()) return;
+    const found = await doc.find(query, { limit: 1000 });
+    if (!found.length) {
+      this.host.notifications.info(t("pdfcraft.redactSearchNone"));
+      return;
+    }
+    const byPage = new Map<number, Box[]>();
+    for (const m of found) byPage.set(m.page, [...(byPage.get(m.page) ?? []), ...m.rects]);
+    try {
+      for (const [page, boxes] of byPage) await this.commit({ op: "addRedaction", page, boxes });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+    }
+    this.afterEdit("all");
+    this.host.notifications.info(t("pdfcraft.redactSearchDone", { n: found.length }));
+    await this.countRedactions();
+  }
+
+  private async applyRedactions(): Promise<void> {
+    const n = await this.countRedactions();
+    if (!n) {
+      this.host.notifications.info(t("pdfcraft.redactNone"));
+      return;
+    }
+    if (!(await messageDialog(this.root, { title: t("pdfcraft.redactApply", { n }), message: t("pdfcraft.redactConfirm", { n }), ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") }))) return;
+    await this.wholeDoc(() => this.commit({ op: "applyRedactions" }));
+    await this.countRedactions();
+  }
+
+  private async clearRedactions(): Promise<void> {
+    if (!(await this.countRedactions())) {
+      this.host.notifications.info(t("pdfcraft.redactNone"));
+      return;
+    }
+    await this.wholeDoc(() => this.commit({ op: "clearRedactions" }));
+    await this.countRedactions();
+  }
+
+  private async hiddenInfoDialog(): Promise<void> {
+    if (!this.doc) return;
+    const call = await hiddenDialog(this.root, await this.doc.hiddenInfo());
+    if (call) await this.wholeDoc(() => this.commit(call));
+  }
+
+  /** A watermark, header and footer or background: ask, then put it on the pages. */
+  private async pageMark(dialog: (root: HTMLElement, page: number) => Promise<EditCall | null>): Promise<void> {
+    if (!this.doc) return;
+    const call = await dialog(this.root, this.currentIndex());
+    if (call) await this.wholeDoc(() => this.commit(call));
+  }
+
+  private async bookmarksDialog(): Promise<void> {
+    const doc = this.doc;
+    if (!doc) return;
+    const act = async (call: EditCall): Promise<void> => {
+      try {
+        await this.commit(call);
+        this.afterEdit("all");
+      } catch (e) {
+        this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+      }
+    };
+    await listDialog(this.root, {
+      title: t("pdfcraft.bmTitle"),
+      close: t("pdfcraft.close"),
+      empty: t("pdfcraft.bmNone"),
+      load: async () => {
+        const list = await doc.bookmarks();
+        const siblings = (path: number[]): number => list.filter((b) => b.path.length === path.length && b.path.slice(0, -1).join() === path.slice(0, -1).join()).length;
+        return list.map((b) => {
+          const last = b.path[b.path.length - 1]!;
+          const parent = b.path.slice(0, -1);
+          return {
+            label: b.title || "-",
+            detail: b.page != null ? String(b.page + 1) : undefined,
+            depth: b.path.length - 1,
+            actions: [
+              ...(b.page != null ? [{ label: t("pdfcraft.bmGo"), run: () => this.goToPage(b.page!) }] : []),
+              {
+                label: t("pdfcraft.bmRename"),
+                run: async () => {
+                  const title = await askText(this.root, { title: t("pdfcraft.bmRename"), label: t("pdfcraft.bmName"), value: b.title, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+                  if (title?.trim()) await act({ op: "renameBookmark", path: b.path, title: title.trim() });
+                },
+              },
+              ...(last > 0 ? [{ label: t("pdfcraft.bmUp"), run: () => act({ op: "moveBookmark", from: b.path, toParent: parent, index: last - 1 }) }] : []),
+              ...(last < siblings(b.path) - 1 ? [{ label: t("pdfcraft.bmDown"), run: () => act({ op: "moveBookmark", from: b.path, toParent: parent, index: last + 1 }) }] : []),
+              { label: t("pdfcraft.bmDelete"), run: () => act({ op: "deleteBookmark", path: b.path }) },
+            ],
+          };
+        });
+      },
+      extra: [
+        {
+          label: t("pdfcraft.bmAdd"),
+          run: async () => {
+            const page = this.currentIndex();
+            const title = await askText(this.root, { title: t("pdfcraft.bmAdd"), label: t("pdfcraft.bmName"), value: `${t("pdfcraft.pageWord", { n: page + 1 })}`, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
+            if (!title?.trim()) return;
+            const top = (await doc.bookmarks()).filter((b) => b.path.length === 1).length;
+            await act({ op: "addBookmark", parent: [], index: top, title: title.trim(), page });
+          },
+        },
+      ],
+    });
+  }
+
+  private async attachmentsDialog(): Promise<void> {
+    const doc = this.doc;
+    if (!doc) return;
+    const sizeText = (n: number | null): string => (n == null ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+    await listDialog(this.root, {
+      title: t("pdfcraft.atTitle"),
+      close: t("pdfcraft.close"),
+      empty: t("pdfcraft.atNone"),
+      load: async () =>
+        (await doc.attachments()).map((a) => ({
+          label: a.name,
+          detail: [sizeText(a.size), a.where === "page" ? t("pdfcraft.atOnPage", { page: (a.page ?? 0) + 1 }) : ""].filter(Boolean).join(", "),
+          actions: [
+            {
+              label: t("pdfcraft.atSave"),
+              run: async () => {
+                try {
+                  await saveFile(await doc.attachmentBytes(a.index), a.name, "application/octet-stream");
+                } catch (e) {
+                  this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+                }
+              },
+            },
+            ...(a.key !== undefined
+              ? [
+                  {
+                    label: t("pdfcraft.bmDelete"),
+                    run: async () => {
+                      try {
+                        await this.commit({ op: "deleteAttachment", key: a.key! });
+                        this.edited = true;
+                      } catch (e) {
+                        this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+                      }
+                    },
+                  },
+                ]
+              : []),
+          ],
+        })),
+      extra: [
+        {
+          label: t("pdfcraft.atAdd"),
+          run: async () => {
+            const v = await formDialog(this.root, {
+              title: t("pdfcraft.atAdd"),
+              ok: t("pdfcraft.ok"),
+              cancel: t("pdfcraft.cancel"),
+              fields: [
+                { key: "file", label: t("pdfcraft.atFile"), kind: "file" },
+                { key: "description", label: t("pdfcraft.atDesc"), kind: "text", value: "" },
+              ],
+              validate: (x) => (x.file ? null : t("pdfcraft.signNeedFile")),
+            });
+            const file = v?.file;
+            if (!v || !(file instanceof File)) return;
+            try {
+              await this.commit({ op: "addAttachment", name: file.name, bytes: new Uint8Array(await file.arrayBuffer()), description: String(v.description) || undefined });
+              this.edited = true;
+            } catch (e) {
+              this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
+            }
+          },
+        },
+      ],
+    });
   }
 
   /** A field's own scripts: what it works out, checks, shows and filters as it is used. */

@@ -24,6 +24,12 @@ function ensureStyles(): void {
     .ot-pcd-card input:not([type=checkbox]), .ot-pcd-card textarea, .ot-pcd-card select { box-sizing:border-box; width:100%; font:inherit; padding:7px 9px;
       color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:8px; }
     .ot-pcd-card textarea { min-height:90px; resize:vertical; }
+    .ot-pcd-card input[type=color] { height:38px; padding:2px 4px; }
+    .ot-pcd-list { display:flex; flex-direction:column; gap:2px; max-height:50vh; overflow:auto; }
+    .ot-pcd-item { display:flex; align-items:center; gap:6px; padding:4px 2px; border-bottom:1px solid var(--border); }
+    .ot-pcd-item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ot-pcd-item .name small { color:var(--muted); margin-inline-start:6px; }
+    .ot-pcd-item .btn { padding:3px 8px; font-size:12px; }
     .ot-pcd-actions { display:flex; justify-content:flex-end; gap:8px; }
     .ot-pcd-pad { width:100%; height:180px; touch-action:none; background:#fff; border:1px solid var(--border); border-radius:8px; cursor:crosshair; }
     .ot-pcd-note { color:var(--muted); font-size:12px; white-space:pre-wrap; }
@@ -78,7 +84,8 @@ export type Field =
   | { key: string; label: string; kind: "textarea"; value?: string; placeholder?: string }
   | { key: string; label: string; kind: "check"; value?: boolean }
   | { key: string; label: string; kind: "select"; value?: string; options: [value: string, label: string][] }
-  | { key: string; label: string; kind: "file"; accept?: string };
+  | { key: string; label: string; kind: "file"; accept?: string }
+  | { key: string; label: string; kind: "color"; value?: string };
 
 export type Values = Record<string, string | number | boolean | File | null>;
 
@@ -120,6 +127,7 @@ export function formDialog(root: HTMLElement, options: FormOptions): Promise<Val
         input = el("input");
         input.type = f.kind === "check" ? "checkbox" : f.kind === "file" ? "file" : f.kind;
         if (f.kind === "check") input.checked = !!f.value;
+        else if (f.kind === "color") input.value = f.value ?? "#000000";
         else if (f.kind === "number") {
           input.value = String(f.value ?? "");
           if (f.min !== undefined) input.min = String(f.min);
@@ -188,6 +196,50 @@ export function messageDialog(root: HTMLElement, o: { title: string; message: st
     s.actions.appendChild(ok);
     s.card.appendChild(s.actions);
     ok.focus();
+  });
+}
+
+export interface ListRow {
+  label: string;
+  /** Shown after the label, smaller. */
+  detail?: string;
+  /** How far in it sits, for a tree. */
+  depth?: number;
+  actions: { label: string; run(): Promise<void> | void }[];
+}
+
+/** A list of rows with buttons, read again after each button; `extra` buttons sit under it beside Close. */
+export function listDialog(root: HTMLElement, o: { title: string; close: string; empty: string; load(): Promise<ListRow[]>; extra: { label: string; run(): Promise<void> | void }[] }): Promise<void> {
+  return new Promise((resolve) => {
+    const s = shell(root, o.title, () => {
+      s.close();
+      resolve();
+    });
+    const list = el("div", "ot-pcd-list");
+    s.card.appendChild(list);
+    const refresh = async (): Promise<void> => {
+      const rows = await o.load().catch(() => [] as ListRow[]);
+      list.replaceChildren();
+      if (!rows.length) list.appendChild(el("div", "ot-pcd-note", o.empty));
+      for (const r of rows) {
+        const item = el("div", "ot-pcd-item");
+        item.style.paddingInlineStart = `${(r.depth ?? 0) * 16 + 2}px`;
+        const name = el("span", "name", r.label);
+        if (r.detail) name.appendChild(el("small", undefined, r.detail));
+        item.appendChild(name);
+        for (const a of r.actions) item.appendChild(button(a.label, false, () => void Promise.resolve(a.run()).then(refresh)));
+        list.appendChild(item);
+      }
+    };
+    for (const x of o.extra) s.actions.appendChild(button(x.label, false, () => void Promise.resolve(x.run()).then(refresh)));
+    s.actions.appendChild(
+      button(o.close, true, () => {
+        s.close();
+        resolve();
+      }),
+    );
+    s.card.appendChild(s.actions);
+    void refresh();
   });
 }
 
