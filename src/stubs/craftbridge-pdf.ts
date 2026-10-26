@@ -47,6 +47,44 @@ export interface PageObject {
   style: (Required<Omit<TextStyle, "align">> & { align: TextStyle["align"] | null }) | null;
 }
 
+export interface FindMatch {
+  page: number;
+  text: string;
+  rects: Box[];
+}
+
+export interface TextSelection {
+  text: string;
+  rects: Box[];
+}
+
+export type MarkupKind = "highlight" | "underline" | "strikeout";
+
+export interface LinkInfo {
+  index: number;
+  view: Box;
+  uri?: string;
+  page?: number;
+}
+
+export interface AnnotationInfo {
+  index: number;
+  subtype: string;
+  contents: string | null;
+  view: Box;
+}
+
+export type FieldKind = "text" | "check" | "radio" | "button" | "choice" | "signature";
+
+export interface FieldInfo {
+  name: string;
+  kind: FieldKind;
+  value: string | null;
+  view: Box;
+}
+
+export type FieldValue = { text: string } | { check: boolean } | { choice: string[] };
+
 export interface Rendered {
   width: number;
   height: number;
@@ -92,6 +130,16 @@ export declare class PdfDocument {
   deleteObject(page: number, target: ObjectRef): Promise<void>;
   setText(page: number, target: ObjectRef, text?: string, style?: TextStyle): Promise<void>;
   cover(page: number, view: Box): Promise<void>;
+  find(query: string, options?: { caseSensitive?: boolean; wholeWords?: boolean; limit?: number }): Promise<FindMatch[]>;
+  selectText(page: number, from: [number, number], to: [number, number]): Promise<TextSelection>;
+  markup(page: number, kind: MarkupKind, rects: Box[], color?: [number, number, number]): Promise<void>;
+  addLink(page: number, view: Box, target: string): Promise<void>;
+  links(page: number): Promise<LinkInfo[]>;
+  deleteLink(page: number, index: number): Promise<void>;
+  annotations(page: number): Promise<AnnotationInfo[]>;
+  deleteAnnotation(page: number, index: number): Promise<void>;
+  fields(page: number): Promise<FieldInfo[]>;
+  setField(name: string, value: FieldValue): Promise<void>;
   editTextBlock(page: number, block: number, text: string): Promise<void>;
   deletePages(pages: number[]): Promise<void>;
   rotatePages(pages: number[], degrees: number): Promise<void>;

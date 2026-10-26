@@ -1,6 +1,7 @@
-import { EngineError, openPdf, type Box, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, openPdf, type AnnotationInfo, type Box, type FieldInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import { openExternal } from "../core/external";
 import { t } from "../i18n";
 import {
   boxBetween,
@@ -41,7 +42,7 @@ function ensureStyles(): void {
     .ot-pc-zoom input[type=number] { flex:0 0 auto; width:58px; font:inherit; padding:4px 6px; color:var(--text);
       background:var(--surface); border:1px solid var(--border); border-radius:7px; }
     .ot-pc-zoom span { color:var(--muted); font:13px system-ui, sans-serif; }
-    .ot-pc-float { position:absolute; z-index:8; display:flex; gap:4px; padding:4px; background:var(--surface); color:var(--text);
+    .ot-pc-float { position:absolute; z-index:8; display:flex; flex-wrap:wrap; max-width:calc(100% - 8px); gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
     .ot-pc-float input[type=color] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
@@ -58,6 +59,21 @@ function ensureStyles(): void {
     .ot-pc-sel { position:absolute; z-index:4; box-sizing:border-box; border:2px solid #2a6df4; touch-action:none; cursor:move; }
     .ot-pc-handle { position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px; box-sizing:border-box; z-index:5;
       background:#fff; border:2px solid #2a6df4; border-radius:50%; touch-action:none; }
+    .ot-pc-ov { position:absolute; inset:0; pointer-events:none; z-index:2; }
+    .ot-pc-ov > div { position:absolute; box-sizing:border-box; }
+    .ot-pc-field { background:rgba(42,109,244,.10); outline:1px solid rgba(42,109,244,.45); }
+    .ot-pc-hit { background:rgba(255,213,0,.45); }
+    .ot-pc-hit.cur { background:rgba(255,140,0,.55); outline:2px solid rgba(255,140,0,.9); }
+    .ot-pc-tsel { background:rgba(42,109,244,.28); }
+    .ot-pc-sel.ann { pointer-events:none; cursor:default; }
+    .ot-pc-find { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; border-bottom:1px solid var(--border); background:var(--canvas); }
+    .ot-pc-find[hidden] { display:none; }
+    .ot-pc-find input { flex:1 1 auto; min-width:0; font:inherit; padding:5px 8px; color:var(--text); background:var(--surface);
+      border:1px solid var(--border); border-radius:7px; }
+    .ot-pc-find span { color:var(--muted); font:13px system-ui, sans-serif; white-space:nowrap; }
+    .ot-pc-link-entry { display:flex; gap:4px; align-items:center; }
+    .ot-pc-link-entry input { width:210px; max-width:60vw; font:inherit; padding:5px 8px; color:var(--text); background:var(--canvas);
+      border:1px solid var(--border); border-radius:7px; }
     .ot-pc-rubber { position:absolute; z-index:4; box-sizing:border-box; border:1.5px dashed #2a6df4; background:rgba(42,109,244,.12); pointer-events:none; }
     .ot-pc-edit { position:absolute; z-index:6; box-sizing:border-box; resize:none; margin:0; padding:1px 2px;
       font-family:system-ui, sans-serif; line-height:1.15; color:#000; background:rgba(255,255,230,.97);
@@ -102,6 +118,17 @@ const ICONS = {
   alignLeft: '<path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/>',
   alignCenter: '<path d="M21 6H3"/><path d="M17 12H7"/><path d="M19 18H5"/>',
   alignRight: '<path d="M21 6H3"/><path d="M21 12H9"/><path d="M21 18H7"/>',
+  textSelect:
+    '<path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M21 19a2 2 0 0 1-2 2"/><path d="M5 21a2 2 0 0 1-2-2"/><path d="M9 3h1"/><path d="M9 21h1"/><path d="M14 3h1"/><path d="M14 21h1"/><path d="M3 9v1"/><path d="M21 9v1"/><path d="M3 14v1"/><path d="M21 14v1"/><line x1="7" x2="15" y1="8" y2="8"/><line x1="7" x2="17" y1="12" y2="12"/><line x1="7" x2="13" y1="16" y2="16"/>',
+  highlight: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  underline: '<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>',
+  strike: '<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  chevUp: '<path d="m18 15-6-6-6 6"/>',
+  chevDown: '<path d="m6 9 6 6 6-6"/>',
+  family: '<path d="m3 15 4-8 4 8"/><path d="M4 13h6"/><circle cx="18" cy="12" r="3"/><path d="M21 9v6"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 } as const;
@@ -123,7 +150,7 @@ const hex = (c: [number, number, number]): string => "#" + c.map((v) => Math.rou
 const rgb = (h: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-type Tool = "select" | "text" | "cover";
+type Tool = "select" | "text" | "cover" | "textsel";
 
 interface Slot {
   box: HTMLElement;
@@ -135,7 +162,26 @@ interface Slot {
 interface Selection {
   page: number;
   obj: PageObject;
+  /** Set when the selection is a mark or comment, which can only be deleted. */
+  ann?: AnnotationInfo;
 }
+
+interface Extras {
+  annotations: AnnotationInfo[];
+  links: LinkInfo[];
+  fields: FieldInfo[];
+}
+
+interface TextSel {
+  page: number;
+  text: string;
+  rects: Box[];
+}
+
+const FAMILIES = ["helvetica", "times", "courier"] as const;
+
+/** The box around a list of boxes. */
+const bounds = (rects: Box[]): Box => [Math.min(...rects.map((r) => r[0])), Math.min(...rects.map((r) => r[1])), Math.max(...rects.map((r) => r[2])), Math.max(...rects.map((r) => r[3]))];
 
 class PdfCraftInstance implements EditorInstance {
   private root!: HTMLElement;
@@ -163,13 +209,22 @@ class PdfCraftInstance implements EditorInstance {
   private sel: Selection | null = null;
   private selEl: HTMLElement | null = null;
   private pagesOpen = false;
-  private editing: { page: number; obj: PageObject | null; box: Box; area: HTMLTextAreaElement; bar: HTMLElement } | null = null;
+  private editing: { page: number; obj: PageObject | null; box: Box; area: HTMLTextAreaElement; bar: HTMLElement; field?: { value: string; save: (text: string) => Promise<void> } } | null = null;
   private buttons: Record<string, HTMLButtonElement> = {};
   private subButtons: Record<string, HTMLButtonElement> = {};
   private zoomRow!: HTMLElement;
   private zoomRange!: HTMLInputElement;
   private zoomNum!: HTMLInputElement;
   private floatEl: HTMLElement | null = null;
+  private extraCache = new Map<number, Extras>();
+  private textSel: TextSel | null = null;
+  private selDrag: { page: number; from: [number, number]; busy: boolean; pending: [number, number] | null } | null = null;
+  private findRow!: HTMLElement;
+  private findInput!: HTMLInputElement;
+  private findCount!: HTMLElement;
+  private matches: FindMatch[] = [];
+  private matchIndex = -1;
+  private findTimer = 0;
   private pointers = new Map<number, { x: number; y: number }>();
   private pinch: { dist: number; zoom: number; cx: number; cy: number } | null = null;
   private tap: { x: number; y: number; time: number; moved: boolean } | null = null;
@@ -184,6 +239,8 @@ class PdfCraftInstance implements EditorInstance {
     this.zoomRow = el("div", "ot-pc-zoom");
     this.sub = el("div", "ot-pc-sub");
     this.sub.hidden = true;
+    this.findRow = el("div", "ot-pc-find");
+    this.findRow.hidden = true;
     this.scroller = el("div", "ot-pc-scroll");
     this.content = el("div", "ot-pc-content");
     this.scroller.appendChild(this.content);
@@ -196,10 +253,11 @@ class PdfCraftInstance implements EditorInstance {
     this.fileInput.accept = "image/*";
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.pickedImage());
-    this.root.append(this.bar, this.zoomRow, this.sub, body, this.fileInput);
+    this.root.append(this.bar, this.zoomRow, this.findRow, this.sub, body, this.fileInput);
     container.appendChild(this.root);
     this.buildBar();
     this.buildZoom();
+    this.buildFind();
     this.buildSub();
     this.scroller.addEventListener("scroll", () => this.scheduleRender(), { passive: true });
     this.scroller.addEventListener("pointerdown", (e) => this.onPointerDown(e));
@@ -243,6 +301,7 @@ class PdfCraftInstance implements EditorInstance {
     b("text", "text", t("pdfcraft.addText"), () => this.setTool("text"));
     b("image", "image", t("pdfcraft.addImage"), () => this.fileInput.click());
     b("cover", "cover", t("pdfcraft.cover"), () => this.setTool("cover"));
+    b("textsel", "textSelect", t("pdfcraft.selectText"), () => this.setTool("textsel"));
     sep();
     b("pages", "pages", t("pdfcraft.pages"), () => this.togglePages());
     for (const x of Object.values(this.buttons)) x.disabled = true;
@@ -270,12 +329,135 @@ class PdfCraftInstance implements EditorInstance {
     this.zoomRange.addEventListener("input", () => this.userZoom(Number(this.zoomRange.value)));
     this.zoomNum.addEventListener("change", () => this.userZoom(Number(this.zoomNum.value)));
     this.zoomRow.append(this.zoomRange, this.zoomNum, pct);
+    this.button(this.zoomRow, this.buttons, "find", "search", t("pdfcraft.find"), () => this.toggleFind()).disabled = true;
   }
 
   private userZoom(percent: number): void {
     if (!Number.isFinite(percent)) return;
     this.fitKind = null;
     this.setZoom(percent / 100, true);
+  }
+
+  private buildFind(): void {
+    this.findInput = el("input");
+    this.findInput.type = "search";
+    this.findInput.placeholder = t("pdfcraft.find");
+    this.findInput.setAttribute("aria-label", t("pdfcraft.find"));
+    this.findInput.addEventListener("input", () => {
+      window.clearTimeout(this.findTimer);
+      this.findTimer = window.setTimeout(() => void this.runFind(), 250);
+    });
+    this.findInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this.stepFind(e.shiftKey ? -1 : 1);
+      }
+    });
+    this.findCount = el("span");
+    const mk = (glyph: IconName, label: string, cb: () => void) => {
+      const b = el("button", "btn icon");
+      b.type = "button";
+      b.innerHTML = icon(glyph);
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", cb);
+      return b;
+    };
+    this.findRow.append(
+      this.findInput,
+      this.findCount,
+      mk("chevUp", t("pdfcraft.findPrevious"), () => this.stepFind(-1)),
+      mk("chevDown", t("pdfcraft.findNext"), () => this.stepFind(1)),
+      mk("close", t("pdfcraft.cancel"), () => this.toggleFind(false)),
+    );
+  }
+
+  private toggleFind(open: boolean = !!this.findRow.hidden): void {
+    this.findRow.hidden = !open;
+    this.buttons.find?.classList.toggle("on", open);
+    if (open) {
+      this.findInput.focus();
+      this.findInput.select();
+    } else {
+      this.matches = [];
+      this.matchIndex = -1;
+      this.findCount.textContent = "";
+      this.paintAll();
+    }
+  }
+
+  private async runFind(): Promise<void> {
+    const query = this.findInput.value.trim();
+    if (!this.doc) return;
+    try {
+      this.matches = query ? await this.doc.find(query, { limit: 500 }) : [];
+    } catch (e) {
+      this.fail(e);
+      return;
+    }
+    this.matchIndex = this.matches.length ? 0 : -1;
+    this.updateFindCount();
+    this.paintAll();
+    this.revealMatch();
+  }
+
+  private stepFind(dir: 1 | -1): void {
+    if (!this.matches.length) return;
+    this.matchIndex = (this.matchIndex + dir + this.matches.length) % this.matches.length;
+    this.updateFindCount();
+    this.paintAll();
+    this.revealMatch();
+  }
+
+  private updateFindCount(): void {
+    const n = this.matches.length;
+    this.findCount.textContent = this.findInput.value.trim() ? (n ? `${this.matchIndex + 1} / ${n}` : t("pdfcraft.noMatches")) : "";
+  }
+
+  /** Scrolls the current match to about a third of the way down the view. */
+  private revealMatch(): void {
+    const m = this.matches[this.matchIndex];
+    const r = m?.rects[0];
+    if (!m || !r) return;
+    const top = (this.layout.tops[m.page] ?? 0) + r[1] * this.zoom;
+    this.scroller.scrollTop = Math.max(0, top - this.scroller.clientHeight / 3);
+    const left = (this.slots[m.page]?.box.offsetLeft ?? 0) + r[0] * this.zoom;
+    if (left < this.scroller.scrollLeft || left > this.scroller.scrollLeft + this.scroller.clientWidth - 40) this.scroller.scrollLeft = Math.max(0, left - 40);
+  }
+
+  // ------------------------------------------------------------------ overlays
+
+  private async extras(page: number): Promise<Extras> {
+    const cached = this.extraCache.get(page);
+    if (cached) return cached;
+    const doc = this.doc;
+    const out: Extras = doc ? { annotations: await doc.annotations(page), links: await doc.links(page), fields: await doc.fields(page) } : { annotations: [], links: [], fields: [] };
+    this.extraCache.set(page, out);
+    return out;
+  }
+
+  /** Form fields, search matches and the text selection, drawn over a page. */
+  private paintOverlays(page: number): void {
+    const slot = this.slots[page];
+    if (!slot) return;
+    slot.box.querySelector(":scope > .ot-pc-ov")?.remove();
+    const ov = el("div", "ot-pc-ov");
+    const z = this.zoom;
+    const rect = (b: Box, cls: string) => {
+      const d = el("div", cls);
+      d.style.cssText = `left:${b[0] * z}px;top:${b[1] * z}px;width:${(b[2] - b[0]) * z}px;height:${(b[3] - b[1]) * z}px`;
+      ov.appendChild(d);
+    };
+    for (const f of this.extraCache.get(page)?.fields ?? []) if (f.kind !== "button" && f.kind !== "signature") rect(f.view, "ot-pc-field");
+    this.matches.forEach((m, i) => {
+      if (m.page === page) for (const r of m.rects) rect(r, i === this.matchIndex ? "ot-pc-hit cur" : "ot-pc-hit");
+    });
+    if (this.textSel?.page === page) for (const r of this.textSel.rects) rect(r, "ot-pc-tsel");
+    slot.box.appendChild(ov);
+  }
+
+  private paintAll(): void {
+    for (let i = 0; i < this.slots.length; i++) this.paintOverlays(i);
   }
 
   /** Page operations: they act on the page in view, so they live in a panel of their own. */
@@ -291,9 +473,10 @@ class PdfCraftInstance implements EditorInstance {
   private setTool(tool: Tool): void {
     this.tool = tool;
     this.cancelEdit();
-    for (const [k, b] of Object.entries(this.buttons)) if (k === "select" || k === "text" || k === "cover") b.classList.toggle("on", k === tool);
-    this.scroller.classList.toggle("tool", tool === "cover");
+    for (const [k, b] of Object.entries(this.buttons)) if (k === "select" || k === "text" || k === "cover" || k === "textsel") b.classList.toggle("on", k === tool);
+    this.scroller.classList.toggle("tool", tool === "cover" || tool === "textsel");
     if (tool !== "select") this.select(null);
+    if (tool !== "textsel") this.clearTextSelection();
   }
 
   private togglePages(): void {
@@ -374,6 +557,10 @@ class PdfCraftInstance implements EditorInstance {
     }
     this.sizes = sizes;
     this.objectCache.clear();
+    this.extraCache.clear();
+    this.matches = [];
+    this.matchIndex = -1;
+    this.updateFindCount();
     this.buildSlots();
   }
 
@@ -408,6 +595,7 @@ class PdfCraftInstance implements EditorInstance {
     });
     this.updatePageLabel();
     this.renderSelection();
+    this.paintAll();
     this.scheduleRender();
   }
 
@@ -529,6 +717,8 @@ class PdfCraftInstance implements EditorInstance {
       slot.box.prepend(canvas);
       slot.canvas = canvas;
       slot.drawn = { zoom, gen };
+      this.paintOverlays(page);
+      void this.extras(page).then(() => this.paintOverlays(page));
       return true;
     } catch (e) {
       if (!this.disposed) console.warn("pdfcraft: page", page + 1, "did not draw", e);
@@ -572,6 +762,10 @@ class PdfCraftInstance implements EditorInstance {
     } else if (this.tool === "cover" && this.pointers.size === 1) {
       const at = this.pageAt(e.clientX, e.clientY);
       if (at) this.startRubber(at.page, [at.x, at.y]);
+    } else if (this.tool === "textsel" && this.pointers.size === 1) {
+      const at = this.pageAt(e.clientX, e.clientY);
+      this.clearTextSelection();
+      if (at) this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
     }
   }
 
@@ -584,6 +778,10 @@ class PdfCraftInstance implements EditorInstance {
     if (this.rubber) {
       const r = this.slots[this.rubber.page]!.box.getBoundingClientRect();
       this.drawRubber([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
+    }
+    if (this.selDrag) {
+      const r = this.slots[this.selDrag.page]!.box.getBoundingClientRect();
+      void this.updateSelection([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
     if (this.pinch && this.pointers.size >= 2) {
       const [a, b] = [...this.pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
@@ -602,8 +800,18 @@ class PdfCraftInstance implements EditorInstance {
       const r = this.slots[rubber.page]!.box.getBoundingClientRect();
       void this.finishRubber([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
+    const drag = this.selDrag;
+    if (drag) {
+      const r = this.slots[drag.page]!.box.getBoundingClientRect();
+      this.selDrag = null;
+      void this.finishSelection(drag, [(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
+    }
     this.onPointerEnd(e);
-    if (tap && !tap.moved && !rubber && !wasPinch && Date.now() - tap.time < 500) void this.onTap(e.clientX, e.clientY);
+    if (tap && !tap.moved && !rubber && !drag && !wasPinch) {
+      const held = Date.now() - tap.time;
+      if (held < 500) void this.onTap(e.clientX, e.clientY);
+      else void this.onLongPress(e.clientX, e.clientY);
+    }
   }
 
   private onPointerEnd(e: PointerEvent): void {
@@ -641,10 +849,180 @@ class PdfCraftInstance implements EditorInstance {
       this.startEdit(at.page, null, newTextBox(at.x, at.y, this.sizes[at.page]!));
       return;
     }
+    if (this.tool === "textsel") {
+      this.clearTextSelection();
+      return;
+    }
     if (this.tool !== "select") return;
     const objects = await this.objects(at.page);
-    const hit = hitBlock(objects.map((o) => o.view), at.x, at.y);
-    this.select(hit >= 0 ? { page: at.page, obj: objects[hit]! } : null);
+    const extras = await this.extras(at.page);
+    // the smallest thing under the finger wins; a mark beats the text it sits on when they are the same size
+    const candidates: { view: Box; obj?: PageObject; ann?: AnnotationInfo }[] = [...extras.annotations.map((ann) => ({ view: ann.view, ann })), ...objects.map((obj) => ({ view: obj.view, obj }))];
+    const hit = hitBlock(candidates.map((c) => c.view), at.x, at.y);
+    if (hit >= 0) {
+      const c = candidates[hit]!;
+      if (c.obj) this.select({ page: at.page, obj: c.obj });
+      else if (c.ann) this.select({ page: at.page, ann: c.ann, obj: { kind: "added", index: -1, type: "image", text: null, view: c.ann.view, style: null } });
+      return;
+    }
+    const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
+    if (field >= 0) {
+      this.select(null);
+      void this.useField(at.page, extras.fields[field]!);
+      return;
+    }
+    this.select(null);
+    const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
+    if (link >= 0) this.followLink(extras.links[link]!);
+  }
+
+  /** A long press follows a link even where text sits under it, which a tap would select for editing. */
+  private async onLongPress(clientX: number, clientY: number): Promise<void> {
+    if (!this.doc || this.tool !== "select") return;
+    const at = this.pageAt(clientX, clientY);
+    if (!at) return;
+    const extras = await this.extras(at.page);
+    const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
+    if (link >= 0) this.followLink(extras.links[link]!);
+  }
+
+  private followLink(link: LinkInfo): void {
+    if (link.page !== undefined && this.layout.tops[link.page] !== undefined) {
+      this.scroller.scrollTop = Math.max(0, this.layout.tops[link.page]! - GAP);
+      return;
+    }
+    // only web and mail addresses leave the document; a script or file address in a PDF does not
+    if (link.uri) openExternal(link.uri);
+  }
+
+  /** Fills a form field: a check box toggles, text and choices open a box to type in. */
+  private async useField(page: number, field: FieldInfo): Promise<void> {
+    if (!this.doc) return;
+    if (field.kind === "check") {
+      const on = !!field.value && field.value.toLowerCase() !== "off";
+      await this.run(page, () => this.doc!.setField(field.name, { check: !on }));
+      return;
+    }
+    if (field.kind === "text" || field.kind === "choice") {
+      this.startEdit(page, null, field.view, { value: field.value ?? "", save: (text) => this.doc!.setField(field.name, field.kind === "choice" ? { choice: [text] } : { text }) });
+    }
+  }
+
+  // ------------------------------------------------------------------ selecting text and marking it up
+
+  private clearTextSelection(): void {
+    const had = this.textSel?.page;
+    this.textSel = null;
+    this.selDrag = null;
+    this.floatEl?.remove();
+    this.floatEl = null;
+    if (had !== undefined) this.paintOverlays(had);
+  }
+
+  private async updateSelection(to: [number, number]): Promise<void> {
+    const drag = this.selDrag;
+    if (!drag || !this.doc) return;
+    if (drag.busy) {
+      drag.pending = to;
+      return;
+    }
+    drag.busy = true;
+    try {
+      const res = await this.doc.selectText(drag.page, drag.from, to);
+      this.textSel = { page: drag.page, text: res.text, rects: res.rects };
+      this.paintOverlays(drag.page);
+    } catch {
+      // a point outside the text: keep what was selected
+    }
+    drag.busy = false;
+    const next = drag.pending;
+    drag.pending = null;
+    if (next && this.selDrag === drag) void this.updateSelection(next);
+  }
+
+  private async finishSelection(drag: { page: number; from: [number, number] }, to: [number, number]): Promise<void> {
+    if (!this.doc) return;
+    try {
+      const res = await this.doc.selectText(drag.page, drag.from, to);
+      this.textSel = res.text.trim() ? { page: drag.page, text: res.text, rects: res.rects } : null;
+    } catch {
+      this.textSel = null;
+    }
+    this.paintOverlays(drag.page);
+    this.renderTextFloat();
+  }
+
+  /** The tools for the selected text: mark it up, copy it, or link it. */
+  private renderTextFloat(): void {
+    this.floatEl?.remove();
+    this.floatEl = null;
+    const sel = this.textSel;
+    const slot = sel && this.slots[sel.page];
+    if (!sel || !slot || !sel.rects.length) return;
+    const bar = el("div", "ot-pc-float");
+    const add = (glyph: IconName, label: string, cb: () => void) => {
+      const b = el("button", "btn icon");
+      b.type = "button";
+      b.innerHTML = icon(glyph);
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", cb);
+      bar.appendChild(b);
+    };
+    const mark = (kind: MarkupKind) => () => void this.markSelection(kind);
+    add("highlight", t("pdfcraft.highlight"), mark("highlight"));
+    add("underline", t("pdfcraft.underline"), mark("underline"));
+    add("strike", t("pdfcraft.strikeout"), mark("strikeout"));
+    add("copy", t("pdfcraft.copy"), () => void navigator.clipboard?.writeText(sel.text).catch(() => {}));
+    add("link", t("pdfcraft.addLink"), () => this.askLink(bar));
+    add("close", t("pdfcraft.cancel"), () => this.clearTextSelection());
+    slot.box.appendChild(bar);
+    this.floatEl = bar;
+    this.placeFloat(bar, sel.page, bounds(sel.rects));
+  }
+
+  private async markSelection(kind: MarkupKind): Promise<void> {
+    const sel = this.textSel;
+    if (!sel || !this.doc) return;
+    this.clearTextSelection();
+    await this.run(sel.page, () => this.doc!.markup(sel.page, kind, sel.rects));
+  }
+
+  /** Swaps the selection's tools for a box to type the link's address in. */
+  private askLink(bar: HTMLElement): void {
+    const sel = this.textSel;
+    if (!sel) return;
+    bar.replaceChildren();
+    const row = el("form", "ot-pc-link-entry");
+    const input = el("input");
+    input.type = "text";
+    input.placeholder = "https://";
+    input.setAttribute("aria-label", t("pdfcraft.addLink"));
+    const ok = el("button", "btn icon");
+    ok.type = "submit";
+    ok.innerHTML = icon("check");
+    ok.title = ok.ariaLabel = t("pdfcraft.done");
+    const no = el("button", "btn icon");
+    no.type = "button";
+    no.innerHTML = icon("close");
+    no.title = no.ariaLabel = t("pdfcraft.cancel");
+    no.addEventListener("click", () => this.renderTextFloat());
+    row.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const target = input.value.trim();
+      if (target) void this.linkSelection(target);
+    });
+    row.append(input, ok, no);
+    bar.appendChild(row);
+    this.placeFloat(bar, sel.page, bounds(sel.rects));
+    input.focus();
+  }
+
+  private async linkSelection(target: string): Promise<void> {
+    const sel = this.textSel;
+    if (!sel || !this.doc) return;
+    this.clearTextSelection();
+    await this.run(sel.page, () => this.doc!.addLink(sel.page, bounds(sel.rects), target));
   }
 
   private select(sel: Selection | null): void {
@@ -663,8 +1041,14 @@ class PdfCraftInstance implements EditorInstance {
     if (!sel || !slot) return;
     const z = this.zoom;
     const [x0, y0, x1, y1] = sel.obj.view;
-    const box = el("div", "ot-pc-sel");
+    const box = el("div", sel.ann ? "ot-pc-sel ann" : "ot-pc-sel");
     box.style.cssText += `left:${x0 * z}px;top:${y0 * z}px;width:${(x1 - x0) * z}px;height:${(y1 - y0) * z}px`;
+    if (sel.ann) {
+      slot.box.appendChild(box);
+      this.selEl = box;
+      this.buildFloat(sel, slot.box);
+      return;
+    }
     const isText = sel.obj.type === "text";
     // existing text only rewraps to a new width; everything else resizes from its corners
     const handles: [Handle, string][] = sel.obj.kind === "text" ? [["e", "100% 50%"]] : [["nw", "0 0"], ["ne", "100% 0"], ["sw", "0 100%"], ["se", "100% 100%"]];
@@ -705,6 +1089,7 @@ class PdfCraftInstance implements EditorInstance {
       add("italic", t("pdfcraft.italic"), () => void this.toggle("italic"), style.italic);
       add("smaller", t("pdfcraft.smaller"), () => void this.resizeText(-2));
       add("larger", t("pdfcraft.larger"), () => void this.resizeText(2));
+      add("family", t("pdfcraft.font"), () => void this.nextFamily());
       const color = add("color", t("pdfcraft.color"), () => {});
       const input = el("input");
       input.type = "color";
@@ -721,15 +1106,18 @@ class PdfCraftInstance implements EditorInstance {
     add("delete", t("pdfcraft.deleteObject"), () => void this.deleteSelection());
     slot.appendChild(bar);
     this.floatEl = bar;
-    // above the object, or below it when there is no room above; kept inside the page
+    this.placeFloat(bar, sel.page, sel.obj.view);
+  }
+
+  /** Puts a floating bar above `box` on its page, or below when there is no room above; kept inside the page. */
+  private placeFloat(bar: HTMLElement, page: number, box: Box): void {
     const z = this.zoom;
-    const [x0, y0, , y1] = sel.obj.view;
     const w = bar.offsetWidth;
     const h = bar.offsetHeight;
-    const pageW = this.layout.widths[sel.page] ?? 0;
-    bar.style.left = `${Math.min(Math.max(0, x0 * z), Math.max(0, pageW - w))}px`;
-    const above = y0 * z - h - 10;
-    bar.style.top = `${above >= 0 ? above : y1 * z + 10}px`;
+    const pageW = this.layout.widths[page] ?? 0;
+    bar.style.left = `${Math.min(Math.max(0, box[0] * z), Math.max(0, pageW - w))}px`;
+    const above = box[1] * z - h - 10;
+    bar.style.top = `${above >= 0 ? above : box[3] * z + 10}px`;
   }
 
   private dragMove(ev: PointerEvent, sel: Selection, box: HTMLElement, isText: boolean): void {
@@ -823,6 +1211,12 @@ class PdfCraftInstance implements EditorInstance {
     await this.run(sel.page, () => this.doc!.setText(sel.page, this.ref(sel), undefined, style), sel);
   }
 
+  private async nextFamily(): Promise<void> {
+    const current = this.sel?.obj.style?.family;
+    if (!current) return;
+    await this.styleSelection({ family: FAMILIES[(FAMILIES.indexOf(current) + 1) % FAMILIES.length]! });
+  }
+
   private async toggle(which: "bold" | "italic"): Promise<void> {
     const style = this.sel?.obj.style;
     if (style) await this.styleSelection({ [which]: !style[which] });
@@ -837,7 +1231,9 @@ class PdfCraftInstance implements EditorInstance {
     const sel = this.sel;
     if (!sel || !this.doc) return;
     this.select(null);
-    await this.run(sel.page, () => this.doc!.deleteObject(sel.page, this.ref(sel)));
+    const ann = sel.ann;
+    if (ann) await this.run(sel.page, () => this.doc!.deleteAnnotation(sel.page, ann.index));
+    else await this.run(sel.page, () => this.doc!.deleteObject(sel.page, this.ref(sel)));
   }
 
   // ------------------------------------------------------------------ cover, images
@@ -900,7 +1296,7 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** Opens the text box over `box` for an existing text object, or for a new one (`obj` null). */
-  private startEdit(page: number, obj: PageObject | null, box: Box): void {
+  private startEdit(page: number, obj: PageObject | null, box: Box, field?: { value: string; save: (text: string) => Promise<void> }): void {
     const slot = this.slots[page]?.box;
     if (!slot) return;
     this.cancelEdit();
@@ -909,7 +1305,7 @@ class PdfCraftInstance implements EditorInstance {
     const z = this.zoom;
     const [x0, y0, x1, y1] = box;
     const area = el("textarea", "ot-pc-edit");
-    area.value = obj?.text ?? "";
+    area.value = field?.value ?? obj?.text ?? "";
     area.spellcheck = false;
     const minH = Math.max((y1 - y0) * z + 6, 32);
     area.style.left = `${x0 * z - 2}px`;
@@ -934,7 +1330,7 @@ class PdfCraftInstance implements EditorInstance {
     area.style.height = `${grown}px`;
     bar.style.left = `${x0 * z - 2}px`;
     bar.style.top = `${y0 * z - 2 + grown + 4}px`;
-    this.editing = { page, obj, box, area, bar };
+    this.editing = { page, obj, box, area, bar, field };
     area.focus();
   }
 
@@ -955,6 +1351,11 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     const doc = this.doc;
+    if (edit.field) {
+      const save = edit.field.save;
+      if (text !== edit.field.value) await this.run(edit.page, () => save(text));
+      return;
+    }
     if (edit.obj) {
       const obj = edit.obj;
       if (text === obj.text) {
@@ -973,8 +1374,15 @@ class PdfCraftInstance implements EditorInstance {
   private afterEdit(pages: number[] | "all"): void {
     this.edited = true;
     this.gen++;
-    if (pages === "all") this.objectCache.clear();
-    else for (const p of pages) this.objectCache.delete(p);
+    if (pages === "all") {
+      this.objectCache.clear();
+      this.extraCache.clear();
+    } else {
+      for (const p of pages) {
+        this.objectCache.delete(p);
+        this.extraCache.delete(p);
+      }
+    }
     this.onChange?.();
     void this.refreshHistory();
     this.scheduleRender();
@@ -1052,6 +1460,7 @@ class PdfCraftInstance implements EditorInstance {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    window.clearTimeout(this.findTimer);
     window.removeEventListener("resize", this.onResize);
     this.cancelEdit();
     this.cancelRubber();

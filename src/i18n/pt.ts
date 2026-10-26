@@ -383,6 +383,17 @@ const pt: Dict = {
     fitPage: "Ajustar à página",
     zoomLevel: "Nível de zoom",
     zoomPercent: "Zoom em percentagem",
+    selectText: "Selecionar texto",
+    find: "Procurar",
+    findPrevious: "Resultado anterior",
+    findNext: "Resultado seguinte",
+    noMatches: "Sem resultados",
+    highlight: "Realçar",
+    underline: "Sublinhar",
+    strikeout: "Rasurar",
+    copy: "Copiar",
+    addLink: "Adicionar uma ligação",
+    font: "Tipo de letra",
   },
 };
 

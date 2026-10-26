@@ -406,6 +406,17 @@ const ru: Dict = {
     fitPage: "Вся страница",
     zoomLevel: "Масштаб",
     zoomPercent: "Масштаб в процентах",
+    selectText: "Выделить текст",
+    find: "Найти",
+    findPrevious: "Предыдущее совпадение",
+    findNext: "Следующее совпадение",
+    noMatches: "Нет совпадений",
+    highlight: "Выделить цветом",
+    underline: "Подчеркнуть",
+    strikeout: "Зачеркнуть",
+    copy: "Копировать",
+    addLink: "Добавить ссылку",
+    font: "Шрифт",
   },
 };
 

@@ -387,6 +387,17 @@ const zh: Dict = {
     fitPage: "适合整页",
     zoomLevel: "缩放级别",
     zoomPercent: "缩放百分比",
+    selectText: "选择文本",
+    find: "查找",
+    findPrevious: "上一个匹配项",
+    findNext: "下一个匹配项",
+    noMatches: "无匹配项",
+    highlight: "高亮",
+    underline: "下划线",
+    strikeout: "删除线",
+    copy: "复制",
+    addLink: "添加链接",
+    font: "字体",
   },
 };
 

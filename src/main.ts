@@ -90,6 +90,7 @@ import { emailViewer } from "./editors/emailviewer";
 import { pimViewer } from "./editors/pimviewer";
 import { walletViewer } from "./editors/walletviewer";
 import { pdfCraftEditor } from "./editors/pdfcraft";
+import { openingExternal } from "./core/external";
 import { tiffViewer } from "./editors/tiffviewer";
 import { torrentViewer } from "./editors/torrentviewer";
 import { model3dViewer } from "./editors/model3dviewer";
@@ -2438,7 +2439,7 @@ window.addEventListener("omnitext:media-track", (e) => {
 });
 
 window.addEventListener("beforeunload", (e) => {
-  if (session?.dirty) {
+  if (session?.dirty && !openingExternal()) {
     e.preventDefault();
     e.returnValue = "";
   }

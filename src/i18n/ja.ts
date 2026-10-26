@@ -385,6 +385,17 @@ const ja: Dict = {
     fitPage: "ページに合わせる",
     zoomLevel: "ズームレベル",
     zoomPercent: "ズーム（％）",
+    selectText: "テキストを選択",
+    find: "検索",
+    findPrevious: "前の一致",
+    findNext: "次の一致",
+    noMatches: "一致なし",
+    highlight: "ハイライト",
+    underline: "下線",
+    strikeout: "取り消し線",
+    copy: "コピー",
+    addLink: "リンクを追加",
+    font: "書体",
   },
 };
 
