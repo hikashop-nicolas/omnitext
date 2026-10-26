@@ -32,13 +32,21 @@ function fixture(n: number): Uint8Array {
 }
 
 describe.skipIf(!built)("two real engines on one log", () => {
+  // one instance of the module for the whole file: each is tens of MB, and a second one has run a CI runner out of memory
+  let loaded: Promise<(typeof import("craftbridge/pdf"))> | null = null;
+  const load = () =>
+    (loaded ??= (async () => {
+      const glue = await import(/* @vite-ignore */ `${dir}/wasm/pdf/pdfcraft_wasm.js`);
+      glue.initSync({ module: fs.readFileSync(`${dir}/wasm/pdf/pdfcraft_wasm_bg.wasm`) });
+      const { Engine } = await import(/* @vite-ignore */ `${dir}/src/pdf/engine.ts`);
+      return { glue, Engine } as never;
+    })());
+
   async function engines() {
-    const glue = await import(/* @vite-ignore */ `${dir}/wasm/pdf/pdfcraft_wasm.js`);
-    glue.initSync({ module: fs.readFileSync(`${dir}/wasm/pdf/pdfcraft_wasm_bg.wasm`) });
-    const { Engine } = await import(/* @vite-ignore */ `${dir}/src/pdf/engine.ts`);
+    const { glue, Engine } = (await load()) as unknown as { glue: { Pdf: new (b: Uint8Array, p?: string) => unknown }; Engine: new (m: unknown) => unknown };
     const make = () => {
       const engine = new Engine({ open: (bytes: Uint8Array, password?: string) => new glue.Pdf(bytes, password) });
-      engine.handle({ op: "open", bytes: fixture(2) });
+      (engine as { handle(call: unknown): unknown }).handle({ op: "open", bytes: fixture(2) });
       return engine as { handle(call: unknown): { value: unknown } };
     };
     return make;
