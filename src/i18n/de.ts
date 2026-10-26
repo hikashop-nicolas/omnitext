@@ -353,7 +353,7 @@ const de: Dict = {
     failed: "Dieses PDF konnte nicht geöffnet werden: {message}",
     editFailed: "Diese Änderung konnte nicht angewendet werden: {message}",
     size: "Größe",
-    background: "Markierungsfarbe",
+    more: "Mehr",
     appendPdf: "Seiten eines anderen PDFs anhängen",
     rotateLeft: "Nach links drehen",
     rotateRight: "Nach rechts drehen",

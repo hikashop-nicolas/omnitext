@@ -357,7 +357,7 @@ const zh: Dict = {
     failed: "无法打开此 PDF：{message}",
     editFailed: "无法应用此更改：{message}",
     size: "大小",
-    background: "高亮颜色",
+    more: "更多",
     appendPdf: "添加另一个 PDF 的页面",
     rotateLeft: "向左旋转",
     rotateRight: "向右旋转",

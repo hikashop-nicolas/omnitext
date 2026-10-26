@@ -46,9 +46,11 @@ function ensureStyles(): void {
     .ot-pc-bottom span { color:var(--muted); font:13px system-ui, sans-serif; }
     .ot-pc-bottom .grow { flex:1 1 auto; }
     @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
-    .ot-pc-float { position:absolute; z-index:8; display:flex; flex-wrap:wrap; max-width:calc(100% - 8px); gap:4px; padding:4px; background:var(--surface); color:var(--text);
+    .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; max-width:calc(100% - 8px); gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
+    .ot-pc-row { display:flex; gap:4px; }
+    .ot-pc-row[hidden] { display:none; }
     .ot-pc-float input[type=color] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
     .ot-pc-stripe { position:absolute; left:8px; right:8px; bottom:4px; height:4px; border-radius:2px; border:1px solid var(--border); }
     .ot-pc-float select { flex:0 0 auto; height:36px; max-width:112px; font:13px system-ui, sans-serif; color:var(--text); background:var(--canvas);
@@ -110,6 +112,7 @@ const ICONS = {
   pages: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   rotateLeft: '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   textColor: '<path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/>',
+  more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
@@ -230,6 +233,8 @@ class PdfCraftInstance implements EditorInstance {
   private zoomRange!: HTMLInputElement;
   private zoomNum!: HTMLInputElement;
   private floatEl: HTMLElement | null = null;
+  /** Whether the floating text bar shows its second row (alignment and delete). */
+  private floatMore = false;
   private password: string | undefined;
   /** Set while this peer is in a sharing session: every edit goes through the shared log. */
   private shared: PdfLog | null = null;
@@ -1177,6 +1182,11 @@ class PdfCraftInstance implements EditorInstance {
   /** The tools for the selected object, floating next to it so the top bar stays short. */
   private buildFloat(sel: Selection, slot: HTMLElement): void {
     const bar = el("div", "ot-pc-float");
+    const main = el("div", "ot-pc-row");
+    const extra = el("div", "ot-pc-row");
+    extra.hidden = !this.floatMore;
+    bar.append(main, extra);
+    let row = main;
     const style = sel.obj.style;
     const add = (glyph: IconName, label: string, onClick: () => void, on = false): HTMLButtonElement => {
       const b = el("button", `btn icon${on ? " on" : ""}`);
@@ -1185,7 +1195,7 @@ class PdfCraftInstance implements EditorInstance {
       b.title = label;
       b.setAttribute("aria-label", label);
       b.addEventListener("click", onClick);
-      bar.appendChild(b);
+      row.appendChild(b);
       return b;
     };
     const swatch = (glyph: IconName, label: string, value: string, apply: (hexColor: string) => void): void => {
@@ -1213,11 +1223,17 @@ class PdfCraftInstance implements EditorInstance {
       const now = Math.round(style.size);
       for (const n of [...new Set([...SIZES, now])].sort((a, b) => a - b)) size.add(new Option(String(n), String(n), false, n === now));
       size.addEventListener("change", () => void this.styleSelection({ size: Number(size.value) }));
-      bar.append(family, size);
+      main.append(family, size);
       add("bold", t("pdfcraft.bold"), () => void this.toggle("bold"), style.bold);
       add("italic", t("pdfcraft.italic"), () => void this.toggle("italic"), style.italic);
       swatch("textColor", t("pdfcraft.color"), hex(style.color), (v) => void this.styleSelection({ color: rgb(v) }));
-      swatch("highlight", t("pdfcraft.background"), "#ffe14d", (v) => void this.fillBehind(sel, v));
+      const more = add("more", t("pdfcraft.more"), () => {
+        this.floatMore = !this.floatMore;
+        extra.hidden = !this.floatMore;
+        more.classList.toggle("on", this.floatMore);
+        this.placeFloat(bar, sel.page, sel.obj.view);
+      }, this.floatMore);
+      row = extra;
       add("alignLeft", t("pdfcraft.alignLeft"), () => void this.styleSelection({ align: "left" }), style.align === "left" || style.align === null);
       add("alignCenter", t("pdfcraft.alignCenter"), () => void this.styleSelection({ align: "center" }), style.align === "center");
       add("alignRight", t("pdfcraft.alignRight"), () => void this.styleSelection({ align: "right" }), style.align === "right");
@@ -1337,11 +1353,6 @@ class PdfCraftInstance implements EditorInstance {
   private async toggle(which: "bold" | "italic"): Promise<void> {
     const style = this.sel?.obj.style;
     if (style) await this.styleSelection({ [which]: !style[which] });
-  }
-
-  /** A colour behind the text: a highlight over its box, which can be deleted like any note. */
-  private async fillBehind(sel: Selection, color: string): Promise<void> {
-    await this.run(sel.page, () => this.commit({ op: "markup", page: sel.page, kind: "highlight", rects: [sel.obj.view], color: rgb(color) }), sel);
   }
 
   private async turnPicture(sel: Selection, quarterTurns: number): Promise<void> {

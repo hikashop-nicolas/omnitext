@@ -376,7 +376,7 @@ const ru: Dict = {
     failed: "Не удалось открыть этот PDF: {message}",
     editFailed: "Не удалось применить это изменение: {message}",
     size: "Размер",
-    background: "Цвет выделения",
+    more: "Ещё",
     appendPdf: "Добавить страницы другого PDF",
     rotateLeft: "Повернуть влево",
     rotateRight: "Повернуть вправо",

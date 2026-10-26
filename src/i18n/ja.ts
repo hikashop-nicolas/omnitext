@@ -355,7 +355,7 @@ const ja: Dict = {
     failed: "この PDF を開けませんでした：{message}",
     editFailed: "この変更を適用できませんでした: {message}",
     size: "サイズ",
-    background: "ハイライトの色",
+    more: "その他",
     appendPdf: "別のPDFのページを追加",
     rotateLeft: "左に回転",
     rotateRight: "右に回転",
