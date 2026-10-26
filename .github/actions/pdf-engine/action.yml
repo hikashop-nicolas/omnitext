@@ -17,6 +17,12 @@ runs:
       shell: bash
       run: |
         rustup target add wasm32-unknown-unknown
-        # no wasm-opt: the runner's binaryen is too old for the engine's reference types and breaks the module at start
+        # the runner's own binaryen is too old for the engine's reference types and breaks the module, so use a pinned release
+        binaryen=version_133
+        curl -sSLf -o "$RUNNER_TEMP/binaryen.tgz" "https://github.com/WebAssembly/binaryen/releases/download/$binaryen/binaryen-$binaryen-x86_64-linux.tar.gz"
+        echo "2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489  $RUNNER_TEMP/binaryen.tgz" | sha256sum -c -
+        tar xzf "$RUNNER_TEMP/binaryen.tgz" -C "$RUNNER_TEMP"
+        export PATH="$RUNNER_TEMP/binaryen-$binaryen/bin:$PATH"
+        wasm-opt --version
         INSTALL_WASM_BINDGEN=1 sh scripts/build-craftbridge.sh
         echo "CRAFTBRIDGE_DIR=$GITHUB_WORKSPACE/vendor/craftbridge" >> "$GITHUB_ENV"
