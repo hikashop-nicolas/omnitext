@@ -80,7 +80,7 @@ a page for each one, generated from the app itself.
 
 Files that can be edited are saved back in place: the parts you did not touch keep their
 original bytes, down to the encoding and the line endings. A few formats are shown but not
-edited (PowerPoint, RTF, ebooks, camera RAW and the other viewers above), and the app says so
+edited (RTF, ebooks, camera RAW and the other viewers above), and the app says so
 instead of pretending.
 
 ## Editing together

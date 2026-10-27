@@ -36,6 +36,16 @@ binding and the dependency are removed. Every build carries the engine, F-Droid 
   open 4 to 6 times faster), arcs drawn, clearing an XFA form skips read-only fields, and 47 real forms (CERFA, IRS,
   USCIS, XFA corpus) pass an open/fill/save/edit/flatten audit without a crash.
 
+## PPTX editor joined 2.0 (2026-10-28)
+
+- PowerPoint files now open in an editor on DeckCraft's engine (pptxcraft; see PPTX_PLAN.md). The engine is built by
+  scripts/build-craftbridge.sh with the PDF one, from the fork hikashop-nicolas/deckcraft `carry` (pin: craftbridge deckcraft.rev).
+- The tag fdroid-2.0 (4d3fe49) predates it: move it to the final commit and update the recipe's `commit:` before signing.
+  The second dry run (log dryrun20b.log) succeeded on 4d3fe49 without the deck engine; run a third one, the wasm is bigger
+  (deck module about 23 MB, plus 3.5 MB of Korean and Chinese faces loaded on demand).
+- Not done: video playback through mediaplay instead of DeckCraft's codecs, a test on a real phone, saving a deck that
+  was edited (round trip was only checked in the spike).
+
 ## Before tagging
 
 1. Run the F-Droid dry run for real (`docs` section "Dry run" of FDROID_PLAN.md) and check the

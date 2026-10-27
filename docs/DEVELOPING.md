@@ -150,7 +150,7 @@ file needs it.
 - **Binary documents**, each edited in place through a dedicated standalone library: PDF
   (the [PdfCraft](https://github.com/storytold/pdfcraft) Rust engine compiled to wasm, through
   [craftbridge](https://github.com/hikashop-nicolas/craftbridge); build it with
-  `scripts/build-craftbridge.sh`), DOCX and ODT
+  `scripts/build-craftbridge.sh`), PPTX (the [DeckCraft](https://github.com/storytold/deckcraft) engine, built the same way), DOCX and ODT
   ([richdoc](https://github.com/hikashop-nicolas/richdoc)), XLSX, ODS and XLSM
   ([sheetedit](https://github.com/hikashop-nicolas/sheetedit), formula-aware, with chart and
   pivot create/edit, a Power Query editor, and VBA macros that run and can be edited). Legacy
