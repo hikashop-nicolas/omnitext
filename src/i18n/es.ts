@@ -99,7 +99,7 @@ const es: Dict = {
       milkdown: "Enriquecido",
       quill: "WYSIWYG",
       pdf: "PDF",
-      pdfcraft: "PDF (motor nuevo)",
+      pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Hoja",
       odt: "ODT",

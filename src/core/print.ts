@@ -24,7 +24,7 @@ export interface PrintHost {
 /**
  * Print a PDF as the document it is.
  *
- * pdfedit draws each page into a canvas about 96 dpi wide, which is right for reading on a
+ * An editor draws each page into a canvas about 96 dpi wide, which is right for reading on a
  * screen and wrong for paper: printing those canvases prints photographs of the pages. The
  * bytes, with this session's edits already in them, describe the pages exactly, so they go
  * to the printer through a frame of their own and arrive at the resolution of the file.

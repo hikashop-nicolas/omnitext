@@ -113,10 +113,10 @@ const bundleTesseractEngine: Plugin = {
 };
 
 /**
- * The new PDF engine (PdfCraft's, compiled to wasm, through craftbridge) is opt-in at build time.
- * A build that finds craftbridge with its wasm built (set CRAFTBRIDGE_DIR, or install the package)
- * registers the "PDF (new engine)" editor; any other build aliases it to a stub and leaves the
- * editor out, so nothing else needs a Rust toolchain.
+ * The PDF editor runs on PdfCraft's engine, compiled to wasm, through craftbridge. A build finds
+ * craftbridge with its wasm built through CRAFTBRIDGE_DIR (scripts/build-craftbridge.sh makes it)
+ * and refuses to go on without it, unless OMNITEXT_NO_PDF_ENGINE=1 asks for a build with no PDF
+ * editor (quick local work; the tests run on a stub too).
  */
 const craftDir = resolve(process.env.CRAFTBRIDGE_DIR ?? "node_modules/craftbridge");
 const craftReady =
@@ -131,6 +131,10 @@ const craftAliases = craftReady
       { find: /^craftbridge\/pdf$/, replacement: new URL("./src/stubs/craftbridge-pdf.ts", import.meta.url).pathname },
     ];
 
+if (!craftReady && process.argv.includes("build") && !process.env.OMNITEXT_NO_PDF_ENGINE) {
+  throw new Error("The PDF engine is not built: run scripts/build-craftbridge.sh and set CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge (OMNITEXT_NO_PDF_ENGINE=1 builds without a PDF editor).");
+}
+
 export default defineConfig({
   base: "./",
   plugins: [dropUnusedOrtWasm, bundleTesseractEngine, pointOnnxruntimeAtPackage, bundleOnnxruntimeEngine],
@@ -140,7 +144,7 @@ export default defineConfig({
     __CRAFT_PDF__: JSON.stringify(craftReady),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
   },
-  // pdfedit (local dep) and the app both use pdf.js/pdf-lib; keep one copy each.
+  // the editors and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
   // the browser; alias it to a tiny stub so the ~3MB dep is not bundled.
   resolve: {

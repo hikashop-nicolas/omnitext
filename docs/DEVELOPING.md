@@ -51,7 +51,7 @@ That is a courtesy, not a security boundary, and the app says so.
 ## In-house libraries
 
 The dedicated editor libraries live in their own MIT repos and are consumed here as git
-dependencies, so each one is reusable on its own: pdfedit, richdoc, sheetedit, geoedit,
+dependencies, so each one is reusable on its own: richdoc, sheetedit, geoedit,
 subedit, imageview, mediaplay, walletview. Those libraries have their own libraries in turn: sheetedit's
 Power Query engine ([mlang](https://github.com/hikashop-nicolas/mlang)) and VBA engine
 ([vbalang](https://github.com/hikashop-nicolas/vbalang)), and the shared on-device OCR and
@@ -74,9 +74,14 @@ newer release may pin a clean engine and make the override unnecessary.
 npm run dev        # Vite dev server
 npm test           # unit + integration tests (Vitest)
 npm run typecheck  # tsc --noEmit
-npm run build      # typecheck + production build into dist/
+npm run build      # typecheck + production build into dist/ (needs the PDF engine, see below)
 npm run cap:sync   # build, then sync the Android (Capacitor) project
 ```
+
+The PDF editor runs on a Rust engine compiled to wasm. Build it once with `scripts/build-craftbridge.sh`
+(a Rust toolchain with the wasm32-unknown-unknown target, and git; add binaryen 133 or newer for a smaller
+module), then build the app with `CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge npm run build`. The dev server and
+the tests do not need it; `OMNITEXT_NO_PDF_ENGINE=1 npm run build` builds an app with no PDF editor.
 
 ## Layout
 
@@ -143,7 +148,9 @@ file needs it.
 - **Structured surfaces**: CSV/TSV as an editable grid, JSON as a tree, HTML and Markdown as
   rich text (Quill / Milkdown), plus a read-only HTML preview.
 - **Binary documents**, each edited in place through a dedicated standalone library: PDF
-  ([pdfedit](https://github.com/hikashop-nicolas/pdfedit)), DOCX and ODT
+  (the [PdfCraft](https://github.com/storytold/pdfcraft) Rust engine compiled to wasm, through
+  [craftbridge](https://github.com/hikashop-nicolas/craftbridge); build it with
+  `scripts/build-craftbridge.sh`), DOCX and ODT
   ([richdoc](https://github.com/hikashop-nicolas/richdoc)), XLSX, ODS and XLSM
   ([sheetedit](https://github.com/hikashop-nicolas/sheetedit), formula-aware, with chart and
   pivot create/edit, a Power Query editor, and VBA macros that run and can be edited). Legacy

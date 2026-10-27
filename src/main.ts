@@ -39,7 +39,6 @@ import { milkdownEditor } from "./editors/milkdown";
 import { docxEditor } from "./editors/docx";
 import { docEditor } from "./editors/doc";
 import { odtEditor } from "./editors/odt";
-import { pdfEditor } from "./editors/pdf";
 import { rtfEditor } from "./editors/rtf";
 import { previewEditor } from "./editors/preview";
 import { quillEditor } from "./editors/quill";
@@ -190,7 +189,7 @@ interface FsHandle {
 
 // --- engine + module registration (descriptors only; impls load on demand) ----
 
-// In builds that carry the new PDF engine (see vite.config.ts) it is the default PDF editor; the others keep the classic one.
+// The PDF editor runs on the PDF engine (see vite.config.ts); a dev build without it opens PDFs as plain data.
 const engine = new OmnitextEngine({ fallbackEditorId: "codemirror", preferredByFormat: __CRAFT_PDF__ ? { pdf: "pdfcraft" } : undefined });
 engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
@@ -199,7 +198,6 @@ engine.registerEditor(treeEditor);
 engine.registerEditor(milkdownEditor);
 engine.registerEditor(quillEditor);
 if (__CRAFT_PDF__) engine.registerEditor(pdfCraftEditor);
-engine.registerEditor(pdfEditor);
 engine.registerEditor(rtfEditor);
 engine.registerEditor(odtEditor);
 engine.registerEditor(docxEditor);
@@ -2029,7 +2027,7 @@ const HOST_ALT_KEYS: Record<string, () => void> = {
 };
 
 // Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
-// "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).
+// "save page"/"open file" so the app owns them (richdoc leaves save to the host).
 document.addEventListener("keydown", (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
   // Plain Cmd/Ctrl+N belongs to the browser (new window), so New document adds Alt.

@@ -103,7 +103,7 @@ const zh: Dict = {
       milkdown: "富文本",
       quill: "所见即所得",
       pdf: "PDF",
-      pdfcraft: "PDF（新引擎）",
+      pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "工作表",
       odt: "ODT",

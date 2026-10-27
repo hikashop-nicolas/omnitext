@@ -100,7 +100,7 @@ const en: Dict = {
       milkdown: "Rich",
       quill: "WYSIWYG",
       pdf: "PDF",
-      pdfcraft: "PDF (new engine)",
+      pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Sheet",
       odt: "ODT",

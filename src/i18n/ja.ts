@@ -100,7 +100,7 @@ const ja: Dict = {
       milkdown: "リッチ",
       quill: "WYSIWYG",
       pdf: "PDF",
-      pdfcraft: "PDF（新エンジン）",
+      pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "シート",
       odt: "ODT",

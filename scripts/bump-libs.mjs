@@ -11,7 +11,7 @@ import { execSync } from "node:child_process";
 
 const OWNER = "hikashop-nicolas";
 /** Libraries this app depends on directly. */
-const LIBS = ["richdoc", "pdfedit", "geoedit", "sheetedit", "mediaplay", "subedit", "imageview",
+const LIBS = ["richdoc", "geoedit", "sheetedit", "mediaplay", "subedit", "imageview",
               "cadview", "walletview"];
 /**
  * Libraries reached THROUGH those, which `npm install github:...` on the parent does not move:

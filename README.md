@@ -140,7 +140,7 @@ waiting.
 
 Omnitext is MIT licensed, and so are the standalone editor libraries it is built on, which you
 can embed in your own projects, commercial ones included:
-[pdfedit](https://github.com/hikashop-nicolas/pdfedit),
+[craftbridge](https://github.com/hikashop-nicolas/craftbridge) (the PDF editor's bridge to the [PdfCraft](https://github.com/storytold/pdfcraft) engine),
 [richdoc](https://github.com/hikashop-nicolas/richdoc),
 [sheetedit](https://github.com/hikashop-nicolas/sheetedit),
 [geoedit](https://github.com/hikashop-nicolas/geoedit),

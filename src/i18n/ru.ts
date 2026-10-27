@@ -102,7 +102,7 @@ const ru: Dict = {
       milkdown: "С оформлением",
       quill: "WYSIWYG",
       pdf: "PDF",
-      pdfcraft: "PDF (новый движок)",
+      pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Лист",
       odt: "ODT",

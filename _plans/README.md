@@ -3,7 +3,7 @@
 ## Active
 
 - **AUDIT_2026-07.md** — living tracker of OPEN items across omnitext + richdoc +
-  pdfedit + sheetedit. Fixed items move out to `archive/AUDIT_2026-07_SHIPPED.md`.
+  sheetedit. Fixed items move out to `archive/AUDIT_2026-07_SHIPPED.md`.
   This is the main "what to do next" list.
 - **PLAY_STORE.md** — published. Standing runbook for shipping a release, plus the
   console answers and listing copy. The publication checklist itself is done and

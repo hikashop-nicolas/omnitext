@@ -32,7 +32,7 @@ function editorLayers(): { file: string; z: number }[] {
       for (const m of text.matchAll(/z-index:\s*(\d+)/g)) out.push({ file: p, z: Number(m[1]) });
     }
   };
-  for (const lib of ["sheetedit", "richdoc", "pdfedit", "geoedit", "mediaplay", "subedit", "imageview"]) {
+  for (const lib of ["sheetedit", "richdoc", "geoedit", "mediaplay", "subedit", "imageview"]) {
     const dist = join("node_modules", lib, "dist");
     try {
       if (statSync(dist).isDirectory()) walk(dist);
