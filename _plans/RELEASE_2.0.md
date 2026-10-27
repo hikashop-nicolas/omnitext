@@ -15,7 +15,7 @@ binding and the dependency are removed. Every build carries the engine, F-Droid 
   branch at 2daba271.
 - Production builds refuse to run without the engine (vite.config.ts); OMNITEXT_NO_PDF_ENGINE=1
   opts out for quick local builds. CI (deploy, ci, android) already builds the engine.
-- F-Droid: `scripts/fdroid/build-wasm.sh pdfengine` builds it from source (Rust 1.95 from the
+- F-Droid: `scripts/fdroid/build-wasm.sh pdfengine` builds it from source (Rust 1.99 from the
   pinned standalone installers, wasm-bindgen from crates.io, no wasm-opt, so the wasm is about
   29 MB instead of 25.5 MB). The recipe passes CRAFTBRIDGE_DIR to the web build.
 - Shortcuts: the host owns Cmd/Ctrl+S, O, K, P and Cmd/Ctrl+Alt+N (new), W (close), F (open

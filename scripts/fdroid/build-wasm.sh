@@ -438,14 +438,14 @@ build_onnxruntime() {
 }
 
 # The PDF engine: PdfCraft (Rust) as wasm through craftbridge, at the commit in craftbridge.rev. It needs a newer
-# rustc than Debian ships, so the official standalone installers are used, with their checksums pinned. wasm-opt is
+# rustc than Debian ships (1.96 or newer, for the workspace manifests of its git dependencies), so the official standalone installers are used, with their checksums pinned. wasm-opt is
 # left out (Debian's binaryen is too old for the engine's reference types), which makes the wasm a few MB larger.
 build_pdfengine() {
   echo "PDF engine"
-  rust=1.95.0
+  rust=1.99.1
   if [ ! -x "$WORK/rust/bin/rustc" ]; then
-    for part in "rust-$rust-x86_64-unknown-linux-gnu 2e0338f18ecbaa4a0f631b9e80e8b8e26bb6fe77dd5454fba8a70cf96c1e84a1" \
-      "rust-std-$rust-wasm32-unknown-unknown 5587b89ff69623d09e476439d44a24453b4e4ea3d5e0b53a5c0a935151ff3fd1"; do
+    for part in "rust-$rust-x86_64-unknown-linux-gnu 231fcae47ee950621374725b5fc3b5441d2fbda2955ac45dd7dc816d8876cfe7" \
+      "rust-std-$rust-wasm32-unknown-unknown 5f628f857dd00a8aa3fcac2e275665d2782066a5795274ed124c5b560f46423c"; do
       set -- $part
       curl -sSLf -o "$WORK/$1.tar.xz" "https://static.rust-lang.org/dist/$1.tar.xz"
       echo "$2  $WORK/$1.tar.xz" | sha256sum -c -
