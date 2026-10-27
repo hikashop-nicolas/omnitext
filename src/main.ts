@@ -101,6 +101,7 @@ import { dicomViewer } from "./editors/dicomviewer";
 import { recordsViewer } from "./editors/recordsviewer";
 import { rawViewer } from "./editors/rawviewer";
 import { pptxEditor } from "./editors/pptx";
+import { pptxCraftEditor } from "./editors/pptxcraft";
 import { epubEditor } from "./editors/epub";
 import { pptxFormat } from "./formats/pptx";
 import { epubFormat } from "./formats/epub";
@@ -190,7 +191,7 @@ interface FsHandle {
 // --- engine + module registration (descriptors only; impls load on demand) ----
 
 // The PDF editor runs on the PDF engine (see vite.config.ts); a dev build without it opens PDFs as plain data.
-const engine = new OmnitextEngine({ fallbackEditorId: "codemirror", preferredByFormat: __CRAFT_PDF__ ? { pdf: "pdfcraft" } : undefined });
+const engine = new OmnitextEngine({ fallbackEditorId: "codemirror", preferredByFormat: { ...(__CRAFT_PDF__ ? { pdf: "pdfcraft" } : {}), ...(__CRAFT_DECK__ ? { pptx: "pptxcraft" } : {}) } });
 engine.registerEditor(codemirrorEditor);
 engine.registerEditor(tableEditor);
 engine.registerEditor(previewEditor);
@@ -230,6 +231,7 @@ engine.registerEditor(dicomViewer);
 engine.registerEditor(recordsViewer);
 engine.registerEditor(rawViewer);
 engine.registerEditor(pptxEditor);
+if (__CRAFT_DECK__) engine.registerEditor(pptxCraftEditor);
 engine.registerEditor(epubEditor);
 engine.registerEditor(binaryEditor);
 const FORMATS: FormatDescriptor[] = [
@@ -482,7 +484,7 @@ let viewChoices: EditorResolution[] = [];
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
   viewChoices = choices;
   // the PDF editor has no second view worth switching to and needs no status line of its own
-  viewBtn.hidden = choices.length <= 1 || currentId === "pdfcraft"; // nothing to switch to
+  viewBtn.hidden = choices.length <= 1 || currentId === "pdfcraft" || currentId === "pptxcraft"; // nothing to switch to
   viewLabelEl.textContent = editorLabel(currentId);
   refreshStatusBar();
 }
@@ -799,7 +801,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     // the note only costs a row of the picture. Say it for the formats that do look
     // editable (slides, ebooks, RTF, raw photos), where the missing Save needs a reason.
     : session.readOnly ? (/^(audio|video|image)\//.test(session.mime ?? "") ? "" : t("status.readOnly"))
-    : chosen.editor.manifest.id === "pdfcraft" ? ""
+    : chosen.editor.manifest.id === "pdfcraft" || chosen.editor.manifest.id === "pptxcraft" ? ""
     : t("status.ready", { where }),
   );
 }

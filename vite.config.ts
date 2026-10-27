@@ -131,6 +131,18 @@ const craftAliases = craftReady
       { find: /^craftbridge\/pdf$/, replacement: new URL("./src/stubs/craftbridge-pdf.ts", import.meta.url).pathname },
     ];
 
+/** The presentation engine (DeckCraft's), built the same way (scripts/build-craftbridge.sh builds both). */
+const deckReady = existsSync(`${craftDir}/wasm/deck/deckcraft_wasm_bg.wasm`) && existsSync(`${craftDir}/src/deck/index.ts`);
+const deckAliases = deckReady
+  ? [
+      { find: /^craftbridge\/deck\/worker/, replacement: `${craftDir}/src/deck/worker.ts` },
+      { find: /^craftbridge\/deck$/, replacement: `${craftDir}/src/deck/index.ts` },
+    ]
+  : [
+      { find: /^craftbridge\/deck\/worker/, replacement: new URL("./src/stubs/craftbridge-deck-worker.ts", import.meta.url).pathname },
+      { find: /^craftbridge\/deck$/, replacement: new URL("./src/stubs/craftbridge-deck.ts", import.meta.url).pathname },
+    ];
+
 if (!craftReady && process.argv.includes("build") && !process.env.OMNITEXT_NO_PDF_ENGINE) {
   throw new Error("The PDF engine is not built: run scripts/build-craftbridge.sh and set CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge (OMNITEXT_NO_PDF_ENGINE=1 builds without a PDF editor).");
 }
@@ -142,6 +154,7 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
     __CRAFT_PDF__: JSON.stringify(craftReady),
+    __CRAFT_DECK__: JSON.stringify(deckReady),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
   },
   // the editors and the app both use pdf.js/pdf-lib; keep one copy each.
@@ -151,7 +164,7 @@ export default defineConfig({
     // three: the 3D model viewer and dxf-viewer both use it; keep a single instance so
     // cross-instance objects (e.g. a THREE.Color passed to dxf-viewer) work correctly.
     dedupe: ["pdfjs-dist", "pdf-lib", "three"],
-    alias: [{ find: "jsdom", replacement: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname }, ...craftAliases],
+    alias: [{ find: "jsdom", replacement: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname }, ...craftAliases, ...deckAliases],
   },
   server: { fs: { allow: [".", craftDir] } },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every

@@ -22,7 +22,8 @@
     "paths": {
       "@intity/epub-js": ["./node_modules/@intity/epub-js/types/index.d.ts"],
       // Checked against the stub; vite.config.ts points the real build at craftbridge itself.
-      "craftbridge/pdf": ["./src/stubs/craftbridge-pdf.ts"]
+      "craftbridge/pdf": ["./src/stubs/craftbridge-pdf.ts"],
+      "craftbridge/deck": ["./src/stubs/craftbridge-deck.ts"]
     }
   },
   "include": ["src"]
