@@ -2743,7 +2743,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 async function start(): Promise<void> {
   await i18nReady;
   applyDom(); // resolve the static [data-i18n] attributes in index.html
-  for (const [id, keys] of [["btn-new", "Ctrl+Alt+N"], ["btn-open", "Ctrl+O"], ["btn-save", "Ctrl+S"], ["btn-print", "Ctrl+P"], ["btn-close", "Ctrl+Alt+W"]] as const) {
+  for (const [id, keys] of [["btn-new", "Ctrl+Alt+N"], ["btn-open", "Ctrl+O"], ["btn-save", "Ctrl+S"], ["btn-print", "Ctrl+P"], ["btn-close", "Ctrl+Alt+W"], ["btn-settings", "Ctrl+Alt+,"]] as const) {
     const b = $(id);
     b.title = `${b.title} (${shortcutLabel(keys)})`;
   }
