@@ -29,9 +29,9 @@
     "@types/sql.js": "^1.4.11",
     "@types/three": "^0.186.0",
     "fake-indexeddb": "^6.2.6",
-    "happy-dom": "^21.0.3",
+    "happy-dom": "^21.0.4",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   },
   "dependencies": {
@@ -97,7 +97,7 @@
     "opentype.js": "^2.0.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
-    "postal-mime": "^4.0.11",
+    "postal-mime": "^4.1.4",
     "quill": "^2.0.3",
     "quill-cursors": "^6.0.0",
     "react-filerobot-image-editor": "4.8.1",
