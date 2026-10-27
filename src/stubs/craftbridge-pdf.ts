@@ -220,7 +220,7 @@ export type EditCall =
   | { op: "deleteFieldWidget"; name: string; widget: number }
   | { op: "setFieldProps"; name: string; change: FieldChange }
   | { op: "setFieldActions"; name: string; actions: FieldActionInfo[] }
-  | { op: "runAction"; action: FieldAction; target?: string }
+  | { op: "runAction"; action: FieldAction | { kind: "click" }; target?: string }
   | { op: "setFieldScript"; name: string; event: ScriptEvent; script: string }
   | { op: "addRedaction"; page: number; boxes: Box[]; overlay?: string }
   | { op: "applyRedactions" }
@@ -392,7 +392,7 @@ export declare class PdfDocument {
   setFieldProps(name: string, change: FieldChange): Promise<void>;
   fieldActions(name: string): Promise<FieldActionInfo[]>;
   setFieldActions(name: string, actions: FieldActionInfo[]): Promise<void>;
-  runAction(action: FieldAction, target?: string): Promise<JsOutput>;
+  runAction(action: FieldAction | { kind: "click" }, target?: string): Promise<JsOutput>;
   takeJsOutput(): Promise<JsOutput>;
   fieldScripts(name: string): Promise<Partial<Record<ScriptEvent, string>>>;
   setFieldScript(name: string, event: ScriptEvent, script: string): Promise<void>;

@@ -6,7 +6,6 @@ import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pd
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
-import { isNative } from "../core/platform";
 import { t } from "../i18n";
 import {
   boxBetween,
@@ -2528,15 +2527,17 @@ class PdfCraftInstance implements EditorInstance {
     if (!doc || this.viewOnly) return;
     const actions = await doc.fieldActions(field.name).catch(() => [] as FieldActionInfo[]);
     const action = actions.find((a) => a.trigger === "mouse_up");
-    if (!action || action.kind === "other") return;
+    if (action?.kind === "other") return;
+    // a button with no action of its own may be an XFA form's, whose behaviour sits in the form's template
+    if (!action && field.kind !== "button") return;
     if (this.shared) {
       this.host.notifications.warn(t("pdfcraft.buttonsShared"));
       return;
     }
-    const { trigger: _trigger, ...plain } = action;
+    const plain = action ? (({ trigger: _trigger, ...rest }) => rest)(action) : { kind: "click" as const };
     let out: JsOutput | null = null;
     await this.run(page, async () => {
-      out = await doc.runAction(plain as FieldAction, field.name);
+      out = await doc.runAction(plain as FieldAction | { kind: "click" }, field.name);
     }, this.fieldSelection(page, field));
     this.afterEdit("all");
     if (out) await this.handleScriptOutput(out);
@@ -2576,30 +2577,9 @@ class PdfCraftInstance implements EditorInstance {
     } else if (r.type === "submit") await this.submitForm(r.url);
   }
 
-  /** Prints the document as it is now, where the browser can; the Android app has no print path. */
+  /** Prints the document the way the app does (a frame in the browser, the printer service on Android). */
   private printDocument(): void {
-    if (isNative() || !this.doc) {
-      this.host.notifications.warn(t("pdfcraft.printUnavailable"));
-      return;
-    }
-    void this.getBytes().then((bytes) => {
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const frame = document.createElement("iframe");
-      frame.style.cssText = "position:fixed;width:0;height:0;border:0";
-      frame.addEventListener("load", () => {
-        try {
-          frame.contentWindow?.print();
-        } catch {
-          this.host.notifications.warn(t("pdfcraft.printUnavailable"));
-        }
-        setTimeout(() => {
-          frame.remove();
-          URL.revokeObjectURL(url);
-        }, 60000);
-      });
-      frame.src = url;
-      document.body.appendChild(frame);
-    });
+    window.dispatchEvent(new Event("omnitext:print"));
   }
 
   /** Sends the form's values to a web address, after the person has seen where they go. */
