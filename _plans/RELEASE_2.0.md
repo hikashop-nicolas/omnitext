@@ -21,6 +21,21 @@ binding and the dependency are removed. Every build carries the engine, F-Droid 
 - Shortcuts: the host owns Cmd/Ctrl+S, O, K, P and Cmd/Ctrl+Alt+N (new), W (close), F (open
   folder), comma (settings). No editor uses an Alt combination, so these never clash.
 
+## Prepared 2026-10-27 (owner away)
+
+- Branch `release-2.0` (pushed, merged with main): versionName 2.0, fdroidVersionCode 20000, fastlane changelog
+  20000.txt (478 characters, the limit is 500) and the store text. Tagging is yours: merge or fast-forward it to main,
+  then tag fdroid-2.0 on the final commit.
+- The F-Droid recipe for 2.0 is at /tmp/recipe20.yml and in ~/dev/omnitext-fdroid-dryrun/metadata, with `commit:` set
+  to the branch tip at the time (2f50c21...). check-recipe.mjs accepts it. The repo's own copy
+  (scripts/fdroid/app.omnitext.yml) still says 1.11: update it, with the real tag commit, when you tag.
+- A full dry run (`scripts/fdroid/dry-run.sh ~/dev/omnitext-fdroid-dryrun app.omnitext:20000`) was started; its log is
+  in the session scratchpad (dryrun20.log). It builds all twelve binaries plus the engine, so it takes hours.
+- Engine work since the first checklist: Korean text (NanumGothic through craft-fonts, +2 MB wasm), scripts' sizes and
+  positions reach the layout, `xfa.layout` object model, shared script engine and a single layout per event (XFA forms
+  open 4 to 6 times faster), arcs drawn, clearing an XFA form skips read-only fields, and 47 real forms (CERFA, IRS,
+  USCIS, XFA corpus) pass an open/fill/save/edit/flatten audit without a crash.
+
 ## Before tagging
 
 1. Run the F-Droid dry run for real (`docs` section "Dry run" of FDROID_PLAN.md) and check the
@@ -49,7 +64,6 @@ Still offline unless you choose to share.
 
 ## Known limits to mention or fix later
 
-- Korean text cannot be added to a PDF.
 - XFA forms whose scripts use E4X XML literals or the full XFA host object model (LOV drop-down
   lists loaded from script objects, caption.value.resolveNode and similar) show their static
   state; the corpus of 12 dynamic XFA samples opens and lays out, scripts that need those fail
