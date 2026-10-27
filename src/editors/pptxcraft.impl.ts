@@ -396,7 +396,7 @@ class PptxCraftInstance implements EditorInstance {
         if (this.fitting) this.fit();
       }
     }
-    if (!initial && ov.revision !== undefined && this.lastRevision >= 0 && ov.revision !== this.lastRevision) {
+    if (!initial && ov.dirty && ov.revision !== undefined && this.lastRevision >= 0 && ov.revision !== this.lastRevision) {
       this.thumbDirty.add(ov.slide ?? 0);
       this.pumpThumbs();
       this.onChange();
