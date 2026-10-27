@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the PDF engine (PdfCraft's Rust engine as wasm, through craftbridge) into vendor/craftbridge, at the
+# Builds the PDF and presentation engines (PdfCraft and DeckCraft, Rust to wasm, through craftbridge) into vendor/craftbridge, at the
 # commit in craftbridge.rev. Needs git, a Rust toolchain with the wasm32-unknown-unknown target, and
 # wasm-bindgen-cli (INSTALL_WASM_BINDGEN=1 installs the one the engine asks for); binaryen's wasm-opt is optional.
 # Then build Omnitext with CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge (a build refuses to go on without the engine).
@@ -15,3 +15,4 @@ fi
 git -C "$dir" fetch --quiet origin "$rev"
 git -C "$dir" checkout --quiet --detach "$rev"
 sh "$dir/scripts/build-wasm.sh"
+sh "$dir/scripts/build-deck-wasm.sh"

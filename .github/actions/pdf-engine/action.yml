@@ -1,5 +1,5 @@
-name: Build the PDF engine
-description: Builds PdfCraft's engine to wasm (craftbridge) and points the build at it with CRAFTBRIDGE_DIR.
+name: Build the PDF and presentation engines
+description: Builds PdfCraft's and DeckCraft's engines to wasm (craftbridge) and points the build at it with CRAFTBRIDGE_DIR.
 runs:
   using: composite
   steps:
@@ -11,6 +11,7 @@ runs:
           ~/.cargo/git
           ~/.cargo/bin
           vendor/craftbridge/vendor/pdfcraft/target
+          vendor/craftbridge/vendor/deckcraft/target
         key: pdf-engine-${{ runner.os }}-${{ hashFiles('craftbridge.rev') }}
         restore-keys: pdf-engine-${{ runner.os }}-
     - name: Build the engine

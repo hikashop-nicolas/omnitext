@@ -143,6 +143,10 @@ const deckAliases = deckReady
       { find: /^craftbridge\/deck$/, replacement: new URL("./src/stubs/craftbridge-deck.ts", import.meta.url).pathname },
     ];
 
+if (!deckReady && process.argv.includes("build") && !process.env.OMNITEXT_NO_PDF_ENGINE) {
+  throw new Error("The presentation engine is not built: run scripts/build-craftbridge.sh (OMNITEXT_NO_PDF_ENGINE=1 builds without the engines).");
+}
+
 if (!craftReady && process.argv.includes("build") && !process.env.OMNITEXT_NO_PDF_ENGINE) {
   throw new Error("The PDF engine is not built: run scripts/build-craftbridge.sh and set CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge (OMNITEXT_NO_PDF_ENGINE=1 builds without a PDF editor).");
 }
