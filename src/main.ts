@@ -2021,13 +2021,22 @@ installRemoteConsent((m) => showToast(m, "info"));
 // In the build that packages the Tesseract engine, OCR loads it from here, not from the CDN.
 installBundledOcrEngine();
 
+const HOST_ALT_KEYS: Record<string, () => void> = {
+  KeyN: () => openNewDialog(),
+  KeyW: () => void closeDocument(),
+  KeyF: () => void openFolderAsPlaylist(),
+  Comma: () => settingsDialog.open(),
+};
+
 // Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
 // "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).
 document.addEventListener("keydown", (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
   // Plain Cmd/Ctrl+N belongs to the browser (new window), so New document adds Alt.
+  // Editors ignore every Alt combination, so Cmd/Ctrl+Alt is the host's own namespace.
   if (e.altKey) {
-    if (e.code === "KeyN") { e.preventDefault(); openNewDialog(); }
+    const run = HOST_ALT_KEYS[e.code];
+    if (run) { e.preventDefault(); run(); }
     return;
   }
   const k = e.key.toLowerCase();
@@ -2253,9 +2262,9 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.open"), hint: shortcutLabel("Ctrl+O"), run: () => void openFile() },
     { label: t("app.save"), hint: shortcutLabel("Ctrl+S"), run: () => void saveFile() },
     { label: t("app.print"), hint: shortcutLabel("Ctrl+P"), run: () => printDoc() },
-    { label: t("app.close"), run: () => void closeDocument() },
-    { label: t("app.settings"), run: () => settingsDialog.open() },
-    { label: t("app.openFolder"), run: () => void openFolderAsPlaylist() },
+    { label: t("app.close"), hint: shortcutLabel("Ctrl+Alt+W"), run: () => void closeDocument() },
+    { label: t("app.settings"), hint: shortcutLabel("Ctrl+Alt+,"), run: () => settingsDialog.open() },
+    { label: t("app.openFolder"), hint: shortcutLabel("Ctrl+Alt+F"), run: () => void openFolderAsPlaylist() },
   ];
   if (activeQueue()) out.push({ label: t("app.savePlaylist"), run: () => void savePlaylist() });
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, hint: cmd.keybinding ? shortcutLabel(cmd.keybinding) : undefined, run: () => void cmd.run() });
@@ -2734,7 +2743,7 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 async function start(): Promise<void> {
   await i18nReady;
   applyDom(); // resolve the static [data-i18n] attributes in index.html
-  for (const [id, keys] of [["btn-new", "Ctrl+Alt+N"], ["btn-open", "Ctrl+O"], ["btn-save", "Ctrl+S"], ["btn-print", "Ctrl+P"]] as const) {
+  for (const [id, keys] of [["btn-new", "Ctrl+Alt+N"], ["btn-open", "Ctrl+O"], ["btn-save", "Ctrl+S"], ["btn-print", "Ctrl+P"], ["btn-close", "Ctrl+Alt+W"]] as const) {
     const b = $(id);
     b.title = `${b.title} (${shortcutLabel(keys)})`;
   }
