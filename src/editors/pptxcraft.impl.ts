@@ -1,4 +1,5 @@
-import { EngineError, openDeck, type DeckSession, type Overlay, type SelectedShape } from "craftbridge/deck";
+import { unzipSync, strFromU8 } from "fflate";
+import { EngineError, deckFontUrls, openDeck, type DeckSession, type Overlay, type SelectedShape } from "craftbridge/deck";
 import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
 import { t } from "../i18n";
@@ -142,6 +143,8 @@ class PptxCraftInstance implements EditorInstance {
   private thumbSlides = 0;
   private notesFor = -1;
   private resizeObserver: ResizeObserver | null = null;
+  private fontsLoaded = new Set<string>();
+  private hansLikely = false;
   private opened: Promise<void> = Promise.resolve();
   private original: Uint8Array = new Uint8Array();
 
@@ -226,7 +229,8 @@ class PptxCraftInstance implements EditorInstance {
         this.session.close();
         return;
       }
-      await this.session.load(name, bytes);
+      await this.session.load(name, bytes.slice());
+      await this.scanFonts(bytes);
       await this.refresh(true);
       this.fit();
       this.syncSlides();
@@ -234,6 +238,37 @@ class PptxCraftInstance implements EditorInstance {
       if (!this.disposed) this.fail(e);
     } finally {
       this.endBusy();
+    }
+  }
+
+  /** Loads the Korean or Simplified Chinese face the first time `text` needs it. */
+  private async needFonts(text: string): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const want: [string, string][] = [];
+    if (/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/.test(text)) want.push(["hangul", deckFontUrls.hangul]);
+    if (/[\u4e00-\u9fff]/.test(text) && this.hansLikely) want.push(["hans", deckFontUrls.hans]);
+    for (const [key, url] of want) {
+      if (this.fontsLoaded.has(key)) continue;
+      this.fontsLoaded.add(key);
+      try {
+        const r = await fetch(url);
+        if (r.ok) await session.addFont(new Uint8Array(await r.arrayBuffer()));
+      } catch {
+        this.fontsLoaded.delete(key);
+      }
+    }
+  }
+
+  /** The slides' own text, read once to see which faces the file needs. */
+  private async scanFonts(bytes: Uint8Array): Promise<void> {
+    try {
+      const files = unzipSync(bytes, { filter: (f) => /^ppt\/(slides|notesSlides)\/[^/]+\.xml$/.test(f.name) });
+      const xml = Object.values(files).map((u) => strFromU8(u)).join("\n");
+      this.hansLikely = /lang="zh-(CN|SG|Hans)/i.test(xml) || !/[\u3040-\u30ff]/.test(xml);
+      await this.needFonts(xml);
+    } catch {
+      /* an unreadable archive is the engine's to report */
     }
   }
 
@@ -374,6 +409,8 @@ class PptxCraftInstance implements EditorInstance {
     const session = this.session;
     if (!session) return Promise.resolve();
     return this.enqueue(async () => {
+      const typed = (params as { text?: unknown } | null)?.text;
+      if (typeof typed === "string") await this.needFonts(typed);
       const r = await session.execute(id, params);
       if (slides) this.syncSlides(true);
       await this.refresh();
