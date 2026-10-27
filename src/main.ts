@@ -2024,7 +2024,12 @@ installBundledOcrEngine();
 // Global editor shortcuts. Cmd/Ctrl+S saves and Cmd/Ctrl+O opens, overriding the browser's
 // "save page"/"open file" so the app owns them (pdfedit/richdoc leave save to the host).
 document.addEventListener("keydown", (e) => {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
+  // Plain Cmd/Ctrl+N belongs to the browser (new window), so New document adds Alt.
+  if (e.altKey) {
+    if (e.code === "KeyN") { e.preventDefault(); openNewDialog(); }
+    return;
+  }
   const k = e.key.toLowerCase();
   if (k === "s") { e.preventDefault(); void saveFile(); }
   else if (k === "o") { e.preventDefault(); void openFile(); }
@@ -2238,18 +2243,22 @@ document.body.appendChild(paletteEl);
 let paletteItems: PaletteEntry[] = [];
 let paletteActive = 0;
 
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+/** A shortcut as the platform writes it: Ctrl+O, or ⌘O on a Mac. */
+const shortcutLabel = (keys: string): string => (MAC ? keys.replace("Ctrl+", "⌘").replace("Alt+", "⌥") : keys);
+
 function paletteEntries(): PaletteEntry[] {
   const out: PaletteEntry[] = [
-    { label: t("app.newDocument"), run: () => openNewDialog() },
-    { label: t("app.open"), hint: "Ctrl+O", run: () => void openFile() },
-    { label: t("app.save"), hint: "Ctrl+S", run: () => void saveFile() },
-    { label: t("app.print"), hint: "Ctrl+P", run: () => printDoc() },
+    { label: t("app.newDocument"), hint: shortcutLabel("Ctrl+Alt+N"), run: () => openNewDialog() },
+    { label: t("app.open"), hint: shortcutLabel("Ctrl+O"), run: () => void openFile() },
+    { label: t("app.save"), hint: shortcutLabel("Ctrl+S"), run: () => void saveFile() },
+    { label: t("app.print"), hint: shortcutLabel("Ctrl+P"), run: () => printDoc() },
     { label: t("app.close"), run: () => void closeDocument() },
     { label: t("app.settings"), run: () => settingsDialog.open() },
     { label: t("app.openFolder"), run: () => void openFolderAsPlaylist() },
   ];
   if (activeQueue()) out.push({ label: t("app.savePlaylist"), run: () => void savePlaylist() });
-  for (const cmd of engine.commands.list()) out.push({ label: cmd.title, run: () => void cmd.run() });
+  for (const cmd of engine.commands.list()) out.push({ label: cmd.title, hint: cmd.keybinding ? shortcutLabel(cmd.keybinding) : undefined, run: () => void cmd.run() });
   for (const c of viewChoices) {
     const id = c.editor.manifest.id;
     if (id === session?.editorId) continue;
@@ -2725,6 +2734,10 @@ async function maybeOpenPendingFile(): Promise<boolean> {
 async function start(): Promise<void> {
   await i18nReady;
   applyDom(); // resolve the static [data-i18n] attributes in index.html
+  for (const [id, keys] of [["btn-new", "Ctrl+Alt+N"], ["btn-open", "Ctrl+O"], ["btn-save", "Ctrl+S"], ["btn-print", "Ctrl+P"]] as const) {
+    const b = $(id);
+    b.title = `${b.title} (${shortcutLabel(keys)})`;
+  }
   engine.registerTool(historyTool); // registered after i18n so its button title is translated
   engine.registerTool(collabTool);
   void SessionStore.requestPersistent();

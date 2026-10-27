@@ -94,7 +94,7 @@ export function renderWelcome(tr: (k: string) => string, quick: QuickNew[], acti
     opts.native
       ? big(ICON.open, tr("welcome.openFile"), tr("welcome.openHintNative"), true, actions.open)
       : big(ICON.open, tr("welcome.openFile"), tr("welcome.orDrop"), true, actions.open, `${mod}+O`),
-    big(ICON.new, tr("welcome.newDoc"), tr("welcome.newHint"), false, actions.newDialog),
+    big(ICON.new, tr("welcome.newDoc"), tr("welcome.newHint"), false, actions.newDialog, opts.native ? undefined : `${mod}+Alt+N`),
   );
   inner.appendChild(actionsRow);
 
