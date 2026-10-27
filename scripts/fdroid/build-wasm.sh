@@ -20,6 +20,7 @@
 #   scripts/fdroid/build-wasm.sh            # every binary
 #   scripts/fdroid/build-wasm.sh sqljs      # just one
 #   scripts/fdroid/build-wasm.sh restore    # put the npm files back after a local run
+# The PDF engine (pdfengine) builds into vendor/craftbridge; build Omnitext after it with CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge.
 # Needs git, python3, perl, make, patch, gcc, clang + lld + wasi-libc (wasm32 target), curl,
 # unzip, pkg-config, libatomic1, node, sha3sum
 # (Debian: libdigest-sha3-perl), cmake (libass, libheif, tesseract), ninja + g++ +
@@ -436,13 +437,36 @@ build_onnxruntime() {
   done
 }
 
+# The PDF engine: PdfCraft (Rust) as wasm through craftbridge, at the commit in craftbridge.rev. It needs a newer
+# rustc than Debian ships, so the official standalone installers are used, with their checksums pinned. wasm-opt is
+# left out (Debian's binaryen is too old for the engine's reference types), which makes the wasm a few MB larger.
+build_pdfengine() {
+  echo "PDF engine"
+  rust=1.95.0
+  if [ ! -x "$WORK/rust/bin/rustc" ]; then
+    for part in "rust-$rust-x86_64-unknown-linux-gnu 2e0338f18ecbaa4a0f631b9e80e8b8e26bb6fe77dd5454fba8a70cf96c1e84a1" \
+      "rust-std-$rust-wasm32-unknown-unknown 5587b89ff69623d09e476439d44a24453b4e4ea3d5e0b53a5c0a935151ff3fd1"; do
+      set -- $part
+      curl -sSLf -o "$WORK/$1.tar.xz" "https://static.rust-lang.org/dist/$1.tar.xz"
+      echo "$2  $WORK/$1.tar.xz" | sha256sum -c -
+      tar xJf "$WORK/$1.tar.xz" -C "$WORK"
+      (cd "$WORK/$1" && ./install.sh --prefix="$WORK/rust" --disable-ldconfig >/dev/null)
+    done
+  fi
+  export CARGO_HOME="$WORK/cargo"
+  export PATH="$WORK/rust/bin:$CARGO_HOME/bin:$PATH"
+  # the same bytes wherever the build runs
+  export RUSTFLAGS="--remap-path-prefix=$WORK=/build --remap-path-prefix=$CARGO_HOME=/cargo"
+  INSTALL_WASM_BINDGEN=1 SKIP_WASM_OPT=1 sh "$ROOT/scripts/build-craftbridge.sh"
+}
+
 build_restore() {
   echo "restore npm binaries"
   [ -d "$WORK/npm-originals" ] || return 0
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif tesseract onnxruntime"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif tesseract onnxruntime pdfengine"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
