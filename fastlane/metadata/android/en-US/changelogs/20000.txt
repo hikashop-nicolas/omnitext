@@ -1,8 +1,8 @@
 New in this update:
 
-• A new PDF editor: fill and add form fields, buttons with actions and JavaScript, e-signatures, redaction, watermark, header and footer, bookmarks, attachments, comments and stamps, with Acrobat-style shortcuts
-• Opens complex forms such as French CERFA and US government forms, including XFA ones
+• A new PDF editor: form fields, buttons with JavaScript, e-signatures, redaction, watermark, header and footer, bookmarks, attachments, comments and stamps, with Acrobat-style shortcuts
+• Opens complex forms such as French CERFA and US government forms, XFA included
 • Adds and edits text in Latin, Greek, Cyrillic, Japanese, Chinese and Korean
-• New shortcuts for New document, Close, Settings and Open folder
+• New shortcuts: New document, Close, Settings, Open folder
 
 Still offline unless you choose to share.
