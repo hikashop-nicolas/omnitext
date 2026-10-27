@@ -941,7 +941,39 @@ class PdfCraftInstance implements EditorInstance {
     this.showMessage(t("pdfcraft.failed", { message: message(e) }));
   }
 
+  private busyEl: HTMLElement | null = null;
+  private busyTimer = 0;
+
+  /** A spinner over the pages while the engine reads the file and runs the form's scripts (a complex form takes seconds). */
+  private beginBusy(): void {
+    this.endBusy();
+    // not for a quick open, so ordinary files do not flash it
+    this.busyTimer = window.setTimeout(() => {
+      const box = el("div", "ot-loading");
+      box.setAttribute("role", "status");
+      const spin = el("span", "ot-loading-spinner");
+      box.append(spin, el("span", "ot-loading-label", t("loading.opening")));
+      this.root.querySelector(".ot-pc-body")?.appendChild(box);
+      this.busyEl = box;
+    }, 250);
+  }
+
+  private endBusy(): void {
+    window.clearTimeout(this.busyTimer);
+    this.busyEl?.remove();
+    this.busyEl = null;
+  }
+
   private async open(password?: string, wrong = false): Promise<void> {
+    this.beginBusy();
+    try {
+      await this.openDocument(password, wrong);
+    } finally {
+      this.endBusy();
+    }
+  }
+
+  private async openDocument(password?: string, wrong = false): Promise<void> {
     try {
       this.doc = await openPdf(this.original, { password, worker: new PdfWorker() });
       this.password = password;
@@ -2998,6 +3030,7 @@ class PdfCraftInstance implements EditorInstance {
 
   dispose(): void {
     this.disposed = true;
+    this.endBusy();
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.findTimer);
     window.removeEventListener("resize", this.onResize);
