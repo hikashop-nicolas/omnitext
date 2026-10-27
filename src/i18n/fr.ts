@@ -98,7 +98,6 @@ const fr: Dict = {
       tree: "Arbre",
       milkdown: "Enrichi",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Feuille",

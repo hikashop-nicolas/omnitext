@@ -102,7 +102,6 @@ const zh: Dict = {
       tree: "树形",
       milkdown: "富文本",
       quill: "所见即所得",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "工作表",

@@ -99,7 +99,6 @@ const en: Dict = {
       tree: "Tree",
       milkdown: "Rich",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Sheet",

@@ -439,5 +439,5 @@ export declare class PdfDocument {
 }
 
 export async function openPdf(_bytes: Uint8Array, _options?: OpenOptions): Promise<PdfDocument> {
-  throw new EngineError("failed", "the new PDF engine is not part of this build");
+  throw new EngineError("failed", "the PDF engine is not part of this build");
 }

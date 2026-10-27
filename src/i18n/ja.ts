@@ -99,7 +99,6 @@ const ja: Dict = {
       tree: "ツリー",
       milkdown: "リッチ",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "シート",

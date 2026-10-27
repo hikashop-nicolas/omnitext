@@ -98,7 +98,6 @@ const es: Dict = {
       tree: "Árbol",
       milkdown: "Enriquecido",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Hoja",

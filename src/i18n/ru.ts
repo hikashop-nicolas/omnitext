@@ -101,7 +101,6 @@ const ru: Dict = {
       tree: "Дерево",
       milkdown: "С оформлением",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Лист",

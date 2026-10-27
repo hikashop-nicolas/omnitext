@@ -98,7 +98,6 @@ const pt: Dict = {
       tree: "Árvore",
       milkdown: "Formatado",
       quill: "WYSIWYG",
-      pdf: "PDF",
       pdfcraft: "PDF",
       rtf: "RTF",
       sheet: "Folha",
