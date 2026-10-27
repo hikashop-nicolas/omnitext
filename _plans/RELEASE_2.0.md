@@ -24,7 +24,8 @@ binding and the dependency are removed. Every build carries the engine, F-Droid 
 ## Before tagging
 
 1. Run the F-Droid dry run for real (`docs` section "Dry run" of FDROID_PLAN.md) and check the
-   engine step; the first attempt of `scripts/fdroid/in-docker.sh pdfengine` is noted below.
+   engine step. `scripts/fdroid/in-docker.sh pdfengine` (x86_64 Debian trixie) builds the engine in
+   about 4 minutes on top of the downloads and gives a 29.7 MB wasm that opens the XFA corpus.
 2. Reproducibility: build the engine twice in clean containers and compare the wasm. If it
    differs, look at embedded paths first (the build remaps WORK and CARGO_HOME).
 3. APK size: the F-Droid APK grows by about 7 MB compressed because of the engine.
