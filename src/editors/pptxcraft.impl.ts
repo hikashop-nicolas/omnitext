@@ -2108,8 +2108,13 @@ class PptxCraftInstance implements EditorInstance {
     };
     document.addEventListener("keydown", keys, true);
     window.addEventListener("resize", onResize);
+    let downX = 0;
+    show.addEventListener("pointerdown", (e) => {
+      downX = e.clientX;
+    });
     show.addEventListener("pointerup", (e) => {
       if ((e.target as HTMLElement).closest("[data-px-media]")) return;
+      if (Math.abs(e.clientX - downX) > 60) return go(e.clientX < downX ? 1 : -1);
       const box = canvas.getBoundingClientRect();
       const k = this.slideW / box.width;
       const inside = e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;

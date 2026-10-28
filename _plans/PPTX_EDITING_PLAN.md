@@ -42,8 +42,9 @@ PDF/PNG export, master/layout/notes/handout views, sections, comments (reply, re
 thesaurus, compare, accessibility check, guides, edit points, slide multi-select, hyperlinks/actions followed in the
 show, show setup (loop, range, no animation), photo album, zoom links, icons, outline import, slide reuse.
 
-Not done: triggered animations (a shape starting another's sequence) and their click targets in the show, rehearse
-timings and kiosk mode, tab stops and ruler UI, drag-to-select table cells (the engine selects them and the editor
-shows the box; merge still asks for row/column numbers), moving guides by dragging, WordArt styles, video as a link
-or from a web page, recording narration, custom shows UI (the command exists), printing handout layouts in the
-browser (export to PDF works).
+Added later the same day: triggered animations (click targets in the show), merging the selected table cells, custom
+slide shows, tab stops, swipe navigation in the show, multi-select of slides.
+
+Not done: rehearse timings and kiosk mode, the ruler (tab stops are added by number), moving guides by dragging,
+WordArt styles, video as a link or from a web page, recording narration, printing handout layouts in the browser
+(export to PDF works), narration and ink in the show, closed captions.
