@@ -11,6 +11,10 @@ export interface InspectorHost {
   run(id: string, params?: unknown, slides?: boolean): Promise<unknown>;
   query<T>(id: string, params?: unknown): Promise<T | undefined>;
   overlay(): Overlay;
+  /** The shape whose points are being edited, if any, and the point last picked. */
+  pointsEditing(): number | null;
+  vertex(): { path: number; index: number } | null;
+  setEditingPoints(on: boolean): Promise<void>;
 }
 
 interface Rgb {
@@ -238,6 +242,7 @@ export class Inspector {
 
   private shapeSection(ids: number[], info: ShapeInfo | undefined, slide: SlideInfo | undefined): void {
     const d = this.section("shape", t("pptxcraft.shape"));
+    const kind1 = info?.shape?.kind?.type;
     const sh = info?.shape;
     const box = info?.box;
     if (ids.length === 1 && box) {
@@ -280,6 +285,17 @@ export class Inspector {
     this.row(d, t("pptxcraft.align"), al("left", "⇤"), al("center", "↔"), al("right", "⇥"), al("top", "⤒"), al("middle", "↕"), al("bottom", "⤓"));
     if (ids.length > 2) this.row(d, t("pptxcraft.distribute"), this.button("↔", () => this.do("arrange.distribute", { dir: "horizontal", to: "selection" })), this.button("↕", () => this.do("arrange.distribute", { dir: "vertical", to: "selection" })));
     this.row(d, t("pptxcraft.order"), this.button(t("pptxcraft.forward"), () => this.do("arrange.bringForward")), this.button(t("pptxcraft.backward"), () => this.do("arrange.sendBackward")));
+    if (ids.length === 1 && kind1 !== "picture" && kind1 !== "chart" && kind1 !== "table" && kind1 !== "media") {
+      const editing = this.h.pointsEditing() === ids[0];
+      this.row(d, t("pptxcraft.points"), this.button(editing ? t("pptxcraft.done") : t("pptxcraft.editPoints"), () => void this.h.setEditingPoints(!editing).then(() => this.schedule()), { on: editing }));
+      const v = this.h.vertex();
+      if (editing && v) {
+        const at = { path: v.path, index: v.index, id: ids[0] };
+        this.row(d, "", this.button(t("pptxcraft.deletePoint"), () => this.do("shape.deletePoint", at)), this.button(t("pptxcraft.addPoint"), () => this.do("shape.addPoint", { path: v.path, segment: v.index, id: ids[0] })));
+        this.row(d, t("pptxcraft.pointType"), this.select([["corner", t("pptxcraft.ptCorner")], ["smooth", t("pptxcraft.ptSmooth")], ["straight", t("pptxcraft.ptStraight")]], undefined, t("pptxcraft.pointType"), (x) => this.do("shape.pointType", { ...at, type: x })));
+        this.row(d, t("pptxcraft.segment"), this.button(t("pptxcraft.segStraight"), () => this.do("shape.segmentType", { path: v.path, segment: v.index, type: "straight", id: ids[0] })), this.button(t("pptxcraft.segCurved"), () => this.do("shape.segmentType", { path: v.path, segment: v.index, type: "curved", id: ids[0] })));
+      }
+    }
     this.row(d, t("pptxcraft.formatPainter"), this.button(t("pptxcraft.copyFormat"), () => this.do("format.painter", {})), this.button(t("pptxcraft.pasteFormat"), () => this.do("format.painterApply", {})));
     if (ids.length > 1) this.row(d, t("pptxcraft.mergeShapes"), ...([["union", t("pptxcraft.mUnion")], ["combine", t("pptxcraft.mCombine")], ["fragment", t("pptxcraft.mFragment")], ["intersect", t("pptxcraft.mIntersect")], ["subtract", t("pptxcraft.mSubtract")]] as [string, string][]).map(([op, l]) => this.button(l, () => this.do("shape.merge", { op, ids }))));
     this.row(d, t("pptxcraft.action"), this.button(t("pptxcraft.linkAction"), () => void this.shapeAction(ids)));

@@ -214,6 +214,9 @@ class PptxCraftInstance implements EditorInstance {
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
   private fileName = "presentation.pptx";
+  private pointsMode: number | null = null;
+  private points: { paths: [number, number][][] } | null = null;
+  private vertex: { path: number; index: number } | null = null;
   private showOpts: { loop: boolean; noAnimation: boolean; from: number; to: number } = { loop: false, noAnimation: false, from: 0, to: -1 };
   private pickKind: "image" | "video" | "audio" = "image";
   private mediaBySize = new Map<number, { bytes: Uint8Array; mime: string; name: string }>();
@@ -271,6 +274,9 @@ class PptxCraftInstance implements EditorInstance {
         return session ? (this.enqueue(() => session.execute<T>(id, params ?? {})) as Promise<T | undefined>) : Promise.resolve(undefined);
       },
       overlay: () => this.ov,
+      pointsEditing: () => this.pointsMode,
+      vertex: () => this.vertex,
+      setEditingPoints: (on) => this.setEditingPoints(on),
     };
     this.inspector = new Inspector(inspectorHost);
     this.inspector.el.hidden = true;
@@ -594,6 +600,7 @@ class PptxCraftInstance implements EditorInstance {
     if (ov.revision !== undefined) this.lastRevision = ov.revision;
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
     if (this.masterMode) this.markActiveThumb();
+    await this.syncPoints();
     this.drawOverlay();
     this.updateButtons();
     this.syncEditMedia();
@@ -651,6 +658,29 @@ class PptxCraftInstance implements EditorInstance {
     return e;
   }
 
+  /** While a shape's points are edited, keeps their positions at hand; leaves the mode when the selection moves on. */
+  private async syncPoints(): Promise<void> {
+    const session = this.session;
+    if (this.pointsMode === null || !session) return;
+    const sel = this.ov.selection ?? [];
+    if (sel.length !== 1 || sel[0]!.id !== this.pointsMode) {
+      this.pointsMode = null;
+      this.points = null;
+      this.vertex = null;
+      return;
+    }
+    this.points = (await session.execute<{ paths: [number, number][][] }>("shape.points", { id: this.pointsMode }).catch(() => null)) ?? null;
+  }
+
+  async setEditingPoints(on: boolean): Promise<void> {
+    const sel = this.ov.selection ?? [];
+    if (on && sel.length !== 1) return;
+    this.pointsMode = on ? sel[0]!.id : null;
+    this.vertex = null;
+    this.points = null;
+    await this.cmd("shape.editPoints", { on, id: sel[0]?.id });
+  }
+
   private drawOverlay(): void {
     const px = 1 / Math.max(this.zoom, 0.01);
     const kids: Element[] = [];
@@ -660,7 +690,15 @@ class PptxCraftInstance implements EditorInstance {
     for (const s of sel) {
       const pts = s.corners.map((c) => c.join(",")).join(" ");
       kids.push(this.svgEl("polygon", { points: pts, fill: "none", stroke: accent, "stroke-width": (editing ? 1 : 1.5) * px, "stroke-dasharray": editing ? `${4 * px} ${3 * px}` : s.locked ? `${5 * px} ${3 * px}` : "none" }));
-      if (!s.locked && !editing) this.drawHandles(kids, s, px, accent);
+      if (!s.locked && !editing && this.pointsMode !== s.id) this.drawHandles(kids, s, px, accent);
+    }
+    if (this.pointsMode !== null && this.points) {
+      this.points.paths.forEach((path, pi) => {
+        path.forEach((pt, i) => {
+          const on = this.vertex?.path === pi && this.vertex.index === i;
+          kids.push(this.svgEl("rect", { x: pt[0] - 4 * px, y: pt[1] - 4 * px, width: 8 * px, height: 8 * px, fill: on ? accent : "#fff", stroke: accent, "stroke-width": 1.5 * px }));
+        });
+      });
     }
     const tx = this.ov.text;
     if (tx) {
@@ -1012,7 +1050,8 @@ class PptxCraftInstance implements EditorInstance {
     const double = e.pointerType === "touch" && e.timeStamp - this.lastTap.t < 350 && Math.hypot(e.clientX - this.lastTap.x, e.clientY - this.lastTap.y) < 24;
     const kind = e.button === 2 ? "contextClick" : double ? "doubleClick" : e.detail === 2 && e.pointerType !== "touch" ? "doubleClick" : e.detail >= 3 ? "tripleClick" : "down";
     void this.enqueue(async () => {
-      await session.pointer({ kind, x: p.x, y: p.y, tol: p.tol, mods, pressure: e.pointerType === "pen" ? e.pressure : null });
+      const hit = (await session.pointer({ kind, x: p.x, y: p.y, tol: p.tol, mods, pressure: e.pointerType === "pen" ? e.pressure : null })) as { vertex?: [number, number] } | null;
+      if (this.pointsMode !== null) this.vertex = hit?.vertex ? { path: hit.vertex[0], index: hit.vertex[1] } : null;
       await this.refresh();
     });
   }
