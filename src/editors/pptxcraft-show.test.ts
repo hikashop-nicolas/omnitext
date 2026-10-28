@@ -39,6 +39,19 @@ describe("the slide show", () => {
     expect(r.index).toBe(4);
   });
 
+  it("goes straight to the next slide when clicked during a transition", async () => {
+    const { h } = host({ transition: async () => ({ kind: "fade", ms: 60000, afterMs: null }) });
+    Object.assign(h.session, { transitionBegin: async () => true, transitionFrame: () => new Promise((res) => setTimeout(() => res(null), 100)) });
+    const r = new ShowRunner(h);
+    await r.goto(0);
+    void r.next();
+    await new Promise((res) => setTimeout(res, 20));
+    void r.next();
+    await new Promise((res) => setTimeout(res, 20));
+    expect(r.index).toBe(2);
+    r.stop();
+  });
+
   it("skips hidden slides", async () => {
     const { h } = host({ hidden: [false, true, true, false, false] });
     const r = new ShowRunner(h);

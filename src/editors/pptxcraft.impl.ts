@@ -1895,33 +1895,72 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   /** The show on a second window (moved to another screen when the browser lets it), with the current slide, the next one, the notes and a clock here. */
+  /** Another screen to show the slides on, when the browser lets us see the screens (Window Management). */
+  private async otherScreen(): Promise<{ screen: unknown; w: number; h: number; dpr: number } | null> {
+    try {
+      const w = window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: unknown; screens: { width: number; height: number; devicePixelRatio?: number }[] }> };
+      const d = await w.getScreenDetails?.();
+      const o = d?.screens.find((x) => x !== d.currentScreen);
+      return o ? { screen: o, w: o.width, h: o.height, dpr: o.devicePixelRatio ?? 1 } : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async presenterView(): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const win = window.open("", "omnitext-slideshow", "popup=yes,width=1280,height=720");
-    if (!win) return void this.host.notifications.error(t("pptxcraft.popupBlocked"));
-    const wd = win.document;
-    wd.title = t("pptxcraft.slideshow");
-    wd.body.style.cssText = "margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;font:16px system-ui,sans-serif;color:#aaa";
-    const showCanvas = wd.createElement("canvas");
-    const hint = wd.createElement("div");
-    hint.textContent = t("pptxcraft.clickFullscreen");
-    hint.style.cssText = "position:fixed;bottom:12px;left:0;right:0;text-align:center;opacity:.7";
-    wd.body.append(showCanvas, hint);
-    wd.body.addEventListener("click", () => {
-      hint.remove();
-      void wd.documentElement.requestFullscreen?.().catch(() => undefined);
-    });
-    try {
-      const details = await (window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: unknown; screens: { availLeft: number; availTop: number; availWidth: number; availHeight: number }[] }> }).getScreenDetails?.();
-      const other = details?.screens.find((s) => s !== details.currentScreen);
-      if (other) {
-        win.moveTo(other.availLeft, other.availTop);
-        win.resizeTo(other.availWidth, other.availHeight);
+    // on a second screen the slides go full screen there at once; with one screen, a window the person places
+    const target = await this.otherScreen();
+    let ext: HTMLElement | null = null;
+    let win: Window | null = null;
+    let showCanvas: HTMLCanvasElement;
+    let showDoc: Document = document;
+    let showBody: HTMLElement;
+    if (target) {
+      ext = el("div", "ot-px-show");
+      ext.style.cssText = "left:-100000px;right:auto;width:100vw;height:100vh;cursor:none";
+      showCanvas = el("canvas");
+      ext.appendChild(showCanvas);
+      document.body.appendChild(ext);
+      try {
+        await (ext as unknown as { requestFullscreen(o: unknown): Promise<void> }).requestFullscreen({ screen: target.screen });
+      } catch {
+        ext.remove();
+        ext = null;
       }
-    } catch {
-      /* no permission or no such API: the person moves the window */
     }
+    if (!ext) {
+      win = window.open("", "omnitext-slideshow", "popup=yes,width=1280,height=720");
+      if (!win) return void this.host.notifications.error(t("pptxcraft.popupBlocked"));
+      const wd = win.document;
+      showDoc = wd;
+      wd.title = t("pptxcraft.slideshow");
+      wd.body.style.cssText = "margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;font:16px system-ui,sans-serif;color:#aaa";
+      showCanvas = wd.createElement("canvas");
+      const hint = wd.createElement("div");
+      hint.textContent = t("pptxcraft.clickFullscreen");
+      hint.style.cssText = "position:fixed;bottom:12px;left:0;right:0;text-align:center;opacity:.7";
+      wd.body.append(showCanvas, hint);
+      wd.body.addEventListener("click", () => {
+        hint.remove();
+        void wd.documentElement.requestFullscreen?.().catch(() => undefined);
+      });
+      showBody = wd.body;
+      try {
+        const details = await (window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: unknown; screens: { availLeft: number; availTop: number; availWidth: number; availHeight: number }[] }> }).getScreenDetails?.();
+        const other = details?.screens.find((x) => x !== details.currentScreen);
+        if (other) {
+          win.moveTo(other.availLeft, other.availTop);
+          win.resizeTo(other.availWidth, other.availHeight);
+        }
+      } catch {
+        /* no permission or no such API: the person moves the window */
+      }
+    } else showBody = ext;
+    const secondSize = (): { w: number; h: number } => (ext ? { w: ext.clientWidth || target!.w, h: ext.clientHeight || target!.h } : { w: win!.innerWidth || 1280, h: win!.innerHeight || 720 });
+    const secondDpr = ext ? target!.dpr : this.dpr;
+    const secondClosed = (): boolean => (win ? win.closed : false);
 
     const pv = el("div", "ot-pv");
     const main = el("div", "ot-pv-main");
@@ -1949,7 +1988,7 @@ class PptxCraftInstance implements EditorInstance {
     const tick = window.setInterval(() => {
       const sec = Math.floor((Date.now() - started) / 1000);
       clock.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-      if (win.closed) finish();
+      if (secondClosed()) finish();
     }, 500);
     let unmount: (() => void) | null = null;
     let seq = 0;
@@ -1958,7 +1997,7 @@ class PptxCraftInstance implements EditorInstance {
         session,
         () => [
           { canvas: mainCanvas, size: () => ({ w: main.clientWidth, h: main.clientHeight }), dpr: this.dpr },
-          { canvas: showCanvas, size: () => ({ w: win.innerWidth || 1280, h: win.innerHeight || 720 }), dpr: this.dpr },
+          { canvas: showCanvas, size: secondSize, dpr: secondDpr },
         ],
         {
           onLeave: () => {
@@ -1973,7 +2012,7 @@ class PptxCraftInstance implements EditorInstance {
             void this.drawTo(nextCanvas, shown + 1, nextWrap.clientWidth, nextWrap.clientHeight, this.dpr);
             const sb = showCanvas.getBoundingClientRect();
             const k = sb.width / this.slideW;
-            void this.mountMedia(wd.body, shown, (b) => ({ left: sb.left + b[0]! * k, top: sb.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true, doc: wd }).then((undo) => {
+            void this.mountMedia(showBody, shown, (b) => ({ left: sb.left + b[0]! * k, top: sb.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true, doc: showDoc }).then((undo) => {
               if (mine !== seq) undo();
               else unmount = undo;
             });
@@ -1993,10 +2032,15 @@ class PptxCraftInstance implements EditorInstance {
       runner.stop();
       unmount?.();
       document.removeEventListener("keydown", keys, true);
-      win.removeEventListener("resize", onResize);
+      win?.removeEventListener("resize", onResize);
+      document.removeEventListener("fullscreenchange", onResize);
       window.removeEventListener("resize", onResize);
       pv.remove();
-      if (!win.closed) win.close();
+      if (win && !win.closed) win.close();
+      if (ext) {
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+        ext.remove();
+      }
       void this.cmd("slide.go", { index: runner.index });
     };
     const keys = (e: KeyboardEvent): void => {
@@ -2011,9 +2055,10 @@ class PptxCraftInstance implements EditorInstance {
     };
     const onResize = (): void => void runner.redraw();
     document.addEventListener("keydown", keys, true);
-    win.document.addEventListener("keydown", keys, true);
-    win.addEventListener("resize", onResize);
-    win.addEventListener("beforeunload", () => window.setTimeout(() => win.closed && finish(), 0));
+    win?.document.addEventListener("keydown", keys, true);
+    win?.addEventListener("resize", onResize);
+    win?.addEventListener("beforeunload", () => window.setTimeout(() => win!.closed && finish(), 0));
+    if (ext) document.addEventListener("fullscreenchange", onResize);
     end.addEventListener("click", finish);
     window.addEventListener("resize", onResize);
     await runner.goto(this.ov.slide ?? 0);

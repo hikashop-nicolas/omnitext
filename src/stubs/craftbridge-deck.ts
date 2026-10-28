@@ -152,6 +152,14 @@ export class DeckSession {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }
 
+  transitionBegin(_index: number, _scale: number): Promise<boolean> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  transitionFrame(_t: number): Promise<Rendered> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
   renderShow(_index: number, _step: number, _t: number, _plays: TriggerPlay[], _scale: number): Promise<Rendered> {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }
