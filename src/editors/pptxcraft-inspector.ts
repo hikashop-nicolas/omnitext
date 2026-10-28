@@ -267,6 +267,7 @@ export class Inspector {
       this.row(d, t("pptxcraft.glow"), this.check(t("pptxcraft.on"), !!sh.effects?.glow, (on) => this.do("shape.effects", { glow: on ? { color: "#4a90d9", radius: 8 } : "none" })));
       this.row(d, t("pptxcraft.reflection"), this.select([["none", t("pptxcraft.none")], ["tight", t("pptxcraft.reflTight")], ["half", t("pptxcraft.reflHalf")], ["full", t("pptxcraft.reflFull")]], sh.effects?.reflection ? "half" : "none", t("pptxcraft.reflection"), (v) => this.do("shape.effects", { reflection: v })));
       this.row(d, t("pptxcraft.softEdges"), this.num(0, t("pptxcraft.softEdges"), (v) => this.do("shape.effects", { softEdges: v }), { min: 0 }));
+      this.row(d, t("pptxcraft.quickStyle"), this.num(0, t("pptxcraft.quickStyle"), (v) => this.do("shape.quickStyle", { index: Math.min(41, Math.max(0, Math.round(v))) }), { min: 0, max: 41 }), this.button(t("pptxcraft.setDefault"), () => this.do("shape.setDefault", {})));
       this.row(d, t("pptxcraft.altText"), (() => {
         const i = el("input");
         i.type = "text";
@@ -321,6 +322,11 @@ export class Inspector {
     this.row(d, "", tog("B", s.bold, "format.bold"), tog("I", s.italic, "format.italic"), tog("U", s.underline, "format.underline"), tog("S", s.strike, "format.strikethrough"), tog("x²", s.superscript, "format.superscript"), tog("x₂", s.subscript, "format.subscript"));
     this.row(d, t("pptxcraft.highlight"), this.swatch(null, t("pptxcraft.highlight"), (c) => this.do("format.highlight", c ? { color: c } : {}), t("pptxcraft.noFill")));
     this.row(d, t("pptxcraft.case"), this.select([["sentence", t("pptxcraft.caseSentence")], ["lower", t("pptxcraft.caseLower")], ["upper", t("pptxcraft.caseUpper")], ["title", t("pptxcraft.caseTitle")], ["toggle", t("pptxcraft.caseToggle")]], undefined, t("pptxcraft.case"), (v) => this.do("format.case", { mode: v })));
+    this.row(d, t("pptxcraft.caps"), this.select([["none", t("pptxcraft.none")], ["small", t("pptxcraft.capsSmall")], ["all", t("pptxcraft.capsAll")]], undefined, t("pptxcraft.caps"), (v) => this.do("format.caps", { caps: v })));
+    this.row(d, t("pptxcraft.textEffects"), this.button(t("pptxcraft.shadow"), () => this.do("format.textShadow", {})), this.swatch(null, t("pptxcraft.textOutline"), (c) => this.do("format.textOutline", c ? { color: c, width: 1 } : {}), t("pptxcraft.none")));
+    this.row(d, t("pptxcraft.textTransparency"), this.num(0, t("pptxcraft.textTransparency"), (v) => this.do("format.textTransparency", { value: Math.min(1, Math.max(0, v / 100)) }), { min: 0, max: 100, step: 10 }));
+    this.row(d, t("pptxcraft.textWarp"), this.select([["none", t("pptxcraft.none")], ["textArchUp", t("pptxcraft.warpArchUp")], ["textArchDown", t("pptxcraft.warpArchDown")], ["textCircle", t("pptxcraft.warpCircle")], ["textWave1", t("pptxcraft.warpWave")], ["textInflate", t("pptxcraft.warpInflate")]], undefined, t("pptxcraft.textWarp"), (v) => this.do("format.textWarp", { preset: v })));
+    this.row(d, "", this.button(t("pptxcraft.clearFormat"), () => this.do("format.clear", {})));
     this.row(d, t("pptxcraft.charSpacing"), this.select([["-3", t("pptxcraft.spVeryTight")], ["-1.5", t("pptxcraft.spTight")], ["0", t("pptxcraft.spNormal")], ["3", t("pptxcraft.spLoose")], ["6", t("pptxcraft.spVeryLoose")]], undefined, t("pptxcraft.charSpacing"), (v) => this.do("format.spacing", { pt: Number(v) })));
     const al = (a: string, glyph: string, title: string) => this.button(glyph, () => this.do("format.align", { align: a }), { on: s.align === a.charAt(0) || (a === "justify" && s.align === "just"), title });
     this.row(d, t("pptxcraft.paragraph"), al("left", "☰", t("pptxcraft.alignLeft")), al("center", "≡", t("pptxcraft.alignCenter")), al("right", "☷", t("pptxcraft.alignRight")), al("justify", "▤", t("pptxcraft.justify")));
@@ -503,9 +509,17 @@ export class Inspector {
     const d = this.section("slide", t("pptxcraft.slideTitle", { n: index + 1 }));
     const layouts = this.layouts ?? [];
     this.row(d, t("pptxcraft.layout"), this.select(layouts.map((l) => [l, l] as [string, string]), slide?.layout, t("pptxcraft.layout"), (v) => this.do("slide.layout", { layout: v }, true)));
+    const nm = el("input");
+    nm.type = "text";
+    nm.value = "";
+    nm.placeholder = t("pptxcraft.name");
+    nm.setAttribute("aria-label", t("pptxcraft.renameSlide"));
+    nm.addEventListener("change", () => nm.value.trim() && this.do("slide.rename", { name: nm.value.trim(), index }));
+    this.row(d, t("pptxcraft.renameSlide"), nm);
     this.row(d, t("pptxcraft.background"), this.swatch(slide?.background ?? null, t("pptxcraft.background"), (c) => c && this.do("design.background", { color: c })),
       this.button(t("pptxcraft.applyAll"), () => slide?.background && this.do("design.background", { color: slide.background, all: true }), { title: t("pptxcraft.applyAllBackground") }),
       this.button(t("pptxcraft.reset"), () => this.do("design.background", { reset: true })));
+    this.row(d, "", this.check(t("pptxcraft.hideBackgroundGraphics"), false, (v) => this.do("design.hideBackgroundGraphics", { hide: v })));
     this.row(d, "", this.check(t("pptxcraft.hideSlide"), slide?.hidden, (v) => this.do("slide.hide", { hidden: v, index }, true)), this.button(t("pptxcraft.resetSlide"), () => this.do("slide.reset", { index })));
     const tr = slide?.transition;
     const kinds = (this.transitions ?? []).map((x) => [x.id, x.label] as [string, string]);
@@ -562,6 +576,7 @@ export class Inspector {
     if (th.colorSchemes?.length) this.row(d, t("pptxcraft.themeColors"), this.select(th.colorSchemes.map((n) => [n, n] as [string, string]), undefined, t("pptxcraft.themeColors"), (v) => this.do("design.colors", { name: v })));
     if (th.fontSchemes?.length) this.row(d, t("pptxcraft.themeFonts"), this.select(th.fontSchemes.map((n) => [n.name, n.name] as [string, string]), undefined, t("pptxcraft.themeFonts"), (v) => this.do("design.fonts", { name: v })));
     this.row(d, "", this.button(t("pptxcraft.designIdeas"), () => void this.designIdeas()));
+    this.row(d, t("pptxcraft.themeEffects"), this.select(((this.themes as { effectSchemes?: string[] } | null)?.effectSchemes ?? []).map((n) => [n, n] as [string, string]), undefined, t("pptxcraft.themeEffects"), (v) => this.do("design.effects", { name: v })));
     this.row(d, t("pptxcraft.variants"), ...[0, 1, 2, 3].map((i) => this.button(String(i + 1), () => this.do("design.variant", { index: i }))));
     this.row(d, t("pptxcraft.slideSize"), this.select([["widescreen", t("pptxcraft.sizeWide")], ["standard", t("pptxcraft.sizeStandard")]], undefined, t("pptxcraft.slideSize"), (v) => this.do("design.slideSize", { preset: v, scale: "ensureFit" })));
     this.row(d, "", this.check(t("pptxcraft.slideNumber"), undefined, (v) => this.do("design.headerFooter", { slideNumber: v })), this.check(t("pptxcraft.footer"), undefined, (v) => this.do("design.headerFooter", { footer: v })), this.check(t("pptxcraft.date"), undefined, (v) => this.do("design.headerFooter", { date: v })));

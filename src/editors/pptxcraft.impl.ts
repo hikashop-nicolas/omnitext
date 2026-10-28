@@ -215,6 +215,8 @@ class PptxCraftInstance implements EditorInstance {
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
   private fileName = "presentation.pptx";
+  private guides: { vertical: boolean; pos: number }[] = [];
+  private guidesOn = false;
   private pointsMode: number | null = null;
   private points: { paths: [number, number][][] } | null = null;
   private vertex: { path: number; index: number } | null = null;
@@ -261,7 +263,7 @@ class PptxCraftInstance implements EditorInstance {
     this.notesWrap.appendChild(this.notes);
     this.banner = el("div", "ot-px-banner");
     this.banner.hidden = true;
-    const bannerLabel = el("span", undefined, t("pptxcraft.masterView"));
+    const bannerLabel = el("span", undefined, t("pptxcraft.masterBanner"));
     const bannerClose = el("button", "btn", t("pptxcraft.closeMaster"));
     bannerClose.type = "button";
     bannerClose.addEventListener("click", () => void this.cmd("view.closeMaster", {}, true));
@@ -607,6 +609,7 @@ class PptxCraftInstance implements EditorInstance {
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
     if (this.masterMode) this.markActiveThumb();
     await this.syncPoints();
+    if (this.guides.length || this.guidesOn) this.guides = (await session.execute<{ vertical: boolean; pos: number }[]>("guide.list", {}).catch(() => [])) ?? [];
     this.drawOverlay();
     this.updateButtons();
     this.syncEditMedia();
@@ -697,6 +700,12 @@ class PptxCraftInstance implements EditorInstance {
       const pts = s.corners.map((c) => c.join(",")).join(" ");
       kids.push(this.svgEl("polygon", { points: pts, fill: "none", stroke: accent, "stroke-width": (editing ? 1 : 1.5) * px, "stroke-dasharray": editing ? `${4 * px} ${3 * px}` : s.locked ? `${5 * px} ${3 * px}` : "none" }));
       if (!s.locked && !editing && this.pointsMode !== s.id) this.drawHandles(kids, s, px, accent);
+    }
+    const cells = this.ov.cells;
+    if (cells) kids.push(this.svgEl("rect", { x: cells[0], y: cells[1], width: cells[2], height: cells[3], fill: "rgba(42,109,244,.25)", stroke: accent, "stroke-width": 1.5 * px }));
+    for (const g of this.guides) {
+      const a = g.vertical ? { x1: g.pos, y1: 0, x2: g.pos, y2: this.slideH } : { x1: 0, y1: g.pos, x2: this.slideW, y2: g.pos };
+      kids.push(this.svgEl("line", { ...a, stroke: "#d6409f", "stroke-width": px, "stroke-dasharray": `${6 * px} ${4 * px}` }));
     }
     if (this.pointsMode !== null && this.points) {
       this.points.paths.forEach((path, pi) => {
@@ -1304,6 +1313,9 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.smartArt"), run: () => void this.insertSmartArt() },
       { label: t("pptxcraft.wordArt"), run: () => void this.insertWordArt() },
       { label: t("pptxcraft.icon"), run: () => void this.insertIcon() },
+      { label: t("pptxcraft.photoAlbum"), run: () => void this.insertPhotoAlbum() },
+      { label: t("pptxcraft.actionButton"), run: () => void this.insertActionButton() },
+      { label: t("pptxcraft.zoom"), run: () => void this.insertZoom() },
       { label: t("pptxcraft.fromOutline"), run: () => void this.fromOutline() },
       { label: t("pptxcraft.reuseSlides"), run: () => this.reuseInput.click() },
       { label: t("pptxcraft.symbol"), run: () => void this.insertSymbol() },
@@ -1341,6 +1353,99 @@ class PptxCraftInstance implements EditorInstance {
     if (!v) return;
     const items = String(v.items).split(/\r?\n/).filter((x) => x.trim() !== "");
     if (items.length) await this.cmd("insert.smartArt", { kind: String(v.kind), items });
+  }
+
+  /** Asks for files; call it straight from a click so the browser allows the picker. */
+  private pickFiles(accept: string, multiple = false): Promise<File[]> {
+    return new Promise((resolve) => {
+      const i = el("input");
+      i.type = "file";
+      i.accept = accept;
+      i.multiple = multiple;
+      i.hidden = true;
+      this.root.appendChild(i);
+      const done = (files: File[]): void => {
+        i.remove();
+        resolve(files);
+      };
+      i.addEventListener("change", () => done([...(i.files ?? [])]));
+      i.addEventListener("cancel", () => done([]));
+      i.click();
+    });
+  }
+
+  private async insertPhotoAlbum(): Promise<void> {
+    const files = await this.pickFiles("image/*", true);
+    if (!files.length) return;
+    const v = await this.dialog(t("pptxcraft.photoAlbum"), [
+      { key: "layout", label: t("pptxcraft.perPage"), kind: "select", value: "1", options: [["fit", t("pptxcraft.fitSlide")], ["1", "1"], ["2", "2"], ["4", "4"]] },
+      { key: "frame", label: t("pptxcraft.frame"), kind: "select", value: "none", options: [["none", t("pptxcraft.none")], ["rect", t("pptxcraft.frameRect")], ["rounded", t("pptxcraft.frameRounded")], ["simple", t("pptxcraft.frameSimple")]] },
+      { key: "captions", label: t("pptxcraft.captions"), kind: "check", value: false },
+      { key: "gray", label: t("pptxcraft.grayscale"), kind: "check", value: false },
+    ]);
+    if (!v) return;
+    const pictures = await Promise.all(files.map(async (f) => ({ name: f.name, data: base64(new Uint8Array(await f.arrayBuffer())) })));
+    await this.cmd("insert.photoAlbum", { pictures, layout: String(v.layout), frame: String(v.frame), captions: !!v.captions, grayscale: !!v.gray }, true);
+  }
+
+  private async insertActionButton(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.actionButton"), [{ key: "kind", label: t("pptxcraft.actionButton"), kind: "select", value: "forward", options: [["back", t("pptxcraft.actPrevious")], ["forward", t("pptxcraft.actNext")], ["beginning", t("pptxcraft.actFirst")], ["end", t("pptxcraft.actLast")], ["home", t("pptxcraft.abHome")], ["information", t("pptxcraft.abInfo")], ["help", t("pptxcraft.abHelp")], ["custom", t("pptxcraft.abCustom")]] }]);
+    if (v) await this.cmd("insert.actionButton", { kind: String(v.kind) });
+  }
+
+  private async insertZoom(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.zoom"), [
+      { key: "kind", label: t("pptxcraft.zoom"), kind: "select", value: "slide", options: [["slide", t("pptxcraft.zoomSlide")], ["section", t("pptxcraft.zoomSection")], ["summary", t("pptxcraft.zoomSummary")]] },
+      { key: "which", label: t("pptxcraft.whichSlides"), kind: "text", value: "", placeholder: "1,3" },
+    ]);
+    if (!v) return;
+    const nums = String(v.which).split(",").map((x) => Number(x.trim()) - 1).filter((x) => Number.isInteger(x) && x >= 0);
+    const kind = String(v.kind);
+    await this.cmd("insert.zoom", { kind, ...(kind === "section" ? { sections: nums.length ? nums : [0] } : { slides: nums.length ? nums : [this.ov.slide ?? 0] }) });
+  }
+
+  private async thesaurus(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const r = await this.enqueue(() => session.execute<{ word: string; senses: { word: string; synonyms: string[] }[] }>("review.thesaurus", {}));
+    if (!r) return;
+    const lines = r.senses.map((x) => `${x.word}: ${x.synonyms.slice(0, 8).join(", ")}`);
+    await messageDialog(this.root, { title: `${t("pptxcraft.thesaurus")}: ${r.word}`, message: lines.length ? lines.join("\n") : t("pptxcraft.noProblems"), ok: t("pptxcraft.ok") });
+  }
+
+  private async compareDeck(): Promise<void> {
+    const session = this.session;
+    const [file] = await this.pickFiles(".pptx");
+    if (!session || !file) return;
+    const data = base64(new Uint8Array(await file.arrayBuffer()));
+    const r = await this.enqueue(() => session.execute<{ changes: number }>("review.compare", { data, name: file.name }));
+    if (!r) return;
+    const rev = await this.enqueue(() => session.execute<{ changes: { kind: string; slide: number; details?: string }[] }>("review.revisions", {}));
+    const lines = (rev?.changes ?? []).slice(0, 60).map((c) => `${c.slide + 1}: ${c.kind}${c.details ? ` (${c.details})` : ""}`);
+    const accept = await messageDialog(this.root, { title: t("pptxcraft.compare"), message: `${t("pptxcraft.changesCount", { n: r.changes })}\n${lines.join("\n")}`, ok: t("pptxcraft.acceptAll"), cancel: t("pptxcraft.rejectAll") });
+    await this.cmd(accept ? "review.accept" : "review.reject", { all: true }, true);
+    await this.cmd("review.endCompare", {}, true);
+  }
+
+  private async applyTheme(): Promise<void> {
+    const [file] = await this.pickFiles(".pptx,.potx,.thmx");
+    if (file) await this.cmd("design.browseTheme", { name: file.name, data: base64(new Uint8Array(await file.arrayBuffer())) }, true);
+  }
+
+  private async replaceFont(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const used = (await this.enqueue(() => session.execute<string[]>("font.used", {}))) ?? [];
+    const v = await this.dialog(t("pptxcraft.replaceFont"), [
+      { key: "from", label: t("pptxcraft.fromFont"), kind: "select", value: used[0] ?? "", options: used.map((f) => [f, f] as [string, string]) },
+      { key: "to", label: t("pptxcraft.toFont"), kind: "text", value: "Inter" },
+    ]);
+    if (v && String(v.from) && String(v.to).trim()) await this.cmd("font.replace", { from: String(v.from), to: String(v.to).trim() });
+  }
+
+  private async proofingLanguage(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.language"), [{ key: "lang", label: t("pptxcraft.language"), kind: "select", value: "en-US", options: [["en-US", "English (US)"], ["en-GB", "English (UK)"], ["fr-FR", "Français"], ["de-DE", "Deutsch"], ["es-ES", "Español"], ["pt-BR", "Português (Brasil)"], ["ru-RU", "Русский"], ["ja-JP", "日本語"], ["zh-CN", "中文(简体)"], ["ko-KR", "한국어"]] }]);
+    if (v) await this.cmd("format.languageAll", { lang: String(v.lang) });
   }
 
   private async insertIcon(): Promise<void> {
@@ -1407,7 +1512,17 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.findReplace"), run: () => void this.findReplace() },
       { label: t("pptxcraft.spelling"), run: () => void this.spelling() },
       { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
+      { label: t("pptxcraft.thesaurus"), run: () => void this.thesaurus() },
+      { label: t("pptxcraft.compare"), run: () => void this.compareDeck() },
+      { label: t("pptxcraft.language"), run: () => void this.proofingLanguage() },
+      { label: t("pptxcraft.applyTheme"), run: () => void this.applyTheme() },
+      { label: t("pptxcraft.replaceFont"), run: () => void this.replaceFont() },
+      { label: t("pptxcraft.guideV"), run: () => void this.addGuide(true) },
+      { label: t("pptxcraft.guideH"), run: () => void this.addGuide(false) },
+      { label: t("pptxcraft.guideClear"), run: () => void this.clearGuides() },
       { label: t("pptxcraft.masterView"), run: () => void this.cmd("view.slideMaster", {}, true) },
+      { label: t("pptxcraft.notesMaster"), run: () => void this.cmd("view.notesMaster", {}, true) },
+      { label: t("pptxcraft.handoutMaster"), run: () => void this.cmd("view.handoutMaster", {}, true) },
       { label: t("pptxcraft.closeMaster"), run: () => void this.cmd("view.closeMaster", {}, true) },
       { label: t("pptxcraft.exportPdf"), run: () => void this.exportPdf() },
       { label: t("pptxcraft.exportPng"), run: () => void this.exportPng() },
@@ -1418,6 +1533,20 @@ class PptxCraftInstance implements EditorInstance {
 
   private baseName(): string {
     return this.fileName.replace(/\.[^./\\]+$/, "") || "presentation";
+  }
+
+  private async addGuide(vertical: boolean): Promise<void> {
+    this.guidesOn = true;
+    await this.cmd("guide.add", { vertical });
+  }
+
+  private async clearGuides(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    for (let i = this.guides.length - 1; i >= 0; i--) await this.enqueue(() => session.execute("guide.delete", { index: i }));
+    this.guides = [];
+    this.guidesOn = false;
+    await this.cmd("edit.deselect", {});
   }
 
   private async exportPdf(): Promise<void> {

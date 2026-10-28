@@ -57,6 +57,7 @@ export interface Overlay {
   revision?: number;
   slide?: number;
   slides?: number;
+  cells?: [number, number, number, number] | null;
   target?: { kind: "slides" | "master" | "layout" | "handout" | "notesMaster"; master?: number; layout?: number };
   width?: number;
   height?: number;
