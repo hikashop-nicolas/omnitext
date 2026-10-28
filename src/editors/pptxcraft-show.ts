@@ -18,6 +18,8 @@ export interface ShowHost {
   hidden?: boolean[];
   loop?: boolean;
   noAnimation?: boolean;
+  /** A custom show: the slides to play, in order (hidden slides and the range do not apply). */
+  order?: number[];
   /** The slides the show covers (inclusive). */
   range?: [number, number];
   slideW: number;
@@ -164,12 +166,17 @@ export class ShowRunner {
 
   /** The first slide of the show (hidden slides and the range left out). */
   first(): number {
+    if (this.h.order?.length) return this.h.order[0]!;
     for (let i = this.lo(); i <= this.hi(); i++) if (!this.h.hidden?.[i]) return i;
     return this.lo();
   }
 
   /** The next shown slide in a direction, or null at the end. */
   private neighbour(dir: 1 | -1): number | null {
+    if (this.h.order?.length) {
+      const at = this.h.order.indexOf(this.index);
+      return this.h.order[at + dir] ?? null;
+    }
     for (let i = this.index + dir; i >= this.lo() && i <= this.hi(); i += dir) if (!this.h.hidden?.[i]) return i;
     return null;
   }

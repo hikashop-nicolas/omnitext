@@ -223,6 +223,8 @@ class PptxCraftInstance implements EditorInstance {
   private pointsMode: number | null = null;
   private points: { paths: [number, number][][] } | null = null;
   private vertex: { path: number; index: number } | null = null;
+  private customShows = new Map<string, number[]>();
+  private showOrder: number[] | null = null;
   private showOpts: { loop: boolean; noAnimation: boolean; from: number; to: number } = { loop: false, noAnimation: false, from: 0, to: -1 };
   private pickKind: "image" | "video" | "audio" = "image";
   private mediaBySize = new Map<number, { bytes: Uint8Array; mime: string; name: string }>();
@@ -1824,6 +1826,7 @@ class PptxCraftInstance implements EditorInstance {
     const total = this.ov.slides ?? 1;
     return {
       hidden: (info?.slides ?? []).map((x) => !!x.hidden),
+      ...(this.showOrder ? { order: this.showOrder } : {}),
       loop: this.showOpts.loop,
       noAnimation: this.showOpts.noAnimation,
       range: [Math.max(0, this.showOpts.from), this.showOpts.to < 0 ? total - 1 : Math.min(total - 1, this.showOpts.to)],
@@ -1868,6 +1871,7 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.fromBeginning"), run: () => void this.present(0) },
       { label: t("pptxcraft.presenterView"), run: () => void this.presenterView() },
       { label: t("pptxcraft.setupShow"), run: () => void this.setupShow() },
+      { label: t("pptxcraft.customShow"), run: () => void this.customShow() },
     ]);
   }
 
@@ -2011,6 +2015,35 @@ class PptxCraftInstance implements EditorInstance {
     end.addEventListener("click", finish);
     window.addEventListener("resize", onResize);
     await runner.goto(this.ov.slide ?? 0);
+  }
+
+  private async customShow(): Promise<void> {
+    const names = [...this.customShows.keys()];
+    const v = await this.dialog(t("pptxcraft.customShow"), [
+      { key: "play", label: t("pptxcraft.playExisting"), kind: "select", value: "", options: [["", t("pptxcraft.newShow")], ...names.map((n) => [n, n] as [string, string])] },
+      { key: "name", label: t("pptxcraft.name"), kind: "text", value: "" },
+      { key: "slides", label: t("pptxcraft.whichSlides"), kind: "text", value: "", placeholder: "1,3,5-7" },
+    ]);
+    if (!v) return;
+    let order: number[] | undefined = this.customShows.get(String(v.play));
+    if (!order) {
+      order = [];
+      for (const part of String(v.slides).split(",")) {
+        const m = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+        if (!m) continue;
+        for (let i = Number(m[1]); i <= Number(m[2] ?? m[1]); i++) order.push(i - 1);
+      }
+      const name = String(v.name).trim() || t("pptxcraft.customShow");
+      if (!order.length) return;
+      this.customShows.set(name, order);
+      await this.cmd("show.customShow", { name, slides: order });
+    }
+    this.showOrder = order;
+    try {
+      await this.present(order[0]);
+    } finally {
+      this.showOrder = null;
+    }
   }
 
   private async setupShow(): Promise<void> {
