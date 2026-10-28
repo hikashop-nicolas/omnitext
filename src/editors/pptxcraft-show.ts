@@ -101,7 +101,8 @@ export class ShowRunner {
       this.inTransition = true;
       // the two slides are drawn once, at the size of the biggest screen; each frame only composites them
       const biggest = Math.max(...this.h.surfaces().map((s) => { const z = s.size(); return Math.min(z.w / this.h.slideW, z.h / this.h.slideH) * s.dpr; }), 0.05);
-      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, biggest));
+      // a transition frame is composited and copied every few milliseconds: past this size a big screen would make it stutter
+      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, Math.min(biggest, 1600 / this.h.slideW)));
       if (gen !== this.gen) { this.inTransition = false; return; }
       const dur = tr.ms / 1000;
       await this.animate(dur, gen, (t) => (cached ? this.cachedFrame(t / dur, gen) : this.frame("tr", idx, 0, t / dur, gen)));
@@ -246,11 +247,12 @@ export class ShowRunner {
       const k = Math.min(z.w / this.h.slideW, z.h / this.h.slideH);
       const w = Math.max(1, Math.round(this.h.slideW * k * s.dpr));
       const h = Math.max(1, Math.round(this.h.slideH * k * s.dpr));
-      if (s.canvas.width !== w || s.canvas.height !== h) {
-        s.canvas.width = w;
-        s.canvas.height = h;
+      // the canvas keeps the frame's own size and the page scales it, which is far cheaper than resampling every frame
+      if (s.canvas.width !== r.width || s.canvas.height !== r.height) {
+        s.canvas.width = r.width;
+        s.canvas.height = r.height;
       }
-      s.canvas.getContext("2d")?.drawImage(src, 0, 0, w, h);
+      s.canvas.getContext("2d")?.drawImage(src, 0, 0);
       s.canvas.style.width = `${w / s.dpr}px`;
       s.canvas.style.height = `${h / s.dpr}px`;
     }
