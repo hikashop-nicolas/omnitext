@@ -349,7 +349,7 @@ export class Inspector {
     const tb = (label: string, cmd: string) => this.button(label, () => this.do(cmd, { id }), { title: label });
     this.row(d, t("pptxcraft.rows"), tb("＋↑", "table.insertRowAbove"), tb("＋↓", "table.insertRowBelow"), tb("－", "table.deleteRow"));
     this.row(d, t("pptxcraft.columns"), tb("＋←", "table.insertColumnLeft"), tb("＋→", "table.insertColumnRight"), tb("－", "table.deleteColumn"));
-    this.row(d, t("pptxcraft.cells"), this.button(t("pptxcraft.merge"), () => void this.mergeCells(id)), this.button(t("pptxcraft.split"), () => this.do("table.split", { id })));
+    this.row(d, t("pptxcraft.cells"), this.button(t("pptxcraft.merge"), () => void this.mergeCells(id)), this.button(t("pptxcraft.split"), () => { const r = this.h.overlay().cellRange; this.do("table.split", r ? { cell: [r[0], r[1]], id } : { id }); }));
     this.row(d, t("pptxcraft.tableStyle"), this.select([["medium2-accent1", t("pptxcraft.tsMedium")], ["light1-accent1", t("pptxcraft.tsLight")], ["dark1-tx1", t("pptxcraft.tsDark")], ["grid", t("pptxcraft.tsGrid")], ["none", t("pptxcraft.none")]], undefined, t("pptxcraft.tableStyle"), (v) => this.do("table.style", { style: v, id })));
     const opt = (key: string, label: string, on = true) => this.check(label, on, (v) => this.do("table.options", { [key]: v, id }));
     this.row(d, "", opt("headerRow", t("pptxcraft.headerRow")), opt("bandedRows", t("pptxcraft.bandedRows")));
@@ -377,6 +377,8 @@ export class Inspector {
   }
 
   private async mergeCells(id: number): Promise<void> {
+    const range = this.h.overlay().cellRange;
+    if (range) return this.do("table.merge", { from: [range[0], range[1]], to: [range[2], range[3]], id });
     const v = await formDialog(this.h.root, {
       title: t("pptxcraft.merge"),
       ok: t("pptxcraft.ok"),

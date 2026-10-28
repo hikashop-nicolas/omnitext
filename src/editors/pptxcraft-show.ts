@@ -1,4 +1,4 @@
-import type { DeckSession, Rendered } from "craftbridge/deck";
+import type { DeckSession, Rendered, TriggerPlay } from "craftbridge/deck";
 
 // Plays a slide show on one or more canvases: the slide's transition, then its animations a click at a time. The engine draws
 // each frame (renderTransition, renderStep); this keeps the clock and the position.
@@ -46,6 +46,8 @@ export class ShowRunner {
   step = 0;
   steps = 0;
   private auto: boolean[] = [];
+  private trig = new Map<number, { steps: number; durations: number[]; done: number }>();
+  private trigClock: { trigger: number; t: number } | null = null;
   private durations: number[] = [];
   private gen = 0;
   private busy = false;
@@ -84,6 +86,8 @@ export class ShowRunner {
     this.steps = info?.steps ?? 0;
     this.auto = info?.auto ?? [];
     this.durations = info?.durations ?? [];
+    this.trig = new Map((info?.triggers ?? []).map((x) => [x.shape, { steps: x.steps, durations: x.durations, done: 0 }]));
+    this.trigClock = null;
     const idx = this.index;
     const tr = o.forward ? await this.h.transition(idx) : null;
     if (gen !== this.gen) return;
@@ -99,6 +103,42 @@ export class ShowRunner {
     this.h.onSlide(idx);
     if (!o.built && !this.h.noAnimation && this.steps > 0 && this.auto[0]) await this.playStep(0, gen);
     if (gen === this.gen && tr?.afterMs) this.afterTimer = window.setTimeout(() => void this.next(), tr.afterMs);
+  }
+
+  /** Does clicking this shape start a sequence of its own? */
+  isTrigger(shape: number): boolean {
+    const v = this.trig.get(shape);
+    return !!v && v.done < v.steps;
+  }
+
+  /** A click on a trigger shape: its next animation plays, over whatever is on screen. */
+  async triggerClick(shape: number): Promise<void> {
+    const v = this.trig.get(shape);
+    if (this.stopped || !v || v.done >= v.steps) return;
+    if (this.busy) {
+      this.skip = true;
+      return;
+    }
+    // a trigger keeps the place its first click gave it in the order the sequences were started
+    this.trig.delete(shape);
+    this.trig.set(shape, v);
+    const gen = this.gen;
+    const idx = this.index;
+    this.busy = true;
+    this.skip = false;
+    await this.animate(v.durations[v.done] ?? 0, gen, (t) => {
+      this.trigClock = { trigger: shape, t };
+      return this.frame("step", idx, this.step, 0, gen);
+    });
+    this.busy = false;
+    this.trigClock = null;
+    if (gen !== this.gen) return;
+    v.done++;
+    await this.frame("step", idx, this.step, 0, gen);
+  }
+
+  private plays(): TriggerPlay[] {
+    return [...this.trig].map(([trigger, v]) => ({ trigger, step: v.done, t: this.trigClock?.trigger === trigger ? this.trigClock.t : 0 })).filter((p) => p.step > 0 || p.t > 0);
   }
 
   /** A click or the right arrow: the next animation, or the next slide when the slide is built. */
@@ -170,7 +210,7 @@ export class ShowRunner {
     for (const s of this.h.surfaces()) {
       const { w, h } = s.size();
       const scale = Math.max(0.05, Math.min(w / this.h.slideW, h / this.h.slideH)) * s.dpr;
-      const r = await this.h.call(() => (kind === "tr" ? this.h.session.renderTransition(index, Math.min(1, Math.max(0, t)), scale) : this.h.session.renderStep(index, a, t, scale)));
+      const r = await this.h.call(() => (kind === "tr" ? this.h.session.renderTransition(index, Math.min(1, Math.max(0, t)), scale) : this.h.session.renderShow(index, a, t, this.plays(), scale)));
       if (!r || gen !== this.gen) return false;
       paint(s.canvas, r, s.dpr);
     }

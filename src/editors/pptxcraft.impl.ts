@@ -2081,7 +2081,10 @@ class PptxCraftInstance implements EditorInstance {
       const k = this.slideW / box.width;
       const inside = e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
       void (async () => {
-        const act = inside ? await this.clickAction(session, runner.index, (e.clientX - box.left) * k, (e.clientY - box.top) * k) : null;
+        const pt = inside ? { x: (e.clientX - box.left) * k, y: (e.clientY - box.top) * k } : null;
+        const hitId = pt ? ((await this.enqueue(() => session.hit(pt.x, pt.y, 2))) as { id?: number } | null)?.id : undefined;
+        if (typeof hitId === "number" && runner.isTrigger(hitId)) return void runner.triggerClick(hitId);
+        const act = pt ? await this.clickAction(session, runner.index, pt.x, pt.y) : null;
         if (act?.kind === "url" && act.url && /^(https?:|mailto:)/i.test(act.url)) window.open(act.url, "_blank", "noopener");
         else if (act?.kind === "slide" && act.slide !== undefined) void runner.goto(act.slide, { forward: true });
         else if (act?.kind === "next") go(1);

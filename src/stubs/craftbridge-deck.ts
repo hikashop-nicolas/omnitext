@@ -58,6 +58,7 @@ export interface Overlay {
   slide?: number;
   slides?: number;
   cells?: [number, number, number, number] | null;
+  cellRange?: [number, number, number, number] | null;
   target?: { kind: "slides" | "master" | "layout" | "handout" | "notesMaster"; master?: number; layout?: number };
   width?: number;
   height?: number;
@@ -88,10 +89,17 @@ export interface MasterInfo {
   layouts: { name: string }[];
 }
 
+export interface TriggerPlay {
+  trigger: number;
+  step: number;
+  t: number;
+}
+
 export interface ShowInfo {
   steps: number;
   auto: boolean[];
   durations: number[];
+  triggers?: { shape: number; steps: number; durations: number[] }[];
 }
 
 export interface Rendered {
@@ -141,6 +149,10 @@ export class DeckSession {
   }
 
   renderLayout(_master: number, _layout: number, _scale: number): Promise<Rendered> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  renderShow(_index: number, _step: number, _t: number, _plays: TriggerPlay[], _scale: number): Promise<Rendered> {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }
 
