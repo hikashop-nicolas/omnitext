@@ -3,7 +3,7 @@ import { EngineError, deckFontUrls, openDeck, type DeckSession, type Overlay, ty
 import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
 import { getLocale, t } from "../i18n";
-import { formDialog } from "./pdfcraft-tools";
+import { formDialog, messageDialog } from "./pdfcraft-tools";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
 
@@ -57,7 +57,7 @@ function ensureStyles(): void {
     .ot-px-field { display:flex; align-items:center; gap:8px; margin:5px 0; }
     .ot-px-field > label { flex:0 0 84px; color:var(--muted); font-size:12px; }
     .ot-px-ctl { flex:1 1 auto; display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
-    .ot-px-ctl input[type=number] { width:62px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    .ot-px-ctl input[type=number] { width:72px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
     .ot-px-ctl input[type=text] { flex:1 1 100px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
     .ot-px-ctl select { flex:1 1 90px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
     .ot-px-check { display:flex; align-items:center; gap:5px; }
@@ -378,6 +378,7 @@ class PptxCraftInstance implements EditorInstance {
     this.sepTo(b);
     this.buttons.present = this.button("present", t("pptxcraft.present"), () => this.presentMenu());
     this.buttons.notes = this.button("notes", t("pptxcraft.notes"), () => this.toggleNotes());
+    this.buttons.tools = this.button("tools", t("pptxcraft.tools"), () => this.toolsMenu());
   }
 
   private colorButton(into: HTMLElement, name: IconName, title: string, run: (anchor: HTMLButtonElement) => void): HTMLButtonElement {
@@ -1121,7 +1122,124 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.video"), run: () => pick("video") },
       { label: t("pptxcraft.audio"), run: () => pick("audio") },
       { label: t("pptxcraft.table"), run: () => void this.insertTable() },
+      { label: t("pptxcraft.chart"), run: () => void this.insertChart() },
+      { label: t("pptxcraft.smartArt"), run: () => void this.insertSmartArt() },
+      { label: t("pptxcraft.wordArt"), run: () => void this.insertWordArt() },
+      { label: t("pptxcraft.symbol"), run: () => void this.insertSymbol() },
+      { label: t("pptxcraft.link"), run: () => void this.insertLink() },
+      { label: t("pptxcraft.slideNumber"), run: () => void this.cmd("insert.slideNumber") },
+      { label: t("pptxcraft.date"), run: () => void this.cmd("insert.dateTime", { format: "datetime1" }) },
     ]);
+  }
+
+  private dialog(title: string, fields: Parameters<typeof formDialog>[1]["fields"], note?: string): ReturnType<typeof formDialog> {
+    return formDialog(this.root, { title, ok: t("pptxcraft.ok"), cancel: t("pptxcraft.cancel"), fields, ...(note ? { note } : {}) });
+  }
+
+  private async insertChart(): Promise<void> {
+    const v = await this.dialog(
+      t("pptxcraft.chart"),
+      [
+        { key: "type", label: t("pptxcraft.chartType"), kind: "select", value: "column", options: [["column", t("pptxcraft.chColumn")], ["bar", t("pptxcraft.chBar")], ["line", t("pptxcraft.chLine")], ["pie", t("pptxcraft.chPie")], ["doughnut", t("pptxcraft.chDoughnut")], ["area", t("pptxcraft.chArea")], ["scatter", t("pptxcraft.chScatter")]] },
+        { key: "grid", label: t("pptxcraft.data"), kind: "textarea", value: "\tA\tB\nQ1\t4\t3\nQ2\t6\t5\nQ3\t5\t7" },
+      ],
+      t("pptxcraft.dataHint"),
+    );
+    if (!v) return;
+    const rows = String(v.grid).split(/\r?\n/).filter((r) => r.trim() !== "").map((r) => r.split("\t"));
+    const names = rows[0]?.slice(1) ?? [];
+    const body = rows.slice(1);
+    await this.cmd("insert.chart", { type: String(v.type), categories: body.map((r) => r[0] ?? ""), series: names.map((name, i) => ({ name, values: body.map((r) => Number(r[i + 1]) || 0) })) });
+  }
+
+  private async insertSmartArt(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.smartArt"), [
+      { key: "kind", label: t("pptxcraft.chartType"), kind: "select", value: "process", options: [["list", t("pptxcraft.saList")], ["process", t("pptxcraft.saProcess")], ["cycle", t("pptxcraft.saCycle")], ["hierarchy", t("pptxcraft.saHierarchy")], ["pyramid", t("pptxcraft.saPyramid")], ["matrix", t("pptxcraft.saMatrix")]] },
+      { key: "items", label: t("pptxcraft.items"), kind: "textarea", value: "One\nTwo\nThree" },
+    ]);
+    if (!v) return;
+    const items = String(v.items).split(/\r?\n/).filter((x) => x.trim() !== "");
+    if (items.length) await this.cmd("insert.smartArt", { kind: String(v.kind), items });
+  }
+
+  private async insertWordArt(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.wordArt"), [{ key: "text", label: t("pptxcraft.text"), kind: "text", value: "" }]);
+    if (v && String(v.text).trim()) await this.cmd("insert.wordArt", { text: String(v.text) });
+  }
+
+  private async insertSymbol(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.symbol"), [{ key: "text", label: t("pptxcraft.text"), kind: "text", value: "" }]);
+    if (v && String(v.text)) await this.cmd("insert.symbol", { text: String(v.text) });
+  }
+
+  private async insertLink(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.link"), [
+      { key: "url", label: t("pptxcraft.address"), kind: "text", value: "https://", placeholder: "https://" },
+      { key: "text", label: t("pptxcraft.text"), kind: "text", value: "" },
+    ]);
+    if (v && String(v.url).trim()) await this.cmd("insert.hyperlink", { url: String(v.url).trim(), ...(String(v.text).trim() ? { text: String(v.text).trim() } : {}) });
+  }
+
+  private toolsMenu(): void {
+    popupMenu(this.root, this.buttons.tools, [
+      { label: t("pptxcraft.findReplace"), run: () => void this.findReplace() },
+      { label: t("pptxcraft.spelling"), run: () => void this.spelling() },
+      { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
+      { label: t("pptxcraft.addComment"), run: () => void this.addComment() },
+      { label: t("pptxcraft.comments"), run: () => void this.listComments() },
+    ]);
+  }
+
+  private async findReplace(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const v = await this.dialog(t("pptxcraft.findReplace"), [
+      { key: "find", label: t("pptxcraft.find"), kind: "text", value: "" },
+      { key: "with", label: t("pptxcraft.replaceWith"), kind: "text", value: "" },
+      { key: "case", label: t("pptxcraft.matchCase"), kind: "check", value: false },
+      { key: "whole", label: t("pptxcraft.wholeWords"), kind: "check", value: false },
+      { key: "all", label: t("pptxcraft.replaceAll"), kind: "check", value: false },
+    ]);
+    if (!v || !String(v.find)) return;
+    const base = { text: String(v.find), matchCase: !!v.case, wholeWords: !!v.whole };
+    if (v.all) {
+      const r = (await this.cmd("text.replace", { ...base, with: String(v.with) })) as { replaced?: number } | undefined;
+      await messageDialog(this.root, { title: t("pptxcraft.findReplace"), message: t("pptxcraft.replacedCount", { n: r?.replaced ?? 0 }), ok: t("pptxcraft.ok") });
+      return;
+    }
+    const hits = await this.enqueue(() => session.execute<{ slide: number }[]>("text.find", base));
+    const first = hits?.[0];
+    if (first) await this.cmd("slide.go", { index: first.slide });
+    await messageDialog(this.root, { title: t("pptxcraft.findReplace"), message: t("pptxcraft.foundCount", { n: hits?.length ?? 0 }), ok: t("pptxcraft.ok") });
+  }
+
+  private async spelling(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const r = await this.enqueue(() => session.execute<{ slide: number; word?: string; suggestions?: string[] }[]>("review.spelling", {}));
+    const lines = (r ?? []).slice(0, 40).map((x) => `${x.slide + 1}: ${x.word ?? ""}${x.suggestions?.length ? ` → ${x.suggestions.slice(0, 3).join(", ")}` : ""}`);
+    await messageDialog(this.root, { title: t("pptxcraft.spelling"), message: lines.length ? lines.join("\n") : t("pptxcraft.noProblems"), ok: t("pptxcraft.ok") });
+  }
+
+  private async accessibility(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const r = await this.enqueue(() => session.execute<{ slide: number; issue: string }[]>("review.accessibility", {}));
+    const lines = (r ?? []).slice(0, 40).map((x) => `${x.slide + 1}: ${x.issue}`);
+    await messageDialog(this.root, { title: t("pptxcraft.accessibility"), message: lines.length ? lines.join("\n") : t("pptxcraft.noProblems"), ok: t("pptxcraft.ok") });
+  }
+
+  private async addComment(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.addComment"), [{ key: "text", label: t("pptxcraft.comment"), kind: "textarea", value: "" }]);
+    if (v && String(v.text).trim()) await this.cmd("comment.add", { text: String(v.text).trim() });
+  }
+
+  private async listComments(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const r = await this.enqueue(() => session.execute<{ author?: string; text?: string; slide?: number }[]>("comment.list", {}));
+    const lines = (r ?? []).map((c) => `${(c.slide ?? 0) + 1}: ${c.text ?? ""}`);
+    await messageDialog(this.root, { title: t("pptxcraft.comments"), message: lines.length ? lines.join("\n") : t("pptxcraft.noComments"), ok: t("pptxcraft.ok") });
   }
 
   private async pickedPicture(): Promise<void> {
