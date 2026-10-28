@@ -2,8 +2,8 @@ name: Retry a run whose runner was taken away
 
 # GitHub sometimes reclaims a hosted runner mid-job. The job dies wherever it happened to
 # be, with "The runner has received a shutdown signal" and exit 143, and it is reported as a
-# failure like any other. It has happened twice here, both times inside npm ci, and both
-# times an identical re-run passed.
+# failure like any other. It has happened repeatedly here, always inside npm ci (the git-hosted
+# libs each install and compile in parallel there), and sometimes twice in a row on one commit.
 #
 # The retry loop around npm ci cannot help: the whole machine goes away, not just the
 # command. So this listens for a failed run and re-runs it, but only after reading the log
@@ -21,19 +21,20 @@ permissions:
 
 jobs:
   retry:
-    # Only ever the first attempt, so a rerun that fails again is the end of it.
+    # Up to three attempts, so a rerun that is killed again gets one more go.
     if: >
       github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.run_attempt == 1
+      github.event.workflow_run.run_attempt < 3
     runs-on: ubuntu-latest
     steps:
       - name: Re-run it if the runner was shut down under it
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           REPO: ${{ github.repository }}
         run: |
-          if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/1/logs" > logs.zip 2>/dev/null; then
+          if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/logs" > logs.zip 2>/dev/null; then
             echo "No log for run $RUN_ID; leaving it alone."
             exit 0
           fi
