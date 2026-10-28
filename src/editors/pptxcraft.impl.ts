@@ -105,6 +105,8 @@ function ensureStyles(): void {
     .ot-px-stripe { position:absolute; left:8px; right:8px; bottom:4px; height:4px; border-radius:2px; border:1px solid var(--border); }
     .ot-px-show { position:fixed; inset:0; z-index:60; background:#000; display:flex; align-items:center; justify-content:center; cursor:none; }
     .ot-px-show canvas { max-width:100%; max-height:100%; }
+    .ot-px-show .ot-px-close { position:absolute; top:max(10px, env(safe-area-inset-top)); right:10px; z-index:2; width:44px; height:44px; border-radius:50%; border:0; background:rgba(0,0,0,.55); color:#fff; font-size:22px; line-height:44px; cursor:pointer; opacity:.7; }
+    .ot-px-show .ot-px-close:hover, .ot-px-show .ot-px-close:focus-visible { opacity:1; }
     .ot-pv { position:fixed; inset:0; z-index:60; background:var(--canvas); color:var(--text); display:grid; grid-template-columns:3fr 2fr; grid-template-rows:1fr auto;
       gap:12px; padding:12px; font:14px system-ui, sans-serif; }
     @media (max-width:800px) { .ot-pv { grid-template-columns:1fr; grid-template-rows:auto 1fr auto; } }
@@ -2066,6 +2068,11 @@ class PptxCraftInstance implements EditorInstance {
     show.tabIndex = 0;
     const canvas = el("canvas");
     show.appendChild(canvas);
+    const closeBtn = el("button", "ot-px-close", "\u2715");
+    closeBtn.type = "button";
+    closeBtn.title = t("pptxcraft.endShow");
+    closeBtn.setAttribute("aria-label", t("pptxcraft.endShow"));
+    show.appendChild(closeBtn);
     document.body.appendChild(show);
     const total = this.ov.slides ?? 1;
     let unmount: (() => void) | null = null;
@@ -2091,11 +2098,25 @@ class PptxCraftInstance implements EditorInstance {
       unmount?.();
       show.remove();
       document.removeEventListener("keydown", keys, true);
+      document.removeEventListener("fullscreenchange", onFs);
       window.removeEventListener("resize", onResize);
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
       void this.cmd("slide.go", { index: runner.index });
     };
     const onResize = (): void => void runner.redraw();
+    // the system's back gesture leaves full screen, and with it the show
+    let wasFull = false;
+    const onFs = (): void => {
+      if (document.fullscreenElement === show) wasFull = true;
+      else if (wasFull && show.isConnected) end();
+    };
+    closeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      end();
+    });
+    closeBtn.addEventListener("pointerup", (e) => e.stopPropagation());
+    closeBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+    document.addEventListener("fullscreenchange", onFs);
     const keys = (e: KeyboardEvent): void => {
       e.stopPropagation();
       if (e.key === "Escape") end();
