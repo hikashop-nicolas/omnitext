@@ -143,6 +143,7 @@ class PptxCraftInstance implements EditorInstance {
   private thumbSlides = 0;
   private notesFor = -1;
   private resizeObserver: ResizeObserver | null = null;
+  private enterAt = 0;
   private fontsLoaded = new Set<string>();
   private hansLikely = false;
   private opened: Promise<void> = Promise.resolve();
@@ -809,9 +810,9 @@ class PptxCraftInstance implements EditorInstance {
   // ------------------------------------------------------------------ keyboard and text input
 
   private focusInput(): void {
-    if (document.activeElement !== this.input && !this.root.contains(document.activeElement && document.activeElement !== document.body ? document.activeElement : null)) return;
-    if (document.activeElement !== this.input && this.root.querySelector(".ot-pcd, dialog[open]")) return;
-    this.input.focus({ preventScroll: true });
+    const a = document.activeElement;
+    const ours = !a || a === document.body || a === this.input || a === this.root || (a.tagName === "BUTTON" && this.root.contains(a));
+    if (ours) this.input.focus({ preventScroll: true });
   }
 
   private onBeforeInput(e: InputEvent): void {
@@ -823,8 +824,10 @@ class PptxCraftInstance implements EditorInstance {
       return;
     }
     if ((t0 === "insertText" || t0 === "insertReplacementText") && e.data) void this.cmd("text.insert", { text: e.data });
-    else if (t0 === "insertLineBreak" || t0 === "insertParagraph") void this.cmd("text.insert", { text: "\n" });
-    else if (t0 === "deleteContentBackward") void this.cmd("text.delete", { dir: "backward" });
+    else if (t0 === "insertLineBreak" || t0 === "insertParagraph") {
+      if (performance.now() - this.enterAt < 300) return e.preventDefault();
+      void this.cmd("text.insert", { text: "\n" });
+    } else if (t0 === "deleteContentBackward") void this.cmd("text.delete", { dir: "backward" });
     else if (t0 === "deleteContentForward") void this.cmd("text.delete", { dir: "forward" });
     else if (t0 === "deleteWordBackward") void this.cmd("text.delete", { dir: "wordBackward" });
     else if (t0 === "deleteWordForward") void this.cmd("text.delete", { dir: "wordForward" });
@@ -899,7 +902,10 @@ class PptxCraftInstance implements EditorInstance {
     const selected = (this.ov.selection?.length ?? 0) > 0;
     if (key === "Delete" || key === "Backspace") return selected ? (stop(), void this.cmd("edit.delete")) : undefined;
     if (key === "Escape") return stop(), void this.cmd("edit.deselect");
-    if (key === "Enter" && selected) return stop(), void this.cmd("text.edit", { id: this.ov.selection?.[0]?.id });
+    if (key === "Enter" && selected) {
+      this.enterAt = performance.now();
+      return stop(), void this.cmd("text.edit", { id: this.ov.selection?.[0]?.id });
+    }
     if (selected && key === "ArrowLeft") return nudge(-1, 0);
     if (selected && key === "ArrowRight") return nudge(1, 0);
     if (selected && key === "ArrowUp") return nudge(0, -1);
