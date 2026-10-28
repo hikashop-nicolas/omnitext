@@ -64,6 +64,7 @@ interface MediaInfo {
   durationMs?: number;
 }
 interface Anim {
+  textBuild?: string;
   shape: number;
   effect: string;
   class: string;
@@ -546,7 +547,8 @@ export class Inspector {
       const line = el("div", "ot-px-anim");
       line.appendChild(el("span", undefined, `${i + 1}. ${a.effect} · ${name(a.shape)}`));
       const sel = this.select([["onClick", t("pptxcraft.startClick")], ["withPrevious", t("pptxcraft.startWith")], ["afterPrevious", t("pptxcraft.startAfter")]], a.start, t("pptxcraft.start"), (v) => this.do("animation.timing", { index: i, start: v }));
-      line.append(sel, this.button("↑", () => this.do("animation.move", { index: i, to: Math.max(0, i - 1) }), { title: t("pptxcraft.moveUp") }), this.button("↓", () => this.do("animation.move", { index: i, to: Math.min(anims.length - 1, i + 1) }), { title: t("pptxcraft.moveDown") }), this.button("✕", () => this.do("animation.remove", { index: i }), { title: t("pptxcraft.delete") }));
+      const build = this.select([["asOne", t("pptxcraft.buildOne")], ["byParagraph", t("pptxcraft.buildPara")], ["byWord", t("pptxcraft.buildWord")], ["byLetter", t("pptxcraft.buildLetter")]], (a as unknown as { textBuild?: string }).textBuild, t("pptxcraft.textBuild"), (v) => this.do("animation.options", { index: i, textBuild: v }));
+      line.append(sel, build, this.button("↑", () => this.do("animation.move", { index: i, to: Math.max(0, i - 1) }), { title: t("pptxcraft.moveUp") }), this.button("↓", () => this.do("animation.move", { index: i, to: Math.min(anims.length - 1, i + 1) }), { title: t("pptxcraft.moveDown") }), this.button("✕", () => this.do("animation.remove", { index: i }), { title: t("pptxcraft.delete") }));
       d.appendChild(line);
     });
     if (!ids.length) {
