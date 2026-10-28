@@ -1842,6 +1842,23 @@ class PptxCraftInstance implements EditorInstance {
     };
   }
 
+  /** What clicking at a slide point does in the show: the action set on the shape there, if any. */
+  private async clickAction(session: DeckSession, index: number, x: number, y: number): Promise<{ kind: string; url?: string; slide?: number } | null> {
+    const hit = await this.enqueue(() => session.hit(x, y, 2));
+    const id = (hit as { id?: number } | null)?.id;
+    if (typeof id !== "number") return null;
+    const info = await this.enqueue(() => session.execute<{ shape?: { click?: { action?: { kind: string; url?: string; slide?: number } } } }>("shape.inspect", { id }));
+    const a = info?.shape?.click?.action;
+    if (!a || a.kind === "none") return null;
+    if (a.kind === "slide" && typeof a.slide === "number") {
+      const doc = await this.enqueue(() => session.execute<{ slides?: { id: number }[] }>("document.inspect", {}));
+      const at = doc?.slides?.findIndex((s) => s.id === a.slide) ?? -1;
+      return at >= 0 ? { kind: "slide", slide: at } : null;
+    }
+    void index;
+    return a;
+  }
+
   private presentMenu(): void {
     const native = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
     if (native) return void this.present();
@@ -2059,8 +2076,23 @@ class PptxCraftInstance implements EditorInstance {
     window.addEventListener("resize", onResize);
     show.addEventListener("pointerup", (e) => {
       if ((e.target as HTMLElement).closest("[data-px-media]")) return;
-      const r = show.getBoundingClientRect();
-      go(e.clientX < r.left + r.width / 4 ? -1 : 1);
+      const box = canvas.getBoundingClientRect();
+      const k = this.slideW / box.width;
+      const inside = e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom;
+      void (async () => {
+        const act = inside ? await this.clickAction(session, runner.index, (e.clientX - box.left) * k, (e.clientY - box.top) * k) : null;
+        if (act?.kind === "url" && act.url && /^(https?:|mailto:)/i.test(act.url)) window.open(act.url, "_blank", "noopener");
+        else if (act?.kind === "slide" && act.slide !== undefined) void runner.goto(act.slide, { forward: true });
+        else if (act?.kind === "next") go(1);
+        else if (act?.kind === "previous") go(-1);
+        else if (act?.kind === "first") void runner.goto(runner.first(), { forward: true });
+        else if (act?.kind === "last") void runner.goto(total - 1, { forward: true });
+        else if (act?.kind === "endShow") end();
+        else {
+          const r = show.getBoundingClientRect();
+          go(e.clientX < r.left + r.width / 4 ? -1 : 1);
+        }
+      })();
     });
     show.addEventListener("contextmenu", (e) => {
       e.preventDefault();
