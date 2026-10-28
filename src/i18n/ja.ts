@@ -409,6 +409,12 @@ const ja: Dict = {
     layoutTitleOnly: "タイトルのみ",
     zoomLevel: "ズームレベル",
     zoomPercent: "ズームの割合",
+    slideshow: "スライドショー",
+    presenterView: "発表者ツール",
+    popupBlocked: "スライドショーのウィンドウがブロックされました。このサイトのポップアップを許可してもう一度お試しください。",
+    clickFullscreen: "ここをクリックして全画面表示",
+    endShow: "スライドショーを終了",
+    noNotes: "このスライドにノートはありません。",
     layoutBlank: "白紙",
   },
   pdfcraft: {

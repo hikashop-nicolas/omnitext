@@ -76,6 +76,20 @@ function ensureStyles(): void {
     .ot-px-stripe { position:absolute; left:8px; right:8px; bottom:4px; height:4px; border-radius:2px; border:1px solid var(--border); }
     .ot-px-show { position:fixed; inset:0; z-index:60; background:#000; display:flex; align-items:center; justify-content:center; cursor:none; }
     .ot-px-show canvas { max-width:100%; max-height:100%; }
+    .ot-pv { position:fixed; inset:0; z-index:60; background:var(--canvas); color:var(--text); display:grid; grid-template-columns:3fr 2fr; grid-template-rows:1fr auto;
+      gap:12px; padding:12px; font:14px system-ui, sans-serif; }
+    @media (max-width:800px) { .ot-pv { grid-template-columns:1fr; grid-template-rows:auto 1fr auto; } }
+    .ot-pv-main { display:flex; align-items:center; justify-content:center; min-height:0; background:#000; border-radius:8px; overflow:hidden; }
+    .ot-pv-main canvas, .ot-pv-next canvas { max-width:100%; max-height:100%; }
+    .ot-pv-side { display:flex; flex-direction:column; gap:12px; min-height:0; }
+    .ot-pv-next { flex:0 0 34%; display:flex; align-items:center; justify-content:center; min-height:0; background:#000; border-radius:8px; overflow:hidden; }
+    .ot-pv-notes { flex:1 1 auto; overflow:auto; white-space:pre-wrap; padding:10px 12px; background:var(--surface); border:1px solid var(--border); border-radius:8px;
+      font-size:20px; line-height:1.4; }
+    .ot-pv-notes.none { color:var(--muted); font-size:14px; }
+    .ot-pv-bar { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
+    .ot-pv-bar .grow { flex:1 1 auto; }
+    .ot-pv-clock { font:600 20px ui-monospace, monospace; font-variant-numeric:tabular-nums; }
+    .ot-pv-label { color:var(--muted); font-size:12px; margin-bottom:4px; }
     .ot-px-msg { margin:32px auto; max-width:420px; padding:16px; text-align:center; font:14px system-ui, sans-serif; }
   `;
   document.head.appendChild(s);
@@ -329,7 +343,7 @@ class PptxCraftInstance implements EditorInstance {
     this.sepTo(b);
     this.buttons.newSlide = this.button("slideNew", t("pptxcraft.newSlide"), () => this.newSlideMenu());
     this.sepTo(b);
-    this.buttons.present = this.button("present", t("pptxcraft.present"), () => void this.present());
+    this.buttons.present = this.button("present", t("pptxcraft.present"), () => this.presentMenu());
     this.buttons.notes = this.button("notes", t("pptxcraft.notes"), () => this.toggleNotes());
   }
 
@@ -1085,6 +1099,143 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   // ------------------------------------------------------------------ presenting
+
+  private presentMenu(): void {
+    const native = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+    if (native) return void this.present();
+    popupMenu(this.root, this.buttons.present, [
+      { label: t("pptxcraft.slideshow"), run: () => void this.present() },
+      { label: t("pptxcraft.presenterView"), run: () => void this.presenterView() },
+    ]);
+  }
+
+  private async drawTo(canvas: HTMLCanvasElement, index: number, w: number, h: number, dpr: number): Promise<void> {
+    const session = this.session;
+    if (!session || index < 0 || index >= (this.ov.slides ?? 0)) {
+      canvas.width = canvas.height = 0;
+      return;
+    }
+    const scale = Math.max(0.05, Math.min(w / this.slideW, h / this.slideH)) * dpr;
+    const r = await this.enqueue(() => session.render(index, scale, false));
+    if (!r) return;
+    canvas.width = r.width;
+    canvas.height = r.height;
+    const px = new Uint8ClampedArray(r.rgba.buffer as ArrayBuffer, r.rgba.byteOffset, r.rgba.byteLength);
+    canvas.getContext("2d")?.putImageData(new ImageData(px, r.width, r.height), 0, 0);
+    canvas.style.width = `${r.width / dpr}px`;
+    canvas.style.height = `${r.height / dpr}px`;
+  }
+
+  /** The show on a second window (moved to another screen when the browser lets it), with the current slide, the next one, the notes and a clock here. */
+  private async presenterView(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const win = window.open("", "omnitext-slideshow", "popup=yes,width=1280,height=720");
+    if (!win) return void this.host.notifications.error(t("pptxcraft.popupBlocked"));
+    const wd = win.document;
+    wd.title = t("pptxcraft.slideshow");
+    wd.body.style.cssText = "margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;font:16px system-ui,sans-serif;color:#aaa";
+    const showCanvas = wd.createElement("canvas");
+    const hint = wd.createElement("div");
+    hint.textContent = t("pptxcraft.clickFullscreen");
+    hint.style.cssText = "position:fixed;bottom:12px;left:0;right:0;text-align:center;opacity:.7";
+    wd.body.append(showCanvas, hint);
+    wd.body.addEventListener("click", () => {
+      hint.remove();
+      void wd.documentElement.requestFullscreen?.().catch(() => undefined);
+    });
+    try {
+      const details = await (window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: unknown; screens: { availLeft: number; availTop: number; availWidth: number; availHeight: number }[] }> }).getScreenDetails?.();
+      const other = details?.screens.find((s) => s !== details.currentScreen);
+      if (other) {
+        win.moveTo(other.availLeft, other.availTop);
+        win.resizeTo(other.availWidth, other.availHeight);
+      }
+    } catch {
+      /* no permission or no such API: the person moves the window */
+    }
+
+    const pv = el("div", "ot-pv");
+    const main = el("div", "ot-pv-main");
+    const mainCanvas = el("canvas");
+    main.appendChild(mainCanvas);
+    const side = el("div", "ot-pv-side");
+    const nextWrap = el("div", "ot-pv-next");
+    const nextCanvas = el("canvas");
+    nextWrap.appendChild(nextCanvas);
+    const notes = el("div", "ot-pv-notes");
+    side.append(nextWrap, notes);
+    const bar = el("div", "ot-pv-bar");
+    const clock = el("span", "ot-pv-clock", "0:00");
+    const counter = el("span");
+    const prev = iconButton("up", t("pptxcraft.previous"), () => go(-1));
+    const next = iconButton("down", t("pptxcraft.next"), () => go(1));
+    const end = el("button", "btn", t("pptxcraft.endShow"));
+    end.type = "button";
+    bar.append(prev, next, counter, el("span", "grow"), clock, end);
+    pv.append(main, side, bar);
+    document.body.appendChild(pv);
+
+    let index = this.ov.slide ?? 0;
+    const total = this.ov.slides ?? 1;
+    const started = Date.now();
+    const tick = window.setInterval(() => {
+      const sec = Math.floor((Date.now() - started) / 1000);
+      clock.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+      if (win.closed) finish();
+    }, 500);
+    let token = 0;
+    const draw = async (): Promise<void> => {
+      const mine = ++token;
+      counter.textContent = t("pptxcraft.slideOf", { n: index + 1, total });
+      prev.disabled = index <= 0;
+      next.disabled = index >= total - 1;
+      const dpr = this.dpr;
+      await Promise.all([
+        this.drawTo(mainCanvas, index, main.clientWidth, main.clientHeight, dpr),
+        this.drawTo(nextCanvas, index + 1, nextWrap.clientWidth, nextWrap.clientHeight, dpr),
+        this.drawTo(showCanvas, index, win.innerWidth || 1280, win.innerHeight || 720, dpr),
+      ]);
+      if (mine !== token) return;
+      const info = await this.enqueue(() => session.execute<{ notes?: string }>("slide.inspect", { index }));
+      if (mine !== token) return;
+      const text = typeof info?.notes === "string" ? info.notes.trim() : "";
+      notes.textContent = text || t("pptxcraft.noNotes");
+      notes.classList.toggle("none", !text);
+    };
+    const go = (by: number): void => {
+      const to = Math.min(total - 1, Math.max(0, index + by));
+      if (to === index) return;
+      index = to;
+      void draw();
+    };
+    const finish = (): void => {
+      window.clearInterval(tick);
+      document.removeEventListener("keydown", keys, true);
+      win.removeEventListener("resize", onResize);
+      pv.remove();
+      if (!win.closed) win.close();
+      void this.cmd("slide.go", { index });
+    };
+    const keys = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") finish();
+      else if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) go(1);
+      else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) go(-1);
+      else if (e.key === "Home") go(-total);
+      else if (e.key === "End") go(total);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onResize = (): void => void draw();
+    document.addEventListener("keydown", keys, true);
+    win.document.addEventListener("keydown", keys, true);
+    win.addEventListener("resize", onResize);
+    win.addEventListener("beforeunload", () => window.setTimeout(() => win.closed && finish(), 0));
+    end.addEventListener("click", finish);
+    window.addEventListener("resize", onResize);
+    await draw();
+  }
 
   private async present(): Promise<void> {
     const session = this.session;

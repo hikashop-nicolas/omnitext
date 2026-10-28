@@ -407,6 +407,12 @@ const es: Dict = {
     layoutTitleOnly: "Solo título",
     zoomLevel: "Nivel de zoom",
     zoomPercent: "Porcentaje de zoom",
+    slideshow: "Presentación",
+    presenterView: "Vista del presentador",
+    popupBlocked: "Se bloqueó la ventana de la presentación. Permita las ventanas emergentes de este sitio e inténtelo de nuevo.",
+    clickFullscreen: "Haga clic aquí para pantalla completa",
+    endShow: "Terminar la presentación",
+    noNotes: "No hay notas para esta diapositiva.",
     layoutBlank: "En blanco",
   },
   pdfcraft: {

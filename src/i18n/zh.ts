@@ -411,6 +411,12 @@ const zh: Dict = {
     layoutTitleOnly: "仅标题",
     zoomLevel: "缩放级别",
     zoomPercent: "缩放百分比",
+    slideshow: "幻灯片放映",
+    presenterView: "演示者视图",
+    popupBlocked: "放映窗口被拦截。请允许此网站的弹出窗口后重试。",
+    clickFullscreen: "点击此处全屏",
+    endShow: "结束放映",
+    noNotes: "此幻灯片没有备注。",
     layoutBlank: "空白",
   },
   pdfcraft: {

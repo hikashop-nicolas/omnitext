@@ -407,6 +407,12 @@ const de: Dict = {
     layoutTitleOnly: "Nur Titel",
     zoomLevel: "Zoomstufe",
     zoomPercent: "Zoom in Prozent",
+    slideshow: "Bildschirmpräsentation",
+    presenterView: "Referentenansicht",
+    popupBlocked: "Das Fenster für die Präsentation wurde blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.",
+    clickFullscreen: "Hier klicken für Vollbild",
+    endShow: "Präsentation beenden",
+    noNotes: "Keine Notizen für diese Folie.",
     layoutBlank: "Leer",
   },
   pdfcraft: {

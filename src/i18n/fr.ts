@@ -410,6 +410,12 @@ const fr: Dict = {
     layoutTitleOnly: "Titre seul",
     zoomLevel: "Niveau de zoom",
     zoomPercent: "Pourcentage de zoom",
+    slideshow: "Diaporama",
+    presenterView: "Mode présentateur",
+    popupBlocked: "La fenêtre du diaporama a été bloquée. Autorisez les fenêtres contextuelles pour ce site et réessayez.",
+    clickFullscreen: "Cliquez ici pour passer en plein écran",
+    endShow: "Terminer le diaporama",
+    noNotes: "Aucune note pour cette diapositive.",
     layoutBlank: "Vide",
   },
   pdfcraft: {

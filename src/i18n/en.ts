@@ -409,6 +409,12 @@ const en: Dict = {
     layoutTitleOnly: "Title only",
     zoomLevel: "Zoom level",
     zoomPercent: "Zoom percentage",
+    slideshow: "Slideshow",
+    presenterView: "Presenter view",
+    popupBlocked: "The window for the slideshow was blocked. Allow pop-ups for this site and try again.",
+    clickFullscreen: "Click here for full screen",
+    endShow: "End slideshow",
+    noNotes: "No notes for this slide.",
     layoutBlank: "Blank",
   },
   pdfcraft: {
