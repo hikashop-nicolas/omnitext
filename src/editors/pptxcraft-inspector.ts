@@ -120,8 +120,16 @@ export class Inspector {
 
   // ------------------------------------------------------------------ widgets
 
+  /** Opens a section and shows the panel's fresh content. */
+  async reveal(key: string): Promise<void> {
+    this.open.set(key, true);
+    await this.refresh();
+    this.el.querySelector(`details[data-key="${key}"]`)?.scrollIntoView({ block: "nearest" });
+  }
+
   private section(key: string, title: string): HTMLElement {
     const d = el("details", "ot-px-sec");
+    d.dataset.key = key;
     d.open = this.open.get(key) ?? false;
     d.addEventListener("toggle", () => this.open.set(key, d.open));
     d.appendChild(el("summary", undefined, title));

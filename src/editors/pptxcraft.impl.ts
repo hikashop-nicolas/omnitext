@@ -440,6 +440,11 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.find = this.button("search", t("pptxcraft.findReplace"), () => void this.findReplace());
     this.buttons.spell = this.button("spellcheck", t("pptxcraft.spelling"), () => void this.spelling());
     this.buttons.comment = this.button("comment", t("pptxcraft.addComment"), () => void this.addComment());
+    this.buttons.accessibility = this.button("accessibility", t("pptxcraft.accessibility"), () => void this.accessibility());
+    this.buttons.thesaurus = this.button("thesaurus", t("pptxcraft.thesaurus"), () => void this.thesaurus());
+    this.buttons.compare = this.button("compare", t("pptxcraft.compare"), () => void this.compareDeck());
+    this.buttons.language = this.button("language", t("pptxcraft.language"), () => void this.proofingLanguage());
+    this.buttons.theme = this.button("palette", t("pptxcraft.applyTheme"), () => void this.applyTheme());
     this.buttons.pdf = this.button("download", t("pptxcraft.exportPdf"), () => void this.exportPdf());
     this.buttons.tools = this.button("tools", t("pptxcraft.tools"), () => this.toolsMenu());
   }
@@ -1580,11 +1585,6 @@ class PptxCraftInstance implements EditorInstance {
 
   private toolsMenu(): void {
     popupMenu(this.root, this.buttons.tools, [
-      { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
-      { label: t("pptxcraft.thesaurus"), run: () => void this.thesaurus() },
-      { label: t("pptxcraft.compare"), run: () => void this.compareDeck() },
-      { label: t("pptxcraft.language"), run: () => void this.proofingLanguage() },
-      { label: t("pptxcraft.applyTheme"), run: () => void this.applyTheme() },
       { label: t("pptxcraft.replaceFont"), run: () => void this.replaceFont() },
       { label: t("pptxcraft.guideV"), run: () => void this.addGuide(true) },
       { label: t("pptxcraft.guideH"), run: () => void this.addGuide(false) },
@@ -1678,15 +1678,16 @@ class PptxCraftInstance implements EditorInstance {
 
   private async addComment(): Promise<void> {
     const v = await this.dialog(t("pptxcraft.addComment"), [{ key: "text", label: t("pptxcraft.comment"), kind: "textarea", value: "" }]);
-    if (v && String(v.text).trim()) await this.cmd("comment.add", { text: String(v.text).trim() });
+    if (!v || !String(v.text).trim()) return;
+    await this.cmd("comment.add", { text: String(v.text).trim() });
+    await this.listComments();
   }
 
+  /** The comments live in the format panel, under the slide they are on. */
   private async listComments(): Promise<void> {
-    const session = this.session;
-    if (!session) return;
-    const r = await this.enqueue(() => session.execute<{ author?: string; text?: string; slide?: number }[]>("comment.list", {}));
-    const lines = (r ?? []).map((c) => `${(c.slide ?? 0) + 1}: ${c.text ?? ""}`);
-    await messageDialog(this.root, { title: t("pptxcraft.comments"), message: lines.length ? lines.join("\n") : t("pptxcraft.noComments"), ok: t("pptxcraft.ok") });
+    this.inspector.el.hidden = false;
+    await this.inspector.reveal("comments");
+    if (this.fitting) requestAnimationFrame(() => this.fit());
   }
 
   private async pickedPicture(): Promise<void> {
@@ -1913,12 +1914,15 @@ class PptxCraftInstance implements EditorInstance {
 
   /** The show on a second window (moved to another screen when the browser lets it), with the current slide, the next one, the notes and a clock here. */
   /** Another screen to show the slides on, when the browser lets us see the screens (Window Management). */
-  private async otherScreen(): Promise<{ screen: unknown; w: number; h: number; dpr: number } | null> {
+  private async otherScreen(): Promise<{ screen: unknown; w: number; h: number; dpr: number; here: { left: number; top: number; w: number; h: number } } | null> {
     try {
-      const w = window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: unknown; screens: { width: number; height: number; devicePixelRatio?: number }[] }> };
+      type Scr = { width: number; height: number; availLeft: number; availTop: number; availWidth: number; availHeight: number; devicePixelRatio?: number };
+      const w = window as unknown as { getScreenDetails?: () => Promise<{ currentScreen: Scr; screens: Scr[] }> };
       const d = await w.getScreenDetails?.();
       const o = d?.screens.find((x) => x !== d.currentScreen);
-      return o ? { screen: o, w: o.width, h: o.height, dpr: o.devicePixelRatio ?? 1 } : null;
+      if (!d || !o) return null;
+      const c = d.currentScreen;
+      return { screen: o, w: o.width, h: o.height, dpr: o.devicePixelRatio ?? 1, here: { left: c.availLeft, top: c.availTop, w: c.availWidth, h: c.availHeight } };
     } catch {
       return null;
     }
@@ -1934,7 +1938,18 @@ class PptxCraftInstance implements EditorInstance {
     let showCanvas: HTMLCanvasElement;
     let showDoc: Document = document;
     let showBody: HTMLElement;
+    let pvWin: Window | null = null;
     if (target) {
+      // this window goes full screen on the other screen, so the presenter view needs a window of its own here
+      pvWin = window.open("", "omnitext-presenter", `popup=yes,left=${target.here.left},top=${target.here.top},width=${target.here.w},height=${target.here.h}`);
+      if (!pvWin) return void this.host.notifications.error(t("pptxcraft.popupBlocked"));
+      const pd = pvWin.document;
+      pd.title = t("pptxcraft.presenterView");
+      for (const n of document.head.querySelectorAll("style, link[rel=stylesheet]")) pd.head.appendChild(n.cloneNode(true));
+      pd.documentElement.className = document.documentElement.className;
+      pd.documentElement.setAttribute("style", document.documentElement.getAttribute("style") ?? "");
+      for (const a of ["data-theme", "lang"]) if (document.documentElement.hasAttribute(a)) pd.documentElement.setAttribute(a, document.documentElement.getAttribute(a)!);
+      pd.body.style.cssText = "margin:0;background:var(--canvas)";
       ext = el("div", "ot-px-show");
       ext.style.cssText = "left:-100000px;right:auto;width:100vw;height:100vh;cursor:none";
       showCanvas = el("canvas");
@@ -1945,6 +1960,8 @@ class PptxCraftInstance implements EditorInstance {
       } catch {
         ext.remove();
         ext = null;
+        pvWin.close();
+        pvWin = null;
       }
     }
     if (!ext) {
@@ -1998,14 +2015,15 @@ class PptxCraftInstance implements EditorInstance {
     end.type = "button";
     bar.append(prev, next, counter, el("span", "grow"), clock, end);
     pv.append(main, side, bar);
-    document.body.appendChild(pv);
+    (pvWin?.document.body ?? document.body).appendChild(pv);
+    pvWin?.focus();
 
     const total = this.ov.slides ?? 1;
     const started = Date.now();
     const tick = window.setInterval(() => {
       const sec = Math.floor((Date.now() - started) / 1000);
       clock.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-      if (secondClosed()) finish();
+      if (secondClosed() || pvWin?.closed) finish();
     }, 500);
     let unmount: (() => void) | null = null;
     let seq = 0;
@@ -2054,6 +2072,7 @@ class PptxCraftInstance implements EditorInstance {
       window.removeEventListener("resize", onResize);
       pv.remove();
       if (win && !win.closed) win.close();
+      if (pvWin && !pvWin.closed) pvWin.close();
       if (ext) {
         if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
         ext.remove();
@@ -2070,9 +2089,12 @@ class PptxCraftInstance implements EditorInstance {
       e.preventDefault();
       e.stopPropagation();
     };
-    const onResize = (): void => void runner.redraw();
+    // leaving full screen on the show's screen (Esc there) ends the show
+    const onResize = (): void => (ext && !document.fullscreenElement ? finish() : void runner.redraw());
     document.addEventListener("keydown", keys, true);
     win?.document.addEventListener("keydown", keys, true);
+    pvWin?.document.addEventListener("keydown", keys, true);
+    pvWin?.addEventListener("beforeunload", () => window.setTimeout(() => pvWin!.closed && finish(), 0));
     win?.addEventListener("resize", onResize);
     win?.addEventListener("beforeunload", () => window.setTimeout(() => win!.closed && finish(), 0));
     if (ext) document.addEventListener("fullscreenchange", onResize);
