@@ -172,6 +172,7 @@ class PptxCraftInstance implements EditorInstance {
   private input!: HTMLTextAreaElement;
   private counter!: HTMLElement;
   private fileInput!: HTMLInputElement;
+  private reuseInput!: HTMLInputElement;
   private buttons: Record<string, HTMLButtonElement> = {};
   private subButtons: Record<string, HTMLButtonElement> = {};
 
@@ -291,8 +292,13 @@ class PptxCraftInstance implements EditorInstance {
     this.fileInput.accept = "image/*";
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.pickedPicture());
+    this.reuseInput = el("input");
+    this.reuseInput.type = "file";
+    this.reuseInput.accept = ".pptx,.potx,.ppsx";
+    this.reuseInput.hidden = true;
+    this.reuseInput.addEventListener("change", () => void this.reuseChosen());
     const bottom = this.buildBottom();
-    this.root.append(this.bar, body, bottom, this.input, this.fileInput);
+    this.root.append(this.bar, body, bottom, this.input, this.fileInput, this.reuseInput);
     container.appendChild(this.root);
     this.buildBar();
     this.buildFloat();
@@ -1297,6 +1303,9 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.chart"), run: () => void this.insertChart() },
       { label: t("pptxcraft.smartArt"), run: () => void this.insertSmartArt() },
       { label: t("pptxcraft.wordArt"), run: () => void this.insertWordArt() },
+      { label: t("pptxcraft.icon"), run: () => void this.insertIcon() },
+      { label: t("pptxcraft.fromOutline"), run: () => void this.fromOutline() },
+      { label: t("pptxcraft.reuseSlides"), run: () => this.reuseInput.click() },
       { label: t("pptxcraft.symbol"), run: () => void this.insertSymbol() },
       { label: t("pptxcraft.link"), run: () => void this.insertLink() },
       { label: t("pptxcraft.slideNumber"), run: () => void this.cmd("insert.slideNumber") },
@@ -1332,6 +1341,47 @@ class PptxCraftInstance implements EditorInstance {
     if (!v) return;
     const items = String(v.items).split(/\r?\n/).filter((x) => x.trim() !== "");
     if (items.length) await this.cmd("insert.smartArt", { kind: String(v.kind), items });
+  }
+
+  private async insertIcon(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const icons = (await this.enqueue(() => session.execute<{ name: string; label: string; category: string }[]>("insert.icons", {}))) ?? [];
+    if (!icons.length) return;
+    const v = await this.dialog(t("pptxcraft.icon"), [{ key: "name", label: t("pptxcraft.icon"), kind: "select", value: icons[0]!.name, options: icons.map((i) => [i.name, `${i.category}: ${i.label}`] as [string, string]) }]);
+    if (v) await this.cmd("insert.icon", { name: String(v.name) });
+  }
+
+  private async fromOutline(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.fromOutline"), [
+      { key: "text", label: t("pptxcraft.outlineText"), kind: "textarea", value: "# Title\n- point one\n- point two\n# Next slide\n- point" },
+      { key: "md", label: t("pptxcraft.markdown"), kind: "check", value: true },
+    ]);
+    if (v && String(v.text).trim()) await this.cmd("slide.fromOutline", { text: String(v.text), markdown: !!v.md }, true);
+  }
+
+  private async reuseChosen(): Promise<void> {
+    const session = this.session;
+    const file = this.reuseInput.files?.[0];
+    this.reuseInput.value = "";
+    if (!session || !file) return;
+    const data = base64(new Uint8Array(await file.arrayBuffer()));
+    const list = await this.enqueue(() => session.execute<{ slides: { index: number; title: string }[] }>("slide.reuseList", { data, name: file.name }));
+    if (!list?.slides.length) return;
+    const v = await this.dialog(t("pptxcraft.reuseSlides"), [
+      { key: "which", label: t("pptxcraft.whichSlides"), kind: "text", value: "", placeholder: "1-3,5" },
+      { key: "keep", label: t("pptxcraft.keepFormatting"), kind: "check", value: false },
+    ], list.slides.map((x) => `${x.index + 1}. ${x.title}`).join("\n"));
+    if (!v) return;
+    const picked: number[] = [];
+    for (const part of String(v.which).split(",")) {
+      const m = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) continue;
+      const a = Number(m[1]);
+      const b = Number(m[2] ?? m[1]);
+      for (let i = a; i <= b; i++) picked.push(i - 1);
+    }
+    await this.cmd("slide.reuse", { data, name: file.name, keepFormatting: !!v.keep, ...(picked.length ? { slides: picked } : {}) }, true);
   }
 
   private async insertWordArt(): Promise<void> {
