@@ -2082,16 +2082,21 @@ class PptxCraftInstance implements EditorInstance {
           unmount?.();
           unmount = null;
         },
-        onSlide: (shown) => {
-          const box = canvas.getBoundingClientRect();
-          const k = box.width / this.slideW;
-          void this.mountMedia(show, shown, (b) => ({ left: box.left + b[0]! * k, top: box.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true }).then((undo) => {
-            if (runner.index !== shown || !show.isConnected) undo();
-            else unmount = undo;
-          });
-        },
+        onSlide: (shown) => mountHere(shown, true),
       }),
     );
+    // the buttons over audio and video sit where the slide is drawn now, so they follow the window when it changes size
+    const mountHere = (shown: number, autoplay: boolean): void => {
+      const box = canvas.getBoundingClientRect();
+      const k = box.width / this.slideW;
+      void this.mountMedia(show, shown, (b) => ({ left: box.left + b[0]! * k, top: box.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay }).then((undo) => {
+        if (runner.index !== shown || !show.isConnected) undo();
+        else {
+          unmount?.();
+          unmount = undo;
+        }
+      });
+    };
     const go = (by: number): void => void (by > 0 ? runner.next() : runner.prev());
     const end = (): void => {
       runner.stop();
@@ -2099,11 +2104,18 @@ class PptxCraftInstance implements EditorInstance {
       show.remove();
       document.removeEventListener("keydown", keys, true);
       document.removeEventListener("fullscreenchange", onFs);
+      document.removeEventListener("fullscreenchange", onResize);
       window.removeEventListener("resize", onResize);
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
       void this.cmd("slide.go", { index: runner.index });
     };
-    const onResize = (): void => void runner.redraw();
+    const onResize = (): void => {
+      void runner.redraw().then(() => {
+        unmount?.();
+        unmount = null;
+        mountHere(runner.index, false);
+      });
+    };
     // the system's back gesture leaves full screen, and with it the show
     let wasFull = false;
     const onFs = (): void => {
@@ -2117,6 +2129,7 @@ class PptxCraftInstance implements EditorInstance {
     closeBtn.addEventListener("pointerup", (e) => e.stopPropagation());
     closeBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
     document.addEventListener("fullscreenchange", onFs);
+    document.addEventListener("fullscreenchange", onResize);
     const keys = (e: KeyboardEvent): void => {
       e.stopPropagation();
       if (e.key === "Escape") end();
@@ -2162,6 +2175,7 @@ class PptxCraftInstance implements EditorInstance {
       end();
     });
     await show.requestFullscreen?.().catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 350));
     await runner.goto(from === 0 ? runner.first() : (from ?? this.ov.slide ?? 0));
     show.focus();
   }
