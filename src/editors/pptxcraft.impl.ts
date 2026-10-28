@@ -4,6 +4,7 @@ import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
 import { getLocale, t } from "../i18n";
 import { formDialog } from "./pdfcraft-tools";
+import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
 
 // The presentation editor on DeckCraft's engine. The engine (wasm, in a worker) owns the document, the undo history and the
@@ -49,6 +50,22 @@ function ensureStyles(): void {
     .ot-px-caret { animation:ot-px-blink 1.1s steps(1) infinite; }
     @keyframes ot-px-blink { 50% { opacity:0; } }
     @media (prefers-reduced-motion:reduce) { .ot-px-caret { animation:none; } }
+    .ot-px-insp { flex:0 0 288px; overflow-y:auto; border-left:1px solid var(--border); background:var(--surface); padding:6px 10px 40px; font:13px system-ui, sans-serif; }
+    @media (max-width:720px) { .ot-px-insp { position:absolute; z-index:9; top:0; bottom:0; right:0; width:min(320px, 92vw); box-shadow:-4px 0 16px rgba(0,0,0,.35); } }
+    .ot-px-sec { border-bottom:1px solid var(--border); padding:4px 0 8px; }
+    .ot-px-sec > summary { cursor:pointer; padding:6px 0; font-weight:600; list-style-position:inside; }
+    .ot-px-field { display:flex; align-items:center; gap:8px; margin:5px 0; }
+    .ot-px-field > label { flex:0 0 84px; color:var(--muted); font-size:12px; }
+    .ot-px-ctl { flex:1 1 auto; display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
+    .ot-px-ctl input[type=number] { width:62px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    .ot-px-ctl input[type=text] { flex:1 1 100px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    .ot-px-ctl select { flex:1 1 90px; min-width:0; font:inherit; padding:4px 6px; color:var(--text); background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    .ot-px-check { display:flex; align-items:center; gap:5px; }
+    .ot-px-sbtn { padding:4px 8px; min-width:30px; font:inherit; }
+    .ot-px-sw { width:30px; height:26px; padding:0; border:1px solid var(--border); }
+    .ot-px-anim { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:4px 0; }
+    .ot-px-anim > span { flex:1 1 100%; }
+    .ot-px-hint { color:var(--muted); margin:4px 0; }
     .ot-px-notes { flex:0 0 auto; border-top:1px solid var(--border); background:var(--surface); display:flex; }
     .ot-px-notes textarea { flex:1; height:84px; resize:vertical; margin:6px; padding:6px 8px; font:13px system-ui, sans-serif; color:var(--text);
       background:var(--canvas); border:1px solid var(--border); border-radius:7px; }
@@ -125,6 +142,7 @@ type Tool = "select" | "textBox" | { shape: string };
 class PptxCraftInstance implements EditorInstance {
   private root!: HTMLElement;
   private bar!: HTMLElement;
+  private inspector!: Inspector;
   private float!: HTMLElement;
   private rowText!: HTMLElement;
   private rowShape!: HTMLElement;
@@ -223,7 +241,18 @@ class PptxCraftInstance implements EditorInstance {
     this.notes.addEventListener("change", () => void this.setNotes());
     this.notesWrap.appendChild(this.notes);
     main.append(this.stage, this.notesWrap);
-    body.append(this.side, main);
+    const inspectorHost: InspectorHost = {
+      root: this.root,
+      run: (id, params, slides) => this.cmd(id, params, slides),
+      query: <T>(id: string, params?: unknown): Promise<T | undefined> => {
+        const session = this.session;
+        return session ? (this.enqueue(() => session.execute<T>(id, params ?? {})) as Promise<T | undefined>) : Promise.resolve(undefined);
+      },
+      overlay: () => this.ov,
+    };
+    this.inspector = new Inspector(inspectorHost);
+    this.inspector.el.hidden = true;
+    body.append(this.side, main, this.inspector.el);
     this.input = el("textarea", "ot-px-input");
     this.input.setAttribute("aria-label", t("pptxcraft.typing"));
     this.input.autocapitalize = "off";
@@ -397,6 +426,11 @@ class PptxCraftInstance implements EditorInstance {
   private buildBottom(): HTMLElement {
     const bottom = el("div", "ot-px-bottom");
     this.button("slides", t("pptxcraft.slides"), () => this.side.classList.toggle("closed"), bottom);
+    this.button("sliders", t("pptxcraft.inspector"), () => {
+      this.inspector.el.hidden = !this.inspector.el.hidden;
+      if (!this.inspector.el.hidden) void this.inspector.refresh();
+      if (this.fitting) requestAnimationFrame(() => this.fit());
+    }, bottom);
     this.buttons.prev = this.button("up", t("pptxcraft.previous"), () => void this.cmd("slide.previous", {}), bottom);
     this.buttons.next = this.button("down", t("pptxcraft.next"), () => void this.cmd("slide.next", {}), bottom);
     this.counter = el("span");
@@ -509,6 +543,7 @@ class PptxCraftInstance implements EditorInstance {
     this.drawOverlay();
     this.updateButtons();
     this.syncEditMedia();
+    if (!this.dragging) this.inspector.schedule();
     const mode = ov.text ? "text" : "none";
     if (this.input.inputMode !== mode) {
       this.input.inputMode = mode;
@@ -1487,6 +1522,7 @@ class PptxCraftInstance implements EditorInstance {
     this.endBusy();
     this.resizeObserver?.disconnect();
     this.editMedia?.();
+    this.inspector.dispose();
     this.session?.close();
     this.session = null;
     this.root?.remove();
