@@ -46,6 +46,11 @@ const ICONS = {
   tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>',
   close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  spellcheck: '<path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/>',
+  comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -173,4 +178,46 @@ export function base64(bytes: Uint8Array): string {
   let s = "";
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
+}
+
+/** Keeps a toolbar to one row: what does not fit moves, in order, into a panel opened by a "more" button. */
+export function overflowRow(host: HTMLElement, row: HTMLElement, items: () => HTMLElement[], label: string): { more: HTMLButtonElement; layout: () => void; close: () => void } {
+  const panel = el("div", "ot-px-morepanel");
+  panel.hidden = true;
+  host.appendChild(panel);
+  const more = iconButton("more", label, () => {
+    if (!panel.hidden) return close();
+    panel.hidden = false;
+    const a = more.getBoundingClientRect();
+    const h = host.getBoundingClientRect();
+    panel.style.left = `${Math.max(4, Math.min(a.left - h.left, h.width - panel.offsetWidth - 4))}px`;
+    panel.style.top = `${a.bottom - h.top + 4}px`;
+    setTimeout(() => document.addEventListener("pointerdown", away, true));
+  });
+  more.hidden = true;
+  row.appendChild(more);
+  const home = new Map<HTMLElement, HTMLElement>();
+  const away = (e: Event): void => {
+    if (!panel.contains(e.target as Node) && !more.contains(e.target as Node)) close();
+  };
+  function close(): void {
+    panel.hidden = true;
+    document.removeEventListener("pointerdown", away, true);
+  }
+  panel.addEventListener("click", () => close());
+  const layout = (): void => {
+    for (const [it, parent] of home) {
+      if (parent === row) row.insertBefore(it, more);
+      else parent.appendChild(it);
+    }
+    close();
+    const list = items();
+    for (const it of list) if (!home.has(it)) home.set(it, it.parentElement as HTMLElement);
+    more.hidden = true;
+    const fits = (): boolean => row.scrollWidth <= row.clientWidth + 1;
+    if (fits() || !row.clientWidth) return;
+    more.hidden = false;
+    for (let i = list.length - 1; i >= 0 && !fits(); i--) panel.insertBefore(list[i]!, panel.firstChild);
+  };
+  return { more, layout, close };
 }

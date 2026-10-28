@@ -501,6 +501,7 @@ const zh: Dict = {
     applyAll: "全部幻灯片",
     applyAllBackground: "将此背景应用于所有幻灯片",
     applyAllSlides: "应用于所有幻灯片",
+    more: "更多",
     arrowEnd: "终点箭头",
     arrowStart: "起点箭头",
     arrows: "箭头",

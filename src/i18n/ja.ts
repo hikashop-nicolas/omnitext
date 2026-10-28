@@ -499,6 +499,7 @@ const ja: Dict = {
     applyAll: "すべてに適用",
     applyAllBackground: "この背景をすべてのスライドに適用",
     applyAllSlides: "すべてのスライドに適用",
+    more: "その他",
     arrowEnd: "終点の矢印",
     arrowStart: "始点の矢印",
     arrows: "矢印",

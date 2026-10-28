@@ -500,6 +500,7 @@ const fr: Dict = {
     applyAll: "Toutes les diapos",
     applyAllBackground: "Appliquer ce fond à toutes les diapositives",
     applyAllSlides: "Appliquer à toutes les diapositives",
+    more: "Plus",
     arrowEnd: "Flèche de fin",
     arrowStart: "Flèche de début",
     arrows: "Flèches",

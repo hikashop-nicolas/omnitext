@@ -520,6 +520,7 @@ const ru: Dict = {
     applyAll: "Ко всем",
     applyAllBackground: "Применить этот фон ко всем слайдам",
     applyAllSlides: "Применить ко всем слайдам",
+    more: "Ещё",
     arrowEnd: "Конец стрелки",
     arrowStart: "Начало стрелки",
     arrows: "Стрелки",

@@ -497,6 +497,7 @@ const es: Dict = {
     applyAll: "Todas",
     applyAllBackground: "Aplicar este fondo a todas las diapositivas",
     applyAllSlides: "Aplicar a todas las diapositivas",
+    more: "Más",
     arrowEnd: "Flecha final",
     arrowStart: "Flecha inicial",
     arrows: "Flechas",

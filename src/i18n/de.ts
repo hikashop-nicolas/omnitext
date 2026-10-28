@@ -497,6 +497,7 @@ const de: Dict = {
     applyAll: "Alle Folien",
     applyAllBackground: "Diesen Hintergrund auf alle Folien anwenden",
     applyAllSlides: "Auf alle Folien anwenden",
+    more: "Mehr",
     arrowEnd: "Pfeilende",
     arrowStart: "Pfeilanfang",
     arrows: "Pfeile",

@@ -499,6 +499,7 @@ const en: Dict = {
     applyAll: "All slides",
     applyAllBackground: "Apply this background to every slide",
     applyAllSlides: "Apply to all slides",
+    more: "More",
     arrowEnd: "End arrow",
     arrowStart: "Start arrow",
     arrows: "Arrows",

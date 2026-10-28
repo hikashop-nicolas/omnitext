@@ -497,6 +497,7 @@ const pt: Dict = {
     applyAll: "Todos",
     applyAllBackground: "Aplicar este plano de fundo a todos os slides",
     applyAllSlides: "Aplicar a todos os slides",
+    more: "Mais",
     arrowEnd: "Seta final",
     arrowStart: "Seta inicial",
     arrows: "Setas",

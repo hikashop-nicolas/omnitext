@@ -6,7 +6,7 @@ import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
-import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
+import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, type IconName } from "./pptxcraft-ui";
 
 // The presentation editor on DeckCraft's engine. The engine (wasm, in a worker) owns the document, the undo history and the
 // pointer tools; this file draws the chrome around it: the slide, its selection handles and caret, the slide strip, the
@@ -23,10 +23,13 @@ function ensureStyles(): void {
   s.id = STYLE_ID;
   s.textContent = `
     .ot-px { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); position:relative; outline:none; }
-    .ot-px-bar, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
+    .ot-px-bar, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow:hidden;
       border-bottom:1px solid var(--border); background:var(--surface); scrollbar-width:none; }
     .ot-px-bottom { border-bottom:0; border-top:1px solid var(--border); }
-    @media (max-width:720px) { .ot-px-bar { flex-wrap:wrap; overflow-x:visible; } .ot-px-bar .sep { display:none; } }
+    .ot-px-morepanel { position:absolute; z-index:20; display:flex; flex-wrap:wrap; gap:4px; max-width:min(300px, 92vw); padding:4px; background:var(--surface);
+      color:var(--text); border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); }
+    .ot-px-morepanel .sep { display:none; }
+    .ot-px-morepanel .btn { padding:6px 8px; }
     .ot-px-bar .btn, .ot-px-bottom .btn, .ot-px-float .btn, .ot-px-slidebar .btn { flex:0 0 auto; position:relative; }
     .ot-px .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
     .ot-px .btn:disabled { opacity:.45; cursor:default; }
@@ -84,10 +87,12 @@ function ensureStyles(): void {
       background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
     @media (max-width:480px) { .ot-px-pct { display:none; } .ot-px-bottom input[type=number] { width:48px; } }
     @media (max-width:600px) { .ot-px-bottom input[type=range] { flex-basis:64px; width:64px; } }
-    .ot-px-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface);
+    .ot-px-float { position:absolute; z-index:8; display:flex; white-space:nowrap; gap:4px; padding:4px; background:var(--surface);
       color:var(--text); border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-px-float .btn { padding:6px 8px; }
-    .ot-px-row { display:flex; gap:4px; }
+    .ot-px-row { display:flex; gap:4px; min-width:0; overflow:hidden; }
+    .ot-px-float > .ot-px-row > .ot-px-row { display:contents; }
+    .ot-px-row[hidden] { display:none; }
     .ot-px-slidebar { position:sticky; top:-10px; z-index:2; display:flex; gap:4px; padding:2px 0 6px; background:var(--surface); }
     .ot-px-slidebar .btn { padding:6px 8px; }
     .ot-px-bottom span { color:var(--muted); font:13px system-ui, sans-serif; white-space:nowrap; }
@@ -158,6 +163,9 @@ class PptxCraftInstance implements EditorInstance {
   private inspector!: Inspector;
   private float!: HTMLElement;
   private rowText!: HTMLElement;
+  private rowAll!: HTMLElement;
+  private barFit!: ReturnType<typeof overflowRow>;
+  private floatFit!: ReturnType<typeof overflowRow>;
   private rowShape!: HTMLElement;
   private sideTools!: HTMLElement;
   private zoomRange!: HTMLInputElement;
@@ -213,6 +221,7 @@ class PptxCraftInstance implements EditorInstance {
   private thumbSlides = 0;
   private notesFor = -1;
   private resizeObserver: ResizeObserver | null = null;
+  private barObserver: ResizeObserver | null = null;
   private enterAt = 0;
   private fontsLoaded = new Set<string>();
   private mediaCache = new Map<number, { bytes: Uint8Array; mime: string; name: string } | null>();
@@ -249,7 +258,9 @@ class PptxCraftInstance implements EditorInstance {
     this.float.hidden = true;
     this.rowText = el("div", "ot-px-row");
     this.rowShape = el("div", "ot-px-row");
-    this.float.append(this.rowText, this.rowShape);
+    this.rowAll = el("div", "ot-px-row");
+    this.rowAll.append(this.rowText, this.rowShape);
+    this.float.append(this.rowAll);
     this.sideTools = el("div", "ot-px-slidebar");
     const body = el("div", "ot-px-body");
     this.side = el("div", "ot-px-side");
@@ -311,6 +322,8 @@ class PptxCraftInstance implements EditorInstance {
     container.appendChild(this.root);
     this.buildBar();
     this.buildFloat();
+    this.barFit = overflowRow(this.root, this.bar, () => [...this.bar.children].filter((c) => c !== this.barFit.more) as HTMLElement[], t("pptxcraft.more"));
+    this.floatFit = overflowRow(this.root, this.rowAll, () => [...this.rowText.children, ...(this.rowShape.hidden ? [] : [...this.rowShape.children])] as HTMLElement[], t("pptxcraft.more"));
     this.buildSideTools();
     this.side.classList.toggle("closed", window.innerWidth <= 720);
     this.wire();
@@ -318,6 +331,8 @@ class PptxCraftInstance implements EditorInstance {
       if (this.fitting) this.fit();
     });
     this.resizeObserver.observe(this.stage);
+    this.barObserver = new ResizeObserver(() => this.barFit.layout());
+    this.barObserver.observe(this.bar);
     this.original = ctx.bytes ?? new Uint8Array();
     this.fileName = ctx.filename ?? this.fileName;
     this.opened = this.open(this.original, ctx.filename ?? "presentation.pptx");
@@ -422,6 +437,10 @@ class PptxCraftInstance implements EditorInstance {
     this.sepTo(b);
     this.buttons.present = this.button("present", t("pptxcraft.present"), () => this.presentMenu());
     this.buttons.notes = this.button("notes", t("pptxcraft.notes"), () => this.toggleNotes());
+    this.buttons.find = this.button("search", t("pptxcraft.findReplace"), () => void this.findReplace());
+    this.buttons.spell = this.button("spellcheck", t("pptxcraft.spelling"), () => void this.spelling());
+    this.buttons.comment = this.button("comment", t("pptxcraft.addComment"), () => void this.addComment());
+    this.buttons.pdf = this.button("download", t("pptxcraft.exportPdf"), () => void this.exportPdf());
     this.buttons.tools = this.button("tools", t("pptxcraft.tools"), () => this.toolsMenu());
   }
 
@@ -1023,6 +1042,8 @@ class PptxCraftInstance implements EditorInstance {
     this.float.hidden = !has;
     if (!has) return;
     this.rowShape.hidden = !!ov.text;
+    this.float.style.maxWidth = `${Math.max(120, this.stage.clientWidth - 8)}px`;
+    this.floatFit.layout();
     let x0 = Infinity;
     let y0 = Infinity;
     let x1 = -Infinity;
@@ -1559,8 +1580,6 @@ class PptxCraftInstance implements EditorInstance {
 
   private toolsMenu(): void {
     popupMenu(this.root, this.buttons.tools, [
-      { label: t("pptxcraft.findReplace"), run: () => void this.findReplace() },
-      { label: t("pptxcraft.spelling"), run: () => void this.spelling() },
       { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
       { label: t("pptxcraft.thesaurus"), run: () => void this.thesaurus() },
       { label: t("pptxcraft.compare"), run: () => void this.compareDeck() },
@@ -1574,9 +1593,7 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.notesMaster"), run: () => void this.cmd("view.notesMaster", {}, true) },
       { label: t("pptxcraft.handoutMaster"), run: () => void this.cmd("view.handoutMaster", {}, true) },
       { label: t("pptxcraft.closeMaster"), run: () => void this.cmd("view.closeMaster", {}, true) },
-      { label: t("pptxcraft.exportPdf"), run: () => void this.exportPdf() },
       { label: t("pptxcraft.exportPng"), run: () => void this.exportPng() },
-      { label: t("pptxcraft.addComment"), run: () => void this.addComment() },
       { label: t("pptxcraft.comments"), run: () => void this.listComments() },
     ]);
   }
@@ -2251,6 +2268,9 @@ class PptxCraftInstance implements EditorInstance {
     this.disposed = true;
     this.endBusy();
     this.resizeObserver?.disconnect();
+    this.barObserver?.disconnect();
+    this.barFit?.close();
+    this.floatFit?.close();
     this.editMedia?.();
     this.inspector.dispose();
     this.session?.close();
