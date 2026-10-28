@@ -1745,13 +1745,24 @@ class PptxCraftInstance implements EditorInstance {
     if (this.mediaCache.has(id)) return this.mediaCache.get(id) ?? null;
     const info = await this.enqueue(() => session.execute<{ name?: string; contentType?: string; bytes?: number }>("media.info", { id }));
     let found: { bytes: Uint8Array; mime: string; name: string } | null = null;
+    const want = (info?.name ?? "").split("/").pop()?.toLowerCase() ?? "";
+    const pick = (zip: Record<string, Uint8Array>): void => {
+      const key = Object.keys(zip).find((k) => k.split("/").pop()?.toLowerCase() === want) ?? Object.keys(zip).find((k) => zip[k]!.length === info?.bytes);
+      if (key) found = { bytes: zip[key]!, mime: info?.contentType ?? "", name: want || key.split("/").pop()!.toLowerCase() };
+    };
     try {
       this.mediaZip ??= unzipSync(this.original, { filter: (f) => /^ppt\/media\//i.test(f.name) });
-      const want = (info?.name ?? "").split("/").pop()?.toLowerCase() ?? "";
-      const key = Object.keys(this.mediaZip).find((k) => k.split("/").pop()?.toLowerCase() === want);
-      if (key) found = { bytes: this.mediaZip[key]!, mime: info?.contentType ?? "", name: want };
+      pick(this.mediaZip);
     } catch {
       /* the file is not a readable archive */
+    }
+    if (!found && !this.mediaBySize.has(info?.bytes ?? -1)) {
+      // a file reopened after an edit has no original to read: the engine's own copy has the media
+      try {
+        pick(unzipSync((await this.enqueue(() => session.save())) ?? new Uint8Array(), { filter: (f) => /^ppt\/media\//i.test(f.name) }));
+      } catch {
+        /* nothing to read */
+      }
     }
     found ??= this.mediaBySize.get((info as { bytes?: number } | undefined)?.bytes ?? -1) ?? null;
     if (found) this.mediaCache.set(id, found);
