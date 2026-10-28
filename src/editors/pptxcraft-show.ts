@@ -102,7 +102,7 @@ export class ShowRunner {
       // the two slides are drawn once, at the size of the biggest screen; each frame only composites them
       const biggest = Math.max(...this.h.surfaces().map((s) => { const z = s.size(); return Math.min(z.w / this.h.slideW, z.h / this.h.slideH) * s.dpr; }), 0.05);
       // a transition frame is composited and copied every few milliseconds: past this size a big screen would make it stutter
-      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, Math.min(biggest, 1600 / this.h.slideW)));
+      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, Math.min(biggest, 1024 / this.h.slideW)));
       if (gen !== this.gen) { this.inTransition = false; return; }
       const dur = tr.ms / 1000;
       await this.animate(dur, gen, (t) => (cached ? this.cachedFrame(t / dur, gen) : this.frame("tr", idx, 0, t / dur, gen)));
