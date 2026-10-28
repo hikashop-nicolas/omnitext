@@ -157,6 +157,15 @@ const LAYOUTS: [string, string][] = [
 
 type Tool = "select" | "textBox" | { shape: string };
 
+interface MediaShape {
+  id: number;
+  box: number[];
+  video: boolean;
+  autoplay: boolean;
+  loop: boolean;
+  file?: { name?: string; contentType?: string; bytes?: number };
+}
+
 class PptxCraftInstance implements EditorInstance {
   private root!: HTMLElement;
   private bar!: HTMLElement;
@@ -1725,14 +1734,14 @@ class PptxCraftInstance implements EditorInstance {
   // ------------------------------------------------------------------ presenting
 
   /** The slide's audio and video shapes, with where they sit. */
-  private async mediaShapes(index: number): Promise<{ id: number; box: number[]; video: boolean; autoplay: boolean; loop: boolean }[]> {
+  private async mediaShapes(index: number): Promise<MediaShape[]> {
     const session = this.session;
     if (!session) return [];
-    const info = await this.enqueue(() => session.execute<{ shapes?: { id: number; box: number[]; media?: { video: boolean; autoplay: boolean; loop: boolean } }[] }>("slide.inspect", { index }));
-    const out: { id: number; box: number[]; video: boolean; autoplay: boolean; loop: boolean }[] = [];
+    const info = await this.enqueue(() => session.execute<{ shapes?: { id: number; box: number[]; media?: { video: boolean; autoplay: boolean; loop: boolean; name?: string; contentType?: string; bytes?: number } }[] }>("slide.inspect", { index }));
+    const out: MediaShape[] = [];
     const walk = (list: typeof info extends undefined ? never : NonNullable<typeof info>["shapes"]): void => {
       for (const sh of list ?? []) {
-        if (sh.media) out.push({ id: sh.id, box: sh.box, video: !!sh.media.video, autoplay: !!sh.media.autoplay, loop: !!sh.media.loop });
+        if (sh.media) out.push({ id: sh.id, box: sh.box, video: !!sh.media.video, autoplay: !!sh.media.autoplay, loop: !!sh.media.loop, file: sh.media });
       }
     };
     walk(info?.shapes);
@@ -1740,12 +1749,14 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   /** The bytes of a media shape, read from the file as it was opened (media added in this session are not there yet). */
-  private async mediaBytes(id: number): Promise<{ bytes: Uint8Array; mime: string; name: string } | null> {
+  private async mediaBytes(sh: MediaShape): Promise<{ bytes: Uint8Array; mime: string; name: string } | null> {
+    const id = sh.id;
     const session = this.session;
     this.mediaDiag = `id=${id} session=${!!session}`;
     if (!session) return null;
     if (this.mediaCache.has(id)) return this.mediaCache.get(id) ?? null;
-    const info = await this.enqueue(() => session.execute<{ name?: string; contentType?: string; bytes?: number }>("media.info", { id }));
+    // media.info only finds a shape on the slide the editor is on, and the show may be on another
+    const info = sh.file?.name ? sh.file : await this.enqueue(() => session.execute<{ name?: string; contentType?: string; bytes?: number }>("media.info", { id }));
     this.mediaDiag += ` info=${JSON.stringify(info)} original=${this.original.length}`;
     let found: { bytes: Uint8Array; mime: string; name: string } | null = null;
     const want = (info?.name ?? "").split("/").pop()?.toLowerCase() ?? "";
@@ -1802,7 +1813,7 @@ class PptxCraftInstance implements EditorInstance {
       let stop: (() => void) | null = null;
       const start = async (): Promise<void> => {
         btn.remove();
-        const m = await this.mediaBytes(sh.id);
+        const m = await this.mediaBytes(sh);
         if (!m) {
           console.error("[pptxcraft] media missing", this.mediaDiag);
           this.host.notifications.error(`${t("pptxcraft.mediaMissing")} [${this.mediaDiag}]`);
