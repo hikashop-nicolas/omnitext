@@ -1,4 +1,4 @@
-import { EngineError, openPdf, type FieldAction, type FieldActionInfo, type JsOutput, type JsRequest, type ScriptEvent, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, openPdf, pdfFontFaces, type PdfFontFace, type FieldAction, type FieldActionInfo, type JsOutput, type JsRequest, type ScriptEvent, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
@@ -22,6 +22,23 @@ import {
   type Layout,
   type PageSize,
 } from "./pdfcraft-layout";
+
+let fontFaces: Promise<PdfFontFace[]> | undefined;
+
+/** The faces the PDF module is built without, fetched once: Japanese, Simplified Chinese and Korean. */
+function pdfFonts(): Promise<PdfFontFace[]> {
+  fontFaces ??= Promise.all(
+    pdfFontFaces.map(async (f) => {
+      const r = await fetch(f.url);
+      if (!r.ok) throw new Error(`font ${f.family}: ${r.status}`);
+      return { bytes: new Uint8Array(await r.arrayBuffer()), family: f.family, style: f.style, scripts: f.scripts };
+    }),
+  ).catch(() => {
+    fontFaces = undefined;
+    return [];
+  });
+  return fontFaces;
+}
 
 const STYLE_ID = "omnitext-pdfcraft-style";
 const MIN_ZOOM = 0.25;
@@ -975,7 +992,7 @@ class PdfCraftInstance implements EditorInstance {
 
   private async openDocument(password?: string, wrong = false): Promise<void> {
     try {
-      this.doc = await openPdf(this.original, { password, worker: new PdfWorker() });
+      this.doc = await openPdf(this.original, { password, worker: new PdfWorker(), fonts: await pdfFonts() });
       this.password = password;
     } catch (e) {
       if (this.disposed) return;
@@ -2733,7 +2750,7 @@ class PdfCraftInstance implements EditorInstance {
       const signed = await doc.signWithCertificate(sign.p12, sign.password, { page, ...(box ? { box } : {}), reason: sign.reason || undefined, location: sign.location || undefined, ...(sign.certify ? { certify: 2 as const } : {}) });
       this.doc?.close();
       this.original = signed;
-      this.doc = await openPdf(signed, { password: this.password, worker: new PdfWorker() });
+      this.doc = await openPdf(signed, { password: this.password, worker: new PdfWorker(), fonts: await pdfFonts() });
       this.edited = false;
       this.fullSave = false;
       this.viewOnly = true;
@@ -2992,7 +3009,7 @@ class PdfCraftInstance implements EditorInstance {
     this.viewOnly = ctx.readOnly;
     // every peer starts from the same file, so the same edits give the same document
     this.doc?.close();
-    this.doc = await openPdf(base, { password: this.password, worker: new PdfWorker() });
+    this.doc = await openPdf(base, { password: this.password, worker: new PdfWorker(), fonts: await pdfFonts() });
     const doc = this.doc;
     this.shared = new PdfLog({ doc: ctx.doc as never, readOnly: ctx.readOnly, blobs: ctx.blobs }, { run: (call) => doc.execute(call), undo: () => doc.execute({ op: "undo" }) }, (change) => this.onSharedChange(change));
     await this.shared.start();

@@ -385,12 +385,13 @@ class PptxCraftInstance implements EditorInstance {
     }
   }
 
-  /** Loads the Korean or Simplified Chinese face the first time `text` needs it. */
+  /** Loads the Japanese, Korean or Simplified Chinese face the first time `text` needs it. */
   private async needFonts(text: string): Promise<void> {
     const session = this.session;
     if (!session) return;
     const want: [string, string][] = [];
     if (/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/.test(text)) want.push(["hangul", deckFontUrls.hangul]);
+    if (/[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]/.test(text) || (/[\u4e00-\u9fff]/.test(text) && !this.hansLikely)) want.push(["japanese", deckFontUrls.japanese]);
     if (/[\u4e00-\u9fff]/.test(text) && this.hansLikely) want.push(["hans", deckFontUrls.hans]);
     for (const [key, url] of want) {
       if (this.fontsLoaded.has(key)) continue;

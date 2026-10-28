@@ -355,7 +355,17 @@ export interface OpenOptions {
   worker?: Worker;
   workerUrl?: string | URL;
   wasmUrl?: string;
+  fonts?: PdfFontFace[];
 }
+
+export interface PdfFontFace {
+  bytes: Uint8Array;
+  family: string;
+  style: string;
+  scripts: string;
+}
+
+export const pdfFontFaces: { url: string; family: string; style: string; scripts: string }[] = [];
 
 export declare class PdfDocument {
   readonly pageCount: number;

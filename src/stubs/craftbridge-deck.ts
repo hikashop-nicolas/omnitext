@@ -200,4 +200,4 @@ export function openDeck(_options: OpenOptions = {}): Promise<DeckSession> {
   return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
 }
 
-export const deckFontUrls = { hangul: "", hans: "" };
+export const deckFontUrls = { japanese: "", hangul: "", hans: "" };
