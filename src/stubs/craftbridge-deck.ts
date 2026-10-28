@@ -121,6 +121,14 @@ export class DeckSession {
   overlay(): Promise<Overlay> {
     return Promise.resolve({ open: false });
   }
+  exportPdf(_params?: unknown): Promise<Uint8Array> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  exportPng(_index: number, _scale: number): Promise<Uint8Array> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
   showInfo(_index: number): Promise<ShowInfo> {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }

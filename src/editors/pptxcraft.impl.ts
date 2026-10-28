@@ -3,7 +3,7 @@ import { EngineError, deckFontUrls, openDeck, type DeckSession, type Overlay, ty
 import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
 import { getLocale, t } from "../i18n";
-import { formDialog, messageDialog } from "./pdfcraft-tools";
+import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
 import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
@@ -202,6 +202,7 @@ class PptxCraftInstance implements EditorInstance {
   private mediaZip: Record<string, Uint8Array> | null = null;
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
+  private fileName = "presentation.pptx";
   private pickKind: "image" | "video" | "audio" = "image";
   private mediaBySize = new Map<number, { bytes: Uint8Array; mime: string; name: string }>();
   private hansLikely = false;
@@ -278,6 +279,7 @@ class PptxCraftInstance implements EditorInstance {
     });
     this.resizeObserver.observe(this.stage);
     this.original = ctx.bytes ?? new Uint8Array();
+    this.fileName = ctx.filename ?? this.fileName;
     this.opened = this.open(this.original, ctx.filename ?? "presentation.pptx");
   }
 
@@ -1187,9 +1189,36 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.findReplace"), run: () => void this.findReplace() },
       { label: t("pptxcraft.spelling"), run: () => void this.spelling() },
       { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
+      { label: t("pptxcraft.exportPdf"), run: () => void this.exportPdf() },
+      { label: t("pptxcraft.exportPng"), run: () => void this.exportPng() },
       { label: t("pptxcraft.addComment"), run: () => void this.addComment() },
       { label: t("pptxcraft.comments"), run: () => void this.listComments() },
     ]);
+  }
+
+  private baseName(): string {
+    return this.fileName.replace(/\.[^./\\]+$/, "") || "presentation";
+  }
+
+  private async exportPdf(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const v = await this.dialog(t("pptxcraft.exportPdf"), [
+      { key: "layout", label: t("pptxcraft.pdfLayout"), kind: "select", value: "slides", options: [["slides", t("pptxcraft.layoutSlides")], ["notes", t("pptxcraft.layoutNotes")], ["handouts", t("pptxcraft.layoutHandouts")]] },
+      { key: "per", label: t("pptxcraft.perPage"), kind: "select", value: "6", options: [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["6", "6"], ["9", "9"]] },
+      { key: "hidden", label: t("pptxcraft.includeHidden"), kind: "check", value: false },
+    ]);
+    if (!v) return;
+    const bytes = await this.enqueue(() => session.exportPdf({ format: "pdf", layout: String(v.layout), perPage: Number(v.per), includeHidden: !!v.hidden }));
+    if (bytes) await saveFile(bytes, `${this.baseName()}.pdf`, "application/pdf");
+  }
+
+  private async exportPng(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    const index = this.ov.slide ?? 0;
+    const bytes = await this.enqueue(() => session.exportPng(index, 2));
+    if (bytes) await saveFile(bytes, `${this.baseName()}-${index + 1}.png`, "image/png");
   }
 
   private async findReplace(): Promise<void> {
