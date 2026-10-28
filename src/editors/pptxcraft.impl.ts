@@ -185,6 +185,7 @@ class PptxCraftInstance implements EditorInstance {
     this.input.setAttribute("aria-label", t("pptxcraft.typing"));
     this.input.autocapitalize = "off";
     this.input.spellcheck = false;
+    this.input.inputMode = "none";
     this.fileInput = el("input");
     this.fileInput.type = "file";
     this.fileInput.accept = "image/*";
@@ -443,6 +444,11 @@ class PptxCraftInstance implements EditorInstance {
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
     this.drawOverlay();
     this.updateButtons();
+    const mode = ov.text ? "text" : "none";
+    if (this.input.inputMode !== mode) {
+      this.input.inputMode = mode;
+      if (document.activeElement === this.input) this.input.blur();
+    }
     this.focusInput();
     const key = `${ov.slide}:${ov.revision}:${this.zoom.toFixed(3)}`;
     if (key !== this.renderedKey) void this.renderMain(key);
