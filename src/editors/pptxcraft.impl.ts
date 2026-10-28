@@ -21,11 +21,10 @@ function ensureStyles(): void {
   s.id = STYLE_ID;
   s.textContent = `
     .ot-px { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); position:relative; outline:none; }
-    .ot-px-bar, .ot-px-sub, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
+    .ot-px-bar, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); scrollbar-width:none; }
-    .ot-px-sub { background:var(--canvas); }
     .ot-px-bottom { border-bottom:0; border-top:1px solid var(--border); }
-    .ot-px-bar .btn, .ot-px-sub .btn, .ot-px-bottom .btn { flex:0 0 auto; position:relative; }
+    .ot-px-bar .btn, .ot-px-bottom .btn, .ot-px-float .btn, .ot-px-slidebar .btn { flex:0 0 auto; position:relative; }
     .ot-px .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
     .ot-px .btn:disabled { opacity:.45; cursor:default; }
     .ot-px .sep { flex:0 0 1px; width:1px; align-self:stretch; background:var(--border); margin:0 2px; }
@@ -53,6 +52,16 @@ function ensureStyles(): void {
     .ot-px-notes textarea { flex:1; height:84px; resize:vertical; margin:6px; padding:6px 8px; font:13px system-ui, sans-serif; color:var(--text);
       background:var(--canvas); border:1px solid var(--border); border-radius:7px; }
     .ot-px-bottom .grow { flex:1 1 auto; }
+    .ot-px-bottom input[type=range] { flex:0 1 96px; width:96px; min-width:48px; accent-color:var(--accent); }
+    .ot-px-bottom input[type=number] { flex:0 0 auto; width:56px; min-width:0; font:inherit; padding:4px 6px; color:var(--text);
+      background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    @media (max-width:600px) { .ot-px-bottom input[type=range] { flex-basis:64px; width:64px; } }
+    .ot-px-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface);
+      color:var(--text); border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
+    .ot-px-float .btn { padding:6px 8px; }
+    .ot-px-row { display:flex; gap:4px; }
+    .ot-px-slidebar { position:sticky; top:-10px; z-index:2; display:flex; gap:4px; padding:2px 0 6px; background:var(--surface); }
+    .ot-px-slidebar .btn { padding:6px 8px; }
     .ot-px-bottom span { color:var(--muted); font:13px system-ui, sans-serif; white-space:nowrap; }
     .ot-px-input { position:absolute; left:-9999px; top:0; width:1px; height:1px; opacity:0; resize:none; border:0; padding:0; }
     .ot-px-menu { position:absolute; z-index:20; display:flex; flex-direction:column; min-width:170px; padding:4px; border-radius:10px;
@@ -101,7 +110,16 @@ type Tool = "select" | "textBox" | { shape: string };
 class PptxCraftInstance implements EditorInstance {
   private root!: HTMLElement;
   private bar!: HTMLElement;
-  private sub!: HTMLElement;
+  private float!: HTMLElement;
+  private rowText!: HTMLElement;
+  private rowShape!: HTMLElement;
+  private sideTools!: HTMLElement;
+  private zoomRange!: HTMLInputElement;
+  private zoomNum!: HTMLInputElement;
+  private pointers = new Map<number, { x: number; y: number }>();
+  private pinch: { dist: number; zoom: number } | null = null;
+  private ignoreUntilUp = false;
+  private hadSelection = false;
   private side!: HTMLElement;
   private stage!: HTMLElement;
   private slideEl!: HTMLElement;
@@ -160,8 +178,12 @@ class PptxCraftInstance implements EditorInstance {
     this.root = el("div", "ot-px");
     this.root.tabIndex = -1;
     this.bar = el("div", "ot-px-bar");
-    this.sub = el("div", "ot-px-sub");
-    this.sub.hidden = true;
+    this.float = el("div", "ot-px-float");
+    this.float.hidden = true;
+    this.rowText = el("div", "ot-px-row");
+    this.rowShape = el("div", "ot-px-row");
+    this.float.append(this.rowText, this.rowShape);
+    this.sideTools = el("div", "ot-px-slidebar");
     const body = el("div", "ot-px-body");
     this.side = el("div", "ot-px-side");
     const main = el("div", "ot-px-main");
@@ -170,7 +192,7 @@ class PptxCraftInstance implements EditorInstance {
     this.canvas = el("canvas");
     this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     this.svg.setAttribute("class", "ot-px-ov");
-    this.slideEl.append(this.canvas, this.svg);
+    this.slideEl.append(this.canvas, this.svg, this.float);
     this.stage.appendChild(this.slideEl);
     this.notesWrap = el("div", "ot-px-notes");
     this.notesWrap.hidden = true;
@@ -192,10 +214,11 @@ class PptxCraftInstance implements EditorInstance {
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.pickedPicture());
     const bottom = this.buildBottom();
-    this.root.append(this.bar, this.sub, body, bottom, this.input, this.fileInput);
+    this.root.append(this.bar, body, bottom, this.input, this.fileInput);
     container.appendChild(this.root);
     this.buildBar();
-    this.buildSub();
+    this.buildFloat();
+    this.buildSideTools();
     this.side.classList.toggle("closed", window.innerWidth <= 720);
     this.wire();
     this.resizeObserver = new ResizeObserver(() => {
@@ -305,49 +328,52 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.table = this.button("table", t("pptxcraft.table"), () => void this.insertTable());
     this.sepTo(b);
     this.buttons.newSlide = this.button("slideNew", t("pptxcraft.newSlide"), () => this.newSlideMenu());
-    this.buttons.dupSlide = this.button("copy", t("pptxcraft.duplicateSlide"), () => void this.cmd("slide.duplicate", {}, true));
-    this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.cmd("slide.delete", {}, true));
-    this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.moveSlide(-1));
-    this.buttons.down = this.button("down", t("pptxcraft.moveDown"), () => void this.moveSlide(1));
     this.sepTo(b);
     this.buttons.present = this.button("present", t("pptxcraft.present"), () => void this.present());
     this.buttons.notes = this.button("notes", t("pptxcraft.notes"), () => this.toggleNotes());
   }
 
-  private colorButton(name: IconName, title: string, run: (anchor: HTMLButtonElement) => void): HTMLButtonElement {
-    const b = this.button(name, title, () => run(b), this.sub);
+  private colorButton(into: HTMLElement, name: IconName, title: string, run: (anchor: HTMLButtonElement) => void): HTMLButtonElement {
+    const b = this.button(name, title, () => run(b), into);
     const stripe = el("span", "ot-px-stripe");
     stripe.style.background = "var(--muted)";
     b.appendChild(stripe);
     return b;
   }
 
-  private buildSub(): void {
-    const s = this.sub;
+  private buildSideTools(): void {
+    this.buttons.dupSlide = this.button("copy", t("pptxcraft.duplicateSlide"), () => void this.cmd("slide.duplicate", {}, true), this.sideTools);
+    this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.cmd("slide.delete", {}, true), this.sideTools);
+    this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.moveSlide(-1), this.sideTools);
+    this.buttons.down = this.button("down", t("pptxcraft.moveDown"), () => void this.moveSlide(1), this.sideTools);
+  }
+
+  private buildFloat(): void {
+    const s = this.rowText;
+    const r = this.rowShape;
     const sb = this.subButtons;
     sb.bold = this.button("bold", t("pptxcraft.bold"), () => void this.cmd("format.bold"), s);
     sb.italic = this.button("italic", t("pptxcraft.italic"), () => void this.cmd("format.italic"), s);
     sb.underline = this.button("underline", t("pptxcraft.underline"), () => void this.cmd("format.underline"), s);
     sb.larger = this.button("larger", t("pptxcraft.larger"), () => void this.cmd("format.grow"), s);
     sb.smaller = this.button("smaller", t("pptxcraft.smaller"), () => void this.cmd("format.shrink"), s);
-    sb.textColor = this.colorButton("textColor", t("pptxcraft.textColor"), (a) =>
+    sb.textColor = this.colorButton(s, "textColor", t("pptxcraft.textColor"), (a) =>
       colorMenu(this.root, a, { custom: t("pptxcraft.custom") }, (c) => c && void this.cmd("format.color", { color: c })),
     );
     sb.alignLeft = this.button("alignLeft", t("pptxcraft.alignLeft"), () => void this.cmd("format.align", { align: "left" }), s);
     sb.alignCenter = this.button("alignCenter", t("pptxcraft.alignCenter"), () => void this.cmd("format.align", { align: "center" }), s);
     sb.alignRight = this.button("alignRight", t("pptxcraft.alignRight"), () => void this.cmd("format.align", { align: "right" }), s);
     sb.bullets = this.button("bullets", t("pptxcraft.bullets"), () => void this.cmd("format.bullets"), s);
-    this.sepTo(s);
-    sb.fill = this.colorButton("fill", t("pptxcraft.fill"), (a) =>
+    sb.fill = this.colorButton(r, "fill", t("pptxcraft.fill"), (a) =>
       colorMenu(this.root, a, { none: t("pptxcraft.noFill"), custom: t("pptxcraft.custom") }, (c) => void this.cmd("shape.fill", c ? { color: c } : { none: true })),
     );
-    sb.line = this.colorButton("line", t("pptxcraft.outline"), (a) =>
+    sb.line = this.colorButton(r, "line", t("pptxcraft.outline"), (a) =>
       colorMenu(this.root, a, { none: t("pptxcraft.noLine"), custom: t("pptxcraft.custom") }, (c) => void this.cmd("shape.line", c ? { color: c } : { none: true })),
     );
-    sb.toFront = this.button("toFront", t("pptxcraft.toFront"), () => void this.cmd("arrange.bringToFront"), s);
-    sb.toBack = this.button("toBack", t("pptxcraft.toBack"), () => void this.cmd("arrange.sendToBack"), s);
-    sb.duplicate = this.button("copy", t("pptxcraft.duplicate"), () => void this.cmd("edit.duplicate"), s);
-    sb.remove = this.button("trash", t("pptxcraft.delete"), () => void this.cmd("edit.delete"), s);
+    sb.toFront = this.button("toFront", t("pptxcraft.toFront"), () => void this.cmd("arrange.bringToFront"), r);
+    sb.toBack = this.button("toBack", t("pptxcraft.toBack"), () => void this.cmd("arrange.sendToBack"), r);
+    sb.duplicate = this.button("copy", t("pptxcraft.duplicate"), () => void this.cmd("edit.duplicate"), r);
+    sb.remove = this.button("trash", t("pptxcraft.delete"), () => void this.cmd("edit.delete"), r);
   }
 
   private buildBottom(): HTMLElement {
@@ -355,12 +381,31 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.prev = this.button("up", t("pptxcraft.previous"), () => void this.cmd("slide.previous", {}), bottom);
     this.buttons.next = this.button("down", t("pptxcraft.next"), () => void this.cmd("slide.next", {}), bottom);
     this.counter = el("span");
-    bottom.appendChild(this.counter);
-    bottom.appendChild(el("span", "grow"));
-    this.button("zoomOut", t("pptxcraft.zoomOut"), () => this.zoomBy(1 / 1.25), bottom);
+    bottom.append(this.counter, el("span", "grow"));
     this.button("fit", t("pptxcraft.fit"), () => this.fit(), bottom);
-    this.button("zoomIn", t("pptxcraft.zoomIn"), () => this.zoomBy(1.25), bottom);
+    this.zoomRange = el("input");
+    this.zoomRange.type = "range";
+    this.zoomRange.min = String(MIN_ZOOM * 100);
+    this.zoomRange.max = String(MAX_ZOOM * 100);
+    this.zoomRange.step = "5";
+    this.zoomRange.value = "100";
+    this.zoomRange.title = t("pptxcraft.zoomLevel");
+    this.zoomRange.setAttribute("aria-label", t("pptxcraft.zoomLevel"));
+    this.zoomNum = el("input");
+    this.zoomNum.type = "number";
+    this.zoomNum.min = String(MIN_ZOOM * 100);
+    this.zoomNum.max = String(MAX_ZOOM * 100);
+    this.zoomNum.value = "100";
+    this.zoomNum.setAttribute("aria-label", t("pptxcraft.zoomPercent"));
+    this.zoomRange.addEventListener("input", () => this.userZoom(Number(this.zoomRange.value)));
+    this.zoomNum.addEventListener("change", () => this.userZoom(Number(this.zoomNum.value)));
+    bottom.append(this.zoomRange, this.zoomNum, el("span", undefined, "%"));
     return bottom;
+  }
+
+  private userZoom(percent: number): void {
+    if (!Number.isFinite(percent) || percent <= 0) return;
+    this.setZoom(percent / 100, false);
   }
 
   private shapesMenu(): void {
@@ -478,7 +523,7 @@ class PptxCraftInstance implements EditorInstance {
     const started = performance.now();
     this.applySize();
     try {
-      const r = await session.render(this.ov.slide ?? 0, this.zoom * this.dpr, true);
+      const r = await session.render(this.ov.slide ?? 0, Math.min(this.zoom * this.dpr, 4096 / this.slideW), true);
       if (token !== this.renderToken || this.disposed) return;
       this.canvas.width = r.width;
       this.canvas.height = r.height;
@@ -518,6 +563,7 @@ class PptxCraftInstance implements EditorInstance {
       }
     }
     this.svg.replaceChildren(...kids);
+    this.placeFloat();
   }
 
   private drawHandles(kids: Element[], s: SelectedShape, px: number, accent: string): void {
@@ -549,7 +595,6 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   private zoomBy(f: number): void {
-    this.fitting = false;
     this.setZoom(this.zoom * f, false);
   }
 
@@ -558,6 +603,8 @@ class PptxCraftInstance implements EditorInstance {
     if (Math.abs(zoom - this.zoom) < 1e-4 && this.renderedKey) return;
     this.zoom = zoom;
     this.fitting = fitting;
+    this.zoomRange.value = String(Math.round(zoom * 100));
+    this.zoomNum.value = String(Math.round(zoom * 100));
     this.applySize();
     this.drawOverlay();
     if (this.ov.open) void this.renderMain(`${this.ov.slide}:${this.ov.revision}:${this.zoom.toFixed(3)}`);
@@ -569,7 +616,7 @@ class PptxCraftInstance implements EditorInstance {
     const n = this.ov.slides ?? 0;
     if (all || n !== this.thumbSlides || this.thumbs.length !== n) {
       this.thumbSlides = n;
-      this.side.replaceChildren();
+      this.side.replaceChildren(this.sideTools);
       this.thumbs = [];
       for (let i = 0; i < n; i++) {
         const row = el("div", "ot-px-thumb");
@@ -672,12 +719,45 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.up.disabled = cur <= 0;
     this.buttons.down.disabled = cur >= n - 1;
     this.buttons.delSlide.disabled = n <= 1;
-    const has = (ov.selection?.length ?? 0) > 0 || !!ov.text;
-    this.sub.hidden = !has;
-    const shapeOnly = !ov.text;
-    for (const k of ["fill", "line", "toFront", "toBack", "duplicate", "remove"]) this.subButtons[k].hidden = !!ov.text && k !== "remove" && false;
-    this.subButtons.remove.hidden = !shapeOnly;
-    this.subButtons.duplicate.hidden = !shapeOnly;
+    this.placeFloat();
+  }
+
+  /** The tools for the selection, floating over it (under it when there is no room above). */
+  private placeFloat(): void {
+    const ov = this.ov;
+    const sel = ov.selection ?? [];
+    const has = (sel.length > 0 || !!ov.text) && !this.dragging && !this.pinch;
+    this.float.hidden = !has;
+    if (!has) return;
+    this.rowShape.hidden = !!ov.text;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const o of sel) {
+      for (const c of o.corners) {
+        x0 = Math.min(x0, c[0]);
+        y0 = Math.min(y0, c[1]);
+        x1 = Math.max(x1, c[0]);
+        y1 = Math.max(y1, c[1]);
+      }
+    }
+    if (!Number.isFinite(x0)) return this.hideFloat();
+    const z = this.zoom;
+    const w = this.float.offsetWidth;
+    const h = this.float.offsetHeight;
+    const slide = this.slideEl.getBoundingClientRect();
+    const view = this.stage.getBoundingClientRect();
+    const left = Math.max(view.left + 4 - slide.left, Math.min(x0 * z, view.right - 4 - w - slide.left));
+    this.float.style.left = `${left}px`;
+    const above = y0 * z - h - 32;
+    const below = y1 * z + 32;
+    const room = slide.top + above >= view.top + 4;
+    this.float.style.top = `${room ? above : below}px`;
+  }
+
+  private hideFloat(): void {
+    this.float.hidden = true;
   }
 
   // ------------------------------------------------------------------ pointer
@@ -727,13 +807,18 @@ class PptxCraftInstance implements EditorInstance {
 
   private onPointerDown(e: PointerEvent): void {
     const session = this.session;
-    if (!session || e.button === 2 && false) return;
+    if (!session) return;
     e.preventDefault();
     this.svg.setPointerCapture(e.pointerId);
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pointers.size === 2) return this.startPinch(session);
+    if (this.pointers.size > 2 || this.ignoreUntilUp) return;
     this.focusInput();
     const p = this.point(e);
     const mods = this.mods(e);
     this.dragging = true;
+    if (this.pointers.size === 1) this.hadSelection = (this.ov.selection?.length ?? 0) > 0;
+    this.hideFloat();
     const double = e.pointerType === "touch" && e.timeStamp - this.lastTap.t < 350 && Math.hypot(e.clientX - this.lastTap.x, e.clientY - this.lastTap.y) < 24;
     const kind = e.button === 2 ? "contextClick" : double ? "doubleClick" : e.detail === 2 && e.pointerType !== "touch" ? "doubleClick" : e.detail >= 3 ? "tripleClick" : "down";
     void this.enqueue(async () => {
@@ -745,6 +830,9 @@ class PptxCraftInstance implements EditorInstance {
   private onPointerMove(e: PointerEvent): void {
     const session = this.session;
     if (!session) return;
+    if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pinch) return this.movePinch();
+    if (this.ignoreUntilUp) return;
     const p = this.point(e);
     if (!this.dragging) {
       if (e.pointerType === "mouse") this.hover(p);
@@ -776,8 +864,15 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   private onPointerUp(e: PointerEvent): void {
+    this.pointers.delete(e.pointerId);
+    if (this.pinch && this.pointers.size < 2) this.pinch = null;
+    if (this.pointers.size === 0 && this.ignoreUntilUp) {
+      this.ignoreUntilUp = false;
+      this.placeFloat();
+      return;
+    }
     const session = this.session;
-    if (!session || !this.dragging) return;
+    if (!session || !this.dragging || this.ignoreUntilUp) return;
     this.dragging = false;
     const p = this.point(e);
     if (e.pointerType === "touch") this.lastTap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
@@ -792,6 +887,34 @@ class PptxCraftInstance implements EditorInstance {
       }
       await this.refresh();
     });
+  }
+
+  /** A second finger turns the touch into a pinch: the gesture the first finger began is ended where it stands. */
+  private startPinch(session: DeckSession): void {
+    const [a, b] = [...this.pointers.values()];
+    if (this.dragging) {
+      this.dragging = false;
+      const pt = { x: a!.x, y: a!.y };
+      const r = this.slideEl.getBoundingClientRect();
+      const x = ((pt.x - r.left) / r.width) * this.slideW;
+      const y = ((pt.y - r.top) / r.height) * this.slideH;
+      this.pendingDrag = null;
+      void this.enqueue(async () => {
+        await session.pointer({ kind: "up", x, y, tol: 6 / this.zoom, mods: { shift: false, alt: false, cmd: false } });
+        if (!this.hadSelection) await session.execute("edit.deselect", {});
+        await this.refresh();
+      });
+    }
+    this.ignoreUntilUp = true;
+    this.pinch = { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y) || 1, zoom: this.zoom };
+    this.hideFloat();
+  }
+
+  private movePinch(): void {
+    const pts = [...this.pointers.values()];
+    if (!this.pinch || pts.length < 2) return;
+    const dist = Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y) || 1;
+    this.setZoom(this.pinch.zoom * (dist / this.pinch.dist), false);
   }
 
   private hover(p: { x: number; y: number; tol: number }): void {
