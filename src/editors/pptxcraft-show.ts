@@ -14,6 +14,12 @@ export interface ShowHost {
   /** Runs an engine call after what is queued; undefined when it failed. */
   call<T>(fn: () => Promise<T>): Promise<T | undefined>;
   total: number;
+  /** Slides left out of the show. */
+  hidden?: boolean[];
+  loop?: boolean;
+  noAnimation?: boolean;
+  /** The slides the show covers (inclusive). */
+  range?: [number, number];
   slideW: number;
   slideH: number;
   surfaces(): Surface[];
@@ -87,11 +93,11 @@ export class ShowRunner {
       this.busy = false;
       if (gen !== this.gen) return;
     }
-    this.step = o.built ? this.steps : 0;
+    this.step = o.built || this.h.noAnimation ? this.steps : 0;
     await this.frame("step", idx, this.step, 0, gen);
     if (gen !== this.gen) return;
     this.h.onSlide(idx);
-    if (!o.built && this.steps > 0 && this.auto[0]) await this.playStep(0, gen);
+    if (!o.built && !this.h.noAnimation && this.steps > 0 && this.auto[0]) await this.playStep(0, gen);
     if (gen === this.gen && tr?.afterMs) this.afterTimer = window.setTimeout(() => void this.next(), tr.afterMs);
   }
 
@@ -103,7 +109,29 @@ export class ShowRunner {
       return;
     }
     if (this.step < this.steps) return this.playStep(this.step, this.gen);
-    if (this.index < this.h.total - 1) await this.goto(this.index + 1, { forward: true });
+    const to = this.neighbour(1);
+    if (to !== null) await this.goto(to, { forward: true });
+    else if (this.h.loop) await this.goto(this.first(), { forward: true });
+  }
+
+  private lo(): number {
+    return this.h.range?.[0] ?? 0;
+  }
+
+  private hi(): number {
+    return Math.min(this.h.total - 1, this.h.range?.[1] ?? this.h.total - 1);
+  }
+
+  /** The first slide of the show (hidden slides and the range left out). */
+  first(): number {
+    for (let i = this.lo(); i <= this.hi(); i++) if (!this.h.hidden?.[i]) return i;
+    return this.lo();
+  }
+
+  /** The next shown slide in a direction, or null at the end. */
+  private neighbour(dir: 1 | -1): number | null {
+    for (let i = this.index + dir; i >= this.lo() && i <= this.hi(); i += dir) if (!this.h.hidden?.[i]) return i;
+    return null;
   }
 
   async prev(): Promise<void> {
@@ -112,7 +140,8 @@ export class ShowRunner {
       this.skip = true;
       return;
     }
-    if (this.index > 0) await this.goto(this.index - 1, { built: true });
+    const to = this.neighbour(-1);
+    if (to !== null) await this.goto(to, { built: true });
   }
 
   private async playStep(i: number, gen: number): Promise<void> {

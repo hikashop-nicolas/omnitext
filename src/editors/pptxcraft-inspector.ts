@@ -49,6 +49,16 @@ interface FormatState {
   size?: number;
   lineSpacing?: number | null;
 }
+interface CommentInfo {
+  author?: string;
+  text?: string;
+  resolved?: boolean;
+  replies?: CommentInfo[];
+}
+interface MediaInfo {
+  options?: { autoplay?: boolean; loop?: boolean; rewind?: boolean; hide?: boolean; fullScreen?: boolean; acrossSlides?: boolean; volume?: number; trimStart?: number; trimEnd?: number; fadeIn?: number; fadeOut?: number };
+  durationMs?: number;
+}
 interface Anim {
   shape: number;
   effect: string;
@@ -209,11 +219,18 @@ export class Inspector {
     this.body.replaceChildren();
     if (sel.length) this.shapeSection(sel.map((s) => s.id), shape, slide);
     const kind = shape?.shape?.kind?.type;
+    const comments = (await this.h.query<CommentInfo[]>("comment.list", { slide: index })) ?? [];
+    const sName = slide?.shapes?.find((x) => x.id === one)?.name ?? "";
+    const media = kind === "media" && one !== null ? await this.h.query<MediaInfo>("media.info", { id: one }) : undefined;
+    const nodes = kind === "group" && sName.startsWith("SmartArt") && one !== null ? await this.h.query<{ nodes?: { text: string; level: number }[] }>("smartArt.nodes", { id: one }) : undefined;
     if (kind === "table") this.tableSection(sel[0]!.id);
     if (kind === "picture") await this.pictureSection(sel[0]!.id);
     if (kind === "chart") this.chartSection(sel[0]!.id, slide);
+    if (kind === "media" && media) this.mediaSection(sel[0]!.id, media);
+    if (nodes) this.smartArtSection(sel[0]!.id, nodes.nodes ?? []);
     if (ov.text || (sel.length && !(kind === "picture" || kind === "chart" || kind === "media"))) this.textSection(state, shape);
     this.slideSection(slide, index);
+    this.commentSection(comments, index);
     this.animationSection(slide, anims ?? [], sel.map((s) => s.id));
     this.designSection();
     this.el.scrollTop = scroll;
@@ -263,6 +280,9 @@ export class Inspector {
     this.row(d, t("pptxcraft.align"), al("left", "⇤"), al("center", "↔"), al("right", "⇥"), al("top", "⤒"), al("middle", "↕"), al("bottom", "⤓"));
     if (ids.length > 2) this.row(d, t("pptxcraft.distribute"), this.button("↔", () => this.do("arrange.distribute", { dir: "horizontal", to: "selection" })), this.button("↕", () => this.do("arrange.distribute", { dir: "vertical", to: "selection" })));
     this.row(d, t("pptxcraft.order"), this.button(t("pptxcraft.forward"), () => this.do("arrange.bringForward")), this.button(t("pptxcraft.backward"), () => this.do("arrange.sendBackward")));
+    this.row(d, t("pptxcraft.formatPainter"), this.button(t("pptxcraft.copyFormat"), () => this.do("format.painter", {})), this.button(t("pptxcraft.pasteFormat"), () => this.do("format.painterApply", {})));
+    if (ids.length > 1) this.row(d, t("pptxcraft.mergeShapes"), ...([["union", t("pptxcraft.mUnion")], ["combine", t("pptxcraft.mCombine")], ["fragment", t("pptxcraft.mFragment")], ["intersect", t("pptxcraft.mIntersect")], ["subtract", t("pptxcraft.mSubtract")]] as [string, string][]).map(([op, l]) => this.button(l, () => this.do("shape.merge", { op, ids }))));
+    this.row(d, t("pptxcraft.action"), this.button(t("pptxcraft.linkAction"), () => void this.shapeAction(ids)));
     this.row(d, t("pptxcraft.group"), this.button(t("pptxcraft.groupDo"), () => this.do("arrange.group")), this.button(t("pptxcraft.ungroup"), () => this.do("arrange.ungroup")));
   }
 
@@ -318,6 +338,22 @@ export class Inspector {
     this.row(d, t("pptxcraft.distribute"), tb(t("pptxcraft.rows"), "table.distributeRows"), tb(t("pptxcraft.columns"), "table.distributeColumns"));
   }
 
+  private async shapeAction(ids: number[]): Promise<void> {
+    const v = await formDialog(this.h.root, {
+      title: t("pptxcraft.linkAction"),
+      ok: t("pptxcraft.ok"),
+      cancel: t("pptxcraft.cancel"),
+      fields: [
+        { key: "action", label: t("pptxcraft.action"), kind: "select", value: "url", options: [["none", t("pptxcraft.none")], ["url", t("pptxcraft.actWebsite")], ["slide", t("pptxcraft.actSlide")], ["next", t("pptxcraft.actNext")], ["previous", t("pptxcraft.actPrevious")], ["first", t("pptxcraft.actFirst")], ["last", t("pptxcraft.actLast")], ["endShow", t("pptxcraft.actEnd")], ["playMedia", t("pptxcraft.actPlay")]] },
+        { key: "url", label: t("pptxcraft.address"), kind: "text", value: "https://" },
+        { key: "slide", label: t("pptxcraft.slideNo"), kind: "number", value: 1, min: 1 },
+      ],
+    });
+    if (!v) return;
+    const action = String(v.action);
+    this.do("shape.action", { on: "click", action, ids, ...(action === "url" ? { url: String(v.url) } : {}), ...(action === "slide" ? { slide: Number(v.slide) - 1 } : {}) });
+  }
+
   private async mergeCells(id: number): Promise<void> {
     const v = await formDialog(this.h.root, {
       title: t("pptxcraft.merge"),
@@ -356,7 +392,7 @@ export class Inspector {
       const f = file.files?.[0];
       if (f) void f.arrayBuffer().then((b) => this.do("picture.change", { data: base64(new Uint8Array(b)), name: f.name, ids: [id] }));
     });
-    this.row(d, "", this.button(t("pptxcraft.removeBackground"), () => this.do("picture.removeBackground", { ids: [id] })), this.button(t("pptxcraft.changePicture"), () => file.click()), this.button(t("pptxcraft.reset"), () => this.do("picture.reset", { ids: [id] })), file);
+    this.row(d, "", this.button(t("pptxcraft.removeBackground"), () => this.do("picture.removeBackground", { ids: [id] })), this.button(t("pptxcraft.changePicture"), () => file.click()), this.button(t("pptxcraft.reset"), () => this.do("picture.reset", { ids: [id] })), this.button(t("pptxcraft.compress"), () => this.do("picture.compress", { all: true })), file);
   }
 
   private chartSection(id: number, slide: SlideInfo | undefined): void {
@@ -388,6 +424,63 @@ export class Inspector {
     const names = rows[0]!.slice(1);
     const body = rows.slice(1);
     this.do("chart.data", { categories: body.map((r) => r[0] ?? ""), series: names.map((name, i) => ({ name, values: body.map((r) => Number(r[i + 1]) || 0) })), id });
+  }
+
+  private mediaSection(id: number, m: MediaInfo): void {
+    const d = this.section("media", t("pptxcraft.mediaTools"));
+    const o = m.options ?? {};
+    const opt = (key: string, label: string, on: boolean | undefined) => this.check(label, on, (v) => this.do("media.options", { [key]: v, ids: [id] }));
+    this.row(d, "", opt("autoplay", t("pptxcraft.autoplay"), o.autoplay), opt("loop", t("pptxcraft.loop"), o.loop));
+    this.row(d, "", opt("rewind", t("pptxcraft.rewind"), o.rewind), opt("hide", t("pptxcraft.hideUnplayed"), o.hide));
+    this.row(d, "", opt("fullScreen", t("pptxcraft.fullScreen"), o.fullScreen), opt("acrossSlides", t("pptxcraft.acrossSlides"), o.acrossSlides));
+    this.row(d, t("pptxcraft.volume"), this.num((o.volume ?? 1) * 100, t("pptxcraft.volume"), (v) => this.do("media.options", { volume: Math.min(1, Math.max(0, v / 100)), ids: [id] }), { min: 0, max: 100, step: 5 }));
+    const sec = (key: string, label: string, ms: number | undefined) => this.num((ms ?? 0) / 1000, label, (v) => this.do("media.options", { [key]: Math.round(Math.max(0, v) * 1000), ids: [id] }), { min: 0, step: 0.1 });
+    this.row(d, t("pptxcraft.trim"), sec("trimStart", t("pptxcraft.trimStart"), o.trimStart), sec("trimEnd", t("pptxcraft.trimEnd"), o.trimEnd));
+    this.row(d, t("pptxcraft.fade"), sec("fadeIn", t("pptxcraft.fadeIn"), o.fadeIn), sec("fadeOut", t("pptxcraft.fadeOut"), o.fadeOut));
+  }
+
+  private smartArtSection(id: number, nodes: { text: string; level: number }[]): void {
+    const d = this.section("smartart", t("pptxcraft.smartArt"));
+    const ta = el("textarea");
+    ta.rows = 5;
+    ta.value = nodes.map((n) => `${"\t".repeat(n.level)}${n.text}`).join("\n");
+    ta.setAttribute("aria-label", t("pptxcraft.items"));
+    ta.addEventListener("change", () => this.do("smartArt.setNodes", { id, lines: ta.value.split(/\r?\n/).filter((l) => l.trim() !== "") }));
+    this.row(d, t("pptxcraft.items"), ta);
+    const kinds: [string, string][] = [["list", t("pptxcraft.saList")], ["process", t("pptxcraft.saProcess")], ["cycle", t("pptxcraft.saCycle")], ["hierarchy", t("pptxcraft.saHierarchy")], ["pyramid", t("pptxcraft.saPyramid")], ["matrix", t("pptxcraft.saMatrix")], ["chevron", "Chevron"], ["radial", "Radial"], ["venn", "Venn"], ["funnel", "Funnel"], ["timeline", "Timeline"], ["orgChart", "Org chart"]];
+    this.row(d, t("pptxcraft.layout"), this.select(kinds, undefined, t("pptxcraft.layout"), (v) => this.do("smartArt.layout", { id, kind: v })));
+    this.row(d, t("pptxcraft.style"), this.select(["flat", "subtle", "intense", "outline", "polished", "inset", "cartoon", "powder", "brick"].map((x) => [x, x] as [string, string]), undefined, t("pptxcraft.style"), (v) => this.do("smartArt.style", { id, style: v })));
+    this.row(d, t("pptxcraft.palette"), this.select(["colorful", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6"].map((x) => [x, x] as [string, string]), undefined, t("pptxcraft.palette"), (v) => this.do("smartArt.colors", { id, colors: v })));
+    this.row(d, "", this.button(t("pptxcraft.addItem"), () => this.do("smartArt.addNode", { id })));
+  }
+
+  private commentSection(list: CommentInfo[], index: number): void {
+    const d = this.section("comments", `${t("pptxcraft.comments")} (${list.length})`);
+    list.forEach((c, i) => {
+      const box = el("div", "ot-px-comment");
+      box.appendChild(el("b", undefined, c.author ?? ""));
+      box.appendChild(el("p", c.resolved ? "done" : undefined, c.text ?? ""));
+      for (const r of c.replies ?? []) box.appendChild(el("p", "reply", `↳ ${r.author ?? ""}: ${r.text ?? ""}`));
+      const bar = el("div", "ot-px-ctl");
+      bar.append(
+        this.button(t("pptxcraft.reply"), () => void this.replyTo(i, index)),
+        this.button(c.resolved ? t("pptxcraft.reopen") : t("pptxcraft.resolve"), () => this.do("comment.resolve", { index: i, resolved: !c.resolved, slide: index })),
+        this.button(t("pptxcraft.delete"), () => this.do("comment.delete", { index: i, slide: index })),
+      );
+      box.appendChild(bar);
+      d.appendChild(box);
+    });
+    this.row(d, "", this.button(t("pptxcraft.addComment"), () => void this.newComment()));
+  }
+
+  private async replyTo(i: number, slide: number): Promise<void> {
+    const v = await formDialog(this.h.root, { title: t("pptxcraft.reply"), ok: t("pptxcraft.ok"), cancel: t("pptxcraft.cancel"), fields: [{ key: "text", label: t("pptxcraft.comment"), kind: "textarea", value: "" }] });
+    if (v && String(v.text).trim()) this.do("comment.reply", { index: i, text: String(v.text).trim(), slide });
+  }
+
+  private async newComment(): Promise<void> {
+    const v = await formDialog(this.h.root, { title: t("pptxcraft.addComment"), ok: t("pptxcraft.ok"), cancel: t("pptxcraft.cancel"), fields: [{ key: "text", label: t("pptxcraft.comment"), kind: "textarea", value: "" }] });
+    if (v && String(v.text).trim()) this.do("comment.add", { text: String(v.text).trim() });
   }
 
   private slideSection(slide: SlideInfo | undefined, index: number): void {
@@ -437,11 +530,22 @@ export class Inspector {
     }));
   }
 
+  private async designIdeas(): Promise<void> {
+    const ideas = (await this.h.query<{ id: string; label: string }[]>("design.ideas", {})) ?? [];
+    if (!ideas.length) {
+      await formDialog(this.h.root, { title: t("pptxcraft.designIdeas"), ok: t("pptxcraft.ok"), cancel: t("pptxcraft.cancel"), note: t("pptxcraft.noIdeas"), fields: [] });
+      return;
+    }
+    const v = await formDialog(this.h.root, { title: t("pptxcraft.designIdeas"), ok: t("pptxcraft.ok"), cancel: t("pptxcraft.cancel"), fields: [{ key: "id", label: t("pptxcraft.designIdeas"), kind: "select", value: ideas[0]!.id, options: ideas.map((i) => [i.id, i.label] as [string, string]) }] });
+    if (v) this.do("design.applyIdea", { id: String(v.id) }, true);
+  }
+
   private designSection(): void {
     const d = this.section("design", t("pptxcraft.design"));
     const th = this.themes ?? {};
     if (th.colorSchemes?.length) this.row(d, t("pptxcraft.themeColors"), this.select(th.colorSchemes.map((n) => [n, n] as [string, string]), undefined, t("pptxcraft.themeColors"), (v) => this.do("design.colors", { name: v })));
     if (th.fontSchemes?.length) this.row(d, t("pptxcraft.themeFonts"), this.select(th.fontSchemes.map((n) => [n.name, n.name] as [string, string]), undefined, t("pptxcraft.themeFonts"), (v) => this.do("design.fonts", { name: v })));
+    this.row(d, "", this.button(t("pptxcraft.designIdeas"), () => void this.designIdeas()));
     this.row(d, t("pptxcraft.variants"), ...[0, 1, 2, 3].map((i) => this.button(String(i + 1), () => this.do("design.variant", { index: i }))));
     this.row(d, t("pptxcraft.slideSize"), this.select([["widescreen", t("pptxcraft.sizeWide")], ["standard", t("pptxcraft.sizeStandard")]], undefined, t("pptxcraft.slideSize"), (v) => this.do("design.slideSize", { preset: v, scale: "ensureFit" })));
     this.row(d, "", this.check(t("pptxcraft.slideNumber"), undefined, (v) => this.do("design.headerFooter", { slideNumber: v })), this.check(t("pptxcraft.footer"), undefined, (v) => this.do("design.headerFooter", { footer: v })), this.check(t("pptxcraft.date"), undefined, (v) => this.do("design.headerFooter", { date: v })));

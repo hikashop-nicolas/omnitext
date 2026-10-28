@@ -70,6 +70,10 @@ function ensureStyles(): void {
     .ot-px-banner { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:6px 10px; background:var(--accent); color:var(--accent-fg); font:600 13px system-ui, sans-serif; }
     .ot-px-banner .btn { padding:4px 10px; }
     .ot-px-mh { font:600 12px system-ui, sans-serif; color:var(--muted); padding:4px 2px 0; }
+    .ot-px-thumb.hidden .frame { opacity:.4; }
+    .ot-px-sechead { display:flex; align-items:center; gap:6px; margin:8px 0 -4px; font:600 12px system-ui, sans-serif; color:var(--muted); }
+    .ot-px-sechead span { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ot-px-sechead button { padding:0 6px; border:0; background:none; color:inherit; cursor:pointer; font-size:16px; }
     .ot-px-notes { flex:0 0 auto; border-top:1px solid var(--border); background:var(--surface); display:flex; }
     .ot-px-notes textarea { flex:1; height:84px; resize:vertical; margin:6px; padding:6px 8px; font:13px system-ui, sans-serif; color:var(--text);
       background:var(--canvas); border:1px solid var(--border); border-radius:7px; }
@@ -210,6 +214,7 @@ class PptxCraftInstance implements EditorInstance {
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
   private fileName = "presentation.pptx";
+  private showOpts: { loop: boolean; noAnimation: boolean; from: number; to: number } = { loop: false, noAnimation: false, from: 0, to: -1 };
   private pickKind: "image" | "video" | "audio" = "image";
   private mediaBySize = new Map<number, { bytes: Uint8Array; mime: string; name: string }>();
   private hansLikely = false;
@@ -414,6 +419,11 @@ class PptxCraftInstance implements EditorInstance {
     this.button("trash", t("pptxcraft.deleteLayout"), () => void this.cmd("master.deleteLayout", {}, true), this.masterTools);
   }
 
+  private async addSection(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.addSection"), [{ key: "name", label: t("pptxcraft.name"), kind: "text", value: "" }]);
+    if (v) await this.cmd("section.add", { name: String(v.name).trim() || undefined, at: this.ov.slide ?? 0 }, true);
+  }
+
   private async renameLayout(): Promise<void> {
     const v = await this.dialog(t("pptxcraft.renameLayout"), [{ key: "name", label: t("pptxcraft.name"), kind: "text", value: "" }]);
     if (v && String(v.name).trim()) await this.cmd("master.renameLayout", { name: String(v.name).trim() }, true);
@@ -425,6 +435,7 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.cmd("slide.delete", {}, true), this.sideTools);
     this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.moveSlide(-1), this.sideTools);
     this.buttons.down = this.button("down", t("pptxcraft.moveDown"), () => void this.moveSlide(1), this.sideTools);
+    this.button("insert", t("pptxcraft.addSection"), () => void this.addSection(), this.sideTools);
   }
 
   private buildFloat(): void {
@@ -778,8 +789,44 @@ class PptxCraftInstance implements EditorInstance {
         this.thumbDirty.add(i);
       }
       this.markActiveThumb();
+      void this.decorateStrip();
     }
     this.pumpThumbs();
+  }
+
+  /** Marks hidden slides and puts the section names in the strip. */
+  private async decorateStrip(): Promise<void> {
+    const session = this.session;
+    if (!session || this.masterMode) return;
+    const info = await this.enqueue(() => session.execute<{ slides?: { hidden?: boolean }[]; sections?: { name: string; slides: number }[] }>("document.inspect", {}));
+    if (!info || this.masterMode) return;
+    for (const h of this.side.querySelectorAll(".ot-px-sechead")) h.remove();
+    info.slides?.forEach((x, i) => this.thumbs[i]?.classList.toggle("hidden", !!x.hidden));
+    let at = 0;
+    (info.sections ?? []).forEach((sec, si) => {
+      const head = el("div", "ot-px-sechead");
+      head.appendChild(el("span", undefined, sec.name));
+      const more = el("button", undefined, "\u22EF");
+      more.type = "button";
+      more.title = t("pptxcraft.section");
+      more.setAttribute("aria-label", t("pptxcraft.section"));
+      more.addEventListener("click", () => this.sectionMenu(more, si, info.sections?.length ?? 0));
+      head.appendChild(more);
+      const row = this.thumbs[at];
+      if (row) this.side.insertBefore(head, row);
+      at += sec.slides;
+    });
+  }
+
+  private sectionMenu(anchor: HTMLElement, index: number, count: number): void {
+    popupMenu(this.root, anchor, [
+      { label: t("pptxcraft.renameSection"), run: () => void this.dialog(t("pptxcraft.renameSection"), [{ key: "name", label: t("pptxcraft.name"), kind: "text", value: "" }]).then((v) => v && String(v.name).trim() && this.cmd("section.rename", { index, name: String(v.name).trim() }, true)) },
+      ...(index > 0 ? [{ label: t("pptxcraft.moveUp"), run: () => void this.cmd("section.move", { index, to: index - 1 }, true) }] : []),
+      ...(index < count - 1 ? [{ label: t("pptxcraft.moveDown"), run: () => void this.cmd("section.move", { index, to: index + 1 }, true) }] : []),
+      { label: t("pptxcraft.removeSection"), run: () => void this.cmd("section.remove", { index }, true) },
+      { label: t("pptxcraft.removeSectionSlides"), run: () => void this.cmd("section.remove", { index, slides: true }, true) },
+      { label: t("pptxcraft.removeAllSections"), run: () => void this.cmd("section.removeAll", {}, true) },
+    ]);
   }
 
   private markActiveThumb(): void {
@@ -1514,8 +1561,14 @@ class PptxCraftInstance implements EditorInstance {
     });
   }
 
-  private showHost(session: DeckSession, surfaces: () => Surface[], hooks: { onSlide(index: number): void; onLeave(): void }): ShowHost {
+  private async showHost(session: DeckSession, surfaces: () => Surface[], hooks: { onSlide(index: number): void; onLeave(): void }): Promise<ShowHost> {
+    const info = await this.enqueue(() => session.execute<{ slides?: { hidden?: boolean }[] }>("document.inspect", {}));
+    const total = this.ov.slides ?? 1;
     return {
+      hidden: (info?.slides ?? []).map((x) => !!x.hidden),
+      loop: this.showOpts.loop,
+      noAnimation: this.showOpts.noAnimation,
+      range: [Math.max(0, this.showOpts.from), this.showOpts.to < 0 ? total - 1 : Math.min(total - 1, this.showOpts.to)],
       session,
       call: (fn) => this.enqueue(fn),
       total: this.ov.slides ?? 1,
@@ -1537,7 +1590,9 @@ class PptxCraftInstance implements EditorInstance {
     if (native) return void this.present();
     popupMenu(this.root, this.buttons.present, [
       { label: t("pptxcraft.slideshow"), run: () => void this.present() },
+      { label: t("pptxcraft.fromBeginning"), run: () => void this.present(0) },
       { label: t("pptxcraft.presenterView"), run: () => void this.presenterView() },
+      { label: t("pptxcraft.setupShow"), run: () => void this.setupShow() },
     ]);
   }
 
@@ -1618,7 +1673,7 @@ class PptxCraftInstance implements EditorInstance {
     let unmount: (() => void) | null = null;
     let seq = 0;
     const runner: ShowRunner = new ShowRunner(
-      this.showHost(
+      await this.showHost(
         session,
         () => [
           { canvas: mainCanvas, size: () => ({ w: main.clientWidth, h: main.clientHeight }), dpr: this.dpr },
@@ -1683,7 +1738,20 @@ class PptxCraftInstance implements EditorInstance {
     await runner.goto(this.ov.slide ?? 0);
   }
 
-  private async present(): Promise<void> {
+  private async setupShow(): Promise<void> {
+    const total = this.ov.slides ?? 1;
+    const v = await this.dialog(t("pptxcraft.setupShow"), [
+      { key: "loop", label: t("pptxcraft.loopShow"), kind: "check", value: this.showOpts.loop },
+      { key: "noAnim", label: t("pptxcraft.noAnimation"), kind: "check", value: this.showOpts.noAnimation },
+      { key: "from", label: t("pptxcraft.fromSlide"), kind: "number", value: this.showOpts.from + 1, min: 1, max: total },
+      { key: "to", label: t("pptxcraft.toSlide"), kind: "number", value: (this.showOpts.to < 0 ? total : this.showOpts.to + 1), min: 1, max: total },
+    ]);
+    if (!v) return;
+    this.showOpts = { loop: !!v.loop, noAnimation: !!v.noAnim, from: Math.max(0, Number(v.from) - 1), to: Number(v.to) >= total ? -1 : Number(v.to) - 1 };
+    await this.cmd("show.setup", { loop: this.showOpts.loop, noAnimation: this.showOpts.noAnimation, from: this.showOpts.from, to: this.showOpts.to < 0 ? total - 1 : this.showOpts.to });
+  }
+
+  private async present(from?: number): Promise<void> {
     const session = this.session;
     if (!session) return;
     const show = el("div", "ot-px-show");
@@ -1694,7 +1762,7 @@ class PptxCraftInstance implements EditorInstance {
     const total = this.ov.slides ?? 1;
     let unmount: (() => void) | null = null;
     const runner: ShowRunner = new ShowRunner(
-      this.showHost(session, () => [{ canvas, size: () => ({ w: window.innerWidth, h: window.innerHeight }), dpr: this.dpr }], {
+      await this.showHost(session, () => [{ canvas, size: () => ({ w: window.innerWidth, h: window.innerHeight }), dpr: this.dpr }], {
         onLeave: () => {
           unmount?.();
           unmount = null;
@@ -1742,7 +1810,7 @@ class PptxCraftInstance implements EditorInstance {
       end();
     });
     await show.requestFullscreen?.().catch(() => undefined);
-    await runner.goto(this.ov.slide ?? 0);
+    await runner.goto(from === 0 ? runner.first() : (from ?? this.ov.slide ?? 0));
     show.focus();
   }
 
