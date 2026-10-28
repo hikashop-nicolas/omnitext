@@ -97,6 +97,7 @@ function ensureStyles(): void {
     .ot-px-menu button { display:flex; align-items:center; text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit;
       font:14px system-ui, sans-serif; cursor:pointer; }
     .ot-px-menu button:hover, .ot-px-menu button:focus-visible, .ot-px-menu button.on { background:var(--canvas); }
+    .ot-px-menu { max-height:min(70vh, 640px); overflow-y:auto; }
     .ot-px-swatches { display:grid; grid-template-columns:repeat(6, 28px); gap:6px; padding:6px; }
     .ot-px-swatch { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); padding:0; cursor:pointer; }
     .ot-px-custom { position:relative; padding:8px 12px; font:14px system-ui, sans-serif; cursor:pointer; }

@@ -35,3 +35,15 @@ handles, zoom, pinch, slideshow, presenter view on a second window.
 - Export (PDF, images, video), print layouts, templates, recovery.
 - Format painter, guides and grid, ruler.
 - Insert video as a link or online source; trimming UI for media.
+
+## Status 2026-10-28 (end of the autonomous stretch)
+Done: everything in Phase 1 and 2 except the items below, and in Phase 3: transitions and animations in the show,
+PDF/PNG export, master/layout/notes/handout views, sections, comments (reply, resolve), find/replace, spelling,
+thesaurus, compare, accessibility check, guides, edit points, slide multi-select, hyperlinks/actions followed in the
+show, show setup (loop, range, no animation), photo album, zoom links, icons, outline import, slide reuse.
+
+Not done: triggered animations (a shape starting another's sequence) and their click targets in the show, rehearse
+timings and kiosk mode, tab stops and ruler UI, drag-to-select table cells (the engine selects them and the editor
+shows the box; merge still asks for row/column numbers), moving guides by dragging, WordArt styles, video as a link
+or from a web page, recording narration, custom shows UI (the command exists), printing handout layouts in the
+browser (export to PDF works).
