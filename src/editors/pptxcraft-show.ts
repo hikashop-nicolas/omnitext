@@ -52,7 +52,7 @@ export class ShowRunner {
   private gen = 0;
   private busy = false;
   private skip = false;
-  private afterTimer = 0;
+  private afterTimer: ReturnType<typeof setTimeout> | undefined;
   private stopped = false;
 
   constructor(private readonly h: ShowHost) {}
@@ -64,7 +64,7 @@ export class ShowRunner {
   stop(): void {
     this.stopped = true;
     this.gen++;
-    window.clearTimeout(this.afterTimer);
+    clearTimeout(this.afterTimer);
   }
 
   /** Draws the state the show is at, again (after the window changed size). */
@@ -76,7 +76,7 @@ export class ShowRunner {
   async goto(index: number, o: { forward?: boolean; built?: boolean } = {}): Promise<void> {
     if (this.stopped) return;
     const gen = ++this.gen;
-    window.clearTimeout(this.afterTimer);
+    clearTimeout(this.afterTimer);
     this.h.onLeave();
     this.busy = false;
     this.skip = false;
@@ -102,7 +102,7 @@ export class ShowRunner {
     if (gen !== this.gen) return;
     this.h.onSlide(idx);
     if (!o.built && !this.h.noAnimation && this.steps > 0 && this.auto[0]) await this.playStep(0, gen);
-    if (gen === this.gen && tr?.afterMs) this.afterTimer = window.setTimeout(() => void this.next(), tr.afterMs);
+    if (gen === this.gen && tr?.afterMs) this.afterTimer = setTimeout(() => void this.next(), tr.afterMs);
   }
 
   /** Does clicking this shape start a sequence of its own? */
