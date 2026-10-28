@@ -81,6 +81,12 @@ export interface PointerEvent {
   pressure?: number | null;
 }
 
+export interface ShowInfo {
+  steps: number;
+  auto: boolean[];
+  durations: number[];
+}
+
 export interface Rendered {
   width: number;
   height: number;
@@ -115,6 +121,18 @@ export class DeckSession {
   overlay(): Promise<Overlay> {
     return Promise.resolve({ open: false });
   }
+  showInfo(_index: number): Promise<ShowInfo> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  renderStep(_index: number, _step: number, _t: number, _scale: number): Promise<Rendered> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  renderTransition(_index: number, _t: number, _scale: number): Promise<Rendered> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
   render(_index: number, _scale: number, _edit?: boolean): Promise<Rendered> {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }

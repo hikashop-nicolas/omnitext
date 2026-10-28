@@ -5,6 +5,7 @@ import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "
 import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog } from "./pdfcraft-tools";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
+import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
 import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
 
 // The presentation editor on DeckCraft's engine. The engine (wasm, in a worker) owns the document, the undo history and the
@@ -1400,6 +1401,24 @@ class PptxCraftInstance implements EditorInstance {
     });
   }
 
+  private showHost(session: DeckSession, surfaces: () => Surface[], hooks: { onSlide(index: number): void; onLeave(): void }): ShowHost {
+    return {
+      session,
+      call: (fn) => this.enqueue(fn),
+      total: this.ov.slides ?? 1,
+      slideW: this.slideW,
+      slideH: this.slideH,
+      surfaces,
+      transition: async (index) => {
+        const info = await this.enqueue(() => session.execute<{ transition?: { kind?: string; durationMs?: number | null; advanceAfterMs?: number | null } | null }>("slide.inspect", { index }));
+        const tr = info?.transition;
+        return tr?.kind && tr.kind !== "none" ? { kind: tr.kind, ms: tr.durationMs ?? 700, afterMs: tr.advanceAfterMs ?? null } : null;
+      },
+      onSlide: hooks.onSlide,
+      onLeave: hooks.onLeave,
+    };
+  }
+
   private presentMenu(): void {
     const native = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
     if (native) return void this.present();
@@ -1476,7 +1495,6 @@ class PptxCraftInstance implements EditorInstance {
     pv.append(main, side, bar);
     document.body.appendChild(pv);
 
-    let index = this.ov.slide ?? 0;
     const total = this.ov.slides ?? 1;
     const started = Date.now();
     const tick = window.setInterval(() => {
@@ -1484,66 +1502,72 @@ class PptxCraftInstance implements EditorInstance {
       clock.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
       if (win.closed) finish();
     }, 500);
-    let token = 0;
     let unmount: (() => void) | null = null;
-    const draw = async (): Promise<void> => {
-      const mine = ++token;
-      unmount?.();
-      unmount = null;
-      counter.textContent = t("pptxcraft.slideOf", { n: index + 1, total });
-      prev.disabled = index <= 0;
-      next.disabled = index >= total - 1;
-      const dpr = this.dpr;
-      await Promise.all([
-        this.drawTo(mainCanvas, index, main.clientWidth, main.clientHeight, dpr),
-        this.drawTo(nextCanvas, index + 1, nextWrap.clientWidth, nextWrap.clientHeight, dpr),
-        this.drawTo(showCanvas, index, win.innerWidth || 1280, win.innerHeight || 720, dpr),
-      ]);
-      if (mine !== token) return;
-      const sb = showCanvas.getBoundingClientRect();
-      const k = sb.width / this.slideW;
-      const undo = await this.mountMedia(wd.body, index, (b) => ({ left: sb.left + b[0]! * k, top: sb.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true, doc: wd });
-      if (mine !== token) undo();
-      else unmount = undo;
-      const info = await this.enqueue(() => session.execute<{ notes?: string }>("slide.inspect", { index }));
-      if (mine !== token) return;
-      const text = typeof info?.notes === "string" ? info.notes.trim() : "";
-      notes.textContent = text || t("pptxcraft.noNotes");
-      notes.classList.toggle("none", !text);
-    };
-    const go = (by: number): void => {
-      const to = Math.min(total - 1, Math.max(0, index + by));
-      if (to === index) return;
-      index = to;
-      void draw();
-    };
+    let seq = 0;
+    const runner: ShowRunner = new ShowRunner(
+      this.showHost(
+        session,
+        () => [
+          { canvas: mainCanvas, size: () => ({ w: main.clientWidth, h: main.clientHeight }), dpr: this.dpr },
+          { canvas: showCanvas, size: () => ({ w: win.innerWidth || 1280, h: win.innerHeight || 720 }), dpr: this.dpr },
+        ],
+        {
+          onLeave: () => {
+            unmount?.();
+            unmount = null;
+          },
+          onSlide: (shown) => {
+            const mine = ++seq;
+            counter.textContent = t("pptxcraft.slideOf", { n: shown + 1, total });
+            prev.disabled = shown <= 0;
+            next.disabled = shown >= total - 1;
+            void this.drawTo(nextCanvas, shown + 1, nextWrap.clientWidth, nextWrap.clientHeight, this.dpr);
+            const sb = showCanvas.getBoundingClientRect();
+            const k = sb.width / this.slideW;
+            void this.mountMedia(wd.body, shown, (b) => ({ left: sb.left + b[0]! * k, top: sb.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true, doc: wd }).then((undo) => {
+              if (mine !== seq) undo();
+              else unmount = undo;
+            });
+            void this.enqueue(() => session.execute<{ notes?: string }>("slide.inspect", { index: shown })).then((info) => {
+              if (mine !== seq) return;
+              const text = typeof info?.notes === "string" ? info.notes.trim() : "";
+              notes.textContent = text || t("pptxcraft.noNotes");
+              notes.classList.toggle("none", !text);
+            });
+          },
+        },
+      ),
+    );
+    const go = (by: number): void => void (by > 0 ? runner.next() : runner.prev());
     const finish = (): void => {
       window.clearInterval(tick);
+      runner.stop();
       unmount?.();
       document.removeEventListener("keydown", keys, true);
       win.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", onResize);
       pv.remove();
       if (!win.closed) win.close();
-      void this.cmd("slide.go", { index });
+      void this.cmd("slide.go", { index: runner.index });
     };
     const keys = (e: KeyboardEvent): void => {
       if (e.key === "Escape") finish();
       else if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) go(1);
       else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) go(-1);
-      else if (e.key === "Home") go(-total);
-      else if (e.key === "End") go(total);
+      else if (e.key === "Home") void runner.goto(0);
+      else if (e.key === "End") void runner.goto(total - 1, { built: true });
       else return;
       e.preventDefault();
       e.stopPropagation();
     };
-    const onResize = (): void => void draw();
+    const onResize = (): void => void runner.redraw();
     document.addEventListener("keydown", keys, true);
     win.document.addEventListener("keydown", keys, true);
     win.addEventListener("resize", onResize);
     win.addEventListener("beforeunload", () => window.setTimeout(() => win.closed && finish(), 0));
     end.addEventListener("click", finish);
     window.addEventListener("resize", onResize);
-    await draw();
+    await runner.goto(this.ov.slide ?? 0);
   }
 
   private async present(): Promise<void> {
@@ -1554,52 +1578,47 @@ class PptxCraftInstance implements EditorInstance {
     const canvas = el("canvas");
     show.appendChild(canvas);
     document.body.appendChild(show);
-    let index = this.ov.slide ?? 0;
     const total = this.ov.slides ?? 1;
     let unmount: (() => void) | null = null;
-    const draw = async (): Promise<void> => {
-      unmount?.();
-      unmount = null;
-      const shown = index;
-      const scale = Math.min(window.innerWidth / this.slideW, window.innerHeight / this.slideH) * this.dpr;
-      const r = await this.enqueue(() => session.render(index, scale, false));
-      if (!r || !show.isConnected) return;
-      canvas.width = r.width;
-      canvas.height = r.height;
-      const px = new Uint8ClampedArray(r.rgba.buffer as ArrayBuffer, r.rgba.byteOffset, r.rgba.byteLength);
-      canvas.getContext("2d")?.putImageData(new ImageData(px, r.width, r.height), 0, 0);
-      canvas.style.width = `${r.width / this.dpr}px`;
-      canvas.style.height = `${r.height / this.dpr}px`;
-      const box = canvas.getBoundingClientRect();
-      const k = box.width / this.slideW;
-      const undo = await this.mountMedia(show, shown, (b) => ({ left: box.left + b[0]! * k, top: box.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true });
-      if (shown !== index || !show.isConnected) undo();
-      else unmount = undo;
-    };
-    const go = (by: number): void => {
-      const to = Math.min(total - 1, Math.max(0, index + by));
-      if (to === index) return;
-      index = to;
-      void draw();
-    };
+    const runner: ShowRunner = new ShowRunner(
+      this.showHost(session, () => [{ canvas, size: () => ({ w: window.innerWidth, h: window.innerHeight }), dpr: this.dpr }], {
+        onLeave: () => {
+          unmount?.();
+          unmount = null;
+        },
+        onSlide: (shown) => {
+          const box = canvas.getBoundingClientRect();
+          const k = box.width / this.slideW;
+          void this.mountMedia(show, shown, (b) => ({ left: box.left + b[0]! * k, top: box.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true }).then((undo) => {
+            if (runner.index !== shown || !show.isConnected) undo();
+            else unmount = undo;
+          });
+        },
+      }),
+    );
+    const go = (by: number): void => void (by > 0 ? runner.next() : runner.prev());
     const end = (): void => {
+      runner.stop();
       unmount?.();
       show.remove();
       document.removeEventListener("keydown", keys, true);
+      window.removeEventListener("resize", onResize);
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-      void this.cmd("slide.go", { index });
+      void this.cmd("slide.go", { index: runner.index });
     };
+    const onResize = (): void => void runner.redraw();
     const keys = (e: KeyboardEvent): void => {
       e.stopPropagation();
       if (e.key === "Escape") end();
       else if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) go(1);
       else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) go(-1);
-      else if (e.key === "Home") go(-total);
-      else if (e.key === "End") go(total);
+      else if (e.key === "Home") void runner.goto(0);
+      else if (e.key === "End") void runner.goto(total - 1, { built: true });
       else return;
       e.preventDefault();
     };
     document.addEventListener("keydown", keys, true);
+    window.addEventListener("resize", onResize);
     show.addEventListener("pointerup", (e) => {
       if ((e.target as HTMLElement).closest("[data-px-media]")) return;
       const r = show.getBoundingClientRect();
@@ -1610,7 +1629,7 @@ class PptxCraftInstance implements EditorInstance {
       end();
     });
     await show.requestFullscreen?.().catch(() => undefined);
-    await draw();
+    await runner.goto(this.ov.slide ?? 0);
     show.focus();
   }
 
