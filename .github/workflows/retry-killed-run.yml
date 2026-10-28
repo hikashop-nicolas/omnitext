@@ -7,7 +7,7 @@ name: Retry a run whose runner was taken away
 #
 # The retry loop around npm ci cannot help: the whole machine goes away, not just the
 # command. So this listens for a failed run and re-runs it, but only after reading the log
-# and finding that message. A build that failed on its own merits is left failed, because a
+# and finding that message (or finding no log at all, which is what a vanished runner leaves). A build that failed on its own merits is left failed, because a
 # red build that quietly goes green on a second try is worse than a flaky one.
 
 on:
@@ -35,7 +35,9 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/logs" > logs.zip 2>/dev/null; then
-            echo "No log for run $RUN_ID; leaving it alone."
+            # a runner that vanished takes its log with it
+            echo "No log for run $RUN_ID; the runner was lost. Re-running the failed jobs."
+            gh api --method POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
             exit 0
           fi
           if unzip -p logs.zip | grep -q "The runner has received a shutdown signal"; then
