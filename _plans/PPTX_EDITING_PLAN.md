@@ -28,7 +28,7 @@ handles, zoom, pinch, slideshow, presenter view on a second window.
 - Hyperlinks and actions, WordArt, symbols, icons, date/slide number fields, photo album, zoom.
 - Edit points, merge shapes, connectors, freeform and ink.
 
-## Phase 3
+## Phase 3 (done: playing transitions and animations, PDF/PNG export, master and layout view)
 - Playing transitions and animations in the slideshow and presenter view (today the show is static slides).
 - Comments (add, reply, resolve), find/replace, spelling and thesaurus, accessibility check, compare/revisions.
 - Slide master/layout editing, handout and notes masters, sections, custom shows, set-up show, rehearse.

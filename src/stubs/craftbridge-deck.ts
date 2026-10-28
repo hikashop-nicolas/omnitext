@@ -57,6 +57,7 @@ export interface Overlay {
   revision?: number;
   slide?: number;
   slides?: number;
+  target?: { kind: "slides" | "master" | "layout" | "handout" | "notesMaster"; master?: number; layout?: number };
   width?: number;
   height?: number;
   selection?: SelectedShape[];
@@ -79,6 +80,11 @@ export interface PointerEvent {
   tol?: number;
   mods?: { shift?: boolean; alt?: boolean; cmd?: boolean };
   pressure?: number | null;
+}
+
+export interface MasterInfo {
+  name: string;
+  layouts: { name: string }[];
 }
 
 export interface ShowInfo {
@@ -126,6 +132,14 @@ export class DeckSession {
   }
 
   exportPng(_index: number, _scale: number): Promise<Uint8Array> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  masters(): Promise<MasterInfo[]> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+
+  renderLayout(_master: number, _layout: number, _scale: number): Promise<Rendered> {
     return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
   }
 

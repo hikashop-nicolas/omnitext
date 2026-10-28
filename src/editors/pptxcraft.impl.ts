@@ -67,6 +67,9 @@ function ensureStyles(): void {
     .ot-px-anim { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:4px 0; }
     .ot-px-anim > span { flex:1 1 100%; }
     .ot-px-hint { color:var(--muted); margin:4px 0; }
+    .ot-px-banner { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:6px 10px; background:var(--accent); color:var(--accent-fg); font:600 13px system-ui, sans-serif; }
+    .ot-px-banner .btn { padding:4px 10px; }
+    .ot-px-mh { font:600 12px system-ui, sans-serif; color:var(--muted); padding:4px 2px 0; }
     .ot-px-notes { flex:0 0 auto; border-top:1px solid var(--border); background:var(--surface); display:flex; }
     .ot-px-notes textarea { flex:1; height:84px; resize:vertical; margin:6px; padding:6px 8px; font:13px system-ui, sans-serif; color:var(--text);
       background:var(--canvas); border:1px solid var(--border); border-radius:7px; }
@@ -191,6 +194,10 @@ class PptxCraftInstance implements EditorInstance {
   private lastTap = { t: 0, x: 0, y: 0 };
   private hoverBusy = false;
   private thumbs: HTMLElement[] = [];
+  private masterMode = false;
+  private masterItems: { master: number; layout: number }[] = [];
+  private banner!: HTMLElement;
+  private masterTools!: HTMLElement;
   private thumbDirty = new Set<number>();
   private thumbPump = false;
   private thumbSlides = 0;
@@ -243,7 +250,14 @@ class PptxCraftInstance implements EditorInstance {
     this.notes.setAttribute("aria-label", t("pptxcraft.notes"));
     this.notes.addEventListener("change", () => void this.setNotes());
     this.notesWrap.appendChild(this.notes);
-    main.append(this.stage, this.notesWrap);
+    this.banner = el("div", "ot-px-banner");
+    this.banner.hidden = true;
+    const bannerLabel = el("span", undefined, t("pptxcraft.masterView"));
+    const bannerClose = el("button", "btn", t("pptxcraft.closeMaster"));
+    bannerClose.type = "button";
+    bannerClose.addEventListener("click", () => void this.cmd("view.closeMaster", {}, true));
+    this.banner.append(bannerLabel, bannerClose);
+    main.append(this.banner, this.stage, this.notesWrap);
     const inspectorHost: InspectorHost = {
       root: this.root,
       run: (id, params, slides) => this.cmd(id, params, slides),
@@ -393,7 +407,20 @@ class PptxCraftInstance implements EditorInstance {
     return b;
   }
 
+  private buildMasterTools(): void {
+    this.masterTools = el("div", "ot-px-slidebar");
+    this.button("slideNew", t("pptxcraft.insertLayout"), () => void this.cmd("master.insertLayout", {}, true), this.masterTools);
+    this.button("copy", t("pptxcraft.renameLayout"), () => void this.renameLayout(), this.masterTools);
+    this.button("trash", t("pptxcraft.deleteLayout"), () => void this.cmd("master.deleteLayout", {}, true), this.masterTools);
+  }
+
+  private async renameLayout(): Promise<void> {
+    const v = await this.dialog(t("pptxcraft.renameLayout"), [{ key: "name", label: t("pptxcraft.name"), kind: "text", value: "" }]);
+    if (v && String(v.name).trim()) await this.cmd("master.renameLayout", { name: String(v.name).trim() }, true);
+  }
+
   private buildSideTools(): void {
+    this.buildMasterTools();
     this.buttons.dupSlide = this.button("copy", t("pptxcraft.duplicateSlide"), () => void this.cmd("slide.duplicate", {}, true), this.sideTools);
     this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.cmd("slide.delete", {}, true), this.sideTools);
     this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.moveSlide(-1), this.sideTools);
@@ -529,6 +556,13 @@ class PptxCraftInstance implements EditorInstance {
     if (!session || this.disposed) return;
     const ov = await session.overlay();
     if (this.disposed) return;
+    const mm = !!ov.target && ov.target.kind !== "slides";
+    if (mm !== this.masterMode) {
+      this.masterMode = mm;
+      this.banner.hidden = !mm;
+      this.renderedKey = "";
+      this.syncSlides(true);
+    }
     const slideChanged = ov.slide !== this.ov.slide;
     this.ov = ov;
     if (ov.width && ov.height) {
@@ -539,12 +573,16 @@ class PptxCraftInstance implements EditorInstance {
       }
     }
     if (!initial && ov.dirty && ov.revision !== undefined && this.lastRevision >= 0 && ov.revision !== this.lastRevision) {
-      this.thumbDirty.add(ov.slide ?? 0);
+      if (this.masterMode) {
+        const at = this.thumbs.findIndex((r) => r.classList.contains("on"));
+        if (at >= 0) this.thumbDirty.add(at);
+      } else this.thumbDirty.add(ov.slide ?? 0);
       this.pumpThumbs();
       this.onChange();
     }
     if (ov.revision !== undefined) this.lastRevision = ov.revision;
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
+    if (this.masterMode) this.markActiveThumb();
     this.drawOverlay();
     this.updateButtons();
     this.syncEditMedia();
@@ -673,7 +711,43 @@ class PptxCraftInstance implements EditorInstance {
 
   // ------------------------------------------------------------------ the slide strip
 
+  private syncMasterStrip(): void {
+    const session = this.session;
+    if (!session) return;
+    this.side.replaceChildren(this.masterTools);
+    this.thumbs = [];
+    this.masterItems = [];
+    void this.enqueue(() => session.masters()).then((masters) => {
+      if (!this.masterMode || !masters) return;
+      masters.forEach((m, mi) => {
+        const add = (label: string, layout: number): void => {
+          const idx = this.masterItems.length;
+          this.masterItems.push({ master: mi, layout });
+          if (layout < 0) this.side.appendChild(el("div", "ot-px-mh", m.name));
+          const row = el("div", "ot-px-thumb");
+          row.append(el("span", undefined, layout < 0 ? "M" : String(layout + 1)));
+          const frame = el("div", "frame");
+          frame.appendChild(el("canvas"));
+          row.appendChild(frame);
+          row.title = label;
+          row.addEventListener("click", () => void this.cmd("view.slideMaster", layout < 0 ? { master: mi } : { master: mi, layout }));
+          this.side.appendChild(row);
+          this.thumbs.push(row);
+          this.thumbDirty.add(idx);
+        };
+        add(m.name, -1);
+        m.layouts.forEach((l, li) => add(l.name, li));
+      });
+      this.markActiveThumb();
+      this.pumpThumbs();
+    });
+  }
+
   private syncSlides(all = false): void {
+    if (this.masterMode) {
+      if (all) this.syncMasterStrip();
+      return;
+    }
     const n = this.ov.slides ?? 0;
     if (all || n !== this.thumbSlides || this.thumbs.length !== n) {
       this.thumbSlides = n;
@@ -709,6 +783,12 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   private markActiveThumb(): void {
+    if (this.masterMode) {
+      const t0 = this.ov.target;
+      const at = this.masterItems.findIndex((x) => x.master === (t0?.master ?? 0) && x.layout === (t0?.kind === "layout" ? (t0.layout ?? 0) : -1));
+      this.thumbs.forEach((row, i) => row.classList.toggle("on", i === at));
+      return;
+    }
     const cur = this.ov.slide ?? 0;
     this.thumbs.forEach((row, i) => row.classList.toggle("on", i === cur));
     this.thumbs[cur]?.scrollIntoView({ block: "nearest" });
@@ -730,7 +810,9 @@ class PptxCraftInstance implements EditorInstance {
       try {
         const canvas = this.thumbs[next]?.querySelector("canvas");
         if (canvas) {
-          const r = await this.enqueue(() => session.render(next, (THUMB_W / this.slideW) * this.dpr, false));
+          const mi = this.masterItems[next];
+          const scale = (THUMB_W / this.slideW) * this.dpr;
+          const r = await this.enqueue(() => (this.masterMode && mi ? session.renderLayout(mi.master, mi.layout, scale) : session.render(next, scale, false)));
           if (r && canvas.isConnected) {
             canvas.width = r.width;
             canvas.height = r.height;
@@ -1189,6 +1271,8 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.findReplace"), run: () => void this.findReplace() },
       { label: t("pptxcraft.spelling"), run: () => void this.spelling() },
       { label: t("pptxcraft.accessibility"), run: () => void this.accessibility() },
+      { label: t("pptxcraft.masterView"), run: () => void this.cmd("view.slideMaster", {}, true) },
+      { label: t("pptxcraft.closeMaster"), run: () => void this.cmd("view.closeMaster", {}, true) },
       { label: t("pptxcraft.exportPdf"), run: () => void this.exportPdf() },
       { label: t("pptxcraft.exportPng"), run: () => void this.exportPng() },
       { label: t("pptxcraft.addComment"), run: () => void this.addComment() },
