@@ -1,4 +1,5 @@
 import type { DeckSession, Rendered, TriggerPlay } from "craftbridge/deck";
+import { TransitionGL } from "./pptxcraft-gl";
 
 // Plays a slide show on one or more canvases: the slide's transition, then its animations a click at a time. The engine draws
 // each frame (renderTransition, renderStep); this keeps the clock and the position.
@@ -55,6 +56,7 @@ export class ShowRunner {
   private busy = false;
   private inTransition = false;
   private scratch: HTMLCanvasElement | null = null;
+  private gl: TransitionGL | null | undefined;
   private skip = false;
   private afterTimer: ReturnType<typeof setTimeout> | undefined;
   private stopped = false;
@@ -66,6 +68,8 @@ export class ShowRunner {
   }
 
   stop(): void {
+    this.gl?.dispose();
+    this.gl = null;
     this.stopped = true;
     this.gen++;
     clearTimeout(this.afterTimer);
@@ -101,11 +105,24 @@ export class ShowRunner {
       this.inTransition = true;
       // the two slides are drawn once, at the size of the biggest screen; each frame only composites them
       const biggest = Math.max(...this.h.surfaces().map((s) => { const z = s.size(); return Math.min(z.w / this.h.slideW, z.h / this.h.slideH) * s.dpr; }), 0.05);
-      // a transition frame is composited and copied every few milliseconds: past this size a big screen would make it stutter
-      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, Math.min(biggest, 1024 / this.h.slideW)));
+      // the CPU path composites each frame in the engine, so it works on small frames; the GPU path draws any size
+      const gpu = this.gl !== null && !this.stopped ? (this.gl ??= TransitionGL.create()) : null;
+      const cached = await this.h.call(() => this.h.session.transitionBegin(idx, Math.min(biggest, (gpu ? 1600 : 1024) / this.h.slideW)));
       if (gen !== this.gen) { this.inTransition = false; return; }
       const dur = tr.ms / 1000;
-      await this.animate(dur, gen, (t) => (cached ? this.cachedFrame(t / dur, gen) : this.frame("tr", idx, 0, t / dur, gen)));
+      let drawn = false;
+      if (cached && gpu) {
+        try {
+          const pics = await this.h.call(() => this.h.session.transitionTextures());
+          if (gen !== this.gen) { this.inTransition = false; return; }
+          if (pics) {
+            gpu.setTextures(pics);
+            drawn = true;
+          }
+        } catch { /* the CPU path below draws it */ }
+      }
+      if (drawn && gpu) await this.animate(dur, gen, (t) => this.gpuFrame(gpu, t / dur, gen));
+      else await this.animate(dur, gen, (t) => (cached ? this.cachedFrame(t / dur, gen) : this.frame("tr", idx, 0, t / dur, gen)));
       this.busy = false;
       this.inTransition = false;
       if (gen !== this.gen) return;
@@ -242,21 +259,35 @@ export class ShowRunner {
     src.height = r.height;
     const px = new Uint8ClampedArray(r.rgba.buffer as ArrayBuffer, r.rgba.byteOffset, r.rgba.byteLength);
     src.getContext("2d")?.putImageData(new ImageData(px, r.width, r.height), 0, 0);
+    this.present(src, r.width, r.height);
+    return true;
+  }
+
+  /** A frame of the GPU transition, drawn on every screen. */
+  private async gpuFrame(gpu: TransitionGL, t: number, gen: number): Promise<boolean> {
+    const mesh = await this.h.call(() => this.h.session.transitionMesh(Math.min(1, Math.max(0, t))));
+    if (!mesh || gen !== this.gen) return false;
+    if (gpu.lost) { this.gl = null; return false; }
+    gpu.draw(mesh);
+    this.present(gpu.canvas, gpu.canvas.width, gpu.canvas.height);
+    return true;
+  }
+
+  private present(src: CanvasImageSource, fw: number, fh: number): void {
     for (const s of this.h.surfaces()) {
       const z = s.size();
       const k = Math.min(z.w / this.h.slideW, z.h / this.h.slideH);
       const w = Math.max(1, Math.round(this.h.slideW * k * s.dpr));
       const h = Math.max(1, Math.round(this.h.slideH * k * s.dpr));
       // the canvas keeps the frame's own size and the page scales it, which is far cheaper than resampling every frame
-      if (s.canvas.width !== r.width || s.canvas.height !== r.height) {
-        s.canvas.width = r.width;
-        s.canvas.height = r.height;
+      if (s.canvas.width !== fw || s.canvas.height !== fh) {
+        s.canvas.width = fw;
+        s.canvas.height = fh;
       }
       s.canvas.getContext("2d")?.drawImage(src, 0, 0);
       s.canvas.style.width = `${w / s.dpr}px`;
       s.canvas.style.height = `${h / s.dpr}px`;
     }
-    return true;
   }
 
   private async frame(kind: "tr" | "step", index: number, a: number, t: number, gen: number): Promise<boolean> {
