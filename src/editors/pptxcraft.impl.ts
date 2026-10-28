@@ -70,6 +70,7 @@ function ensureStyles(): void {
     .ot-px-banner { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:6px 10px; background:var(--accent); color:var(--accent-fg); font:600 13px system-ui, sans-serif; }
     .ot-px-banner .btn { padding:4px 10px; }
     .ot-px-mh { font:600 12px system-ui, sans-serif; color:var(--muted); padding:4px 2px 0; }
+    .ot-px-thumb.picked .frame { border-color:var(--accent); }
     .ot-px-thumb.hidden .frame { opacity:.4; }
     .ot-px-sechead { display:flex; align-items:center; gap:6px; margin:8px 0 -4px; font:600 12px system-ui, sans-serif; color:var(--muted); }
     .ot-px-sechead span { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -200,6 +201,7 @@ class PptxCraftInstance implements EditorInstance {
   private hoverBusy = false;
   private thumbs: HTMLElement[] = [];
   private masterMode = false;
+  private picked = new Set<number>();
   private masterItems: { master: number; layout: number }[] = [];
   private banner!: HTMLElement;
   private masterTools!: HTMLElement;
@@ -445,10 +447,10 @@ class PptxCraftInstance implements EditorInstance {
 
   private buildSideTools(): void {
     this.buildMasterTools();
-    this.buttons.dupSlide = this.button("copy", t("pptxcraft.duplicateSlide"), () => void this.cmd("slide.duplicate", {}, true), this.sideTools);
-    this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.cmd("slide.delete", {}, true), this.sideTools);
-    this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.moveSlide(-1), this.sideTools);
-    this.buttons.down = this.button("down", t("pptxcraft.moveDown"), () => void this.moveSlide(1), this.sideTools);
+    this.buttons.dupSlide = this.button("copy", t("pptxcraft.duplicateSlide"), () => void this.slideAction("duplicate"), this.sideTools);
+    this.buttons.delSlide = this.button("trash", t("pptxcraft.deleteSlide"), () => void this.slideAction("delete"), this.sideTools);
+    this.buttons.up = this.button("up", t("pptxcraft.moveUp"), () => void this.slideAction("up"), this.sideTools);
+    this.buttons.down = this.button("down", t("pptxcraft.moveDown"), () => void this.slideAction("down"), this.sideTools);
     this.button("insert", t("pptxcraft.addSection"), () => void this.addSection(), this.sideTools);
   }
 
@@ -824,7 +826,7 @@ class PptxCraftInstance implements EditorInstance {
         const frame = el("div", "frame");
         frame.appendChild(el("canvas"));
         row.appendChild(frame);
-        row.addEventListener("click", () => void this.cmd("slide.go", { index: i }));
+        row.addEventListener("click", (e) => this.pickSlide(i, e));
         row.addEventListener("dragstart", (e) => e.dataTransfer?.setData("text/plain", String(i)));
         row.addEventListener("dragover", (e) => {
           e.preventDefault();
@@ -880,6 +882,49 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.removeSectionSlides"), run: () => void this.cmd("section.remove", { index, slides: true }, true) },
       { label: t("pptxcraft.removeAllSections"), run: () => void this.cmd("section.removeAll", {}, true) },
     ]);
+  }
+
+  /** A click on a thumbnail: go there, or with Shift or Ctrl select several. */
+  private pickSlide(i: number, e: MouseEvent): void {
+    const cur = this.ov.slide ?? 0;
+    if (e.shiftKey) {
+      this.picked = new Set();
+      for (let k = Math.min(cur, i); k <= Math.max(cur, i); k++) this.picked.add(k);
+      void this.cmd("slide.selectRange", { to: i, from: cur });
+    } else if (e.ctrlKey || e.metaKey) {
+      if (this.picked.size === 0) this.picked.add(cur);
+      if (this.picked.has(i) && this.picked.size > 1) this.picked.delete(i);
+      else this.picked.add(i);
+      void this.cmd("slide.selectSlides", { indices: [...this.picked] });
+    } else {
+      this.picked = new Set();
+      void this.cmd("slide.go", { index: i });
+    }
+    this.thumbs.forEach((row, k) => row.classList.toggle("picked", this.picked.has(k)));
+  }
+
+  /** The slides a strip action works on: the picked ones, else the current one. */
+  private targetSlides(): number[] {
+    return this.picked.size > 1 ? [...this.picked].sort((a, b) => a - b) : [this.ov.slide ?? 0];
+  }
+
+  private async slideAction(kind: "delete" | "duplicate" | "up" | "down"): Promise<void> {
+    const list = this.targetSlides();
+    const n = this.ov.slides ?? 0;
+    if (kind === "delete") {
+      if (list.length >= n) return;
+      for (const i of [...list].reverse()) await this.cmd("slide.delete", { index: i }, true);
+    } else if (kind === "duplicate") {
+      for (const [k, i] of list.entries()) await this.cmd("slide.duplicate", { index: i + k }, true);
+    } else if (kind === "up") {
+      if (list[0] === 0) return;
+      for (const i of list) await this.cmd("slide.move", { from: i, to: i - 1 }, true);
+    } else {
+      if ((list[list.length - 1] ?? 0) >= n - 1) return;
+      for (const i of [...list].reverse()) await this.cmd("slide.move", { from: i, to: i + 1 }, true);
+    }
+    this.picked = new Set();
+    this.thumbs.forEach((row) => row.classList.remove("picked"));
   }
 
   private markActiveThumb(): void {
@@ -1651,12 +1696,6 @@ class PptxCraftInstance implements EditorInstance {
     const rows = Math.min(30, Math.max(1, Math.round(Number(v.rows)) || 3));
     const cols = Math.min(12, Math.max(1, Math.round(Number(v.cols)) || 3));
     await this.cmd("insert.table", { rows, cols });
-  }
-
-  private async moveSlide(by: number): Promise<void> {
-    const from = this.ov.slide ?? 0;
-    const to = Math.min(Math.max(0, from + by), (this.ov.slides ?? 1) - 1);
-    if (to !== from) await this.cmd("slide.move", { from, to }, true);
   }
 
   // ------------------------------------------------------------------ presenting
