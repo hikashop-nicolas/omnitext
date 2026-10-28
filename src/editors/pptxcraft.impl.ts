@@ -24,6 +24,7 @@ function ensureStyles(): void {
     .ot-px-bar, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); scrollbar-width:none; }
     .ot-px-bottom { border-bottom:0; border-top:1px solid var(--border); }
+    @media (max-width:720px) { .ot-px-bar { flex-wrap:wrap; overflow-x:visible; } .ot-px-bar .sep { display:none; } }
     .ot-px-bar .btn, .ot-px-bottom .btn, .ot-px-float .btn, .ot-px-slidebar .btn { flex:0 0 auto; position:relative; }
     .ot-px .btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
     .ot-px .btn:disabled { opacity:.45; cursor:default; }
