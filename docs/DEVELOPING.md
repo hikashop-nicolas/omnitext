@@ -90,7 +90,7 @@ src/core/      engine, event bus, registries, editor resolution, host types, enc
                session store, archive + tar codec
 src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
                odt, sheet, svgeditor, geoeditor, latexpreview, filerobot image editor) and
-               read-only viewers (rtf, pptx, epub, image, media, archive, psdviewer, aiviewer,
+               read-only viewers (rtf, epub, image, media, archive, psdviewer, aiviewer,
                fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, walletviewer, tiffviewer,
                torrentviewer, model3dviewer, parquetviewer, heicviewer, ebookviewer,
                dxfviewer, dicomviewer, recordsviewer, rawviewer, binary/hex)
@@ -156,8 +156,9 @@ file needs it.
   pivot create/edit, a Power Query editor, and VBA macros that run and can be edited). Legacy
   XLS goes through a SheetJS-backed grid.
 - **RTF** (read-only): [rtf.js](https://github.com/tbluemel/rtf.js).
-- **PPTX** (read-only): a scrollable slide list with shapes, tables, charts and images
-  ([pptx-renderer](https://github.com/aiden0z/pptx-renderer)).
+- **PPTX**: edited on DeckCraft's engine (pptxcraft: slide strip, format panel, insert and tools menus, slideshow with
+  transitions and animations, presenter view). Builds without the engine fall back to a read-only slide list
+  ([pptx-renderer](https://github.com/aiden0z/pptx-renderer)). The plan is in `_plans/PPTX_EDITING_PLAN.md`.
 - **EPUB** (read-only): paginated pages via [epub-js](https://github.com/intity/epub-js).
   MOBI, AZW3 and FB2 (DRM-free only) via
   [foliate-js](https://github.com/johnfactotum/foliate-js).
