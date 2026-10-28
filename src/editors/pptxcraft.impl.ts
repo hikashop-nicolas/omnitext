@@ -73,6 +73,7 @@ function ensureStyles(): void {
     .ot-px-bottom input[type=range] { flex:0 1 96px; width:96px; min-width:48px; accent-color:var(--accent); }
     .ot-px-bottom input[type=number] { flex:0 0 auto; width:56px; min-width:0; font:inherit; padding:4px 6px; color:var(--text);
       background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
+    @media (max-width:480px) { .ot-px-pct { display:none; } .ot-px-bottom input[type=number] { width:48px; } }
     @media (max-width:600px) { .ot-px-bottom input[type=range] { flex-basis:64px; width:64px; } }
     .ot-px-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface);
       color:var(--text); border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
@@ -453,7 +454,7 @@ class PptxCraftInstance implements EditorInstance {
     this.zoomNum.setAttribute("aria-label", t("pptxcraft.zoomPercent"));
     this.zoomRange.addEventListener("input", () => this.userZoom(Number(this.zoomRange.value)));
     this.zoomNum.addEventListener("change", () => this.userZoom(Number(this.zoomNum.value)));
-    bottom.append(this.zoomRange, this.zoomNum, el("span", undefined, "%"));
+    bottom.append(this.zoomRange, this.zoomNum, el("span", "ot-px-pct", "%"));
     return bottom;
   }
 
