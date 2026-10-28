@@ -413,6 +413,8 @@ const de: Dict = {
     clickFullscreen: "Hier klicken für Vollbild",
     endShow: "Präsentation beenden",
     noNotes: "Keine Notizen für diese Folie.",
+    playMedia: "Abspielen",
+    mediaMissing: "Die Video- oder Audiodaten wurden in dieser Datei nicht gefunden.",
     layoutBlank: "Leer",
   },
   pdfcraft: {

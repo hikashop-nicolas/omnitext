@@ -2,7 +2,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { EngineError, deckFontUrls, openDeck, type DeckSession, type Overlay, type SelectedShape } from "craftbridge/deck";
 import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
-import { t } from "../i18n";
+import { getLocale, t } from "../i18n";
 import { formDialog } from "./pdfcraft-tools";
 import { base64, colorMenu, el, icon, iconButton, popupMenu, type IconName } from "./pptxcraft-ui";
 
@@ -178,6 +178,10 @@ class PptxCraftInstance implements EditorInstance {
   private resizeObserver: ResizeObserver | null = null;
   private enterAt = 0;
   private fontsLoaded = new Set<string>();
+  private mediaCache = new Map<number, { bytes: Uint8Array; mime: string; name: string } | null>();
+  private mediaZip: Record<string, Uint8Array> | null = null;
+  private editMedia: (() => void) | null = null;
+  private mediaKey = "";
   private hansLikely = false;
   private opened: Promise<void> = Promise.resolve();
   private original: Uint8Array = new Uint8Array();
@@ -504,6 +508,7 @@ class PptxCraftInstance implements EditorInstance {
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
     this.drawOverlay();
     this.updateButtons();
+    this.syncEditMedia();
     const mode = ov.text ? "text" : "none";
     if (this.input.inputMode !== mode) {
       this.input.inputMode = mode;
@@ -622,6 +627,7 @@ class PptxCraftInstance implements EditorInstance {
     this.zoomNum.value = String(Math.round(zoom * 100));
     this.applySize();
     this.drawOverlay();
+    this.syncEditMedia();
     if (this.ov.open) void this.renderMain(`${this.ov.slide}:${this.ov.revision}:${this.zoom.toFixed(3)}`);
   }
 
@@ -1101,6 +1107,123 @@ class PptxCraftInstance implements EditorInstance {
 
   // ------------------------------------------------------------------ presenting
 
+  /** The slide's audio and video shapes, with where they sit. */
+  private async mediaShapes(index: number): Promise<{ id: number; box: number[]; video: boolean; autoplay: boolean; loop: boolean }[]> {
+    const session = this.session;
+    if (!session) return [];
+    const info = await this.enqueue(() => session.execute<{ shapes?: { id: number; box: number[]; media?: { video: boolean; autoplay: boolean; loop: boolean } }[] }>("slide.inspect", { index }));
+    const out: { id: number; box: number[]; video: boolean; autoplay: boolean; loop: boolean }[] = [];
+    const walk = (list: typeof info extends undefined ? never : NonNullable<typeof info>["shapes"]): void => {
+      for (const sh of list ?? []) {
+        if (sh.media) out.push({ id: sh.id, box: sh.box, video: !!sh.media.video, autoplay: !!sh.media.autoplay, loop: !!sh.media.loop });
+      }
+    };
+    walk(info?.shapes);
+    return out;
+  }
+
+  /** The bytes of a media shape, read from the file as it was opened (media added in this session are not there yet). */
+  private async mediaBytes(id: number): Promise<{ bytes: Uint8Array; mime: string; name: string } | null> {
+    const session = this.session;
+    if (!session) return null;
+    if (this.mediaCache.has(id)) return this.mediaCache.get(id) ?? null;
+    const info = await this.enqueue(() => session.execute<{ name?: string; contentType?: string }>("media.info", { id }));
+    let found: { bytes: Uint8Array; mime: string; name: string } | null = null;
+    try {
+      this.mediaZip ??= unzipSync(this.original, { filter: (f) => /^ppt\/media\//i.test(f.name) });
+      const want = (info?.name ?? "").split("/").pop()?.toLowerCase() ?? "";
+      const key = Object.keys(this.mediaZip).find((k) => k.split("/").pop()?.toLowerCase() === want);
+      if (key) found = { bytes: this.mediaZip[key]!, mime: info?.contentType ?? "", name: want };
+    } catch {
+      /* the file is not a readable archive */
+    }
+    this.mediaCache.set(id, found);
+    return found;
+  }
+
+  /** Puts a play button over each audio and video of a slide; the media plays in place, in mediaplay's player (or a bare element in another window). Returns what removes them. */
+  private async mountMedia(
+    host: HTMLElement,
+    index: number,
+    place: (box: number[]) => { left: number; top: number; w: number; h: number },
+    o: { autoplay: boolean; doc?: Document },
+  ): Promise<() => void> {
+    const doc = o.doc ?? document;
+    const shapes = await this.mediaShapes(index);
+    const undo: (() => void)[] = [];
+    for (const sh of shapes) {
+      const r = place(sh.box);
+      const slot = doc.createElement("div");
+      slot.dataset.pxMedia = "1";
+      slot.style.cssText = `position:absolute;pointer-events:none;left:${r.left}px;top:${r.top}px;width:${r.w}px;height:${r.h}px`;
+      const btn = doc.createElement("button");
+      btn.style.cssText = "position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:24px;line-height:56px;padding:0 0 0 4px;cursor:pointer;pointer-events:auto";
+      btn.type = "button";
+      btn.textContent = "\u25B6";
+      btn.setAttribute("aria-label", t("pptxcraft.playMedia"));
+      slot.appendChild(btn);
+      host.appendChild(slot);
+      let stop: (() => void) | null = null;
+      const start = async (): Promise<void> => {
+        btn.remove();
+        const m = await this.mediaBytes(sh.id);
+        if (!m) {
+          this.host.notifications.error(t("pptxcraft.mediaMissing"));
+          return;
+        }
+        slot.style.pointerEvents = "auto";
+        slot.style.background = "#000";
+        const mime = m.mime || (sh.video ? "video/mp4" : "audio/mpeg");
+        if (doc === document) {
+          const { createMediaPlayer, setLocale } = await import("mediaplay");
+          setLocale(getLocale());
+          const handle = createMediaPlayer(slot, { bytes: m.bytes, mime, filename: m.name }, { embedded: true, controls: "native", thumbnails: false, scope: false, onError: (msg) => this.host.notifications.error(msg) });
+          const el = handle.getMediaElement();
+          if (el) {
+            el.loop = sh.loop;
+            void el.play().catch(() => undefined);
+          }
+          stop = () => handle.destroy();
+        } else {
+          const v = doc.createElement(sh.video ? "video" : "audio") as HTMLMediaElement;
+          const url = URL.createObjectURL(new Blob([m.bytes as BlobPart], { type: mime }));
+          v.src = url;
+          v.controls = true;
+          v.loop = sh.loop;
+          v.style.cssText = "width:100%;height:100%";
+          slot.appendChild(v);
+          void v.play().catch(() => undefined);
+          stop = () => {
+            v.pause();
+            URL.revokeObjectURL(url);
+          };
+        }
+      };
+      btn.addEventListener("click", () => void start());
+      undo.push(() => {
+        stop?.();
+        slot.remove();
+      });
+      if (o.autoplay && sh.autoplay) void start();
+    }
+    return () => undo.forEach((f) => f());
+  }
+
+  /** Keeps the editor's play buttons in step with the slide on screen. */
+  private syncEditMedia(): void {
+    const key = `${this.ov.slide}:${this.zoom.toFixed(3)}:${this.ov.revision}`;
+    if (key === this.mediaKey || !this.ov.open) return;
+    this.mediaKey = key;
+    this.editMedia?.();
+    this.editMedia = null;
+    const z = this.zoom;
+    const index = this.ov.slide ?? 0;
+    void this.mountMedia(this.slideEl, index, (b) => ({ left: b[0]! * z, top: b[1]! * z, w: b[2]! * z, h: b[3]! * z }), { autoplay: false }).then((undo) => {
+      if (this.mediaKey !== key || this.disposed) undo();
+      else this.editMedia = undo;
+    });
+  }
+
   private presentMenu(): void {
     const native = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
     if (native) return void this.present();
@@ -1186,8 +1309,11 @@ class PptxCraftInstance implements EditorInstance {
       if (win.closed) finish();
     }, 500);
     let token = 0;
+    let unmount: (() => void) | null = null;
     const draw = async (): Promise<void> => {
       const mine = ++token;
+      unmount?.();
+      unmount = null;
       counter.textContent = t("pptxcraft.slideOf", { n: index + 1, total });
       prev.disabled = index <= 0;
       next.disabled = index >= total - 1;
@@ -1198,6 +1324,11 @@ class PptxCraftInstance implements EditorInstance {
         this.drawTo(showCanvas, index, win.innerWidth || 1280, win.innerHeight || 720, dpr),
       ]);
       if (mine !== token) return;
+      const sb = showCanvas.getBoundingClientRect();
+      const k = sb.width / this.slideW;
+      const undo = await this.mountMedia(wd.body, index, (b) => ({ left: sb.left + b[0]! * k, top: sb.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true, doc: wd });
+      if (mine !== token) undo();
+      else unmount = undo;
       const info = await this.enqueue(() => session.execute<{ notes?: string }>("slide.inspect", { index }));
       if (mine !== token) return;
       const text = typeof info?.notes === "string" ? info.notes.trim() : "";
@@ -1212,6 +1343,7 @@ class PptxCraftInstance implements EditorInstance {
     };
     const finish = (): void => {
       window.clearInterval(tick);
+      unmount?.();
       document.removeEventListener("keydown", keys, true);
       win.removeEventListener("resize", onResize);
       pv.remove();
@@ -1248,7 +1380,11 @@ class PptxCraftInstance implements EditorInstance {
     document.body.appendChild(show);
     let index = this.ov.slide ?? 0;
     const total = this.ov.slides ?? 1;
+    let unmount: (() => void) | null = null;
     const draw = async (): Promise<void> => {
+      unmount?.();
+      unmount = null;
+      const shown = index;
       const scale = Math.min(window.innerWidth / this.slideW, window.innerHeight / this.slideH) * this.dpr;
       const r = await this.enqueue(() => session.render(index, scale, false));
       if (!r || !show.isConnected) return;
@@ -1258,12 +1394,20 @@ class PptxCraftInstance implements EditorInstance {
       canvas.getContext("2d")?.putImageData(new ImageData(px, r.width, r.height), 0, 0);
       canvas.style.width = `${r.width / this.dpr}px`;
       canvas.style.height = `${r.height / this.dpr}px`;
+      const box = canvas.getBoundingClientRect();
+      const k = box.width / this.slideW;
+      const undo = await this.mountMedia(show, shown, (b) => ({ left: box.left + b[0]! * k, top: box.top + b[1]! * k, w: b[2]! * k, h: b[3]! * k }), { autoplay: true });
+      if (shown !== index || !show.isConnected) undo();
+      else unmount = undo;
     };
     const go = (by: number): void => {
-      index = Math.min(total - 1, Math.max(0, index + by));
+      const to = Math.min(total - 1, Math.max(0, index + by));
+      if (to === index) return;
+      index = to;
       void draw();
     };
     const end = (): void => {
+      unmount?.();
       show.remove();
       document.removeEventListener("keydown", keys, true);
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -1281,6 +1425,7 @@ class PptxCraftInstance implements EditorInstance {
     };
     document.addEventListener("keydown", keys, true);
     show.addEventListener("pointerup", (e) => {
+      if ((e.target as HTMLElement).closest("[data-px-media]")) return;
       const r = show.getBoundingClientRect();
       go(e.clientX < r.left + r.width / 4 ? -1 : 1);
     });
@@ -1319,6 +1464,7 @@ class PptxCraftInstance implements EditorInstance {
     this.disposed = true;
     this.endBusy();
     this.resizeObserver?.disconnect();
+    this.editMedia?.();
     this.session?.close();
     this.session = null;
     this.root?.remove();

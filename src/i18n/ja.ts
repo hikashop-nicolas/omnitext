@@ -415,6 +415,8 @@ const ja: Dict = {
     clickFullscreen: "ここをクリックして全画面表示",
     endShow: "スライドショーを終了",
     noNotes: "このスライドにノートはありません。",
+    playMedia: "再生",
+    mediaMissing: "このファイルに動画または音声のデータが見つかりません。",
     layoutBlank: "白紙",
   },
   pdfcraft: {

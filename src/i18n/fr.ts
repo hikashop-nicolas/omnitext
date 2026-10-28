@@ -416,6 +416,8 @@ const fr: Dict = {
     clickFullscreen: "Cliquez ici pour passer en plein écran",
     endShow: "Terminer le diaporama",
     noNotes: "Aucune note pour cette diapositive.",
+    playMedia: "Lire",
+    mediaMissing: "Les données de la vidéo ou de l'audio sont introuvables dans ce fichier.",
     layoutBlank: "Vide",
   },
   pdfcraft: {

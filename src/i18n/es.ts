@@ -413,6 +413,8 @@ const es: Dict = {
     clickFullscreen: "Haga clic aquí para pantalla completa",
     endShow: "Terminar la presentación",
     noNotes: "No hay notas para esta diapositiva.",
+    playMedia: "Reproducir",
+    mediaMissing: "No se encontraron los datos del vídeo o audio en este archivo.",
     layoutBlank: "En blanco",
   },
   pdfcraft: {

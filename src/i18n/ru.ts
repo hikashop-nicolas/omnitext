@@ -436,6 +436,8 @@ const ru: Dict = {
     clickFullscreen: "Нажмите здесь для полноэкранного режима",
     endShow: "Завершить показ",
     noNotes: "Нет заметок к этому слайду.",
+    playMedia: "Воспроизвести",
+    mediaMissing: "Данные видео или аудио не найдены в этом файле.",
     layoutBlank: "Пустой слайд",
   },
   pdfcraft: {

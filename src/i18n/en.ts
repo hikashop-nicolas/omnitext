@@ -415,6 +415,8 @@ const en: Dict = {
     clickFullscreen: "Click here for full screen",
     endShow: "End slideshow",
     noNotes: "No notes for this slide.",
+    playMedia: "Play",
+    mediaMissing: "The video or audio data could not be found in this file.",
     layoutBlank: "Blank",
   },
   pdfcraft: {

@@ -417,6 +417,8 @@ const zh: Dict = {
     clickFullscreen: "点击此处全屏",
     endShow: "结束放映",
     noNotes: "此幻灯片没有备注。",
+    playMedia: "播放",
+    mediaMissing: "在此文件中找不到视频或音频数据。",
     layoutBlank: "空白",
   },
   pdfcraft: {
