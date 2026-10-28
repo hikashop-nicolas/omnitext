@@ -418,6 +418,9 @@ const fr: Dict = {
     noNotes: "Aucune note pour cette diapositive.",
     playMedia: "Lire",
     mediaMissing: "Les données de la vidéo ou de l'audio sont introuvables dans ce fichier.",
+    insert: "Insérer",
+    video: "Vidéo",
+    audio: "Audio",
     layoutBlank: "Vide",
   },
   pdfcraft: {

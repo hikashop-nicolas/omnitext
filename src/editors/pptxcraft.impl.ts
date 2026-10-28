@@ -182,6 +182,8 @@ class PptxCraftInstance implements EditorInstance {
   private mediaZip: Record<string, Uint8Array> | null = null;
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
+  private pickKind: "image" | "video" | "audio" = "image";
+  private mediaBySize = new Map<number, { bytes: Uint8Array; mime: string; name: string }>();
   private hansLikely = false;
   private opened: Promise<void> = Promise.resolve();
   private original: Uint8Array = new Uint8Array();
@@ -335,16 +337,13 @@ class PptxCraftInstance implements EditorInstance {
 
   private buildBar(): void {
     const b = this.bar;
-    this.button("slides", t("pptxcraft.slides"), () => this.side.classList.toggle("closed"));
-    this.sepTo(b);
     this.buttons.undo = this.button("undo", t("pptxcraft.undo"), () => void this.cmd("edit.undo"));
     this.buttons.redo = this.button("redo", t("pptxcraft.redo"), () => void this.cmd("edit.redo"));
     this.sepTo(b);
     this.buttons.select = this.button("select", t("pptxcraft.select"), () => this.setTool("select"));
     this.buttons.text = this.button("text", t("pptxcraft.textBox"), () => this.setTool("textBox"));
     this.buttons.shapes = this.button("shapes", t("pptxcraft.shapes"), () => this.shapesMenu());
-    this.buttons.picture = this.button("image", t("pptxcraft.picture"), () => this.fileInput.click());
-    this.buttons.table = this.button("table", t("pptxcraft.table"), () => void this.insertTable());
+    this.buttons.insert = this.button("insert", t("pptxcraft.insert"), () => this.insertMenu());
     this.sepTo(b);
     this.buttons.newSlide = this.button("slideNew", t("pptxcraft.newSlide"), () => this.newSlideMenu());
     this.sepTo(b);
@@ -397,6 +396,7 @@ class PptxCraftInstance implements EditorInstance {
 
   private buildBottom(): HTMLElement {
     const bottom = el("div", "ot-px-bottom");
+    this.button("slides", t("pptxcraft.slides"), () => this.side.classList.toggle("closed"), bottom);
     this.buttons.prev = this.button("up", t("pptxcraft.previous"), () => void this.cmd("slide.previous", {}), bottom);
     this.buttons.next = this.button("down", t("pptxcraft.next"), () => void this.cmd("slide.next", {}), bottom);
     this.counter = el("span");
@@ -1075,12 +1075,33 @@ class PptxCraftInstance implements EditorInstance {
 
   // ------------------------------------------------------------------ inserting
 
+  private insertMenu(): void {
+    const pick = (kind: "image" | "video" | "audio"): void => {
+      this.pickKind = kind;
+      this.fileInput.accept = `${kind}/*`;
+      this.fileInput.click();
+    };
+    popupMenu(this.root, this.buttons.insert, [
+      { label: t("pptxcraft.picture"), run: () => pick("image") },
+      { label: t("pptxcraft.video"), run: () => pick("video") },
+      { label: t("pptxcraft.audio"), run: () => pick("audio") },
+      { label: t("pptxcraft.table"), run: () => void this.insertTable() },
+    ]);
+  }
+
   private async pickedPicture(): Promise<void> {
     const file = this.fileInput.files?.[0];
     this.fileInput.value = "";
     if (!file) return;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    await this.cmd("insert.picture", { name: file.name, data: base64(bytes) });
+    const kind = this.pickKind;
+    const r = (await this.cmd(`insert.${kind === "image" ? "picture" : kind}`, { name: file.name, data: base64(bytes) })) as { id?: number } | undefined;
+    // played from these bytes until the file is saved and opened again
+    if (kind !== "image") {
+      const entry = { bytes, mime: file.type, name: file.name.toLowerCase() };
+      this.mediaBySize.set(bytes.length, entry);
+      if (typeof r?.id === "number") this.mediaCache.set(r.id, entry);
+    }
   }
 
   private async insertTable(): Promise<void> {
@@ -1127,7 +1148,7 @@ class PptxCraftInstance implements EditorInstance {
     const session = this.session;
     if (!session) return null;
     if (this.mediaCache.has(id)) return this.mediaCache.get(id) ?? null;
-    const info = await this.enqueue(() => session.execute<{ name?: string; contentType?: string }>("media.info", { id }));
+    const info = await this.enqueue(() => session.execute<{ name?: string; contentType?: string; bytes?: number }>("media.info", { id }));
     let found: { bytes: Uint8Array; mime: string; name: string } | null = null;
     try {
       this.mediaZip ??= unzipSync(this.original, { filter: (f) => /^ppt\/media\//i.test(f.name) });
@@ -1137,7 +1158,8 @@ class PptxCraftInstance implements EditorInstance {
     } catch {
       /* the file is not a readable archive */
     }
-    this.mediaCache.set(id, found);
+    found ??= this.mediaBySize.get((info as { bytes?: number } | undefined)?.bytes ?? -1) ?? null;
+    if (found) this.mediaCache.set(id, found);
     return found;
   }
 

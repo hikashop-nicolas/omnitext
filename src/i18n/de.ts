@@ -415,6 +415,9 @@ const de: Dict = {
     noNotes: "Keine Notizen für diese Folie.",
     playMedia: "Abspielen",
     mediaMissing: "Die Video- oder Audiodaten wurden in dieser Datei nicht gefunden.",
+    insert: "Einfügen",
+    video: "Video",
+    audio: "Audio",
     layoutBlank: "Leer",
   },
   pdfcraft: {

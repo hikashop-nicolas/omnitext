@@ -419,6 +419,9 @@ const zh: Dict = {
     noNotes: "此幻灯片没有备注。",
     playMedia: "播放",
     mediaMissing: "在此文件中找不到视频或音频数据。",
+    insert: "插入",
+    video: "视频",
+    audio: "音频",
     layoutBlank: "空白",
   },
   pdfcraft: {

@@ -417,6 +417,9 @@ const en: Dict = {
     noNotes: "No notes for this slide.",
     playMedia: "Play",
     mediaMissing: "The video or audio data could not be found in this file.",
+    insert: "Insert",
+    video: "Video",
+    audio: "Audio",
     layoutBlank: "Blank",
   },
   pdfcraft: {

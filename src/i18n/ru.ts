@@ -438,6 +438,9 @@ const ru: Dict = {
     noNotes: "Нет заметок к этому слайду.",
     playMedia: "Воспроизвести",
     mediaMissing: "Данные видео или аудио не найдены в этом файле.",
+    insert: "Вставка",
+    video: "Видео",
+    audio: "Аудио",
     layoutBlank: "Пустой слайд",
   },
   pdfcraft: {

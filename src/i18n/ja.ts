@@ -417,6 +417,9 @@ const ja: Dict = {
     noNotes: "このスライドにノートはありません。",
     playMedia: "再生",
     mediaMissing: "このファイルに動画または音声のデータが見つかりません。",
+    insert: "挿入",
+    video: "動画",
+    audio: "音声",
     layoutBlank: "白紙",
   },
   pdfcraft: {
