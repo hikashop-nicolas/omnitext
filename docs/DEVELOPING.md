@@ -82,6 +82,10 @@ The PDF editor runs on a Rust engine compiled to wasm. Build it once with `scrip
 (a Rust toolchain with the wasm32-unknown-unknown target, and git; add binaryen 133 or newer for a smaller
 module), then build the app with `CRAFTBRIDGE_DIR=$PWD/vendor/craftbridge npm run build`. The dev server and
 the tests do not need it; `OMNITEXT_NO_PDF_ENGINE=1 npm run build` builds an app with no PDF editor.
+The Japanese, Simplified Chinese and Korean faces are not inside the engine modules: the build copies them to
+`wasm/fonts/` and the editors load them at run time (`pdfFontFaces` for the PDF engine, `deckFontUrls` for the deck
+engine), so one copy serves both. Crates off the drawing path are built for size (`scripts/size-profile.sh` in craftbridge);
+building everything for size made rendering several times slower.
 
 ## Layout
 

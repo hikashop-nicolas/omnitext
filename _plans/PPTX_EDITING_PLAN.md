@@ -45,6 +45,33 @@ show, show setup (loop, range, no animation), photo album, zoom links, icons, ou
 Added later the same day: triggered animations (click targets in the show), merging the selected table cells, custom
 slide shows, tab stops, swipe navigation in the show, multi-select of slides.
 
-Not done: rehearse timings and kiosk mode, the ruler (tab stops are added by number), moving guides by dragging,
-WordArt styles, video as a link or from a web page, recording narration, printing handout layouts in the browser
-(export to PDF works), narration and ink in the show, closed captions.
+## Status 2026-10-29 (release candidate for 2.0)
+Added since: the presenter view in its own window with the show fullscreen on the other screen (Window Management API),
+transitions drawn on the GPU (WebGL: the engine hands over the two slide pictures and each frame's triangles, with a CPU
+fallback), a click during a transition skips to the next slide, video autoplay kept in the file as a media Play effect that
+starts by itself (the engine used to drop it on save), one-row toolbars with a "more" button, a comments entry that opens the
+panel, and the CJK faces shipped once as files in wasm/fonts that both engines load at run time (the PDF engine at open, the
+deck engine when a deck has Japanese, Korean or Chinese text). The release APK went from 43.3 MB to 37.1 MB.
+
+## Known gaps (not blocking 2.0; pick these up when there is time)
+Editing and show
+- Rehearse timings and kiosk mode.
+- Ruler (tab stops are still added by number) and moving guides by dragging.
+- WordArt styles.
+- Video as a link or from a web page; recording narration; narration and ink in the show; closed captions.
+- Printing handout layouts in the browser (export to PDF works).
+- Morph transitions: drawn shape by shape on the CPU path, so they are slower than the others.
+Rendering
+- Date-axis labels on area charts show the serial numbers instead of dates.
+Formats and PowerPoint features we do not have
+- Only .pptx opens: .ppsx, .potx, .ppt and .odp do not.
+- Designer and Copilot-like suggestions, co-authoring, export to video or GIF.
+Size and build
+- Video decoders in the deck engine (about 0.6 MB compressed) are only used for poster frames and probing; the browser could do both.
+- The PDF and deck engines each carry their own copy of the text, image and PDF-writing code; one shared module would save
+  roughly 2 to 3 MB more but the two repos patch different vendored crates, so it is a multi-day job.
+- Japanese face (4.7 MB): a kana plus common-kanji subset would roughly halve it.
+- Reading the phone's own CJK fonts through a native plugin was considered and dropped (32 MB collection, differs by maker).
+Verification still wanted
+- The F-Droid dry run with the shared fonts and the size-first build settings.
+- Presenter view and GPU transitions have been tried on one real second screen only.
