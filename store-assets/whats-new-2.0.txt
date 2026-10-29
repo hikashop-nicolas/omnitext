@@ -2,8 +2,8 @@ New in this update:
 
 • A new PDF editor: forms, e-signatures, redaction, watermark, bookmarks, attachments, comments and stamps
 • Opens complex forms, French CERFA and US government ones included
-• Edit PowerPoint presentations: text, shapes, pictures, tables, charts, video, slides and notes, with smooth transitions and a presenter view
-• Adds and edits text in Latin, Greek, Cyrillic, Japanese, Chinese and Korean
+• Edit PowerPoint: text, shapes, pictures, tables, charts, video, slides and notes, with smooth transitions and a presenter view
+• Latin, Greek, Cyrillic, Japanese, Chinese and Korean text
 • New shortcuts: New document, Close, Settings, Open folder
 
 Still offline unless you choose to share.
