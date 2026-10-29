@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '2.0'
     versionCode: 20000
-    commit: 02056a1f4795aab1c86c62efb2eb1aeb958859ab
+    commit: fab55fa623a080905dc39f8ebb1c27c1839fc967
     subdir: android/app
     sudo:
       - apt-get update
