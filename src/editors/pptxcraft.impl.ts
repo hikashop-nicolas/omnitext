@@ -235,7 +235,6 @@ class PptxCraftInstance implements EditorInstance {
   private fontsLoaded = new Set<string>();
   private mediaCache = new Map<number, { bytes: Uint8Array; mime: string; name: string } | null>();
   private mediaZip: Record<string, Uint8Array> | null = null;
-  private mediaDiag = "";
   private editMedia: (() => void) | null = null;
   private mediaKey = "";
   private fileName = "presentation.pptx";
@@ -1753,12 +1752,10 @@ class PptxCraftInstance implements EditorInstance {
   private async mediaBytes(sh: MediaShape): Promise<{ bytes: Uint8Array; mime: string; name: string } | null> {
     const id = sh.id;
     const session = this.session;
-    this.mediaDiag = `id=${id} session=${!!session}`;
     if (!session) return null;
     if (this.mediaCache.has(id)) return this.mediaCache.get(id) ?? null;
     // media.info only finds a shape on the slide the editor is on, and the show may be on another
     const info = sh.file?.name ? sh.file : await this.enqueue(() => session.execute<{ name?: string; contentType?: string; bytes?: number }>("media.info", { id }));
-    this.mediaDiag += ` info=${JSON.stringify(info)} original=${this.original.length}`;
     let found: { bytes: Uint8Array; mime: string; name: string } | null = null;
     const want = (info?.name ?? "").split("/").pop()?.toLowerCase() ?? "";
     const pick = (zip: Record<string, Uint8Array>): void => {
@@ -1767,20 +1764,15 @@ class PptxCraftInstance implements EditorInstance {
     };
     try {
       this.mediaZip ??= unzipSync(this.original, { filter: (f) => /^ppt\/media\//i.test(f.name) });
-      this.mediaDiag += ` zip=${Object.keys(this.mediaZip).join(",")}`;
       pick(this.mediaZip);
-    } catch (e) {
-      this.mediaDiag += ` zipError=${String(e)}`;
+    } catch {
       /* the file is not a readable archive */
     }
     if (!found && !this.mediaBySize.has(info?.bytes ?? -1)) {
       // a file reopened after an edit has no original to read: the engine's own copy has the media
       try {
-        const saved = unzipSync((await this.enqueue(() => session.save())) ?? new Uint8Array(), { filter: (f) => /^ppt\/media\//i.test(f.name) });
-        this.mediaDiag += ` saved=${Object.entries(saved).map(([k, v]) => `${k}:${v.length}`).join(",")}`;
-        pick(saved);
-      } catch (e) {
-        this.mediaDiag += ` saveError=${String(e)}`;
+        pick(unzipSync((await this.enqueue(() => session.save())) ?? new Uint8Array(), { filter: (f) => /^ppt\/media\//i.test(f.name) }));
+      } catch {
         /* nothing to read */
       }
     }
@@ -1816,8 +1808,7 @@ class PptxCraftInstance implements EditorInstance {
         btn.remove();
         const m = await this.mediaBytes(sh);
         if (!m) {
-          console.error("[pptxcraft] media missing", this.mediaDiag);
-          this.host.notifications.error(`${t("pptxcraft.mediaMissing")} [${this.mediaDiag}]`);
+          this.host.notifications.error(t("pptxcraft.mediaMissing"));
           return;
         }
         slot.style.pointerEvents = "auto";
