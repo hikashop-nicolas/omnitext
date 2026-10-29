@@ -263,7 +263,8 @@ build_hysnappy() {
 }
 
 # xz decoding for a lone .xz file (xzwasm). Upstream has no tags, so the commit is pinned
-# here; its submodules (xz-embedded, walloc) are pinned by that commit in turn. Built with
+# here; its submodules (xz-embedded, walloc) are pinned by that commit in turn. xz-embedded is fetched from its GitHub
+# mirror: git.tukaani.org answers 403 to the build servers. Built with
 # Debian's clang against its wasi headers, which is what upstream's WASI SDK provides.
 XZWASM_COMMIT="75a7519c7c38fe641a9fa9809db1378fe339ac5c"
 build_xzwasm() {
@@ -271,7 +272,7 @@ build_xzwasm() {
   src="$WORK/xzwasm"
   if [ ! -d "$src" ]; then
     git clone -q https://github.com/SteveSanderson/xzwasm.git "$src"
-    (cd "$src" && git -c advice.detachedHead=false checkout -q "$XZWASM_COMMIT" && git submodule update -q --init --recursive)
+    (cd "$src" && git -c advice.detachedHead=false checkout -q "$XZWASM_COMMIT" && git -c url."https://github.com/tukaani-project/xz-embedded.git".insteadOf=https://git.tukaani.org/xz-embedded.git submodule update -q --init --recursive)
   fi
   xzlib="$src/module/xz-embedded/linux/lib/xz"
   clang --target=wasm32 -DNDEBUG -Os -s -nostdlib -Wl,--no-entry \
