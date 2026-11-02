@@ -332,7 +332,7 @@ const fr: Dict = {
     newDoc: "Nouveau document",
     newHint: "Choisissez parmi des dizaines de formats",
     startWith: "Ou commencez par",
-    private: "Rien n'est envoyé en ligne. Pas de compte, pas de pistage.",
+    private: "Aucun fichier n'est envoyé en ligne. Pas de compte, pas de pistage.",
     commands: "Commandes",
     justType: "Commencer à écrire",
     txt: "Texte brut",
