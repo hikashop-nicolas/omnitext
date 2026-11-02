@@ -1,4 +1,12 @@
-import { joinRoom, selfId, type MessageAction, type Room } from "trystero";
+import {
+  getRelaySockets,
+  joinRoom,
+  pauseRelayReconnection,
+  resumeRelayReconnection,
+  selfId,
+  type MessageAction,
+  type Room,
+} from "trystero";
 
 // The network under a collaboration session.
 //
@@ -64,16 +72,40 @@ export interface RoomOptions {
   turnServers?: RTCIceServer[];
 }
 
+// Trystero keeps one socket per relay for the life of the page and reconnects it forever, even
+// with no room open. Closing the last room drops them; the next room revives them.
+let openRooms = 0;
+
+function dropRelaySockets(): void {
+  pauseRelayReconnection();
+  for (const socket of Object.values(getRelaySockets()) as WebSocket[]) {
+    try {
+      socket.close();
+    } catch {
+      /* already closed */
+    }
+  }
+}
+
 export function trysteroTransport(opts: RoomOptions): CollabTransport {
-  const room: Room = joinRoom(
-    {
-      appId: opts.appId ?? APP_ID,
-      password: opts.secret,
-      ...(opts.relayUrls ? { relayConfig: { urls: opts.relayUrls } } : {}),
-      ...(opts.turnServers?.length ? { turnConfig: opts.turnServers } : {}),
-    },
-    opts.roomId,
-  );
+  resumeRelayReconnection();
+  openRooms++;
+  let room: Room;
+  try {
+    room = joinRoom(
+      {
+        appId: opts.appId ?? APP_ID,
+        password: opts.secret,
+        ...(opts.relayUrls ? { relayConfig: { urls: opts.relayUrls } } : {}),
+        ...(opts.turnServers?.length ? { turnConfig: opts.turnServers } : {}),
+      },
+      opts.roomId,
+    );
+  } catch (e) {
+    if (--openRooms === 0) dropRelaySockets();
+    throw e;
+  }
+  let closed = false;
 
   const actions = Object.fromEntries(
     CHANNELS.map((c) => [c, room.makeAction<Wire>(NAMESPACE[c])]),
@@ -108,6 +140,11 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
     onPeerJoin: (handler) => void joined.push(handler),
     onPeerLeave: (handler) => void left.push(handler),
     peers: () => Object.keys(room.getPeers()),
-    close: () => room.leave(),
+    async close() {
+      if (closed) return;
+      closed = true;
+      await room.leave();
+      if (--openRooms === 0) dropRelaySockets();
+    },
   };
 }

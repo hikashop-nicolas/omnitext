@@ -24,8 +24,18 @@ const room = {
   leave: vi.fn(async () => undefined),
 };
 const joinRoom = vi.fn(() => room);
+const sockets: Record<string, { close: ReturnType<typeof vi.fn> }> = {};
+const calls: string[] = [];
+const pauseRelayReconnection = vi.fn(() => void calls.push("pause"));
+const resumeRelayReconnection = vi.fn(() => void calls.push("resume"));
 
-vi.mock("trystero", () => ({ joinRoom: (...a: unknown[]) => joinRoom(...(a as [])), selfId: "me" }));
+vi.mock("trystero", () => ({
+  joinRoom: (...a: unknown[]) => joinRoom(...(a as [])),
+  selfId: "me",
+  getRelaySockets: () => sockets,
+  pauseRelayReconnection: () => pauseRelayReconnection(),
+  resumeRelayReconnection: () => resumeRelayReconnection(),
+}));
 
 const { trysteroTransport, APP_ID } = await import("./transport");
 
@@ -35,6 +45,10 @@ beforeEach(() => {
   room.makeAction.mockClear();
   room.leave.mockClear();
   room.onPeerJoin = room.onPeerLeave = null;
+  calls.length = 0;
+  pauseRelayReconnection.mockClear();
+  resumeRelayReconnection.mockClear();
+  for (const k of Object.keys(sockets)) delete sockets[k];
 });
 
 const open = () => trysteroTransport({ roomId: "r", secret: "s3cret" });
@@ -110,5 +124,56 @@ describe("trysteroTransport", () => {
     expect(t.peers()).toEqual(["alice", "bob"]);
     await t.close();
     expect(room.leave).toHaveBeenCalled();
+  });
+
+  // Trystero's relay sockets outlive its rooms and reconnect forever. An F-Droid reviewer saw
+  // relay traffic minutes after leaving a session, so the last room out closes them.
+  describe("the relay sockets", () => {
+    // The room count lives in the module, and the tests above leave rooms open.
+    let open: () => import("./transport").CollabTransport;
+    beforeEach(async () => {
+      vi.resetModules();
+      const fresh = await import("./transport");
+      open = () => fresh.trysteroTransport({ roomId: "r", secret: "s3cret" });
+    });
+    const relays = () => {
+      sockets["wss://a"] = { close: vi.fn() };
+      sockets["wss://b"] = { close: vi.fn() };
+    };
+
+    it("closes them, after pausing reconnection, when the last room closes", async () => {
+      relays();
+      const t = open();
+      await t.close();
+      expect(sockets["wss://a"]!.close).toHaveBeenCalledTimes(1);
+      expect(sockets["wss://b"]!.close).toHaveBeenCalledTimes(1);
+      expect(calls).toEqual(["resume", "pause"]);
+    });
+
+    it("keeps them while another room is open", async () => {
+      relays();
+      const first = open();
+      const second = open();
+      await first.close();
+      expect(sockets["wss://a"]!.close).not.toHaveBeenCalled();
+      await second.close();
+      expect(sockets["wss://a"]!.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets the next room reconnect them", async () => {
+      relays();
+      await open().close();
+      calls.length = 0;
+      open();
+      expect(calls).toEqual(["resume"]);
+    });
+
+    it("does nothing the second time a transport is closed", async () => {
+      relays();
+      const t = open();
+      await t.close();
+      await t.close();
+      expect(sockets["wss://a"]!.close).toHaveBeenCalledTimes(1);
+    });
   });
 });
