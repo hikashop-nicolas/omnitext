@@ -1,19 +1,19 @@
 import { isNative } from "../core/platform";
 
-/** The slice of a richdoc editor the fullscreen needs. */
+/** The slice of an editor the fullscreen needs. */
 interface Reading {
   setReadingMode(on: boolean): void;
 }
 
 /**
- * Fullscreen reading for a richdoc editor on Android: the editor's button asks, the page goes
+ * Fullscreen reading for a richdoc or sheet editor on Android: the editor's button asks, the page goes
  * fullscreen, and the editor drops its chrome and its caret until fullscreen ends.
  */
-export class RichdocFullscreen {
+export class ReadingFullscreen {
   private wrap: HTMLElement | null = null;
   private editor: Reading | null = null;
 
-  constructor(private container: HTMLElement) {
+  constructor(private container: HTMLElement, private selector = ".docxedit-wrap") {
     if (typeof document !== "undefined") document.addEventListener("fullscreenchange", this.onChange);
   }
 
@@ -27,7 +27,7 @@ export class RichdocFullscreen {
   }
 
   private toggle(): Promise<void> {
-    this.wrap = this.container.querySelector<HTMLElement>(".docxedit-wrap");
+    this.wrap = this.container.querySelector<HTMLElement>(this.selector);
     if (!this.wrap) return Promise.resolve();
     if (document.fullscreenElement === this.wrap) return document.exitFullscreen().catch(() => undefined);
     return this.wrap.requestFullscreen?.().catch(() => undefined) ?? Promise.resolve();

@@ -1,4 +1,5 @@
 import { isNative } from "../core/platform";
+import { ReadingFullscreen } from "./reading-fullscreen";
 import { createSheetEditorAsync, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
 import type * as Y from "yjs";
 import type {
@@ -54,6 +55,7 @@ class SheetInstance implements EditorInstance {
   private text = "";
   private binary = true;
   private disposed = false;
+  private fullscreen: ReadingFullscreen | null = null;
   /** Set while a session is running; every local cell edit is mirrored into it. */
   private shared: Y.Doc | null = null;
   /** Marks our own transactions, so we neither echo them nor undo anyone else's. */
@@ -76,12 +78,15 @@ class SheetInstance implements EditorInstance {
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
+    // The sheet has its own bottom bar on the phone, which takes the status bar's place.
+    if (isNative()) document.body.classList.add("ot-sheet-bar");
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
     const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
     // Async factory inflates a zip-based workbook off the main thread before the parse.
     void createSheetEditorAsync(container, this.bytes, {
       onChange: ctx.onChange,
+      ...(this.fullscreen = new ReadingFullscreen(container, ".sheetedit-wrap")).options(),
       onCellsChanged: (changes) => this.publish(changes),
       onSelectionChanged: (at) => this.publishSelection?.(at),
       // Cells are shared by address, so inserting a row moves every address below it.
@@ -113,6 +118,7 @@ class SheetInstance implements EditorInstance {
         if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
         else {
           this.editor = editor;
+          this.fullscreen?.attach(editor);
           // On this platform the editor's own print cannot reach a printer; route it here.
           if (isNative()) editor.setPrintHandler(() => window.dispatchEvent(new CustomEvent("omnitext:print")));
         }
@@ -446,6 +452,8 @@ class SheetInstance implements EditorInstance {
     this.unwatchPeers?.();
     this.undoManager?.destroy();
     this.shared = null;
+    this.fullscreen?.dispose();
+    document.body.classList.remove("ot-sheet-bar");
     this.editor?.destroy();
     this.editor = null;
   }
