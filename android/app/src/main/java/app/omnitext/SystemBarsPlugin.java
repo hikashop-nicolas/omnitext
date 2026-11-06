@@ -25,12 +25,16 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "SystemBars")
 public class SystemBarsPlugin extends Plugin {
 
+    /** True while the page is fullscreen, so the Back button can leave it first. */
+    static volatile boolean immersive = false;
+
     private Integer savedStatusColor = null;
     private Integer savedNavColor = null;
 
     @PluginMethod
     public void setImmersive(PluginCall call) {
         final boolean immersive = call.getBoolean("value", false);
+        SystemBarsPlugin.immersive = immersive;
         getActivity().runOnUiThread(() -> {
             Window window = getActivity().getWindow();
             View decor = window.getDecorView();

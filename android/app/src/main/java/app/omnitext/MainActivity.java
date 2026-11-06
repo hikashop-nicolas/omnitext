@@ -3,6 +3,8 @@ package app.omnitext;
 import android.content.Intent;
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
+
 import com.getcapacitor.BridgeActivity;
 
 // WebView whole-page zoom stays off (the default): pinch-to-zoom is handled in the
@@ -15,6 +17,19 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SystemBarsPlugin.class);
         super.onCreate(savedInstanceState);
         FileOpenerPlugin.handleIntent(this, getIntent());
+        // Back leaves a fullscreen page before it leaves the app.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (SystemBarsPlugin.immersive && getBridge() != null) {
+                    getBridge().getWebView().evaluateJavascript("document.fullscreenElement&&document.exitFullscreen()", null);
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
     }
 
     @Override
