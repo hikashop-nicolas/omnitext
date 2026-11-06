@@ -6,6 +6,7 @@ import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pd
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
+import { isNative } from "../core/platform";
 import { t } from "../i18n";
 import {
   boxBetween,
@@ -50,7 +51,7 @@ function ensureStyles(): void {
   const s = document.createElement("style");
   s.id = STYLE_ID;
   s.textContent = `
-    .ot-pc { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); }
+    .ot-pc { position:relative; height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); }
     .ot-pc-bar, .ot-pc-sub, .ot-pc-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow-x:auto;
       border-bottom:1px solid var(--border); background:var(--surface); }
     .ot-pc-sub { background:var(--canvas); }
@@ -67,6 +68,13 @@ function ensureStyles(): void {
     .ot-pc-bottom span { color:var(--muted); font:13px system-ui, sans-serif; }
     .ot-pc-bottom .grow { flex:1 1 auto; }
     @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
+    /* Fullscreen reading: only the pages and the way out, in the corner the button came from. */
+    .ot-pc.fs .ot-pc-bar, .ot-pc.fs .ot-pc-sub, .ot-pc.fs .ot-pc-find, .ot-pc.fs .ot-pc-float, .ot-pc.fs .ot-pc-sel { display:none !important; }
+    .ot-pc.fs .ot-pc-bottom { position:absolute; right:12px; bottom:12px; z-index:20; padding:0; border:0; background:transparent; }
+    .ot-pc.fs .ot-pc-bottom > :not(.ot-pc-fs) { display:none; }
+    .ot-pc.fs .ot-pc-scroll { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+    .ot-pc.fs .ot-pc-fs { width:44px; height:44px; opacity:.7; background:var(--surface); }
+    .ot-pc-fs[hidden] { display:none; }
     .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
@@ -144,6 +152,8 @@ const ICONS = {
   cover: '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
   zoomOut: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/>',
   zoomIn: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/>',
+  fullscreen: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>',
+  fullscreenExit: '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/>',
   fit: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
   fitWidth: '<path d="m18 8 4 4-4 4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/>',
   pages: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
@@ -328,6 +338,8 @@ class PdfCraftInstance implements EditorInstance {
   private gen = 0;
   private edited = false;
   private disposed = false;
+  private fs = false;
+  private fsButton: HTMLButtonElement | null = null;
   private rendering = false;
   private raf = 0;
   private objectCache = new Map<number, PageObject[]>();
@@ -423,6 +435,7 @@ class PdfCraftInstance implements EditorInstance {
     this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKey);
+    document.addEventListener("fullscreenchange", this.onFullscreen);
     this.barObserver = new ResizeObserver(() => this.layoutBar());
     this.barObserver.observe(this.bar);
     // every control gets a tooltip, the ones made later (floating bars, dialogs) included
@@ -552,7 +565,7 @@ class PdfCraftInstance implements EditorInstance {
   // ------------------------------------------------------------------ keyboard
 
   private onKey = (e: KeyboardEvent): void => {
-    if (this.disposed || !this.doc || !this.root.isConnected || this.root.offsetParent === null) return;
+    if (this.disposed || this.fs || !this.doc || !this.root.isConnected || this.root.offsetParent === null) return;
     // a dialog or the app's own overlays have the keys
     if (this.root.querySelector(".ot-pcd") || document.querySelector(".modal:not([hidden]), #palette:not([hidden])")) return;
     const target = e.target as HTMLElement | null;
@@ -740,7 +753,33 @@ class PdfCraftInstance implements EditorInstance {
     this.zoomRange.addEventListener("input", () => this.userZoom(Number(this.zoomRange.value)));
     this.zoomNum.addEventListener("change", () => this.userZoom(Number(this.zoomNum.value)));
     this.zoomRow.append(this.zoomRange, this.zoomNum, pct);
+    if (isNative() && document.fullscreenEnabled) {
+      this.fsButton = this.button(this.zoomRow, this.buttons, "fullscreen", "fullscreen", t("pdfcraft.fullscreen"), () => void this.toggleFullscreen(), "ot-pc-fs");
+    }
   }
+
+  /** Android: the pages alone, with pinch and scroll, and a button in the corner to leave. */
+  private async toggleFullscreen(): Promise<void> {
+    if (document.fullscreenElement === this.root) {
+      await document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    this.setTool("select");
+    this.select(null);
+    this.clearTextSelection();
+    await this.root.requestFullscreen?.().catch(() => undefined);
+  }
+
+  private onFullscreen = (): void => {
+    this.fs = document.fullscreenElement === this.root;
+    this.root.classList.toggle("fs", this.fs);
+    const b = this.fsButton;
+    if (!b) return;
+    const label = t(this.fs ? "pdfcraft.exitFullscreen" : "pdfcraft.fullscreen");
+    b.innerHTML = icon(this.fs ? "fullscreenExit" : "fullscreen");
+    b.title = label;
+    b.setAttribute("aria-label", label);
+  };
 
   private userZoom(percent: number): void {
     if (!Number.isFinite(percent)) return;
@@ -1292,6 +1331,8 @@ class PdfCraftInstance implements EditorInstance {
       this.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: this.zoom, cx: (a.x + b.x) / 2 - rect.left, cy: (a.y + b.y) / 2 - rect.top };
       this.scroller.style.touchAction = "none";
       this.cancelRubber();
+    } else if (this.fs) {
+      // reading only: a finger scrolls, two fingers zoom
     } else if (this.tool === "cover" && this.pointers.size === 1) {
       const at = this.pageAt(e.clientX, e.clientY);
       if (at) this.startRubber(at.page, [at.x, at.y]);
@@ -1351,7 +1392,7 @@ class PdfCraftInstance implements EditorInstance {
     const stroked = !!this.stroke;
     if (stroked) void this.finishStroke();
     this.onPointerEnd(e);
-    if (tap && !tap.moved && !rubber && !drag && !wasPinch && !stroked) {
+    if (tap && !this.fs && !tap.moved && !rubber && !drag && !wasPinch && !stroked) {
       const held = Date.now() - tap.time;
       if (held < 500) void this.onTap(e.clientX, e.clientY);
       else void this.onLongPress(e.clientX, e.clientY);
@@ -3052,6 +3093,8 @@ class PdfCraftInstance implements EditorInstance {
     window.clearTimeout(this.findTimer);
     window.removeEventListener("resize", this.onResize);
     document.removeEventListener("keydown", this.onKey);
+    document.removeEventListener("fullscreenchange", this.onFullscreen);
+    if (document.fullscreenElement === this.root) void document.exitFullscreen().catch(() => undefined);
     this.barObserver?.disconnect();
     this.tipObserver?.disconnect();
     this.cancelEdit();

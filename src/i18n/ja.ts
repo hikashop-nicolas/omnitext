@@ -1034,6 +1034,8 @@ const ja: Dict = {
     fitPage: "ページに合わせる",
     zoomLevel: "ズームレベル",
     zoomPercent: "ズーム（％）",
+    fullscreen: "全画面",
+    exitFullscreen: "全画面を終了",
     selectText: "テキストを選択",
     find: "検索",
     findPrevious: "前の一致",

@@ -1036,6 +1036,8 @@ const zh: Dict = {
     fitPage: "适合整页",
     zoomLevel: "缩放级别",
     zoomPercent: "缩放百分比",
+    fullscreen: "全屏",
+    exitFullscreen: "退出全屏",
     selectText: "选择文本",
     find: "查找",
     findPrevious: "上一个匹配项",

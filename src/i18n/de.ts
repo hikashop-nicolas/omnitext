@@ -1032,6 +1032,8 @@ const de: Dict = {
     fitPage: "Ganze Seite",
     zoomLevel: "Zoomstufe",
     zoomPercent: "Zoom in Prozent",
+    fullscreen: "Vollbild",
+    exitFullscreen: "Vollbild beenden",
     selectText: "Text auswählen",
     find: "Suchen",
     findPrevious: "Vorheriger Treffer",

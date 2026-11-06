@@ -1055,6 +1055,8 @@ const ru: Dict = {
     fitPage: "Вся страница",
     zoomLevel: "Масштаб",
     zoomPercent: "Масштаб в процентах",
+    fullscreen: "Во весь экран",
+    exitFullscreen: "Выйти из полноэкранного режима",
     selectText: "Выделить текст",
     find: "Найти",
     findPrevious: "Предыдущее совпадение",
