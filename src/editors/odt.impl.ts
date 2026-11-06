@@ -1,5 +1,6 @@
 import { createOdtEditorAsync, initLocale, type OdtEditor } from "richdoc";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import { RichdocFullscreen } from "./richdoc-fullscreen";
 import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
 import { richdocPrintable, takeOverPrinting } from "./richdoc-print";
@@ -15,6 +16,7 @@ class OdtInstance implements EditorInstance {
   private editor: OdtEditor | null = null;
   private bytes: Uint8Array = new Uint8Array();
   private disposed = false;
+  private fullscreen: RichdocFullscreen | null = null;
   /** Resolves once the editor exists. A session may start before it does. */
   private ready: Promise<void> = Promise.resolve();
 
@@ -29,6 +31,7 @@ class OdtInstance implements EditorInstance {
         // Async factory inflates the .odt off the main thread before the (main-thread) parse.
         return createOdtEditorAsync(container, this.bytes, {
           onChange: ctx.onChange,
+          ...(this.fullscreen = new RichdocFullscreen(container)).options(),
           defaultPageSize: s.pageSize,
           paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
         });
@@ -38,6 +41,7 @@ class OdtInstance implements EditorInstance {
         if (this.disposed) editor.destroy(); // disposed while inflating: don't leak the editor
         else {
           this.editor = editor;
+          this.fullscreen?.attach(editor);
           takeOverPrinting(editor);
         }
       })
@@ -74,6 +78,7 @@ class OdtInstance implements EditorInstance {
 
   dispose(): void {
     this.disposed = true;
+    this.fullscreen?.dispose();
     this.editor?.destroy();
     this.editor = null;
   }

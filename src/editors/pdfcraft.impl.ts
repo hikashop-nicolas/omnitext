@@ -760,6 +760,7 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Android: the pages alone, with pinch and scroll, and a button in the corner to leave. */
   private async toggleFullscreen(): Promise<void> {
+    this.fitKind = null; // the new window size must not refit: zoom and place stay as they are
     if (document.fullscreenElement === this.root) {
       await document.exitFullscreen().catch(() => undefined);
       return;
