@@ -73,7 +73,8 @@ function ensureStyles(): void {
     .ot-pc.fs .ot-pc-bottom { position:absolute; right:12px; bottom:12px; z-index:20; padding:0; border:0; background:transparent; }
     .ot-pc.fs .ot-pc-bottom > :not(.ot-pc-fs) { display:none; }
     .ot-pc.fs .ot-pc-scroll { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
-    .ot-pc.fs .ot-pc-fs { width:44px; height:44px; opacity:.7; background:var(--surface); }
+    .ot-pc.fs .ot-pc-fs { display:flex; align-items:center; justify-content:center; padding:0; width:44px; height:44px; opacity:.7; background:var(--surface); }
+    .ot-pc.fs .ot-pc-fs svg { width:24px; height:24px; }
     .ot-pc-fs[hidden] { display:none; }
     .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
