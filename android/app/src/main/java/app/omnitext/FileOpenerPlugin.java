@@ -262,6 +262,7 @@ public class FileOpenerPlugin extends Plugin {
         }
         Uri uri = Uri.parse(s);
         // "wt" truncates: a shorter document must not keep the tail of the longer one it replaces.
+        long expected = new File(path).length();
         try (InputStream in = new FileInputStream(path);
              OutputStream os = getContext().getContentResolver().openOutputStream(uri, "wt")) {
             if (os == null) {
@@ -278,7 +279,32 @@ public class FileOpenerPlugin extends Plugin {
         } finally {
             new File(path).delete();
         }
+        // Some providers accept the stream and drop the bytes: only call it saved if it landed.
+        long actual = storedSize(uri, expected);
+        if (actual >= 0 && actual != expected) {
+            call.reject("write not stored (" + actual + " of " + expected + " bytes)");
+            return;
+        }
         call.resolve();
+    }
+
+    /** Size the provider reports once written (it may lag a moment), or -1 when it does not say. */
+    private long storedSize(Uri uri, long expected) {
+        long last = -1;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try (Cursor c = getContext().getContentResolver().query(uri, new String[] {OpenableColumns.SIZE}, null, null, null)) {
+                if (c != null && c.moveToFirst() && !c.isNull(0)) last = c.getLong(0);
+            } catch (Exception ignored) {
+                // A provider that cannot be queried cannot be checked.
+            }
+            if (last == expected || last < 0) break;
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+        return last;
     }
 
     /** Remove a document, used to clear away one just created that could not be written. */
