@@ -1,0 +1,9 @@
+New in this update:
+
+• Fullscreen reading mode for PDF, Word and spreadsheets on Android; Back leaves it
+• Spreadsheets: a bottom bar, zoom, and a find bar that fits a phone
+• A save that does not reach the file now shows an error instead of "Saved"
+• Collaboration sessions close their connection when the last person leaves
+• PDF engine updated
+
+Still offline unless you choose to share.
