@@ -79,7 +79,7 @@ class SheetInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.binary = ctx.binary;
     // The sheet has its own bottom bar on the phone, which takes the status bar's place.
-    if (isNative()) document.body.classList.add("ot-sheet-bar");
+    if (isNative()) document.body.classList.add("ot-own-bar");
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
     const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
@@ -453,7 +453,7 @@ class SheetInstance implements EditorInstance {
     this.undoManager?.destroy();
     this.shared = null;
     this.fullscreen?.dispose();
-    document.body.classList.remove("ot-sheet-bar");
+    document.body.classList.remove("ot-own-bar");
     this.editor?.destroy();
     this.editor = null;
   }

@@ -306,6 +306,12 @@ export interface EditorInstance {
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */
   contributeCommands?(): CommandDescriptor[];
   focus(): void;
+  /**
+   * Where the view switcher goes when this editor has a bottom bar of its own (on the phone, where that
+   * bar takes the status bar's place), or null to leave the switcher in the status bar. The host moves
+   * the button there while the editor is shown and puts it back before any other one is.
+   */
+  viewSwitcherSlot?(): HTMLElement | null;
   dispose(): void;
 }
 

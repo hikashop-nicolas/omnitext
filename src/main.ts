@@ -34,6 +34,7 @@ import { forgetRecent, getRecent, listRecent, rememberRecent, type RecentEntry }
 import { filterEntries, type PaletteEntry } from "./core/palette";
 import { isQuotaError } from "./core/retention";
 import { SessionStore, type DocSnapshot } from "./core/session-store";
+import { adoptViewButton } from "./editors/own-bar";
 import { codemirrorEditor } from "./editors/codemirror";
 import { milkdownEditor } from "./editors/milkdown";
 import { docxEditor } from "./editors/docx";
@@ -481,6 +482,14 @@ function setFormatLabel(current: string | null): void {
 // The View switcher: an eye button (bottom-right). One view -> hidden; two -> a click
 // toggles directly; three+ -> a click opens a popover. Current choices are kept here.
 let viewChoices: EditorResolution[] = [];
+let releaseViewSwitcher: (() => void) | null = null;
+/** Put the switcher in the shown editor's own bar when it has one, and back in the status bar otherwise. */
+function placeViewSwitcher(instance: EditorInstance): void {
+  releaseViewSwitcher?.();
+  releaseViewSwitcher = null;
+  const slot = instance.viewSwitcherSlot?.();
+  if (slot) releaseViewSwitcher = adoptViewButton(slot);
+}
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
   viewChoices = choices;
   // the PDF editor has no second view worth switching to and needs no status line of its own
@@ -645,6 +654,9 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   }
   const targetId = chosen.editor.manifest.id;
   const isSwitch = !!opts.isSwitch;
+  // Before the outgoing editor is hidden or disposed: the button must not go with it.
+  releaseViewSwitcher?.();
+  releaseViewSwitcher = null;
   if (!isSwitch) {
     // New document (open / create / restore): drop every cached editor and start clean.
     disposeLiveEditors();
@@ -790,6 +802,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   reasonEl.textContent = `${editorLabel(chosen.editor.manifest.id)} · ${reasonText}`;
   setFormatLabel(formatId);
   populateEditorSelect(choices, chosen.editor.manifest.id);
+  placeViewSwitcher(instance);
   updateUI();
   engine.events.emit("documentOpened", { sessionId: session.id, uri: session.uri, formatId });
   const where = isNative() ? t("status.onThisDevice") : t("status.inThisBrowser");

@@ -1,4 +1,6 @@
 import { createImageViewer, type ExtractSource, type ImageViewerHandle } from "imageview";
+import { isNative } from "../core/platform";
+import { ReadingFullscreen } from "./reading-fullscreen";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 
 // Thin adapter wrapping the standalone imageview library (read-only image viewer with
@@ -16,6 +18,7 @@ const EXTRACT_NAME: Record<ExtractSource, string> = {
 class ImageInstance implements EditorInstance {
   private handle: ImageViewerHandle | null = null;
   private bytes: Uint8Array | null = null;
+  private fullscreen: ReadingFullscreen | null = null;
 
   constructor(private host: HostAPI) {}
 
@@ -25,10 +28,12 @@ class ImageInstance implements EditorInstance {
       container,
       { bytes: ctx.bytes ?? new Uint8Array(0), mime: ctx.mime, filename: ctx.filename },
       {
+        ...(this.fullscreen = new ReadingFullscreen(container, ".iv-shell")).options(),
         onExtractText: (text, meta) =>
           this.host.workspace.openFile?.(EXTRACT_NAME[meta.source], new TextEncoder().encode(text), "text/plain"),
       },
     );
+    this.fullscreen.attach(this.handle);
   }
 
   getText(): string {
@@ -45,7 +50,14 @@ class ImageInstance implements EditorInstance {
 
   focus(): void {}
 
+  /** On the phone the viewer's bar takes the status bar's place, with the view switcher in it. */
+  viewSwitcherSlot(): HTMLElement | null {
+    return isNative() ? (this.handle?.getBarEnd() ?? null) : null;
+  }
+
   dispose(): void {
+    this.fullscreen?.dispose();
+    this.fullscreen = null;
     this.handle?.destroy();
     this.handle = null;
   }

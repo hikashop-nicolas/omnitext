@@ -76,6 +76,11 @@
   --sheetedit-text: var(--text);
   --sheetedit-muted: var(--muted);
   --sheetedit-accent: var(--accent);
+  --iv-chrome: var(--chrome);
+  --iv-bar-fg: var(--text);
+  --iv-btn: var(--surface);
+  --iv-btn-border: var(--border);
+  --iv-accent: var(--accent);
   /* The grey desk around Word pages. */
   --rdoc-desk: var(--surface);
 }
@@ -241,7 +246,7 @@ body {
 /* display:flex beats the hidden attribute on its own, and the bar hides itself when
    it has nothing to show (a video, say), so the picture gets the row back. */
 #status[hidden] { display: none; }
-body.ot-sheet-bar #status { display: none; }
+body.ot-own-bar #status { display: none; }
 #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* View switcher: an eye button pinned bottom-right, always visible (desktop + mobile).
    With two views a click toggles directly; with more it opens a popover. */
