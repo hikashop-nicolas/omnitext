@@ -56,6 +56,12 @@ describe("content detection across every format", () => {
     expect(detected("M1DESMARAIS/LUC       EABC123 YULFRAAC 0834 226F001A0025 106>60000")).toBe("bcbp");
   });
 
+  it("opens a MusicXML score in an .xml file as a score, other XML as XML", () => {
+    const head = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n';
+    expect(detected(head + '<score-partwise version="4.0">\n  <part-list/>\n</score-partwise>')).toBe("musicxml");
+    expect(detected('<?xml version="1.0"?>\n<catalog><book id="1"/></catalog>')).toBe("xml");
+  });
+
   it("does not take ordinary text for a boarding pass", () => {
     expect(detected("M1 is the first milestone. Meeting notes for Monday, nothing else to report here.")).toBe("plain text");
   });

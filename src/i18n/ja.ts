@@ -108,6 +108,7 @@ const ja: Dict = {
       latexpreview: "LaTeX",
       image: "画像",
       imageedit: "画像エディター",
+      score: "楽譜",
       media: "メディア",
       archive: "アーカイブ",
       pptx: "スライド",

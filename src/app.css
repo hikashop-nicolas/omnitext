@@ -81,6 +81,12 @@
   --iv-btn: var(--surface);
   --iv-btn-border: var(--border);
   --iv-accent: var(--accent);
+  --sv-chrome: var(--chrome);
+  --sv-bar-fg: var(--text);
+  --sv-btn: var(--surface);
+  --sv-btn-border: var(--border);
+  --sv-accent: var(--accent);
+  --sv-bg: var(--surface);
   /* The grey desk around Word pages. */
   --rdoc-desk: var(--surface);
 }
@@ -734,3 +740,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 @keyframes ot-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ot-loading-spinner { animation-duration: 2.4s; } }
 @media print { .ot-loading { display: none !important; } }
+
+/* A score that cannot be read says why instead of an empty pane. */
+.ot-score-msg { padding: 24px; color: var(--muted); }

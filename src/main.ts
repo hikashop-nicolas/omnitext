@@ -73,6 +73,7 @@ import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
 import { imageEditor } from "./editors/image";
+import { scoreEditor } from "./editors/score";
 import { filerobotEditor } from "./editors/filerobot";
 import { mediaEditor } from "./editors/media";
 import { archiveEditor } from "./editors/archive";
@@ -112,6 +113,7 @@ import { geojsonFormat } from "./formats/geojson";
 import { kmlFormat } from "./formats/kml";
 import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
+import { musicxmlFormat, mxlFormat } from "./formats/musicxml";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
 import { srtFormat } from "./formats/srt";
@@ -206,6 +208,7 @@ engine.registerEditor(docxEditor);
 engine.registerEditor(docEditor);
 engine.registerEditor(sheetEditor);
 engine.registerEditor(imageEditor);
+engine.registerEditor(scoreEditor);
 engine.registerEditor(filerobotEditor);
 engine.registerEditor(mediaEditor);
 engine.registerEditor(archiveEditor);
@@ -255,6 +258,8 @@ const FORMATS: FormatDescriptor[] = [
   kmlFormat,
   kmzFormat,
   gpxFormat,
+  musicxmlFormat,
+  mxlFormat,
   topojsonFormat,
   wktFormat,
   srtFormat,

@@ -108,6 +108,7 @@ const en: Dict = {
       latexpreview: "LaTeX",
       image: "Image",
       imageedit: "Image editor",
+      score: "Score",
       media: "Media",
       archive: "Archive",
       pptx: "Slides",

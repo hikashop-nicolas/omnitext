@@ -110,6 +110,7 @@ const ru: Dict = {
       latexpreview: "LaTeX",
       image: "Изображение",
       imageedit: "Редактор изображений",
+      score: "Ноты",
       media: "Медиа",
       archive: "Архив",
       pptx: "Слайды",

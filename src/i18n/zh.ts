@@ -111,6 +111,7 @@ const zh: Dict = {
       latexpreview: "LaTeX",
       image: "图像",
       imageedit: "图像编辑器",
+      score: "乐谱",
       media: "媒体",
       archive: "压缩包",
       pptx: "幻灯片",

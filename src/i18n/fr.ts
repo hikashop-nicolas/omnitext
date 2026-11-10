@@ -107,6 +107,7 @@ const fr: Dict = {
       latexpreview: "LaTeX",
       image: "Image",
       imageedit: "Éditeur d'image",
+      score: "Partition",
       media: "Média",
       archive: "Archive",
       pptx: "Diapositives",
