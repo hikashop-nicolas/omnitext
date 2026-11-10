@@ -13,6 +13,9 @@
   editor; shares logical edits over an immutable base file. Phased with go/no-go gates.
 - **TAURI_PLAN.md** — deferred: desktop app (Windows/Linux/macOS) via Tauri with OS
   file association. Pick up after web polish.
+- **SCORE_PLAN.md** — in progress: sheet music (MuseScore, MusicXML, MIDI, ABC,
+  Guitar Pro) viewing, playback and note entry via the scoredit lib (OSMD per system,
+  webaudio-tinysynth). Phase 0 spike done 2026-11-10.
 - **FORMAT_COVERAGE_REPORT.md** — 2026-07-10 gap analysis and library survey that
   grounds the next round of format work. Reference, not a checklist.
 
