@@ -50,6 +50,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const aiEl = $("setting-ai") as HTMLSelectElement;
   const mapEl = $("setting-map") as HTMLSelectElement;
   const soundsEl = $("setting-sounds") as HTMLSelectElement;
+  const instrumentEl = $("setting-instrument") as HTMLSelectElement;
   const turnUrlEl = $("setting-turn-url") as HTMLInputElement;
   const turnUserEl = $("setting-turn-user") as HTMLInputElement;
   const turnPassEl = $("setting-turn-pass") as HTMLInputElement;
@@ -208,6 +209,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
     aiEl.value = s.aiDownloads;
     mapEl.value = s.mapBasemap;
     soundsEl.value = s.instrumentSounds;
+    instrumentEl.value = s.scoreInstrument;
     turnUrlEl.value = s.turn?.url ?? "";
     turnUserEl.value = s.turn?.username ?? "";
     turnPassEl.value = s.turn?.credential ?? "";
@@ -251,6 +253,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       aiDownloads: aiEl.value === "allow" ? "allow" : aiEl.value === "deny" ? "deny" : "ask",
       mapBasemap: mapEl.value === "allow" ? "allow" : mapEl.value === "deny" ? "deny" : "ask",
       instrumentSounds: soundsEl.value === "allow" ? "allow" : soundsEl.value === "deny" ? "deny" : "ask",
+      scoreInstrument: instrumentEl.value,
     });
     if (themeChanged) {
       applyThemeAttribute(theme);

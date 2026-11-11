@@ -1,4 +1,5 @@
-import { SOUNDS_CDN, createScoreViewer, loadScore, remoteSounds, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
 
 // Recorded instruments, downloaded per instrument when a score uses them, after asking once.
@@ -6,6 +7,14 @@ const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, ca
 import { isNative } from "../core/platform";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
+
+// The parts of the user's instrument (Settings), when the score has several and some match.
+function myParts(score: ScoreDoc): number[] | null {
+  const mine = getSettings().scoreInstrument;
+  if (!mine || score.parts.length < 2) return null;
+  const hits = score.parts.flatMap((p, i) => (partFamily(p) === mine ? [i] : []));
+  return hits.length ? hits : null;
+}
 
 // Thin adapter around the standalone scoredit library: it reads MusicXML (text) or mxl
 // (bytes) and engraves it one system at a time. Read-only for now; the document's own text
@@ -31,6 +40,7 @@ class ScoreInstance implements EditorInstance {
         // Guitar and other fretted parts: a TAB button shows or hides their tab staff.
         tablature: loaded.fretted ? { on: loaded.tab, toggle: (on) => loadScore(input, { tab: on ? "always" : "never" }).score } : undefined,
         sounds,
+        parts: { show: myParts(loaded.score) },
       });
       this.fullscreen.attach(this.handle);
     } catch (e) {

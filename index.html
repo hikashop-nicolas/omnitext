@@ -179,6 +179,20 @@
                   </select>
                 </label>
                 <p class="settings-tip-text" id="tip-sounds" data-i18n="app.instrumentSoundsHint" hidden>Scores play on a built-in sound right away; recorded instruments are downloaded when a score uses them.</p>
+                <label class="modal-field"><span class="settings-label"><span data-i18n="app.scoreInstrument">My instrument</span><button class="settings-info" type="button" data-tip="tip-instrument" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span>
+                  <select id="setting-instrument">
+                    <option value="" data-i18n="app.famAll">All parts</option>
+                    <option value="keys" data-i18n="app.famKeys">Piano and keyboards</option>
+                    <option value="guitar" data-i18n="app.famGuitar">Guitar</option>
+                    <option value="bass" data-i18n="app.famBass">Bass</option>
+                    <option value="drums" data-i18n="app.famDrums">Drums and percussion</option>
+                    <option value="strings" data-i18n="app.famStrings">Strings</option>
+                    <option value="winds" data-i18n="app.famWinds">Woodwinds</option>
+                    <option value="brass" data-i18n="app.famBrass">Brass</option>
+                    <option value="voice" data-i18n="app.famVoice">Voice</option>
+                  </select>
+                </label>
+                <p class="settings-tip-text" id="tip-instrument" data-i18n="app.scoreInstrumentHint" hidden>Scores with several instruments open showing only the parts for this instrument, when they have one. The Parts button in the score's bar shows the others.</p>
               </div>
               <div class="settings-pane" id="settings-pane-sharing" role="tabpanel" aria-labelledby="settings-tab-sharing" tabindex="0" hidden>
                 <label class="modal-field"><span class="settings-label"><span data-i18n="app.yourName">Your name</span><button class="settings-info" type="button" data-tip="tip-name" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span> <input id="setting-name" type="text" autocomplete="name" maxlength="120" /></label>

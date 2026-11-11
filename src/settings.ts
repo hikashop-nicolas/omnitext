@@ -31,6 +31,8 @@ export interface Settings {
   mapBasemap: AiDownloads;
   /** The score player's recorded instruments, downloaded per instrument when a score uses them. */
   instrumentSounds: AiDownloads;
+  /** The instrument family a multi-instrument score opens on ("" shows every part). */
+  scoreInstrument: string;
 }
 
 const DEFAULTS: Settings = {
@@ -42,6 +44,7 @@ const DEFAULTS: Settings = {
   aiDownloads: "ask",
   mapBasemap: "ask",
   instrumentSounds: "ask",
+  scoreInstrument: "",
 };
 
 export function getSettings(): Settings {
