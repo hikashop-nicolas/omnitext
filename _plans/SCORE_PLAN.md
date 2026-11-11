@@ -47,7 +47,12 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 - Parts: a Parts button shows only the ticked parts (playback keeps them all); Omnitext's
   My instrument setting opens multi-instrument scores on that instrument. Short part names
   on every system. Next system scrolled in halfway through the current one.
-- Next: editing (phase 4, design below for review), then MuseScore write-back (phase 5).
+- Phase 4 started (2026-11-11): ScoreEditor (overwrite + insert entry, chords, rests,
+  lengths, ties, transpose, accidentals, remove, undo/redo); Edit button + palette, tap and
+  long-press entry with pitch bubble, keyboard strip, MuseScore keys; one system redrawn in
+  place per edit; MusicXML/mxl editable and saved in Omnitext. Still to do in phase 4:
+  triplets, copy/paste, drum staves (unpitched entry), fretboard strip for fretted parts,
+  phone testing of the palette, then MuseScore write-back (phase 5).
 
 ## Formats
 
