@@ -38,7 +38,11 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 - Phase 3 playback: webaudio-tinysynth (vendored), timeline with repeats, endings, D.C./D.S./
   Fine/Coda, ties, tempo, dynamics, transposition, grace notes; highlighted notes + cursor,
   speed, tap to play from a beat; keyboard strip and falling-notes view.
-- Next: MuseScore reading (phase 2), then editing (phase 4).
+- Phase 2 MuseScore reading (MS3 + MS4): same notes as MuseScore's own MusicXML export on
+  the corpus (`npm run test:corpus`), play order checked against its MIDI export. Repeats and
+  D.C. stay inside a section; Fine resumes after the jump. Not read yet: pedal, trill lines,
+  tremolo playback, linked tab staves in parts.
+- Next: editing (phase 4), then MuseScore write-back (phase 5).
 
 ## Formats
 
