@@ -50,9 +50,10 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 - Phase 4 started (2026-11-11): ScoreEditor (overwrite + insert entry, chords, rests,
   lengths, ties, transpose, accidentals, remove, undo/redo); Edit button + palette, tap and
   long-press entry with pitch bubble, keyboard strip, MuseScore keys; one system redrawn in
-  place per edit; MusicXML/mxl editable and saved in Omnitext. Still to do in phase 4:
-  triplets, copy/paste, drum staves (unpitched entry), fretboard strip for fretted parts,
-  phone testing of the palette, then MuseScore write-back (phase 5).
+  place per edit; MusicXML/mxl editable and saved in Omnitext. Then triplets, range select +
+  copy/cut/paste, drum entry (the drum on that line, named in the bubble), fretboard strip
+  with string/fret and tab staves rewritten from notation; all checked on the phone. Next:
+  MuseScore write-back (phase 5).
 
 ## Formats
 
