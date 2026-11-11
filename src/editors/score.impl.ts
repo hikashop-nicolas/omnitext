@@ -19,9 +19,14 @@ class ScoreInstance implements EditorInstance {
     this.bytes = ctx.bytes;
     const input = ctx.binary ? (ctx.bytes ?? new Uint8Array(0)) : new TextEncoder().encode(ctx.text);
     try {
-      const { score } = loadScore(input);
+      const loaded = loadScore(input);
       this.fullscreen = new ReadingFullscreen(container, ".sv-shell");
-      this.handle = createScoreViewer(container, score, { ...this.fullscreen.options(), onError: (e) => console.error(e) });
+      this.handle = createScoreViewer(container, loaded.score, {
+        ...this.fullscreen.options(),
+        onError: (e) => console.error(e),
+        // Guitar and other fretted parts: a TAB button shows or hides their tab staff.
+        tablature: loaded.fretted ? { on: loaded.tab, toggle: (on) => loadScore(input, { tab: on ? "always" : "never" }).score } : undefined,
+      });
       this.fullscreen.attach(this.handle);
     } catch (e) {
       const p = document.createElement("p");
