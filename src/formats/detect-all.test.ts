@@ -60,6 +60,7 @@ describe("content detection across every format", () => {
     const head = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n';
     expect(detected(head + '<score-partwise version="4.0">\n  <part-list/>\n</score-partwise>')).toBe("musicxml");
     expect(detected('<?xml version="1.0"?>\n<catalog><book id="1"/></catalog>')).toBe("xml");
+    expect(detected('<?xml version="1.0" encoding="UTF-8"?>\n<museScore version="4.70">\n  <Score/>\n</museScore>')).toBe("mscx");
   });
 
   it("does not take ordinary text for a boarding pass", () => {

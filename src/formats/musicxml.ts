@@ -32,3 +32,34 @@ export const mxlFormat: FormatDescriptor = {
   detect: () => 0, // a zip; routed by extension
   load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
 };
+
+// MuseScore 3 and 4: the .mscz zip and the plain .mscx text, read by scoredit.
+export const msczFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "mscz",
+    extensions: [".mscz"],
+    mimeTypes: ["application/vnd.musescore"],
+    binary: true,
+    nativeEditor: "score",
+    defaultEditor: "score",
+    soleEditor: true,
+  },
+  detect: () => 0, // a zip; routed by extension
+  load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
+};
+
+export const mscxFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "mscx",
+    extensions: [".mscx"],
+    mimeTypes: ["application/vnd.musescore+xml"],
+    nativeEditor: "score",
+    defaultEditor: "score",
+  },
+  detect({ sample }) {
+    return /<museScore[\s>]/.test(sample) ? 0.9 : 0;
+  },
+  load: () => import("./musicxml.impl").then((m) => m.musicxmlImpl),
+};

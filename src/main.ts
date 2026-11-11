@@ -113,7 +113,7 @@ import { geojsonFormat } from "./formats/geojson";
 import { kmlFormat } from "./formats/kml";
 import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
-import { musicxmlFormat, mxlFormat } from "./formats/musicxml";
+import { mscxFormat, msczFormat, musicxmlFormat, mxlFormat } from "./formats/musicxml";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
 import { srtFormat } from "./formats/srt";
@@ -260,6 +260,8 @@ const FORMATS: FormatDescriptor[] = [
   gpxFormat,
   musicxmlFormat,
   mxlFormat,
+  msczFormat,
+  mscxFormat,
   topojsonFormat,
   wktFormat,
   srtFormat,
