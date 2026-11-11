@@ -6,15 +6,15 @@
 // kept in Settings (aiDownloads) and covers every AI feature from then on; Settings is also
 // where it can be changed. Closing the dialog without answering refuses this once only.
 import { setRemoteConsentHandler } from "localml/consent";
-import { t } from "./i18n";
+import { getLocale, t } from "./i18n";
 import { getSettings, saveSettings } from "./settings";
 
 export function formatSize(mb: number | undefined): string {
   if (!mb) return "";
   // Units are localized: French writes Mo and Go.
-  return mb >= 1000
-    ? t("consent.gb", { n: (mb / 1000).toFixed(1).replace(/\.0$/, "") })
-    : t("consent.mb", { n: String(mb) });
+  // Numbers too: French writes 0,3 Mo.
+  const n = (x: number) => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 }).format(x);
+  return mb >= 1000 ? t("consent.gb", { n: n(mb / 1000) }) : t("consent.mb", { n: n(mb) });
 }
 
 export function installRemoteConsent(notify: (message: string) => void): void {
