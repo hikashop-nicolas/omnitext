@@ -150,10 +150,11 @@ can embed in your own projects, commercial ones included:
 [scoredit](https://github.com/hikashop-nicolas/scoredit) and
 [walletview](https://github.com/hikashop-nicolas/walletview).
 
-Recorded guitar, bass and harp sounds in the score player come from
+The score player starts on a built-in sound ([webaudio-tinysynth](https://github.com/g200kg/webaudio-tinysynth),
+Apache-2.0). Recorded instruments, after you allow them, are downloaded per instrument from
+[scoredit-sounds](https://github.com/hikashop-nicolas/scoredit-sounds): the sounds of
 [MuseScore_General](https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/) by
-S. Christian Collins (MIT), played with [spessasynth](https://github.com/spessasus/spessasynth_core)
-(Apache-2.0); the other instruments use [webaudio-tinysynth](https://github.com/g200kg/webaudio-tinysynth) (Apache-2.0).
+S. Christian Collins (MIT), played with [spessasynth](https://github.com/spessasus/spessasynth_core) (Apache-2.0).
 
 Architecture, the module system, the build and how to add a format or an editor:
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**.

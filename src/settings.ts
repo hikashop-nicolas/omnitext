@@ -29,6 +29,8 @@ export interface Settings {
   /** The map editor's background tiles come from openstreetmap.org, the only thing a map
    *  file sends anywhere (the request carries z/x/y, never the file). */
   mapBasemap: AiDownloads;
+  /** The score player's recorded instruments, downloaded per instrument when a score uses them. */
+  instrumentSounds: AiDownloads;
 }
 
 const DEFAULTS: Settings = {
@@ -39,6 +41,7 @@ const DEFAULTS: Settings = {
   turn: { url: "", username: "", credential: "" },
   aiDownloads: "ask",
   mapBasemap: "ask",
+  instrumentSounds: "ask",
 };
 
 export function getSettings(): Settings {

@@ -51,6 +51,19 @@ export async function requestBasemap(): Promise<boolean> {
   return answer === true;
 }
 
+/** The score player's recorded instruments: asked once, the answer kept in Settings and
+ *  applying to every score. A refusal plays the built-in sound, which needs nothing. */
+export async function requestInstrumentSounds(req: { names: string[]; bytes: number; host: string }): Promise<boolean> {
+  const choice = getSettings().instrumentSounds;
+  if (choice === "allow") return true;
+  if (choice === "deny") return false;
+  const mb = Math.max(0.1, Math.round(req.bytes / 1e5) / 10);
+  const names = req.names.length > 4 ? `${req.names.slice(0, 4).join(", ")}…` : req.names.join(", ");
+  const answer = await ask(t("consent.soundsBody", { what: `${names} (${t("consent.about")} ${formatSize(mb)})`, hosts: req.host }), t("consent.soundsNote"));
+  if (answer !== null) saveSettings({ instrumentSounds: answer ? "allow" : "deny" });
+  return answer === true;
+}
+
 /** A playlist with entries on the web. Asked for each playlist rather than remembered: the
  *  addresses differ every time, and what they cost is a request that names the file asked for. */
 export async function requestRemoteMedia(hosts: string[]): Promise<boolean> {
