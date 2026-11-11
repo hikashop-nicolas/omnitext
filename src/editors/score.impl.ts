@@ -1,4 +1,6 @@
 import { createScoreViewer, loadScore, type ScoreViewerHandle } from "scoredit";
+// The recorded plucked instruments ship with the app, so guitars sound right offline.
+import pluckedPackUrl from "scoredit/sounds/plucked.sf3?url";
 import { isNative } from "../core/platform";
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
@@ -26,6 +28,7 @@ class ScoreInstance implements EditorInstance {
         onError: (e) => console.error(e),
         // Guitar and other fretted parts: a TAB button shows or hides their tab staff.
         tablature: loaded.fretted ? { on: loaded.tab, toggle: (on) => loadScore(input, { tab: on ? "always" : "never" }).score } : undefined,
+        pluckedPack: () => fetch(pluckedPackUrl).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
       });
       this.fullscreen.attach(this.handle);
     } catch (e) {

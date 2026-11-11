@@ -146,8 +146,14 @@ can embed in your own projects, commercial ones included:
 [geoedit](https://github.com/hikashop-nicolas/geoedit),
 [subedit](https://github.com/hikashop-nicolas/subedit),
 [imageview](https://github.com/hikashop-nicolas/imageview),
-[mediaplay](https://github.com/hikashop-nicolas/mediaplay) and
+[mediaplay](https://github.com/hikashop-nicolas/mediaplay),
+[scoredit](https://github.com/hikashop-nicolas/scoredit) and
 [walletview](https://github.com/hikashop-nicolas/walletview).
+
+Recorded guitar, bass and harp sounds in the score player come from
+[MuseScore_General](https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/) by
+S. Christian Collins (MIT), played with [spessasynth](https://github.com/spessasus/spessasynth_core)
+(Apache-2.0); the other instruments use [webaudio-tinysynth](https://github.com/g200kg/webaudio-tinysynth) (Apache-2.0).
 
 Architecture, the module system, the build and how to add a format or an editor:
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**.
