@@ -40,9 +40,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
   speed, tap to play from a beat; keyboard strip and falling-notes view.
 - Phase 2 MuseScore reading (MS3 + MS4): same notes as MuseScore's own MusicXML export on
   the corpus (`npm run test:corpus`), play order checked against its MIDI export. Repeats and
-  D.C. stay inside a section; Fine resumes after the jump. Not read yet: pedal, trill lines,
-  tremolo playback, linked tab staves in parts.
-- Next: editing (phase 4), then MuseScore write-back (phase 5).
+  D.C. stay inside a section; Fine resumes after the jump. MuseScore 2 files too; pedal,
+  trill lines, tremolos and tab staves from instrument parts are read.
+- Playback polish: recorded instruments (scoredit-sounds, per-instrument SF3 on jsDelivr,
+  downloaded after a consent prompt), plucked-string model, fretboard strip, TAB toggle.
+- Parts: a Parts button shows only the ticked parts (playback keeps them all); Omnitext's
+  My instrument setting opens multi-instrument scores on that instrument. Short part names
+  on every system. Next system scrolled in halfway through the current one.
+- Next: editing (phase 4, design below for review), then MuseScore write-back (phase 5).
 
 ## Formats
 
@@ -133,6 +138,70 @@ scoredit (MIT)
 - Measures re-fill with rests automatically, as in MuseScore (no "too many beats").
 - **Create**: new-score dialog (title, composer, instruments, key, time, tempo,
   pickup, measures).
+
+### Editing design (draft 2026-11-11, for review)
+
+**What phase 4 covers**: select, enter and change notes, rests, durations, dots, ties,
+accidentals, chords, voices 1-4, triplets, delete, copy/paste, undo/redo, on phone and
+desktop; save as MusicXML/mxl. Slurs, dynamics, lyrics, text and instruments wait for
+phase 6; saving back into .mscz is phase 5.
+
+**Model edits.** The MusicXML DOM stays the source of truth. Edits go through one layer
+that reads a measure's voice as a list of events (rest or chord, with duration, dots,
+tuplet, ties, and the `<note>` elements behind it), changes the list, and writes that
+voice back into the measure. Directions and other elements stay anchored at their beat.
+After every edit the voice is re-filled with rests to the bar's length, as MuseScore
+does: no "too many beats" state ever exists.
+
+- Entering a note **overwrites** what stands at the caret for its duration (MuseScore's
+  default mode), splitting longer notes with ties where needed. Insert mode later.
+- **Undo**: each command keeps a copy of the measures it touched and puts them back.
+  Simple, exact, and cheap since a command touches one or two measures.
+- After an edit: the measure's width weight is recomputed, its system is rendered again
+  (0.1-0.2 s on the phone, from the spike), and the systems after it are re-broken only if
+  that system's measures no longer fit. The playback timeline is rebuilt lazily.
+
+**Selection and caret.** Our own overlay on top of OSMD's drawing: a highlight on the
+selected note(s) and a caret (thin vertical bar on the staff) where the next note goes.
+Positions already map each drawn note to its measure and beat; this adds part, staff,
+voice and pitch so a tap or click finds the exact `<note>` in the model.
+
+**Edit mode.** Scores open for reading and playing; an **Edit** button in the bar turns
+editing on, so a stray tap while reading never changes the score. In edit mode a tap
+selects instead of seeking playback.
+
+**Desktop input (MuseScore's keys, for its users' muscle memory)**: N toggles note
+input; 1-9 durations (4 = eighth, 5 = quarter, 6 = half, 7 = whole); A-G enter a pitch
+(nearest octave to the previous note); Shift+A-G add to the chord; up/down a semitone,
+Ctrl+up/down an octave; `.` dot, `+` tie, `0` rest; Delete; Ctrl+Z / Ctrl+Y; arrows
+move; Ctrl+C / Ctrl+V; Ctrl+Alt+1-4 voices; Ctrl+3 triplet. A MIDI keyboard (Web MIDI)
+enters pitches where the browser has it.
+
+**Phone input.** Edit mode swaps the bottom bar for a palette in two rows:
+
+- Row 1: durations (16th, eighth, quarter, half, whole, more...), dot, rest, tie.
+- Row 2: sharp, flat, natural, voice, delete, undo, redo, done.
+- Above the palette, a **pitch strip**: the keyboard strip (one octave and a half,
+  swipe to move along) for most parts, the fretboard for fretted parts, a drum-line
+  picker for drum staves. Tapping it enters the note at the caret and moves on.
+- Or **tap the staff** where the note goes: while the finger is down a magnifier shows
+  the line or space it points at, with the note name; drag up/down to adjust, lift to
+  place. Taps on a phone are too coarse to hit a line exactly, hence the magnifier.
+- Tap an existing note to select it; then the palette changes it (duration, accidental,
+  delete) and the pitch strip replaces its pitch.
+
+**Save.** Phase 4 saves MusicXML/mxl through the DOM serializer. Omnitext marks the
+document dirty and keeps its usual save flow; a .mscz/.mscx file stays read-only until
+phase 5 (editing it would have nowhere to go), which is fine since both ship together.
+
+**Questions for review**
+
+1. Edit button (read-first) rather than always editable: agreed?
+2. Phone pitch entry: pitch strip as the main way plus tap-on-staff with magnifier, or
+   only one of them first?
+3. Overwrite mode (MuseScore's default) as the only mode in phase 4?
+4. MuseScore's number keys for durations on desktop, or a more obvious 1 = whole,
+   2 = half, 3 = quarter...?
 
 ## Spike results (2026-11-10, OSMD 2.3.0)
 
