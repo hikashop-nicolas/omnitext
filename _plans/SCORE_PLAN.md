@@ -154,7 +154,7 @@ After every edit the voice is re-filled with rests to the bar's length, as MuseS
 does: no "too many beats" state ever exists.
 
 - Entering a note **overwrites** what stands at the caret for its duration (MuseScore's
-  default mode), splitting longer notes with ties where needed. Insert mode later.
+  default mode), splitting longer notes with ties where needed; insert mode below.
 - **Undo**: each command keeps a copy of the measures it touched and puts them back.
   Simple, exact, and cheap since a command touches one or two measures.
 - After an edit: the measure's width weight is recomputed, its system is rendered again
@@ -194,14 +194,16 @@ enters pitches where the browser has it.
 document dirty and keeps its usual save flow; a .mscz/.mscx file stays read-only until
 phase 5 (editing it would have nowhere to go), which is fine since both ship together.
 
-**Questions for review**
+**Decided (2026-11-11)**: an Edit button (scores open read-only); on the phone both the
+pitch strip and tap-on-staff with magnifier; overwrite **and insert** modes; MuseScore's
+keys on desktop.
 
-1. Edit button (read-first) rather than always editable: agreed?
-2. Phone pitch entry: pitch strip as the main way plus tap-on-staff with magnifier, or
-   only one of them first?
-3. Overwrite mode (MuseScore's default) as the only mode in phase 4?
-4. MuseScore's number keys for durations on desktop, or a more obvious 1 = whole,
-   2 = half, 3 = quarter...?
+**Insert mode.** A note entered in insert mode pushes what follows in its voice to the
+right. The push eats rests at the end of a measure first, so it usually stops within the
+bar; what overflows moves into the next bar (tied across the barline where a note is
+cut) and so on, adding bars at the end of the score if needed. Other voices and parts do
+not move. Toggled from the palette (phone) or Ctrl+Shift+letter as in MuseScore, with a
+mode switch on desktop too.
 
 ## Spike results (2026-11-10, OSMD 2.3.0)
 
