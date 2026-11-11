@@ -52,8 +52,31 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
   long-press entry with pitch bubble, keyboard strip, MuseScore keys; one system redrawn in
   place per edit; MusicXML/mxl editable and saved in Omnitext. Then triplets, range select +
   copy/cut/paste, drum entry (the drum on that line, named in the bubble), fretboard strip
-  with string/fret and tab staves rewritten from notation; all checked on the phone. Next:
-  MuseScore write-back (phase 5).
+  with string/fret and tab staves rewritten from notation; all checked on the phone.
+- Phase 4 done (2026-11-12): marks of every kind (articulations, ornaments incl. turns and
+  ornament accidentals, fermatas, slurs, grace notes and grace chords, lyrics, tremolos,
+  arpeggios, glissandos/slides, trill lines, fingerings, bowings, hammer-ons, pull-offs,
+  bends, taps, plucks, holes, arrows); the Marks row shows what suits the part's instrument
+  family (All marks shows the rest); desktop palette on one line when it fits.
+- Tests: `npm run test:e2e` (36 scenarios in headless Chrome, desktop and phone, with a
+  plain-words report; Für Elise typed back in from the keyboard) and `npm run test:rebuild`
+  (every corpus score emptied and re-entered through the editor, compared note by note and
+  mark by mark: 66/66 exact, the 1812 Overture included).
+
+## Next (2026-11-12)
+
+1. **MuseScore write-back (phase 5), in progress.** Rewrite only the edited measures inside
+   the .mscz, everything else byte for byte; verified by a round trip (open, edit, save,
+   reopen, compare) and by MuseScore itself converting the saved file; then a manual check
+   in MuseScore 4. Then Omnitext enables editing for .mscz/.mscx.
+2. **Editing breadth (phase 6).** Dynamics, hairpins, text and tempo marks, key/time/clef
+   changes, adding/removing measures and instruments, transposing, a new-score dialog.
+3. **More formats (phase 7).** Guitar Pro read + GP7 write, MIDI import, ABC.
+4. **Release** once 1-3 are done.
+
+Small leftovers: very long text runs off the right edge of a system (1812 Overture);
+a few percussion effects play a beat off against MuseScore's export; a real-phone pass on
+the Marks row now that it is bigger.
 
 ## Formats
 
