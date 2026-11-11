@@ -29,6 +29,17 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 - **Test corpus** gathered from openly licensed online sources, plus musescore.com
   downloads (user's account) kept local.
 
+## Progress (2026-11-11)
+
+- Phase 0 spike done; scoredit repo created (hikashop-nicolas/scoredit).
+- Phase 1 viewer: page layout (one OSMD per system, virtualized, fitted line breaks), bottom
+  bar, zoom + pinch, fullscreen hook; in Omnitext for .musicxml/.mxl/.xml scores (read-only).
+- Line layout (one long line sideways, fitted to the height) for playing along.
+- Phase 3 playback: webaudio-tinysynth (vendored), timeline with repeats, endings, D.C./D.S./
+  Fine/Coda, ties, tempo, dynamics, transposition, grace notes; highlighted notes + cursor,
+  speed, tap to play from a beat; keyboard strip and falling-notes view.
+- Next: MuseScore reading (phase 2), then editing (phase 4).
+
 ## Formats
 
 | Format | Ext | Read | Write |
