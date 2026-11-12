@@ -1754,6 +1754,8 @@ function openNewDialog(): void {
 }
 
 function closeNewDialog(): void {
+  // A field of the dialog keeps the phone's keyboard up unless it lets go of the focus.
+  if (newDlgEl.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
   newDlgEl.hidden = true;
   newFormatList.hidden = true;
   modalReturnFocus?.focus();
