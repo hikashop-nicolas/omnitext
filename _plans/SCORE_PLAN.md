@@ -65,10 +65,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 
 ## Next (2026-11-12)
 
-1. **MuseScore write-back (phase 5), in progress.** Rewrite only the edited measures inside
-   the .mscz, everything else byte for byte; verified by a round trip (open, edit, save,
-   reopen, compare) and by MuseScore itself converting the saved file; then a manual check
-   in MuseScore 4. Then Omnitext enables editing for .mscz/.mscx.
+1. **MuseScore write-back (phase 5), shipped 2026-11-12, manual check pending.** Only the
+   edited measures are written again; Omnitext edits and saves .mscz/.mscx. `npm run
+   test:save` in scoredit: 41 of 46 writable corpus files come back exactly, in our reading
+   and in MuseScore's. Left: the big string quartets (sq10328092: one slur and 49 extra
+   marks in MuseScore's reading; sq10527526 still runs out of memory in the test runner);
+   MuseScore 2 files and linked tuplets (still read-only); bends for MuseScore 4.2+
+   (GuitarBend); breath-mark symbols other than comma/caesura. Then a manual check in
+   MuseScore 4 by the user.
 2. **Editing breadth (phase 6).** Dynamics, hairpins, text and tempo marks, key/time/clef
    changes, adding/removing measures and instruments, transposing, a new-score dialog.
 3. **More formats (phase 7).** Guitar Pro read + GP7 write, MIDI import, ABC.
