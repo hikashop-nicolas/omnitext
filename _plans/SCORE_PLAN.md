@@ -67,14 +67,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 
 1. **MuseScore write-back (phase 5), shipped 2026-11-12, manual check pending.** Only the
    edited measures are written again; Omnitext edits and saves .mscz/.mscx. `npm run
-   test:save` in scoredit: 41 of 49 writable corpus files come back exactly, in our reading
-   and in MuseScore's. Left: the big string quartets (sq10328092: one slur and 49 extra
-   marks in MuseScore's reading; sq10527526 still runs out of memory in the test runner);
-   MuseScore 2 files and linked tuplets (still read-only); bends for MuseScore 4.2+
-   (GuitarBend); breath-mark symbols other than comma/caesura. Then a manual check in
+   test:save` in scoredit checks every corpus file in our reading and in MuseScore's.
+   Fixed 2026-11-12: grace notes after a chord (trill endings), courtesy accidentals,
+   bends in MuseScore 4.2+ files, every breath mark and caesura kind, and the big quartets
+   now fit in memory. MuseScore 2 files stay read-only (decided). Then a manual check in
    MuseScore 4 by the user.
-2. **Editing breadth (phase 6).** Dynamics, hairpins, text and tempo marks, key/time/clef
-   changes, adding/removing measures and instruments, transposing, a new-score dialog.
+2. **Editing breadth (phase 6).** Draft for review under "Editing breadth" below:
+   dynamics/hairpins/text/tempo first, then transpose, key/time/clef changes, measures,
+   chord symbols, a new-score dialog, instruments.
 3. **More formats (phase 7).** Guitar Pro read + GP7 write, MIDI import, ABC.
 4. **Release** once 1-3 are done.
 
@@ -237,6 +237,46 @@ bar; what overflows moves into the next bar (tied across the barline where a not
 cut) and so on, adding bars at the end of the score if needed. Other voices and parts do
 not move. Toggled from the palette (phone) or Ctrl+Shift+letter as in MuseScore, with a
 mode switch on desktop too.
+
+### Editing breadth (phase 6, draft 2026-11-12, for review)
+
+MuseScore 2 write-back is set aside (decided 2026-11-12): those files stay read-only, and
+saving them once in MuseScore 4 makes them editable.
+
+Phase 6 in steps, each shippable on its own, in this order:
+
+1. **Dynamics, hairpins, text, tempo, rehearsal marks.** A fourth palette row, **Text**,
+   beside Marks: a Dynamics button opens a grid (ppp to fff, mp, mf, sf, sfz, sfp, fp,
+   rfz); `<` and `>` draw a hairpin over the selection (or from the selected note to the
+   next); Staff text, Expression, Tempo (text plus beats per minute, which playback uses)
+   and Rehearsal mark open the same inline field as lyrics. Desktop: Ctrl+M for a
+   dynamic, `<` / `>` for hairpins, Ctrl+T text, Alt+T tempo (MuseScore's keys where it
+   has them). They sit at the selected note's beat as MusicXML `<direction>`s. Deleting:
+   select the note and press Delete with the Text row open, or tap the mark itself if
+   OSMD's drawing lets us hit it. MuseScore save: today the writer copies these from the
+   file by position; it learns to write them from the score, reusing the file's element
+   when unchanged (as it does for articulations).
+2. **Transpose.** Whole score or selection, by interval or to a key, keys changed with
+   it; a concert-pitch toggle for transposing instruments.
+3. **Key, time and clef changes** from the selected bar onwards. A key change keeps the
+   pitches and respells; a clef change only moves the drawing. A time change re-bars the
+   music up to the next time signature, as MuseScore does (notes cut at the new barlines
+   are tied), reusing insert mode's overflow.
+4. **Measures.** Insert before or after the selection, append N, delete the selected
+   bars (all parts at once, as MuseScore does).
+5. **Chord symbols** (`<harmony>`), entered as text and checked against a parser.
+6. **New score dialog**: title, composer, instruments, key, time, tempo, pickup,
+   measures.
+7. **Instruments**: add, remove, change (name, sound, transposition). Last because the
+   MuseScore writer would then also write part definitions, not only measures.
+
+**Questions for review.**
+- Is this order right? Dynamics and text first because they are what people miss most
+  after notes; instruments last because they are the costliest to save into .mscz.
+- Time changes: re-bar the following music (MuseScore's way, proposed), or only allow a
+  change where the bars are empty?
+- New scores: saved as MusicXML (.mxl) only, or also as .mscz from a blank MuseScore 4
+  file kept in the repo (made by converting our own MusicXML with MuseScore)?
 
 ## Spike results (2026-11-10, OSMD 2.3.0)
 
