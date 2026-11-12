@@ -67,20 +67,25 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 
 1. **MuseScore write-back (phase 5), shipped 2026-11-12, manual check pending.** Only the
    edited measures are written again; Omnitext edits and saves .mscz/.mscx. `npm run
-   test:save` in scoredit checks every corpus file in our reading and in MuseScore's.
-   Fixed 2026-11-12: grace notes after a chord (trill endings), courtesy accidentals,
-   bends in MuseScore 4.2+ files, every breath mark and caesura kind, and the big quartets
-   now fit in memory. MuseScore 2 files stay read-only (decided). Then a manual check in
-   MuseScore 4 by the user.
-2. **Editing breadth (phase 6).** Draft for review under "Editing breadth" below:
-   dynamics/hairpins/text/tempo first, then transpose, key/time/clef changes, measures,
-   chord symbols, a new-score dialog, instruments.
+   test:save` in scoredit checks every corpus file in our reading and in MuseScore's (49 of
+   49 writable files exact). Saves now reach MuseScore's instrument parts (Excerpts in 4,
+   nested scores in 3; multi-measure rests are dropped there and MuseScore makes them
+   again). MuseScore 2 files stay read-only (decided). Then a manual check in MuseScore 4
+   by the user.
+2. **Editing breadth (phase 6), done 2026-11-12.** Dynamics, hairpins, text, tempo and
+   rehearsal marks; transpose; key, clef and time changes (time re-bars, refused across
+   repeats and tuplets); adding and deleting bars; chord symbols; instruments (add,
+   remove, change); a new-score dialog in Omnitext's New dialog, written as .mscz from
+   scoredit's own instrument table. A bar floats over the selected notes for what changes
+   them (accidentals, Marks, Dynamics, Text, delete); the Score row has four groups.
+   Known: MuseScore 4 lists an extra part for a changed instrument in a converted MuseScore
+   3 file; reordering instruments and changing their staff count are not there yet.
 3. **More formats (phase 7).** Guitar Pro read + GP7 write, MIDI import, ABC.
 4. **Release** once 1-3 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
 a few percussion effects play a beat off against MuseScore's export; a real-phone pass on
-the Marks row now that it is bigger.
+the floating bar and the Score row; Ctrl+K (chord symbols) is taken by some browsers.
 
 ## Formats
 
