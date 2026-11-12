@@ -278,8 +278,17 @@ Phase 6 in steps, each shippable on its own, in this order:
   (made by converting our own MusicXML with MuseScore). Done together with the
   instruments step (7), since both need the writer to create MuseScore instrument
   definitions (Part, Staff, Instrument).
-- Done so far: steps 1 (dynamics, hairpins, text, tempo), 2 (transpose), 3 (key and clef;
-  time signatures next), 4 (bars), plus a bar floating over the selected notes (as
+- New score and instruments (steps 6 and 7 together): a dialog with title, composer,
+  instruments, key, time, tempo, pickup and bars, written as a .mscz from scratch.
+  MuseScore 4 accepts a minimal instrument (its instrumentId, names, clef, transposition,
+  MIDI program) and fills in the rest itself, and keeps it minimal when it saves again
+  (checked 2026-11-12), so scoredit keeps its own small table of about 50 instruments
+  (facts only: id, names, program, clefs, staves, transposition, family), never MuseScore's
+  instrument data. Adding an instrument appends it with empty bars (no part file is made;
+  MuseScore's Parts dialog does that); removing one also removes its part file; changing
+  one keeps the sounding pitches and respells. Reordering and changing staff counts later.
+- Done so far: steps 1 (dynamics, hairpins, text, tempo), 2 (transpose), 3 (key, clef,
+  time: re-barring, refused across repeats and tuplets), 4 (bars), plus a bar floating over the selected notes (as
   pdfcraft's selection bar) for what changes them. Saves now reach MuseScore's
   instrument parts too (Excerpts in 4, nested scores in 3).
 
