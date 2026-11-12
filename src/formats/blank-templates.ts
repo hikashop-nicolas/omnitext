@@ -128,7 +128,7 @@ async function blankPdf(): Promise<Uint8Array> {
 }
 
 /** Format ids that can be created blank from the New dialog despite being binary. */
-export const BLANK_BINARY_FORMATS = ["docx", "odt", "xlsx", "ods", "xls", "pdf"] as const;
+export const BLANK_BINARY_FORMATS = ["docx", "odt", "xlsx", "ods", "xls", "pdf", "mscz"] as const;
 
 /** Formats whose blank template honors a paper size (the New dialog offers the choice). */
 export const PAPER_FORMATS = ["docx", "odt"] as const;
@@ -145,6 +145,11 @@ export async function blankTemplate(formatId: string, paper: Paper = "a4", orien
     case "ods": return blankSheet("ods");
     case "xls": return blankSheet("xls");
     case "pdf": return blankPdf();
+    // A MuseScore score: the New dialog asks for its instruments; elsewhere, a piano in C, 4/4.
+    case "mscz": {
+      const m = await import("scoredit");
+      return m.newMuseScore(m.createNewScoreForm().value());
+    }
     default: return null;
   }
 }

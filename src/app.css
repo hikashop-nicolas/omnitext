@@ -350,7 +350,10 @@ body.ot-own-bar #status { display: none; }
 .combobox-list li.active, .combobox-list li:hover { background: var(--accent, #6e7bff); color: #fff; }
 .combobox-list li.active .opt-ext, .combobox-list li:hover .opt-ext { color: #e8e8ff; }
 .combobox-empty { color: var(--muted, #8b949e); cursor: default; }
-#new-format-opts .new-opt-select {
+#new-score-opts { margin-bottom: 12px; max-height: 50vh; overflow-y: auto; }
+#new-score-opts[hidden] { display: none; }
+#new-score-opts .combobox-label { margin-bottom: 0; }
+#new-format-opts .new-opt-select, #new-score-opts .new-opt-select {
   width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; margin-bottom: 10px;
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text);
 }
@@ -743,3 +746,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 
 /* A score that cannot be read says why instead of an empty pane. */
 .ot-score-msg { padding: 24px; color: var(--muted); }
+
+#new-score-opts .new-opt-select { margin-bottom: 0; }

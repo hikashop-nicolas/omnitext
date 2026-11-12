@@ -473,6 +473,9 @@ const newDlgEl = $("newdlg");
 const newFormatInput = $<HTMLInputElement>("new-format-input");
 const newFormatList = $<HTMLUListElement>("new-format-list");
 const newFormatOptsEl = $("new-format-opts");
+// A new MuseScore score: scoredit's own form (title, instruments, key, time...), made on demand.
+const newScoreOptsEl = $("new-score-opts");
+let newScoreForm: import("scoredit").NewScoreForm | null = null;
 const newPaperSel = $<HTMLSelectElement>("new-paper");
 const newOrientSel = $<HTMLSelectElement>("new-orientation");
 const newPaginatedChk = $<HTMLInputElement>("new-paginated");
@@ -1705,6 +1708,13 @@ function pickNewFormat(o: NewFormatOption): void {
 function updateNewFormatOpts(): void {
   const id = newFormatSelectedId ?? "";
   newFormatOptsEl.hidden = !(PAPER_FORMATS as readonly string[]).includes(id);
+  newScoreOptsEl.hidden = id !== "mscz";
+  if (id === "mscz" && !newScoreForm)
+    void import("scoredit").then((m) => {
+      if (newScoreForm) return;
+      newScoreForm = m.createNewScoreForm({ inputClass: "new-opt-select", selectClass: "new-opt-select", labelClass: "combobox-label" });
+      newScoreOptsEl.append(newScoreForm.el);
+    });
 }
 const escapeText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -1735,6 +1745,9 @@ function openNewDialog(): void {
   newPaginatedChk.checked = s.paginated;
   newDirectionSel.value = "ltr";
   newFormatOptsEl.hidden = true;
+  newScoreForm?.el.remove();
+  newScoreForm = null;
+  newScoreOptsEl.hidden = true;
   newDlgEl.hidden = false;
   newFormatInput.focus();
   renderNewFormatList("");
@@ -1756,7 +1769,15 @@ async function createNewDocument(): Promise<void> {
   const orient = newOrientSel.value === "landscape" ? "landscape" : "portrait";
   const paginated = newPaginatedChk.checked;
   const direction = (newDirectionSel.value || "ltr") as "ltr" | "rtl" | "vertical";
+  // A score: made from the form's title, instruments, key, time, tempo and bars.
+  const score = formatId === "mscz" ? await import("scoredit").then((m) => m.newMuseScore((newScoreForm ?? m.createNewScoreForm()).value())) : null;
   closeNewDialog();
+  if (score) {
+    navStack.length = 0;
+    updateBackBtn();
+    void mountDoc({ binary: true, bytes: score, filename: null, encoding: { label: "utf-8", bom: false }, formatId: "mscz", editorId: "score", docOptions: {}, created: true });
+    return;
+  }
   await createNew(formatId, { paper, orient, paginated, direction });
 }
 
