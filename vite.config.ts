@@ -113,10 +113,10 @@ const bundleTesseractEngine: Plugin = {
 };
 
 /**
- * Third-party notices the minified bundle would otherwise lose: richdoc's EMF / WMF player is a
+ * Third-party notices the minified bundle would otherwise lose: richdoc's EMF / WMF, chart, SmartArt and WordArt code is a
  * port of WordCraft's MIT code, and its notice ships beside the app.
  */
-const THIRD_PARTY_NOTICES = { "third-party/richdoc-metafile.LICENSE.md": "richdoc/dist/adapters/docx/metafile.LICENSE.md" };
+const THIRD_PARTY_NOTICES = { "third-party/richdoc-wordcraft.LICENSE.md": "richdoc/dist/adapters/docx/wordcraft.LICENSE.md" };
 const emitThirdPartyNotices: Plugin = {
   name: "omnitext-third-party-notices",
   generateBundle() {
