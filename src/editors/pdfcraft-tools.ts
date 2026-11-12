@@ -2,8 +2,6 @@
 // labelled fields, and a pad to draw a signature on. Each one resolves to what was entered, or
 // to null when it is dismissed, and removes itself either way.
 
-import { createDocumentNative, isNative, writeDocumentNative } from "../core/platform";
-
 const STYLE_ID = "omnitext-pdfcraft-tools-style";
 
 function ensureStyles(): void {
@@ -332,19 +330,4 @@ export function signaturePad(root: HTMLElement, o: { title: string; ok: string; 
   });
 }
 
-/** Saves a file the person asked for: through the system picker in the app, as a download in a browser. */
-export async function saveFile(bytes: Uint8Array, name: string, mime: string): Promise<boolean> {
-  if (isNative()) {
-    const picked = await createDocumentNative(name, mime);
-    if (!picked) return false;
-    await writeDocumentNative(picked.uri, bytes);
-    return true;
-  }
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
-  return true;
-}
+export { saveFile } from "../core/save-file";

@@ -7,6 +7,9 @@ const de: Dict = {
     open: "Öffnen",
     save: "Speichern",
     print: "Drucken / Als PDF speichern",
+    export: "Exportieren als…",
+    exportAs: "Als {format} exportieren",
+    exportFailed: "Der Export ist fehlgeschlagen: {message}",
     back: "Zurück zum Archiv",
     saveStatus: "Speicherstatus",
     unsavedChanges: "Nicht gespeicherte Änderungen",
@@ -1062,6 +1065,9 @@ const de: Dict = {
     copy: "Kopieren",
     addLink: "Link hinzufügen",
     font: "Schriftart",
+  },
+  export: {
+    mxl: "Komprimiertes MusicXML (MXL)",
   },
 };
 

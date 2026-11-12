@@ -7,6 +7,9 @@ const pt: Dict = {
     open: "Abrir",
     save: "Guardar",
     print: "Imprimir / Guardar como PDF",
+    export: "Exportar como…",
+    exportAs: "Exportar como {format}",
+    exportFailed: "Não foi possível exportar: {message}",
     back: "Voltar ao arquivo",
     saveStatus: "Estado da gravação",
     unsavedChanges: "Alterações por guardar",
@@ -1062,6 +1065,9 @@ const pt: Dict = {
     copy: "Copiar",
     addLink: "Adicionar uma ligação",
     font: "Tipo de letra",
+  },
+  export: {
+    mxl: "MusicXML comprimido (MXL)",
   },
 };
 

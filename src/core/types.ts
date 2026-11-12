@@ -268,6 +268,19 @@ export interface CollabBinding {
   unbind(): void;
 }
 
+/** A format the document can be exported as (Export as…). */
+export interface ExportTarget {
+  /** The format's name as people know it: "MusicXML", "PDF". */
+  label: string;
+  /** The file extension, with its dot. */
+  ext: string;
+  mime: string;
+  /** Added to the document's name: "-3" for slide 3. */
+  suffix?: string;
+  /** The exported file, or null when the person backed out of the editor's own options. */
+  build(): Promise<Uint8Array | string | null>;
+}
+
 export interface EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void;
   /** Current content as canonical text (used for save and editor switching). */
@@ -301,6 +314,8 @@ export interface EditorInstance {
    * The host picks how to send it, which differs between the browser and the app.
    */
   printableFile?(): Promise<{ bytes: Uint8Array; mime: string } | null>;
+  /** Other formats this editor can write the document as; the open file stays as it is. */
+  exports?(): ExportTarget[];
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

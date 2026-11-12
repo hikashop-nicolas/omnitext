@@ -1,4 +1,4 @@
-import { createSubtitleEditor, type Cue, type SubtitleEditorHandle } from "subedit";
+import { convertDoc, createSubtitleEditor, serializeSubtitles, type Cue, type SubtitleEditorHandle, type SubtitleFormat } from "subedit";
 import type * as Y from "yjs";
 import type {
   CollabBinding,
@@ -6,6 +6,7 @@ import type {
   EditorInstance,
   EditorModule,
   EditorMountContext,
+  ExportTarget,
 } from "../core/types";
 import {
   isEmpty,
@@ -23,6 +24,18 @@ import { debug } from "../core/debug";
 // subedit reads the format from the filename extension. A new blank document has no
 // filename, so map the format's MIME (always set by the host) to a synthetic name, else
 // a blank .ass would open as SRT. Real opened files keep their own filename.
+// The formats a subtitle file can be exported as, in the order people look for them.
+const EXPORTS: [SubtitleFormat, string, string, string][] = [
+  ["srt", "SubRip (SRT)", ".srt", "application/x-subrip"],
+  ["vtt", "WebVTT", ".vtt", "text/vtt"],
+  ["ass", "Advanced SubStation (ASS)", ".ass", "text/x-ass"],
+  ["ttml", "TTML", ".ttml", "application/ttml+xml"],
+  ["sbv", "YouTube SBV", ".sbv", "text/plain"],
+  ["sami", "SAMI", ".smi", "application/smil"],
+  ["sub", "MicroDVD", ".sub", "text/plain"],
+  ["lrc", "LRC", ".lrc", "text/plain"],
+];
+
 const MIME_EXT: Record<string, string> = {
   "application/x-subrip": "srt",
   "text/srt": "srt",
@@ -91,6 +104,18 @@ class SubtitleInstance implements EditorInstance {
 
   getText(): string {
     return this.handle?.getText() ?? "";
+  }
+
+  exports(): ExportTarget[] {
+    const handle = this.handle;
+    if (!handle) return [];
+    const from = handle.getDoc().format;
+    return EXPORTS.filter(([id]) => id !== from).map(([id, label, ext, mime]) => ({
+      label,
+      ext,
+      mime,
+      build: async () => serializeSubtitles(convertDoc(handle.getDoc(), id)),
+    }));
   }
 
   selection(): unknown {

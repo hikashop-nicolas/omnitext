@@ -1,7 +1,7 @@
 import { unzipSync, strFromU8 } from "fflate";
 import { EngineError, deckFontUrls, openDeck, type DeckSession, type Overlay, type SelectedShape } from "craftbridge/deck";
 import DeckWorker from "craftbridge/deck/worker?worker";
-import type { EditorInstance, EditorMountContext, EditorModule, HostAPI } from "../core/types";
+import type { EditorInstance, EditorMountContext, EditorModule, ExportTarget, HostAPI } from "../core/types";
 import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
@@ -1626,25 +1626,42 @@ class PptxCraftInstance implements EditorInstance {
     await this.cmd("edit.deselect", {});
   }
 
-  private async exportPdf(): Promise<void> {
+  /** The deck as a PDF, after asking for the layout; null when that is dismissed. */
+  private async pdfBytes(): Promise<Uint8Array | null> {
     const session = this.session;
-    if (!session) return;
+    if (!session) return null;
     const v = await this.dialog(t("pptxcraft.exportPdf"), [
       { key: "layout", label: t("pptxcraft.pdfLayout"), kind: "select", value: "slides", options: [["slides", t("pptxcraft.layoutSlides")], ["notes", t("pptxcraft.layoutNotes")], ["handouts", t("pptxcraft.layoutHandouts")]] },
       { key: "per", label: t("pptxcraft.perPage"), kind: "select", value: "6", options: [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["6", "6"], ["9", "9"]] },
       { key: "hidden", label: t("pptxcraft.includeHidden"), kind: "check", value: false },
     ]);
-    if (!v) return;
-    const bytes = await this.enqueue(() => session.exportPdf({ format: "pdf", layout: String(v.layout), perPage: Number(v.per), includeHidden: !!v.hidden }));
+    if (!v) return null;
+    return (await this.enqueue(() => session.exportPdf({ format: "pdf", layout: String(v.layout), perPage: Number(v.per), includeHidden: !!v.hidden }))) ?? null;
+  }
+
+  private async pngBytes(index: number): Promise<Uint8Array | null> {
+    const session = this.session;
+    if (!session) return null;
+    return (await this.enqueue(() => session.exportPng(index, 2))) ?? null;
+  }
+
+  private async exportPdf(): Promise<void> {
+    const bytes = await this.pdfBytes();
     if (bytes) await saveFile(bytes, `${this.baseName()}.pdf`, "application/pdf");
   }
 
   private async exportPng(): Promise<void> {
-    const session = this.session;
-    if (!session) return;
     const index = this.ov.slide ?? 0;
-    const bytes = await this.enqueue(() => session.exportPng(index, 2));
+    const bytes = await this.pngBytes(index);
     if (bytes) await saveFile(bytes, `${this.baseName()}-${index + 1}.png`, "image/png");
+  }
+
+  exports(): ExportTarget[] {
+    const index = this.ov.slide ?? 0;
+    return [
+      { label: "PDF", ext: ".pdf", mime: "application/pdf", build: () => this.pdfBytes() },
+      { label: t("pptxcraft.exportPng"), ext: ".png", mime: "image/png", suffix: `-${index + 1}`, build: () => this.pngBytes(index) },
+    ];
   }
 
   private async findReplace(): Promise<void> {

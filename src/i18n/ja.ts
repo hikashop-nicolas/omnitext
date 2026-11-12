@@ -7,6 +7,9 @@ const ja: Dict = {
     open: "開く",
     save: "保存",
     print: "印刷 / PDF保存",
+    export: "形式を変えて書き出す…",
+    exportAs: "{format} として書き出す",
+    exportFailed: "書き出せませんでした: {message}",
     back: "アーカイブに戻る",
     saveStatus: "保存状態",
     unsavedChanges: "未保存の変更",
@@ -1064,6 +1067,9 @@ const ja: Dict = {
     copy: "コピー",
     addLink: "リンクを追加",
     font: "書体",
+  },
+  export: {
+    mxl: "圧縮 MusicXML (MXL)",
   },
 };
 

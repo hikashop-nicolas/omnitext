@@ -10,6 +10,9 @@ const ru: Dict = {
     open: "Открыть",
     save: "Сохранить",
     print: "Печать / Сохранить в PDF",
+    export: "Экспортировать как…",
+    exportAs: "Экспортировать как {format}",
+    exportFailed: "Не удалось экспортировать: {message}",
     back: "Назад к архиву",
     saveStatus: "Состояние сохранения",
     unsavedChanges: "Несохранённые изменения",
@@ -1085,6 +1088,9 @@ const ru: Dict = {
     copy: "Копировать",
     addLink: "Добавить ссылку",
     font: "Шрифт",
+  },
+  export: {
+    mxl: "Сжатый MusicXML (MXL)",
   },
 };
 

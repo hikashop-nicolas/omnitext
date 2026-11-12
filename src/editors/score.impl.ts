@@ -6,7 +6,7 @@ import { requestInstrumentSounds } from "../remote-consent";
 // Recorded instruments, downloaded per instrument when a score uses them, after asking once.
 const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, cacheName: "omnitext-sounds" });
 import { isNative } from "../core/platform";
-import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
+import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
 
 // The parts of the user's instrument (Settings), when the score has several and some match.
@@ -97,6 +97,16 @@ class ScoreInstance implements EditorInstance {
     if (kinds && kinds !== this.warned) this.host.notifications.warn(t("notify.scoreNotSaved", { marks: kinds }));
     this.warned = kinds;
     return bytes;
+  }
+
+  /** The score as MusicXML, edits included, whatever it was read from. */
+  exports(): ExportTarget[] {
+    if (!this.handle) return [];
+    const xml = () => this.handle!.score.serialize();
+    const out: ExportTarget[] = [];
+    if (this.loaded?.format !== "musicxml") out.push({ label: "MusicXML", ext: ".musicxml", mime: "application/vnd.recordare.musicxml+xml", build: async () => xml() });
+    if (this.loaded?.format !== "mxl") out.push({ label: t("export.mxl"), ext: ".mxl", mime: "application/vnd.recordare.musicxml", build: async () => writeMxl(xml()) });
+    return out;
   }
 
   selection(): unknown {

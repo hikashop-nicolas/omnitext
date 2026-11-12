@@ -11,6 +11,9 @@ const zh: Dict = {
     open: "打开",
     save: "保存",
     print: "打印 / 存为 PDF",
+    export: "导出为…",
+    exportAs: "导出为 {format}",
+    exportFailed: "导出失败：{message}",
     back: "返回压缩包",
     saveStatus: "保存状态",
     unsavedChanges: "有未保存的更改",
@@ -1066,6 +1069,9 @@ const zh: Dict = {
     copy: "复制",
     addLink: "添加链接",
     font: "字体",
+  },
+  export: {
+    mxl: "压缩的 MusicXML (MXL)",
   },
 };
 

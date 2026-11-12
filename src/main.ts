@@ -168,10 +168,12 @@ import {
 import { applyDom, getLocale, initI18n, t } from "./i18n";
 import { activeQueue, handOverFiles, naturalCompare, pickFolderFiles, relativePath } from "./core/media-handoff";
 import { readDropped } from "./core/dropped";
+import { saveFile as saveFileAs } from "./core/save-file";
 import { getSettings } from "./settings";
 import type {
   EditorInstance,
   EditorResolution,
+  ExportTarget,
   FormatDescriptor,
   FormatModule,
   TextEncoding,
@@ -454,6 +456,7 @@ const dirtyEl = $("dirty");
 const saveBtn = $("btn-save");
 const newBtn = $("btn-new");
 const printBtn = $("btn-print");
+const exportBtn = $("btn-export");
 const backBtn = $<HTMLButtonElement>("btn-back");
 // Tool buttons that asked to be hidden on a read-only document (see addToolbarButton).
 const readOnlyHiddenTools = new Set<HTMLElement>();
@@ -518,6 +521,7 @@ function updateUI(): void {
   // A cue list on paper is nobody's idea of a subtitle file, so that surface says so and
   // the button goes rather than printing something no one asked for.
   printBtn.hidden = !!session?.unprintable;
+  exportBtn.hidden = exportTargets().length === 0;
   saveBtn.hidden = readOnly;
   dirtyEl.hidden = readOnly;
   newBtn.hidden = readOnly;
@@ -2145,6 +2149,42 @@ function printSurface(): Promise<void> {
   });
 }
 
+// --- export ------------------------------------------------------------------
+
+/** What the current editor can export the document as. */
+function exportTargets(): ExportTarget[] {
+  try {
+    return session?.editor?.exports?.() ?? [];
+  } catch {
+    return [];
+  }
+}
+
+const exportEntry = (target: ExportTarget): PaletteEntry => ({ label: t("app.exportAs", { format: target.label }), run: () => void exportAs(target) });
+
+/** Writes the document in another format, as a new file beside it; the open one stays as it is. */
+async function exportAs(target: ExportTarget): Promise<void> {
+  try {
+    const out = await target.build();
+    if (out === null) return;
+    const bytes = typeof out === "string" ? new TextEncoder().encode(out) : out;
+    const base = (session?.filename ?? t("app.untitled")).replace(/\.[^./]*$/, "");
+    await saveFileAs(bytes, `${base}${target.suffix ?? ""}${target.ext}`, target.mime);
+  } catch (e) {
+    console.error("export failed", e);
+    engine.notificationSink.error(t("app.exportFailed", { message: e instanceof Error ? e.message : String(e) }));
+  }
+}
+
+/** One format goes straight out; several are offered in the palette. */
+function exportDoc(): void {
+  const targets = exportTargets();
+  if (targets.length === 1) void exportAs(targets[0]!);
+  else if (targets.length) openPalette(targets.map(exportEntry));
+}
+
+exportBtn.addEventListener("click", exportDoc);
+
 $("btn-new").addEventListener("click", openNewDialog);
 $("btn-open").addEventListener("click", () => void openFile());
 $("btn-save").addEventListener("click", () => void saveFile());
@@ -2310,6 +2350,7 @@ function paletteEntries(): PaletteEntry[] {
     { label: t("app.openFolder"), hint: shortcutLabel("Ctrl+Alt+F"), run: () => void openFolderAsPlaylist() },
   ];
   if (activeQueue()) out.push({ label: t("app.savePlaylist"), run: () => void savePlaylist() });
+  out.push(...exportTargets().map(exportEntry));
   for (const cmd of engine.commands.list()) out.push({ label: cmd.title, hint: cmd.keybinding ? shortcutLabel(cmd.keybinding) : undefined, run: () => void cmd.run() });
   for (const c of viewChoices) {
     const id = c.editor.manifest.id;
@@ -2355,11 +2396,11 @@ function renderPalette(): void {
   paletteList.querySelector(`#palette-opt-${paletteActive}`)?.scrollIntoView({ block: "nearest" });
 }
 
-function openPalette(): void {
+function openPalette(entries?: PaletteEntry[]): void {
   paletteInput.placeholder = t("app.paletteSearch");
   paletteInput.setAttribute("aria-label", t("app.palette"));
   paletteCard.setAttribute("aria-label", t("app.palette"));
-  paletteItems = paletteEntries();
+  paletteItems = entries ?? paletteEntries();
   paletteActive = 0;
   paletteInput.value = "";
   paletteEl.hidden = false;
