@@ -113,6 +113,20 @@ const bundleTesseractEngine: Plugin = {
 };
 
 /**
+ * Third-party notices the minified bundle would otherwise lose: richdoc's EMF / WMF player is a
+ * port of WordCraft's MIT code, and its notice ships beside the app.
+ */
+const THIRD_PARTY_NOTICES = { "third-party/richdoc-metafile.LICENSE.md": "richdoc/dist/adapters/docx/metafile.LICENSE.md" };
+const emitThirdPartyNotices: Plugin = {
+  name: "omnitext-third-party-notices",
+  generateBundle() {
+    for (const [fileName, src] of Object.entries(THIRD_PARTY_NOTICES)) {
+      if (existsSync(`node_modules/${src}`)) this.emitFile({ type: "asset", fileName, source: readFileSync(`node_modules/${src}`) });
+    }
+  },
+};
+
+/**
  * The PDF editor runs on PdfCraft's engine, compiled to wasm, through craftbridge. A build finds
  * craftbridge with its wasm built through CRAFTBRIDGE_DIR (scripts/build-craftbridge.sh makes it)
  * and refuses to go on without it, unless OMNITEXT_NO_PDF_ENGINE=1 asks for a build with no PDF
@@ -153,7 +167,7 @@ if (!craftReady && process.argv.includes("build") && !process.env.OMNITEXT_NO_PD
 
 export default defineConfig({
   base: "./",
-  plugins: [dropUnusedOrtWasm, bundleTesseractEngine, pointOnnxruntimeAtPackage, bundleOnnxruntimeEngine],
+  plugins: [dropUnusedOrtWasm, bundleTesseractEngine, emitThirdPartyNotices, pointOnnxruntimeAtPackage, bundleOnnxruntimeEngine],
   worker: { plugins: () => [pointOnnxruntimeAtPackage] },
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
