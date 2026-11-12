@@ -80,7 +80,12 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    them (accidentals, Marks, Dynamics, Text, delete); the Score row has four groups.
    Known: MuseScore 4 lists an extra part for a changed instrument in a converted MuseScore
    3 file; reordering instruments and changing their staff count are not there yet.
-3. **More formats (phase 7).** Guitar Pro read + GP7 write, MIDI import, ABC.
+3. **More formats (phase 7).** Read side done 2026-11-12 (scoredit de95ac1, Omnitext
+   10c8d55): ABC (own reader, no `&` overlays or %%score), Guitar Pro 3-5 and 7 via
+   guitarpro-parser, MIDI quantised (triplets only, two voices at most). They open view-only
+   and export as MusicXML or MXL through Omnitext's Export as (031eb1f). Left: GP7 write,
+   Guitar Pro 6 (`.gpx` is taken by GPS tracks in Omnitext), MIDI export, a real Guitar Pro
+   file beyond our own fixture.
 4. **Release** once 1-3 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
