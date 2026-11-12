@@ -80,13 +80,32 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    them (accidentals, Marks, Dynamics, Text, delete); the Score row has four groups.
    Known: MuseScore 4 lists an extra part for a changed instrument in a converted MuseScore
    3 file; reordering instruments and changing their staff count are not there yet.
-3. **More formats (phase 7).** Read side done 2026-11-12 (scoredit de95ac1, Omnitext
-   10c8d55): ABC (own reader, no `&` overlays or %%score), Guitar Pro 3-5 and 7 via
-   guitarpro-parser, MIDI quantised (triplets only, two voices at most). They open view-only
-   and export as MusicXML or MXL through Omnitext's Export as (031eb1f). Left: GP7 write,
-   Guitar Pro 6 (`.gpx` is taken by GPS tracks in Omnitext), MIDI export, a real Guitar Pro
-   file beyond our own fixture.
-4. **Release** once 1-3 are done.
+3. **More formats (phase 7), done 2026-11-12** (scoredit 3e6c920, Omnitext c916078 and
+   685c72d). ABC with `&` overlays and %%score/%%staves; Guitar Pro 3-7 including .gpx
+   (sniffed apart from GPS tracks), all 250 corpus files open, 215 match MuseScore exactly;
+   GP7 files edit and save, and Export as writes Guitar Pro 7 (331 corpus round trips,
+   MuseScore imports every written file) and MIDI (96.5% of MuseScore's notes). MIDI import
+   rewritten (99.94% onsets on round trip). Left, known:
+   - ABC: middle=, stafflines=, regrouping by a later %%score, s: lines, P: play order.
+   - Guitar Pro: artificial harmonics saved at fret 12 (the reader drops the harmonic
+     fret); harmonics play at the fretted pitch; guitarpro-parser picks wrong drum sounds
+     for some GP6 kits and GP3-5 drum keys; chromatic transposition written at concert
+     pitch; MuseScore ignores our Anacrusis flag.
+   - MIDI: a fifth independent line overwrites voice 1; no tuplets over several beats;
+     export has no fermata or section pauses.
+   - Render: at narrow widths OSMD wraps an over-wide first system (Speed the Plough, 700px).
+4. **Audio export (MP3, WAV), planned 2026-11-12.** Encoder: rusty_mp3 (Apache-2.0, pure
+   Rust, Remade-With-Rust/remade_ffmpeg_rs) built to wasm32: 140 KB (58 KB gz), 38x real
+   time in Chrome, gapless and sample-exact, by ear same as LAME at 192 kbps on Für Elise.
+   SIMD build gains only 13%, not worth it. Render: drive spessasynth straight through the
+   piece (4 s for Für Elise) instead of an OfflineAudioContext with per-note buffers (2 s
+   prepare + 26 s render). Soft velocities sound muffled with SF banks: map them into
+   80-127 (or render at 100 like playback; user to choose). Built-in synth fallback for
+   instruments without a downloaded bank (5 s). Render and encode in a worker, encoding
+   chunks as they come, with a progress bar. Pedal: export applies it, playback does not
+   for sampled instruments yet (fix playback to match). Lab page: scoredit demo/mp3lab/
+   (untracked).
+5. **Release** once 1-4 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
 a few percussion effects play a beat off against MuseScore's export; a real-phone pass on
