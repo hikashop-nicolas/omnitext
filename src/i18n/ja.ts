@@ -155,6 +155,7 @@ const ja: Dict = {
     archiveNotWritable: "Omnitext は {name} を読めますが書き戻せないため、このファイルをその中に保存できません。ダウンロードで別のファイルとして保存してください。",
     storageFull: "ブラウザーのストレージが満杯です。古いスナップショットを削除しましたが、クラッシュ復元が追いつかない可能性があります。作業をディスクに保存してください。",
     noMediaInFolder: "そのフォルダには音声や動画のファイルがありません。",
+    scoreNotSaved: "編集した音符の一部の記号は、まだ MuseScore ファイルに保存されません：{marks}。",
   },
   history: {
     title: "バージョン履歴",

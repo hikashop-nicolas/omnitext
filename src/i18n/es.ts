@@ -153,6 +153,7 @@ const es: Dict = {
     archiveNotWritable: "Omnitext puede leer {name} pero no volver a escribirlo, así que este archivo no se puede guardar dentro. Use Descargar para conservar sus cambios en un archivo aparte.",
     storageFull: "El almacenamiento del navegador está lleno. Se eliminaron las instantáneas antiguas, pero la recuperación tras un fallo puede no bastar; guarde su trabajo en el disco.",
     noMediaInFolder: "Esa carpeta no contiene archivos de audio ni de vídeo.",
+    scoreNotSaved: "Algunos signos de las notas editadas aún no se guardan en el archivo de MuseScore: {marks}.",
   },
   history: {
     title: "Historial de versiones",

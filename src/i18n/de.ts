@@ -153,6 +153,7 @@ const de: Dict = {
     archiveNotWritable: "Omnitext kann {name} lesen, aber nicht zurückschreiben; diese Datei lässt sich also nicht darin speichern. Verwenden Sie Herunterladen, um Ihre Änderungen als eigene Datei zu behalten.",
     storageFull: "Der Browserspeicher ist voll. Alte Momentaufnahmen wurden entfernt, aber die Absturzwiederherstellung kommt möglicherweise nicht mit; speichern Sie Ihre Arbeit auf der Festplatte.",
     noMediaInFolder: "In diesem Ordner gibt es keine Audio- oder Videodateien.",
+    scoreNotSaved: "Einige Zeichen an bearbeiteten Noten werden noch nicht in die MuseScore-Datei gespeichert: {marks}.",
   },
   history: {
     title: "Versionsverlauf",

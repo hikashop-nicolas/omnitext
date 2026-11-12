@@ -1,4 +1,5 @@
-import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, writeMxl, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
 
@@ -17,36 +18,52 @@ function myParts(score: ScoreDoc): number[] | null {
 }
 
 // Thin adapter around the standalone scoredit library: it reads MusicXML (text) or mxl
-// (bytes) and engraves it one system at a time. MusicXML and mxl can be edited; MuseScore
-// files stay read-only until scoredit writes them back. Unedited, the file goes back as it came.
+// (bytes) and engraves it one system at a time. MusicXML, mxl and MuseScore 3/4 files can be
+// edited: MuseScore files are saved by writing the edited measures back into them. Unedited,
+// the file goes back as it came.
 class ScoreInstance implements EditorInstance {
   private handle: ScoreViewerHandle | null = null;
   private text = "";
   private bytes: Uint8Array | null = null;
   private edited = false;
   private binary = false;
+  private loaded: LoadedScore | null = null;
+  private warned = "";
+  private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
 
-  constructor(_host: HostAPI) {}
+  constructor(host: HostAPI) {
+    this.host = host;
+  }
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     this.text = ctx.text;
     this.bytes = ctx.bytes;
     this.binary = !!ctx.binary;
     const input = ctx.binary ? (ctx.bytes ?? new Uint8Array(0)) : new TextEncoder().encode(ctx.text);
-    // The score as it stands, edits included, for reading it again (the TAB toggle).
-    const current = () => (this.edited && this.handle ? new TextEncoder().encode(this.handle.score.serialize()) : input);
+    // The file as it stands, edits included, for reading it again (the TAB toggle).
+    const current = () => (!this.edited || !this.handle ? input : this.loaded?.save ? this.loaded.save().bytes : new TextEncoder().encode(this.handle.score.serialize()));
     try {
       const loaded = loadScore(input);
+      this.loaded = loaded;
       this.fullscreen = new ReadingFullscreen(container, ".sv-shell");
       this.handle = createScoreViewer(container, loaded.score, {
         ...this.fullscreen.options(),
         onError: (e) => console.error(e),
         // Guitar and other fretted parts: a TAB button shows or hides their tab staff.
-        tablature: loaded.fretted ? { on: loaded.tab, toggle: (on) => loadScore(current(), { tab: on ? "always" : "never" }).score } : undefined,
+        tablature: loaded.fretted
+          ? {
+              on: loaded.tab,
+              toggle: (on) => {
+                const next = loadScore(current(), { tab: on ? "always" : "never" });
+                this.loaded = next;
+                return next.score;
+              },
+            }
+          : undefined,
         sounds,
         parts: { show: myParts(loaded.score) },
-        editable: loaded.format === "musicxml" || loaded.format === "mxl",
+        editable: loaded.format === "musicxml" || loaded.format === "mxl" || !!loaded.save,
         onChange: () => {
           this.edited = true;
           ctx.onChange();
@@ -62,12 +79,24 @@ class ScoreInstance implements EditorInstance {
   }
 
   getText(): string {
-    return this.edited && this.handle && !this.binary ? this.handle.score.serialize() : this.text;
+    if (!this.edited || !this.handle || this.binary) return this.text;
+    if (this.loaded?.save) return new TextDecoder().decode(this.saveMuseScore());
+    return this.handle.score.serialize();
   }
 
   getBytes(): Uint8Array | undefined {
-    if (this.edited && this.handle && this.binary) return writeMxl(this.handle.score.serialize(), this.bytes ?? undefined);
-    return this.bytes ?? undefined;
+    if (!this.edited || !this.handle || !this.binary) return this.bytes ?? undefined;
+    if (this.loaded?.save) return this.saveMuseScore();
+    return writeMxl(this.handle.score.serialize(), this.bytes ?? undefined);
+  }
+
+  /** The MuseScore file with the edits; says once what it could not carry over. */
+  private saveMuseScore(): Uint8Array {
+    const { bytes, dropped } = this.loaded!.save!();
+    const kinds = Object.keys(dropped).sort().join(", ");
+    if (kinds && kinds !== this.warned) this.host.notifications.warn(t("notify.scoreNotSaved", { marks: kinds }));
+    this.warned = kinds;
+    return bytes;
   }
 
   selection(): unknown {

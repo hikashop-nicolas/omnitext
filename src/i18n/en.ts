@@ -155,6 +155,7 @@ const en: Dict = {
     archiveNotWritable: "Omnitext can read {name} but cannot write it back, so this file cannot be saved into it. Use Download to keep your changes as a separate file.",
     storageFull: "Browser storage is full. Old snapshots were removed, but crash recovery may not keep up; save your work to disk.",
     noMediaInFolder: "There are no audio or video files in that folder.",
+    scoreNotSaved: "Some marks on edited notes are not saved into the MuseScore file yet: {marks}.",
   },
   history: {
     title: "Version history",

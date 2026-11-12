@@ -153,6 +153,7 @@ const fr: Dict = {
     archiveNotWritable: "Omnitext sait lire {name} mais pas le réécrire : ce fichier ne peut donc pas y être enregistré. Utilisez Télécharger pour conserver vos modifications dans un fichier séparé.",
     storageFull: "Le stockage du navigateur est plein. Les anciens instantanés ont été supprimés, mais la récupération après plantage peut être incomplète ; enregistrez votre travail sur disque.",
     noMediaInFolder: "Ce dossier ne contient aucun fichier audio ou vidéo.",
+    scoreNotSaved: "Certains signes des notes modifiées ne sont pas encore enregistrés dans le fichier MuseScore : {marks}.",
   },
   history: {
     title: "Historique des versions",

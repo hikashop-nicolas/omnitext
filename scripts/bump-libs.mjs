@@ -12,7 +12,7 @@ import { execSync } from "node:child_process";
 const OWNER = "hikashop-nicolas";
 /** Libraries this app depends on directly. */
 const LIBS = ["richdoc", "geoedit", "sheetedit", "mediaplay", "subedit", "imageview",
-              "cadview", "walletview"];
+              "cadview", "walletview", "scoredit"];
 /**
  * Libraries reached THROUGH those, which `npm install github:...` on the parent does not move:
  * the lockfile already holds a commit that satisfies the parent's unpinned spec, so npm keeps it.

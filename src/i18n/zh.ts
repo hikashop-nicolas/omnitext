@@ -157,6 +157,7 @@ const zh: Dict = {
     archiveNotWritable: "Omnitext 能读取 {name}，但无法写回，因此这个文件无法保存到其中。请用“下载”把您的修改另存为单独的文件。",
     storageFull: "浏览器存储空间已满。旧的快照已被清除，但崩溃恢复可能跟不上；请把工作保存到磁盘。",
     noMediaInFolder: "该文件夹中没有音频或视频文件。",
+    scoreNotSaved: "已编辑音符上的部分记号尚未保存到 MuseScore 文件：{marks}。",
   },
   history: {
     title: "版本历史",

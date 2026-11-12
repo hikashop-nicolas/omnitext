@@ -153,6 +153,7 @@ const pt: Dict = {
     archiveNotWritable: "O Omnitext consegue ler {name} mas não voltar a escrevê-lo, por isso este ficheiro não pode ser guardado lá dentro. Use Transferir para manter as suas alterações num ficheiro à parte.",
     storageFull: "O armazenamento do navegador está cheio. As capturas antigas foram removidas, mas a recuperação após falha pode não acompanhar; guarde o seu trabalho no disco.",
     noMediaInFolder: "Essa pasta não contém ficheiros de áudio nem de vídeo.",
+    scoreNotSaved: "Alguns sinais das notas editadas ainda não são salvos no arquivo do MuseScore: {marks}.",
   },
   history: {
     title: "Histórico de versões",
