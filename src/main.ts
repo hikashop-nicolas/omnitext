@@ -889,11 +889,15 @@ function scheduleAutosave(): void {
 
 // --- open / save -------------------------------------------------------------
 
-/** A registered binary format matching the filename's extension, else null. */
-function binaryFormatFor(filename: string): FormatDescriptor | null {
+/** A registered binary format matching the filename's extension, else null. With the first
+ *  bytes, a binary format that recognises them wins over another one sharing the extension. */
+function binaryFormatFor(filename: string, head?: Uint8Array): FormatDescriptor | null {
   const dot = filename.lastIndexOf(".");
   if (dot < 0) return null;
-  const d = engine.formats.byExtension(filename.slice(dot))[0];
+  const all = engine.formats.byExtension(filename.slice(dot));
+  const sniffed = head ? all.find((f) => f.manifest.binary && f.sniffBytes?.(head)) : undefined;
+  if (sniffed) return sniffed;
+  const d = all[0];
   return d?.manifest.binary ? d : null;
 }
 
@@ -996,7 +1000,7 @@ async function openBuffer(
     }
   }
   // A registered binary format by extension (image/media/office/pdf) wins.
-  const bin = binaryFormatFor(filename);
+  const bin = binaryFormatFor(filename, new Uint8Array(buffer, 0, Math.min(16, buffer.byteLength)));
   if (bin) {
     await mountDoc({
       bytes: new Uint8Array(buffer),

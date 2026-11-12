@@ -81,12 +81,13 @@ export const abcFormat: FormatDescriptor = {
   load: () => import("./musicxml.impl").then((m) => m.musicxmlImpl),
 };
 
-// Guitar Pro 3 to 5 and 7 (.gpx is left to GPS tracks).
+// Guitar Pro 3 to 7. A .gpx is Guitar Pro 6 only when it starts with its container's mark;
+// otherwise it is a GPS track.
 export const guitarproFormat: FormatDescriptor = {
   manifest: {
     kind: "format",
     id: "guitarpro",
-    extensions: [".gp", ".gp3", ".gp4", ".gp5"],
+    extensions: [".gp", ".gp3", ".gp4", ".gp5", ".gpx"],
     mimeTypes: ["application/x-guitar-pro"],
     binary: true,
     nativeEditor: "score",
@@ -94,6 +95,7 @@ export const guitarproFormat: FormatDescriptor = {
     soleEditor: true,
   },
   detect: () => 0, // binary; routed by extension
+  sniffBytes: (head) => /^BCF[ZS]/.test(String.fromCharCode(...head.subarray(0, 4))),
   load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
 };
 

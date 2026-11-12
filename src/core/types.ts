@@ -137,6 +137,8 @@ export interface FormatDescriptor {
   manifest: FormatManifest;
   /** 0..1 confidence from a lightweight content sniff (no heavy parser import). */
   detect(input: DetectInput): number;
+  /** A binary format sharing its extension with another: whether these first bytes are its own. */
+  sniffBytes?(head: Uint8Array): boolean;
   load(): Promise<FormatModule>;
 }
 
