@@ -113,7 +113,7 @@ import { geojsonFormat } from "./formats/geojson";
 import { kmlFormat } from "./formats/kml";
 import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
-import { mscxFormat, msczFormat, musicxmlFormat, mxlFormat } from "./formats/musicxml";
+import { abcFormat, guitarproFormat, midiFormat, mscxFormat, msczFormat, musicxmlFormat, mxlFormat } from "./formats/musicxml";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
 import { srtFormat } from "./formats/srt";
@@ -297,6 +297,8 @@ const FORMATS: FormatDescriptor[] = [
   propertiesFormat,
 ];
 for (const f of FORMATS) engine.registerFormat(f);
+// Scores scoredit only reads: opened, never created.
+for (const f of [abcFormat, guitarproFormat, midiFormat]) engine.registerFormat(f);
 // The long tail of text formats (highlighting via CodeMirror). Registered for opening
 // existing files; the New dialog stays the curated FORMATS list above.
 for (const f of makeTextFormats()) engine.registerFormat(f);
@@ -910,7 +912,7 @@ function archiveFormatForFile(name: string, mime?: string): string | null {
 // (mediaplay streams it), so it never needs its bytes loaded up front.
 function mediaFormatForFile(name: string, mime?: string): string | null {
   const bin = binaryFormatFor(name);
-  if (bin && bin.manifest.nativeEditor === "media") return bin.manifest.id;
+  if (bin) return bin.manifest.nativeEditor === "media" ? bin.manifest.id : null; // .mid is audio/midi but a score
   const cls = (mime ?? "").split("/")[0];
   if (cls === "video" || cls === "audio") return GENERIC_MEDIA;
   return null;

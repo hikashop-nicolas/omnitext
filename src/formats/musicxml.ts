@@ -63,3 +63,51 @@ export const mscxFormat: FormatDescriptor = {
   },
   load: () => import("./musicxml.impl").then((m) => m.musicxmlImpl),
 };
+
+// Read by scoredit for viewing only: they open in the score viewer and are never rewritten.
+// ABC is text, so the text view can still edit it.
+export const abcFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "abc",
+    extensions: [".abc"],
+    mimeTypes: ["text/vnd.abc"],
+    nativeEditor: "score",
+    defaultEditor: "score",
+  },
+  detect({ sample }) {
+    return /^X:\s*\d/m.test(sample) && /^K:/m.test(sample) ? 0.6 : 0;
+  },
+  load: () => import("./musicxml.impl").then((m) => m.musicxmlImpl),
+};
+
+// Guitar Pro 3 to 5 and 7 (.gpx is left to GPS tracks).
+export const guitarproFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "guitarpro",
+    extensions: [".gp", ".gp3", ".gp4", ".gp5"],
+    mimeTypes: ["application/x-guitar-pro"],
+    binary: true,
+    nativeEditor: "score",
+    defaultEditor: "score",
+    soleEditor: true,
+  },
+  detect: () => 0, // binary; routed by extension
+  load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
+};
+
+export const midiFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "midi",
+    extensions: [".mid", ".midi"],
+    mimeTypes: ["audio/midi"],
+    binary: true,
+    nativeEditor: "score",
+    defaultEditor: "score",
+    soleEditor: true,
+  },
+  detect: () => 0, // binary; routed by extension
+  load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
+};
