@@ -270,13 +270,18 @@ Phase 6 in steps, each shippable on its own, in this order:
 7. **Instruments**: add, remove, change (name, sound, transposition). Last because the
    MuseScore writer would then also write part definitions, not only measures.
 
-**Questions for review.**
-- Is this order right? Dynamics and text first because they are what people miss most
-  after notes; instruments last because they are the costliest to save into .mscz.
-- Time changes: re-bar the following music (MuseScore's way, proposed), or only allow a
-  change where the bars are empty?
-- New scores: saved as MusicXML (.mxl) only, or also as .mscz from a blank MuseScore 4
-  file kept in the repo (made by converting our own MusicXML with MuseScore)?
+**Decided (2026-11-12).**
+- Time changes re-bar the following music up to the next time signature, as MuseScore
+  does (notes cut by a new bar line are tied). Refused, naming the bar, when a repeat bar
+  line, volta or section break would no longer fall on a bar line.
+- New scores are saved as .mscz, built from a blank MuseScore 4 file kept in the repo
+  (made by converting our own MusicXML with MuseScore). Done together with the
+  instruments step (7), since both need the writer to create MuseScore instrument
+  definitions (Part, Staff, Instrument).
+- Done so far: steps 1 (dynamics, hairpins, text, tempo), 2 (transpose), 3 (key and clef;
+  time signatures next), 4 (bars), plus a bar floating over the selected notes (as
+  pdfcraft's selection bar) for what changes them. Saves now reach MuseScore's
+  instrument parts too (Excerpts in 4, nested scores in 3).
 
 ## Spike results (2026-11-10, OSMD 2.3.0)
 
