@@ -279,8 +279,9 @@ export interface ExportTarget {
   mime: string;
   /** Added to the document's name: "-3" for slide 3. */
   suffix?: string;
-  /** The exported file, or null when the person backed out of the editor's own options. */
-  build(): Promise<Uint8Array | string | null>;
+  /** The exported file, or null when the person backed out of the editor's own options. Slow
+   *  exports report how far they are (0 to 1) and the host shows it. */
+  build(progress?: (fraction: number) => void): Promise<Uint8Array | string | null>;
 }
 
 export interface EditorInstance {

@@ -13,6 +13,7 @@ const ru: Dict = {
     export: "Экспортировать как…",
     exportAs: "Экспортировать как {format}",
     exportFailed: "Не удалось экспортировать: {message}",
+    exporting: "Экспорт в {format}: {percent}%",
     back: "Назад к архиву",
     saveStatus: "Состояние сохранения",
     unsavedChanges: "Несохранённые изменения",
@@ -1093,6 +1094,8 @@ const ru: Dict = {
   export: {
     mxl: "Сжатый MusicXML (MXL)",
     guitarPro: "Guitar Pro 7 (.gp)",
+    mp3: "Аудио MP3",
+    wav: "Аудио WAV",
   },
 };
 

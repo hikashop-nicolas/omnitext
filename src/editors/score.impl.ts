@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportWav, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -123,6 +123,9 @@ class ScoreInstance implements EditorInstance {
       },
     });
     if (this.loaded?.format !== "midi") out.push({ label: "MIDI", ext: ".mid", mime: "audio/midi", build: async () => writeMidi(score) });
+    // Audio, with the recorded instruments when the person allows them (asked as for playback).
+    out.push({ label: t("export.mp3"), ext: ".mp3", mime: "audio/mpeg", build: (progress) => exportMp3(score, { sounds, onProgress: progress }) });
+    out.push({ label: t("export.wav"), ext: ".wav", mime: "audio/wav", build: (progress) => exportWav(score, { sounds, onProgress: progress }) });
     return out;
   }
 

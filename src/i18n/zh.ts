@@ -14,6 +14,7 @@ const zh: Dict = {
     export: "导出为…",
     exportAs: "导出为 {format}",
     exportFailed: "导出失败：{message}",
+    exporting: "正在导出 {format}：{percent}%",
     back: "返回压缩包",
     saveStatus: "保存状态",
     unsavedChanges: "有未保存的更改",
@@ -1074,6 +1075,8 @@ const zh: Dict = {
   export: {
     mxl: "压缩的 MusicXML (MXL)",
     guitarPro: "Guitar Pro 7 (.gp)",
+    mp3: "MP3 音频",
+    wav: "WAV 音频",
   },
 };
 

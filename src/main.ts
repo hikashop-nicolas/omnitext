@@ -2170,8 +2170,18 @@ const exportEntry = (target: ExportTarget): PaletteEntry => ({ label: t("app.exp
 
 /** Writes the document in another format, as a new file beside it; the open one stays as it is. */
 async function exportAs(target: ExportTarget): Promise<void> {
+  let pill: HTMLElement | null = null;
+  const progress = (f: number) => {
+    if (!pill) {
+      pill = document.createElement("div");
+      pill.className = "ot-export-progress";
+      pill.setAttribute("role", "status");
+      document.body.append(pill);
+    }
+    pill.textContent = t("app.exporting", { format: target.label, percent: String(Math.round(f * 100)) });
+  };
   try {
-    const out = await target.build();
+    const out = await target.build(progress);
     if (out === null) return;
     const bytes = typeof out === "string" ? new TextEncoder().encode(out) : out;
     const base = (session?.filename ?? t("app.untitled")).replace(/\.[^./]*$/, "");
@@ -2179,6 +2189,8 @@ async function exportAs(target: ExportTarget): Promise<void> {
   } catch (e) {
     console.error("export failed", e);
     engine.notificationSink.error(t("app.exportFailed", { message: e instanceof Error ? e.message : String(e) }));
+  } finally {
+    (pill as HTMLElement | null)?.remove();
   }
 }
 

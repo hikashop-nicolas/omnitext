@@ -10,6 +10,7 @@ const de: Dict = {
     export: "Exportieren als…",
     exportAs: "Als {format} exportieren",
     exportFailed: "Der Export ist fehlgeschlagen: {message}",
+    exporting: "Export als {format}: {percent} %",
     back: "Zurück zum Archiv",
     saveStatus: "Speicherstatus",
     unsavedChanges: "Nicht gespeicherte Änderungen",
@@ -1070,6 +1071,8 @@ const de: Dict = {
   export: {
     mxl: "Komprimiertes MusicXML (MXL)",
     guitarPro: "Guitar Pro 7 (.gp)",
+    mp3: "MP3-Audio",
+    wav: "WAV-Audio",
   },
 };
 

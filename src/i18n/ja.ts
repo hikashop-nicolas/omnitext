@@ -10,6 +10,7 @@ const ja: Dict = {
     export: "形式を変えて書き出す…",
     exportAs: "{format} として書き出す",
     exportFailed: "書き出せませんでした: {message}",
+    exporting: "{format} を書き出し中: {percent}%",
     back: "アーカイブに戻る",
     saveStatus: "保存状態",
     unsavedChanges: "未保存の変更",
@@ -1072,6 +1073,8 @@ const ja: Dict = {
   export: {
     mxl: "圧縮 MusicXML (MXL)",
     guitarPro: "Guitar Pro 7 (.gp)",
+    mp3: "MP3 音声",
+    wav: "WAV 音声",
   },
 };
 

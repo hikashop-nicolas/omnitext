@@ -564,6 +564,23 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .toast.error { border-color: #e0484f; }
 .toast.warn { border-color: var(--amber); }
 
+/* A slow export (audio) says how far it is, where the toasts appear. */
+.ot-export-progress {
+  position: fixed;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  z-index: 2050;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
