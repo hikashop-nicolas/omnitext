@@ -67,7 +67,7 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
 
 1. **MuseScore write-back (phase 5), shipped 2026-11-12, manual check pending.** Only the
    edited measures are written again; Omnitext edits and saves .mscz/.mscx. `npm run
-   test:save` in scoredit: 41 of 46 writable corpus files come back exactly, in our reading
+   test:save` in scoredit: 41 of 49 writable corpus files come back exactly, in our reading
    and in MuseScore's. Left: the big string quartets (sq10328092: one slur and 49 extra
    marks in MuseScore's reading; sq10527526 still runs out of memory in the test runner);
    MuseScore 2 files and linked tuplets (still read-only); bends for MuseScore 4.2+
