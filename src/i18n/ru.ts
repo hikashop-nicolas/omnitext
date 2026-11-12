@@ -160,6 +160,7 @@ const ru: Dict = {
     storageFull: "Хранилище браузера заполнено. Старые снимки удалены, но восстановление после сбоя может не успевать; сохраните работу на диск.",
     noMediaInFolder: "В этой папке нет аудио- и видеофайлов.",
     scoreNotSaved: "Некоторые знаки изменённых нот пока не сохраняются в файл MuseScore: {marks}.",
+    scoreMarksDropped: "Некоторые знаки не удалось записать в файл {format}: {marks}.",
   },
   history: {
     title: "История версий",
@@ -1091,6 +1092,7 @@ const ru: Dict = {
   },
   export: {
     mxl: "Сжатый MusicXML (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 

@@ -159,6 +159,7 @@ const en: Dict = {
     storageFull: "Browser storage is full. Old snapshots were removed, but crash recovery may not keep up; save your work to disk.",
     noMediaInFolder: "There are no audio or video files in that folder.",
     scoreNotSaved: "Some marks on edited notes are not saved into the MuseScore file yet: {marks}.",
+    scoreMarksDropped: "Some marks could not be written into the {format} file: {marks}.",
   },
   history: {
     title: "Version history",
@@ -1070,6 +1071,7 @@ const en: Dict = {
   },
   export: {
     mxl: "Compressed MusicXML (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 

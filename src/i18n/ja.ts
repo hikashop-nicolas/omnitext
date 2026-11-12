@@ -159,6 +159,7 @@ const ja: Dict = {
     storageFull: "ブラウザーのストレージが満杯です。古いスナップショットを削除しましたが、クラッシュ復元が追いつかない可能性があります。作業をディスクに保存してください。",
     noMediaInFolder: "そのフォルダには音声や動画のファイルがありません。",
     scoreNotSaved: "編集した音符の一部の記号は、まだ MuseScore ファイルに保存されません：{marks}。",
+    scoreMarksDropped: "一部の記号は {format} ファイルに書き込めませんでした：{marks}。",
   },
   history: {
     title: "バージョン履歴",
@@ -1070,6 +1071,7 @@ const ja: Dict = {
   },
   export: {
     mxl: "圧縮 MusicXML (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 

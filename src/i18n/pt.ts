@@ -157,6 +157,7 @@ const pt: Dict = {
     storageFull: "O armazenamento do navegador está cheio. As capturas antigas foram removidas, mas a recuperação após falha pode não acompanhar; guarde o seu trabalho no disco.",
     noMediaInFolder: "Essa pasta não contém ficheiros de áudio nem de vídeo.",
     scoreNotSaved: "Alguns sinais das notas editadas ainda não são salvos no arquivo do MuseScore: {marks}.",
+    scoreMarksDropped: "Alguns sinais não puderam ser gravados no arquivo do {format}: {marks}.",
   },
   history: {
     title: "Histórico de versões",
@@ -1068,6 +1069,7 @@ const pt: Dict = {
   },
   export: {
     mxl: "MusicXML comprimido (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 

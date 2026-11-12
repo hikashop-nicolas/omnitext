@@ -157,6 +157,7 @@ const fr: Dict = {
     storageFull: "Le stockage du navigateur est plein. Les anciens instantanés ont été supprimés, mais la récupération après plantage peut être incomplète ; enregistrez votre travail sur disque.",
     noMediaInFolder: "Ce dossier ne contient aucun fichier audio ou vidéo.",
     scoreNotSaved: "Certains signes des notes modifiées ne sont pas encore enregistrés dans le fichier MuseScore : {marks}.",
+    scoreMarksDropped: "Certains signes n'ont pas pu être écrits dans le fichier {format} : {marks}.",
   },
   history: {
     title: "Historique des versions",
@@ -1071,6 +1072,7 @@ const fr: Dict = {
   },
   export: {
     mxl: "MusicXML compressé (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 

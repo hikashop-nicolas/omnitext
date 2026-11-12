@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -8,6 +8,8 @@ const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, ca
 import { isNative } from "../core/platform";
 import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
+
+const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
 
 // The parts of the user's instrument (Settings), when the score has several and some match.
 function myParts(score: ScoreDoc): number[] | null {
@@ -63,7 +65,8 @@ class ScoreInstance implements EditorInstance {
           : undefined,
         sounds,
         parts: { show: myParts(loaded.score) },
-        editable: loaded.format === "musicxml" || loaded.format === "mxl" || !!loaded.save,
+        // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
+        editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
         onChange: () => {
           this.edited = true;
           ctx.onChange();
@@ -90,11 +93,12 @@ class ScoreInstance implements EditorInstance {
     return writeMxl(this.handle.score.serialize(), this.bytes ?? undefined);
   }
 
-  /** The MuseScore file with the edits; says once what it could not carry over. */
+  /** The MuseScore or Guitar Pro file with the edits; says once what it could not carry over. */
   private saveMuseScore(): Uint8Array {
     const { bytes, dropped } = this.loaded!.save!();
     const kinds = Object.keys(dropped).sort().join(", ");
-    if (kinds && kinds !== this.warned) this.host.notifications.warn(t("notify.scoreNotSaved", { marks: kinds }));
+    const key = this.loaded?.format === "guitarpro" ? "notify.scoreMarksDropped" : "notify.scoreNotSaved";
+    if (kinds && kinds !== this.warned) this.host.notifications.warn(t(key, { format: "Guitar Pro", marks: kinds }));
     this.warned = kinds;
     return bytes;
   }
@@ -106,6 +110,19 @@ class ScoreInstance implements EditorInstance {
     const out: ExportTarget[] = [];
     if (this.loaded?.format !== "musicxml") out.push({ label: "MusicXML", ext: ".musicxml", mime: "application/vnd.recordare.musicxml+xml", build: async () => xml() });
     if (this.loaded?.format !== "mxl") out.push({ label: t("export.mxl"), ext: ".mxl", mime: "application/vnd.recordare.musicxml", build: async () => writeMxl(xml()) });
+    const score = this.handle.score;
+    out.push({
+      label: t("export.guitarPro"),
+      ext: ".gp",
+      mime: "application/x-guitar-pro",
+      build: async () => {
+        const { bytes, dropped } = writeGuitarPro(score);
+        const kinds = Object.keys(dropped).sort().join(", ");
+        if (kinds) this.host.notifications.warn(t("notify.scoreMarksDropped", { format: "Guitar Pro", marks: kinds }));
+        return bytes;
+      },
+    });
+    if (this.loaded?.format !== "midi") out.push({ label: "MIDI", ext: ".mid", mime: "audio/midi", build: async () => writeMidi(score) });
     return out;
   }
 

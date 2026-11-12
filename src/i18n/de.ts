@@ -157,6 +157,7 @@ const de: Dict = {
     storageFull: "Der Browserspeicher ist voll. Alte Momentaufnahmen wurden entfernt, aber die Absturzwiederherstellung kommt möglicherweise nicht mit; speichern Sie Ihre Arbeit auf der Festplatte.",
     noMediaInFolder: "In diesem Ordner gibt es keine Audio- oder Videodateien.",
     scoreNotSaved: "Einige Zeichen an bearbeiteten Noten werden noch nicht in die MuseScore-Datei gespeichert: {marks}.",
+    scoreMarksDropped: "Einige Zeichen konnten nicht in die {format}-Datei geschrieben werden: {marks}.",
   },
   history: {
     title: "Versionsverlauf",
@@ -1068,6 +1069,7 @@ const de: Dict = {
   },
   export: {
     mxl: "Komprimiertes MusicXML (MXL)",
+    guitarPro: "Guitar Pro 7 (.gp)",
   },
 };
 
