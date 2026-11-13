@@ -99,9 +99,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    - Harmonics.gp3: GP3 stores only a flag, we play the octave; MuseScore drops GP3
      harmonics, so it stays a known difference.
    - A G clef on line 1 is a correct French clef (measured against plain OSMD).
-   Still open:
-   - .mscx reader drops fermata timeStretch, section-break and breath pauses (MuseScore
-     values), so those use defaults (in progress 2026-11-13).
+   - MuseScore pause values (scoredit 68094d0): fermata timeStretch, section-break and
+     breath pauses and the six fermata shapes now play; export within 50 ms of MuseScore
+     went from 56% to 81% of notes. Internal scoredit-stretch/scoredit-pause attributes,
+     stripped from exported MusicXML, written back to MuseScore files.
+   - sq_sq10328092 still drifts: MuseScore plays a repeat after a section pause at the next
+     section's tempo; we keep the section's own (musically right, not copied).
+   Still open: a fermata on the barline after a voice's last chord does not play; one guitar
+   riff book lines up poorly with MuseScore (not investigated).
 4. **Audio export (MP3, WAV), done 2026-11-13** (scoredit f2b9d8a, Omnitext ad813f2).
    `exportMp3`/`exportWav`: recorded instruments rendered straight through spessasynth
    (velocities mapped to 64+v/2, chosen by ear: "fast-bright"), the rest through the
