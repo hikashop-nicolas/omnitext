@@ -85,26 +85,33 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    (sniffed apart from GPS tracks), all 250 corpus files open, 215 match MuseScore exactly;
    GP7 files edit and save, and Export as writes Guitar Pro 7 (331 corpus round trips,
    MuseScore imports every written file) and MIDI (96.5% of MuseScore's notes). MIDI import
-   rewritten (99.94% onsets on round trip). Left, known:
-   - ABC: middle=, stafflines=, regrouping by a later %%score, s: lines, P: play order.
-   - Guitar Pro: artificial harmonics saved at fret 12 (the reader drops the harmonic
-     fret); harmonics play at the fretted pitch; guitarpro-parser picks wrong drum sounds
-     for some GP6 kits and GP3-5 drum keys; chromatic transposition written at concert
-     pitch; MuseScore ignores our Anacrusis flag.
-   - MIDI: a fifth independent line overwrites voice 1; no tuplets over several beats;
-     export has no fermata or section pauses.
-   - Render: at narrow widths OSMD wraps an over-wide first system (Speed the Plough, 700px).
-4. **Audio export (MP3, WAV), planned 2026-11-12.** Encoder: rusty_mp3 (Apache-2.0, pure
-   Rust, Remade-With-Rust/remade_ffmpeg_rs) built to wasm32: 140 KB (58 KB gz), 38x real
-   time in Chrome, gapless and sample-exact, by ear same as LAME at 192 kbps on Für Elise.
-   SIMD build gains only 13%, not worth it. Render: drive spessasynth straight through the
-   piece (4 s for Für Elise) instead of an OfflineAudioContext with per-note buffers (2 s
-   prepare + 26 s render). Soft velocities sound muffled with SF banks: map them into
-   80-127 (or render at 100 like playback; user to choose). Built-in synth fallback for
-   instruments without a downloaded bank (5 s). Render and encode in a worker, encoding
-   chunks as they come, with a progress bar. Pedal: export applies it, playback does not
-   for sampled instruments yet (fix playback to match). Lab page: scoredit demo/mp3lab/
-   (untracked).
+   rewritten (99.94% onsets on round trip). Leftovers closed 2026-11-13 (scoredit, see
+   below): ABC middle=, stafflines=, later %%score, s: lines, P: play order, %%MIDI
+   program/channel/drummap and %%percmap (drums play and sit on a one-line staff); GP
+   harmonic fret and sounding pitch, GP3-6 drum keys, GP7 transposition (218/249 exact);
+   MIDI import keeps a fifth line and reads tuplets over 2 or 4 beats; fermatas, caesuras
+   and section ends pause in playback and MIDI export; a system OSMD wraps is cut where it
+   wraps. Then (scoredit e4d0510): GP4/GP5 artificial harmonics sound where the file says
+   (guitarpro-parser swaps GP4's +5/+7 and drops GP5's accidental); a short last system is
+   evened out with the one before. Settled, nothing to do:
+   - GP7 pickup: our reader reads it back as a pickup (tested); MuseScore ignores
+     `<Anacrusis />` in any form and no real file has one.
+   - Harmonics.gp3: GP3 stores only a flag, we play the octave; MuseScore drops GP3
+     harmonics, so it stays a known difference.
+   - A G clef on line 1 is a correct French clef (measured against plain OSMD).
+   Still open:
+   - .mscx reader drops fermata timeStretch, section-break and breath pauses (MuseScore
+     values), so those use defaults (in progress 2026-11-13).
+4. **Audio export (MP3, WAV), done 2026-11-13** (scoredit f2b9d8a, Omnitext ad813f2).
+   `exportMp3`/`exportWav`: recorded instruments rendered straight through spessasynth
+   (velocities mapped to 64+v/2, chosen by ear: "fast-bright"), the rest through the
+   built-in synth in an OfflineAudioContext; rusty_mp3 (Apache-2.0) built to wasm from
+   scoredit wasm/mp3 by scripts/build-mp3-wasm.sh, 140 KB, inlined as base64 and loaded on
+   first use, gapless Info frame. Für Elise: about 9 s in Chrome (was 32 s through per-note
+   buffers). Runs on the main thread in 30 ms slices with progress; Omnitext shows a
+   percentage pill. Playback now holds recorded and plucked notes under the pedal. Not
+   done: a worker (spessasynth in a worker needs bundling work), overlapping render and
+   encode, MP3 bitrate choice in the UI.
 5. **Release** once 1-4 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
