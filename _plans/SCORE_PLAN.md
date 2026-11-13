@@ -156,6 +156,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
      no handwriting); homr, Audiveris, OpenOMR are (A)GPL; LEGATO full is gated on Llama
      3.2, legato-small (MIT) is a baseline; SMT licence unknown. Recommendation: build the
      vector reader first, revisit scans later.
+   - Round 2 (downloads allowed, 2026-11-13): LilyPond PDFs (Emmentaler) renumber glyph
+     codes but keep glyph names in the embedded CFF; Sibelius 7 (OpusStd) uses the legacy
+     Sonata-compatible layout (shared with Finale's Maestro): three mappings cover the
+     engravers seen. Scans, Für Elise p.1 made scan-like: oemer (MIT, 235 MB checkpoints,
+     about 5 min CPU per page) got 86.5% of right-hand and 77.5% of left-hand pitches right
+     (67.6% / 55.1% with note values); SMT (MIT, 21M params, needs commit e2c1133 to load
+     its weights, about 17 s per grand-staff system) mostly right melody, wrong meter, weak
+     bass; full-page SMT++ weights gated (Hugging Face account). Both give drafts only.
 7. **Release** once 1-5 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
