@@ -196,6 +196,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    (235 MB), Python post-processing. Options to weigh when we get there: run its ONNX models
    in the browser with onnxruntime-web (WebGPU) and port the post-processing to TypeScript,
    or a helper the user runs locally. A scan gives a draft to correct.
+   Port done 2026-11-13 (scoredit 7697764): `readScanScore` in src/formats/scan/, oemer's
+   pipeline in TypeScript on onnxruntime-web (lazy), notes identical to Python oemer given
+   the same network output; pitch 63 to 100% on 7 scan-like pages, rhythm lower (a draft).
+   Speed: about 2 min a page with WebGPU on this laptop, 31 min single-thread wasm.
+   Licence: oemer's staff network (unet_big, 71 MB) was trained on CVC-MUSCIMA, CC BY-NC-SA
+   "non-commercial research only": not shippable. Decided (user, 2026-11-13): replace it
+   with classic staff-line detection (no ML), keep seg_net and the SVM classifiers
+   (DeepScoresV2, CC BY 4.0, attribution). In progress.
 9. **Release** once 1-7 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
