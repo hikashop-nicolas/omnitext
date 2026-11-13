@@ -162,6 +162,7 @@ const ru: Dict = {
     noMediaInFolder: "В этой папке нет аудио- и видеофайлов.",
     scoreNotSaved: "Некоторые знаки изменённых нот пока не сохраняются в файл MuseScore: {marks}.",
     scoreMarksDropped: "Некоторые знаки не удалось записать в файл {format}: {marks}.",
+    scorePdfFallback: "Этот PDF похож на партитуру, но прочитать его как партитуру не удалось, поэтому он откроется как PDF.",
   },
   history: {
     title: "История версий",

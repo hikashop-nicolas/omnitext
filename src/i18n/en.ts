@@ -161,6 +161,7 @@ const en: Dict = {
     noMediaInFolder: "There are no audio or video files in that folder.",
     scoreNotSaved: "Some marks on edited notes are not saved into the MuseScore file yet: {marks}.",
     scoreMarksDropped: "Some marks could not be written into the {format} file: {marks}.",
+    scorePdfFallback: "This PDF looks like a score but could not be read as one, so it opens as a PDF.",
   },
   history: {
     title: "Version history",

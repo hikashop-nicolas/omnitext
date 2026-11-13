@@ -161,6 +161,7 @@ const ja: Dict = {
     noMediaInFolder: "そのフォルダには音声や動画のファイルがありません。",
     scoreNotSaved: "編集した音符の一部の記号は、まだ MuseScore ファイルに保存されません：{marks}。",
     scoreMarksDropped: "一部の記号は {format} ファイルに書き込めませんでした：{marks}。",
+    scorePdfFallback: "この PDF は楽譜のようですが、楽譜として読み込めなかったため PDF として開きます。",
   },
   history: {
     title: "バージョン履歴",

@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, isNotationMidi, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -33,6 +33,8 @@ class ScoreInstance implements EditorInstance {
   private binary = false;
   private loaded: LoadedScore | null = null;
   private warned = "";
+  /** Read from a PDF: shown and exported, never saved back. */
+  private fromPdf = false;
   private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
 
@@ -45,6 +47,7 @@ class ScoreInstance implements EditorInstance {
     this.bytes = ctx.bytes;
     this.binary = !!ctx.binary;
     const input = ctx.binary ? (ctx.bytes ?? new Uint8Array(0)) : new TextEncoder().encode(ctx.text);
+    const fromPdf = (this.fromPdf = /\.pdf$/i.test(ctx.filename ?? ""));
     // The file as it stands, edits included, for reading it again (the TAB toggle).
     const current = () => (!this.edited || !this.handle ? input : this.loaded?.save ? this.loaded.save().bytes : new TextEncoder().encode(this.handle.score.serialize()));
     try {
@@ -68,7 +71,10 @@ class ScoreInstance implements EditorInstance {
         sounds,
         parts: { show: myParts(loaded.score) },
         // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
-        editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
+        // A score read from a PDF is shown, not edited: it cannot be saved back into the PDF.
+        editable: !fromPdf && (loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input)))),
+        // A played-in MIDI file reads better as falling notes than as notation.
+        layout: loaded.format === "midi" && !isNotationMidi(input) ? "keys" : undefined,
         onChange: () => {
           this.edited = true;
           ctx.onChange();
@@ -110,7 +116,7 @@ class ScoreInstance implements EditorInstance {
     if (!this.handle) return [];
     const xml = () => this.handle!.score.serialize();
     const out: ExportTarget[] = [];
-    if (this.loaded?.format !== "musicxml") out.push({ label: "MusicXML", ext: ".musicxml", mime: "application/vnd.recordare.musicxml+xml", build: async () => xml() });
+    if (this.loaded?.format !== "musicxml" || this.fromPdf) out.push({ label: "MusicXML", ext: ".musicxml", mime: "application/vnd.recordare.musicxml+xml", build: async () => xml() });
     if (this.loaded?.format !== "mxl") out.push({ label: t("export.mxl"), ext: ".mxl", mime: "application/vnd.recordare.musicxml", build: async () => writeMxl(xml()) });
     const score = this.handle.score;
     out.push({

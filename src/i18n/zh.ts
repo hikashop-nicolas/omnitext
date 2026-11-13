@@ -163,6 +163,7 @@ const zh: Dict = {
     noMediaInFolder: "该文件夹中没有音频或视频文件。",
     scoreNotSaved: "已编辑音符上的部分记号尚未保存到 MuseScore 文件：{marks}。",
     scoreMarksDropped: "部分记号无法写入 {format} 文件：{marks}。",
+    scorePdfFallback: "此 PDF 看起来是乐谱，但无法按乐谱读取，因此以 PDF 打开。",
   },
   history: {
     title: "版本历史",

@@ -159,6 +159,7 @@ const de: Dict = {
     noMediaInFolder: "In diesem Ordner gibt es keine Audio- oder Videodateien.",
     scoreNotSaved: "Einige Zeichen an bearbeiteten Noten werden noch nicht in die MuseScore-Datei gespeichert: {marks}.",
     scoreMarksDropped: "Einige Zeichen konnten nicht in die {format}-Datei geschrieben werden: {marks}.",
+    scorePdfFallback: "Dieses PDF sieht wie eine Partitur aus, ließ sich aber nicht als solche lesen. Es wird als PDF geöffnet.",
   },
   history: {
     title: "Versionsverlauf",

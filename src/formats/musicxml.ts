@@ -99,6 +99,23 @@ export const guitarproFormat: FormatDescriptor = {
   load: () => import("./musicxml.impl").then((m) => m.mxlImpl),
 };
 
+// A score PDF made by notation software, read into MusicXML before it opens: reached by content
+// (see main.ts openBuffer), never by extension, and only ever shown in the score editor.
+export const scorePdfFormat: FormatDescriptor = {
+  manifest: {
+    kind: "format",
+    id: "score-pdf",
+    extensions: [],
+    mimeTypes: ["application/pdf"],
+    nativeEditor: "score",
+    defaultEditor: "score",
+    soleEditor: true,
+    readOnly: true,
+  },
+  detect: () => 0,
+  load: () => import("./musicxml.impl").then((m) => m.musicxmlImpl),
+};
+
 export const midiFormat: FormatDescriptor = {
   manifest: {
     kind: "format",

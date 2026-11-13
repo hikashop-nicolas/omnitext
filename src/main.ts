@@ -113,7 +113,7 @@ import { geojsonFormat } from "./formats/geojson";
 import { kmlFormat } from "./formats/kml";
 import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
-import { abcFormat, guitarproFormat, midiFormat, mscxFormat, msczFormat, musicxmlFormat, mxlFormat } from "./formats/musicxml";
+import { abcFormat, guitarproFormat, midiFormat, mscxFormat, msczFormat, musicxmlFormat, mxlFormat, scorePdfFormat } from "./formats/musicxml";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
 import { srtFormat } from "./formats/srt";
@@ -298,7 +298,7 @@ const FORMATS: FormatDescriptor[] = [
 ];
 for (const f of FORMATS) engine.registerFormat(f);
 // Scores scoredit only reads: opened, never created.
-for (const f of [abcFormat, guitarproFormat, midiFormat]) engine.registerFormat(f);
+for (const f of [abcFormat, guitarproFormat, midiFormat, scorePdfFormat]) engine.registerFormat(f);
 // The long tail of text formats (highlighting via CodeMirror). Registered for opening
 // existing files; the New dialog stays the curated FORMATS list above.
 for (const f of makeTextFormats()) engine.registerFormat(f);
@@ -738,7 +738,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     dirty: false,
     binary,
     mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0] ?? null,
-    readOnly: !!chosen.editor.manifest.readOnly,
+    readOnly: !!chosen.editor.manifest.readOnly || !!descriptor?.manifest.readOnly,
     unprintable: !!chosen.editor.manifest.unprintable,
     gzipName: opts.gzipName ?? (opts.isSwitch ? (session?.gzipName ?? null) : null),
     srcBytes: opts.srcBytes ?? (opts.isSwitch ? (session?.srcBytes ?? null) : null),
@@ -949,6 +949,26 @@ async function openLocalFile(file: File, scheme: string, handle: FsHandle | null
 // The most recent open, to coalesce duplicate open triggers (see openBuffer).
 let lastOpen = { name: "", size: 0, at: 0 };
 
+/** Opens a score PDF in the score editor; false (with a notice when reading failed) otherwise. */
+async function openScorePdf(buffer: ArrayBuffer, filename: string, scheme: string, mime?: string): Promise<boolean> {
+  const bytes = new Uint8Array(buffer);
+  if (String.fromCharCode(...bytes.subarray(0, 5)) !== "%PDF-") return false;
+  const scoredit = await import("scoredit").catch(() => null);
+  if (!scoredit?.isScorePdf(bytes)) return false;
+  beginLoading(filename);
+  let xml: string;
+  try {
+    xml = new XMLSerializer().serializeToString(await scoredit.readPdfScore(bytes));
+  } catch (e) {
+    console.error("score PDF not read", e);
+    endLoading();
+    engine.notificationSink.warn(t("notify.scorePdfFallback"));
+    return false;
+  }
+  await mountDoc({ text: xml, formatId: "score-pdf", filename, encoding: { label: "UTF-8", bom: false }, uri: `${scheme}://${filename}`, fileHandle: null, mime });
+  return true;
+}
+
 async function openBuffer(
   buffer: ArrayBuffer,
   filename: string,
@@ -999,6 +1019,8 @@ async function openBuffer(
       console.error("gunzip failed", e);
     }
   }
+  // A PDF engraved by notation software opens as the score it is (read-only), not as a PDF.
+  if (lower.endsWith(".pdf") && (await openScorePdf(buffer, filename, scheme, mime))) return;
   // A registered binary format by extension (image/media/office/pdf) wins.
   const bin = binaryFormatFor(filename, new Uint8Array(buffer, 0, Math.min(16, buffer.byteLength)));
   if (bin) {
