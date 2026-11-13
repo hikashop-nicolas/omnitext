@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, exportMp3, exportWav, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -10,6 +10,8 @@ import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, Ho
 import { ReadingFullscreen } from "./reading-fullscreen";
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
+// US Letter where it is the norm, A4 elsewhere.
+const paper = (): "a4" | "letter" => (/-(US|CA|MX|PH)\b/i.test(navigator.language) ? "letter" : "a4");
 
 // The parts of the user's instrument (Settings), when the score has several and some match.
 function myParts(score: ScoreDoc): number[] | null {
@@ -123,10 +125,17 @@ class ScoreInstance implements EditorInstance {
       },
     });
     if (this.loaded?.format !== "midi") out.push({ label: "MIDI", ext: ".mid", mime: "audio/midi", build: async () => writeMidi(score) });
+    out.push({ label: "PDF", ext: ".pdf", mime: "application/pdf", build: (progress) => exportPdf(score, { paper: paper(), onProgress: progress }) });
     // Audio, with the recorded instruments when the person allows them (asked as for playback).
     out.push({ label: t("export.mp3"), ext: ".mp3", mime: "audio/mpeg", build: (progress) => exportMp3(score, { sounds, onProgress: progress }) });
     out.push({ label: t("export.wav"), ext: ".wav", mime: "audio/wav", build: (progress) => exportWav(score, { sounds, onProgress: progress }) });
     return out;
+  }
+
+  /** Printed from the paged PDF: the page view only keeps the systems near the screen drawn. */
+  async printableFile(): Promise<{ bytes: Uint8Array; mime: string } | null> {
+    if (!this.handle) return null;
+    return { bytes: await exportPdf(this.handle.score, { paper: paper() }), mime: "application/pdf" };
   }
 
   selection(): unknown {
