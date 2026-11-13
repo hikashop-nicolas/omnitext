@@ -145,6 +145,17 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
      a draft to correct, not a faithful copy.
    - Spike output: findings with evidence, a recommendation, and effort, for the user to
      decide.
+   - Spike done 2026-11-13. Vector PDFs: MuseScore 4 PDFs keep SMuFL code points as text
+     (329 U+E0A4 noteheads on Für Elise p.1, clefs, rests, accidentals, flags, dots);
+     staff lines, stems, barlines are stroked paths (merge per-measure pieces). An 80-line
+     pdf.js prototype finds staves and reads pitches (opening E5 D5 E5 D5 E5 B4 D5 C5 A4,
+     bass A2 E3 A3 correct); misses ledger lines vs staff lines, accidentals, durations.
+     Estimate 2-3 weeks to a useful MuseScore-PDF reader; other engravers untested (need a
+     download: LilyPond via Homebrew, Mutopia/IMSLP samples). Scans: only oemer is
+     permissive (code MIT, checkpoint licence to confirm, ONNX, 3-5 min/page with a GPU,
+     no handwriting); homr, Audiveris, OpenOMR are (A)GPL; LEGATO full is gated on Llama
+     3.2, legato-small (MIT) is a baseline; SMT licence unknown. Recommendation: build the
+     vector reader first, revisit scans later.
 7. **Release** once 1-5 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
