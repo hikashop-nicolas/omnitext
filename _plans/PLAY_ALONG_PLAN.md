@@ -1,0 +1,106 @@
+# Playing along: MIDI instruments and practice modes in scoredit
+
+Draft 2026-11-13, for review. Research notes first, then the proposal.
+
+## Research
+
+### Connecting an instrument
+
+- **Web MIDI** (`navigator.requestMIDIAccess`): Chrome and Edge on desktop, Chrome on Android,
+  Firefox (recent, behind a site permission). Not Safari, not iOS. Since Chrome 124 every
+  use asks for permission (not only SysEx), and it needs a secure context. MDN's table lists
+  Android WebView since 43, but nothing confirms Capacitor's WebView grants it in practice:
+  to test on the phone first.
+- **Android native MIDI** (`android.media.midi`, API 23+): USB and Bluetooth LE MIDI devices
+  through the system's MidiManager. A small Capacitor plugin of our own would be the
+  dependable path in the app if the WebView does not expose Web MIDI (keyboards over USB-C
+  OTG and BLE MIDI are the two common cases).
+- **Output**: the same APIs send notes, so playback can drive a digital piano or a synth
+  instead of (or with) the built-in sounds.
+- **Acoustic instruments, no MIDI**: the microphone. Monophonic pitch (voice, winds,
+  strings) is reliable and cheap in real time with YIN/McLeod-style detectors (permissive
+  JS implementations exist, e.g. pitchy, MIT). Polyphonic (piano, guitar) needs a model:
+  Spotify's Basic Pitch (Apache-2.0, about 17k parameters, ONNX and TypeScript ports) is
+  small but built for files, its real-time latency in a browser is unmeasured. Practice
+  apps that use the microphone (flowkey, Simply Piano, Yousician) are reported as less
+  reliable than MIDI for "did you play it".
+
+### How practice apps behave (Synthesia, flowkey, Symphonium, MuseScore users' requests)
+
+- **Wait mode**: playback stops at each next note or chord until the right keys are down
+  (Synthesia's Melody Practice, flowkey, Symphonium). The most asked-for feature on
+  MuseScore's forum for learning with a keyboard.
+- **Play along in time**: the music runs at the chosen speed; each note is marked hit, early,
+  late, wrong or missed; a score (percentage) at the end.
+- Hands separately (the other hand played by the app), loop a passage, slow tempo, count-in,
+  metronome: practice basics.
+- Falling notes plus keyboard is the usual picture for MIDI (Synthesia), a scrolling score
+  for reading practice (flowkey).
+
+### What scoredit already has
+
+Falling-notes layout with keyboard ("keys"), page and line views with a playback cursor, a
+speed control, parts shown/hidden and "my parts" from the instrument in Settings, recorded
+instrument sounds, a timeline of every note (onset, length, pitch, part, staff, measure).
+
+## Proposal
+
+### 1. Input (scoredit, host-agnostic)
+
+scoredit takes a `MidiInput` from the host: `{ onNote(cb: (pitch, velocity, on, time) => void) }`
+plus an optional `MidiOutput { send(bytes, time) }`. Omnitext supplies it from Web MIDI, or
+from a Capacitor plugin on Android if Web MIDI is not there. scoredit never asks for device
+access itself (as with sounds: the host decides). A device picker and the permission prompt
+live in Omnitext.
+
+### 2. Practice modes (scoredit)
+
+- **Wait**: the cursor (page/line) or the falling notes stop before the next onset of the
+  practised part(s) until every pitch of that onset is held (any order, within one onset;
+  extra keys ignored or flagged, to decide). Other parts wait too (accompaniment
+  continues only in "in time" mode).
+- **In time**: playback runs; each expected note is matched to an incoming note of the same
+  pitch within a window (e.g. 120 ms at speed 1, scaled with the speed); hits green, early or
+  late amber, wrong red, missed grey; a summary at the end (accuracy, timing spread).
+- **Practised part**: the part(s) chosen with "my parts", or a staff (right hand / left
+  hand) for piano; the rest is played by the app (or muted, a toggle).
+- **Loop**: select measures (the selection the editor already has) and repeat them, with an
+  optional slow-down that speeds up after clean passes.
+- **Count-in and metronome**: one bar of clicks before, clicks on beats during (optional).
+- Keyboard highlight: expected keys outlined, pressed keys filled (green right, red wrong).
+
+### 3. Timing
+
+Compare in the audio clock: incoming MIDI timestamps (Web MIDI gives DOMHighResTimeStamp)
+mapped to AudioContext time, minus the output latency (AudioContext.outputLatency, plus a
+user calibration step: tap along with clicks, stored in Settings).
+
+### 4. MIDI output and step entry (smaller, later)
+
+- Send playback to the connected instrument (choice: built-in sound, instrument, both).
+- In edit mode, a MIDI keyboard enters pitches (MuseScore-style note input: the selected
+  duration, the pitch from the key, chords from keys held together).
+
+### 5. Microphone (later, separate step)
+
+- Monophonic first: a pitch detector on the microphone feeds the same matcher (wait and in
+  time) for voice and melody instruments.
+- Polyphonic later, if a model proves fast enough on phones (measure Basic Pitch in a
+  worklet/worker with onnxruntime-web first).
+
+## Steps
+
+1. Phone test: does Capacitor's WebView expose Web MIDI with a USB and a BLE keyboard? Decides
+   between Web MIDI everywhere and a native plugin for the app.
+2. scoredit: MidiInput/MidiOutput types; the note matcher (pure, unit tested on timelines
+   and recorded note streams); wait mode in keys and page views.
+3. Omnitext: device picker, permission flow, Settings (latency calibration, default mode).
+4. In-time mode with feedback and a result summary; hands separately; loop with speed-up.
+5. MIDI output; step entry from a MIDI keyboard.
+6. Microphone, monophonic.
+
+## Open questions
+
+- Wait mode with extra keys pressed: ignore, or require exactly the expected keys?
+- Should the result of a practice run be kept (per score, per passage) to show progress?
+- Which comes first after wait mode: in-time scoring or MIDI step entry in the editor?
