@@ -109,3 +109,23 @@ notation-like, keys for a performance. The person can still change layout from t
 5. Tests: routing unit tests; e2e: a MuseScore PDF (score), an ordinary PDF (pdfcraft), a
    notation MIDI (page), a performance MIDI (keys).
 6. Later: the piano-roll layout in scoredit.
+
+## Done 2026-11-13
+
+- scoredit 17efb6d: `isScorePdf` (music font named in a font dictionary, object streams
+  inflated, 1 MB chunks with early exit; every corpus and engraver sample a score, ordinary
+  PDFs and scans not; at most 41 ms on a 3.5 MB scan), `isNotationMidi` (75% of onsets on a
+  32nd/triplet/quintuplet/septuplet grid; MuseScore exports 99.6%, played-in timing about
+  40%), `pdfNotationApp`.
+- Omnitext: instead of a core `pickEditor` hook, score PDFs are routed in openBuffer (the
+  read is async and can fail; the core resolver stays synchronous): `isScorePdf`, then
+  `readPdfScore` to MusicXML, opened as the `score-pdf` format (score editor only, no
+  switcher, read-only through a new format-level `readOnly`); a failed read falls back to
+  pdfcraft with a notice. MIDI: the score editor starts in the keys layout when
+  `isNotationMidi` says played-in. Checked live: MuseScore and LilyPond PDFs open as scores,
+  a played-in MIDI in keys.
+- Next: a PDF that scoredit exports carries its MusicXML as an embedded file, so it reopens
+  as the exact score (those PDFs draw notation as paths, so they are not detected today).
+- Local note: vendor/craftbridge is older than Omnitext expects (no `pdfFontFaces`), so
+  pdfcraft fails to load in a dev server pointed at it; unrelated to this work.
+
