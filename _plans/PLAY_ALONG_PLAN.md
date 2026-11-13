@@ -8,6 +8,22 @@ Draft 2026-11-13, reviewed the same day. Research notes first, then the proposal
 - No kept results or progress tracking: this is a practice aid, not a game.
 - After wait mode, MIDI step entry in the editor comes next; in-time scoring after that.
 
+## Phone test (2026-11-13, moto g85, Android 16, WebView 140)
+
+- Capacitor's WebView has Web MIDI: `navigator.requestMIDIAccess` exists, the permission
+  reads "granted" without a prompt, and access resolves at once. Android's MIDI service
+  shows the app as a client: the WebView uses android.media.midi, so no native plugin is
+  needed for USB devices.
+- No keyboard at hand: a 9 KB test app published a virtual MIDI device (MidiDeviceService,
+  driven by `adb shell am broadcast`; source kept in the session scratchpad, rebuild with
+  Omnitext's Gradle setup). The WebView saw it arrive (statechange, port opened) and got
+  every note and chord with their MIDI timestamps intact (an arpeggio at 0/250/500/750 ms).
+- Quirk: each device is listed twice as an input and every message arrives twice. The
+  input code must merge ports of one device (same name/manufacturer) or drop exact
+  duplicates.
+- Not tested: a real USB keyboard (cable, OTG), Bluetooth MIDI (probably needs pairing by
+  Android or another app first; WebView does not scan).
+
 ## Research
 
 ### Connecting an instrument
@@ -96,8 +112,8 @@ user calibration step: tap along with clicks, stored in Settings).
 
 ## Steps
 
-1. Phone test: does Capacitor's WebView expose Web MIDI with a USB and a BLE keyboard? Decides
-   between Web MIDI everywhere and a native plugin for the app.
+1. Phone test: done (Web MIDI works in the app's WebView, see above); a real USB and a BLE
+   keyboard remain to try when one is at hand.
 2. scoredit: MidiInput/MidiOutput types; the note matcher (pure, unit tested on timelines
    and recorded note streams); wait mode in keys and page views.
 3. Omnitext: device picker, permission flow, Settings (latency calibration).
