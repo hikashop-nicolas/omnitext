@@ -164,7 +164,39 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
      (67.6% / 55.1% with note values); SMT (MIT, 21M params, needs commit e2c1133 to load
      its weights, about 17 s per grand-staff system) mostly right melody, wrong meter, weak
      bass; full-page SMT++ weights gated (Hugging Face account). Both give drafts only.
-7. **Release** once 1-5 are done.
+   PDF export done 2026-11-13 (scoredit fbe5d30, Omnitext 5543b65): OSMD paged mode (A4_P /
+   Letter_P, zoom 0.7) drawn by jsPDF + svg2pdf.js (MIT, lazy); fixes for an open volta
+   (MuseScore export without stop) and pt font sizes (svg2pdf reads them as 0). Für Elise:
+   4 pages, 1.6 s; a 15-minute quartet: 37 pages, 7 s. Print goes through printableFile()
+   with the same PDF. Not yet: progress for the layout step itself (one blocking render),
+   non-Latin text (jsPDF standard fonts only), a live check in the Omnitext app.
+7. **Import from notation-software PDFs (decided 2026-11-13: build it).** In scoredit,
+   `readPdfScore(bytes)` to a MusicXML document, opened like any other format.
+   - Extraction: pdf.js (pdfjs-dist, Apache-2.0, lazy, no worker needed): text items with
+     positions and fonts, stroked/filled paths with the transform tracked.
+   - Symbol layer: every music glyph normalised to a SMuFL name. Three font families:
+     SMuFL code points (MuseScore, Dorico, newer Sibelius/Finale); the legacy
+     Sonata-compatible layout (Sibelius Opus, Finale Maestro, Petrucci...) by a fixed table;
+     LilyPond Emmentaler by glyph names read from the embedded CFF charset. Unknown fonts:
+     report, do not guess.
+   - Geometry: staves (five evenly spaced lines, pieces merged), ledger lines (short lines
+     outside a staff), systems (staves joined by a system barline or brace), barlines
+     (vertical lines spanning staves), stems (thin verticals touching a notehead), beams
+     (filled quadrilaterals between stems), ties and slurs (curves), hairpins.
+   - Notation: per staff and bar, chords from noteheads sharing a stem, voices from stem
+     direction and timing, durations from notehead + flags/beams + dots + tuplet numbers,
+     accidentals and key/time signatures, clefs (and changes), rests, lyrics and text from
+     the text fonts, part names from the left margin, then MusicXML.
+   - Test bed: every corpus score exported to PDF by MuseScore (`mscore -o x.pdf`) gives a
+     PDF with the exact MusicXML to compare against: measure count, pitches, durations per
+     staff (edit distance, like the scan spike). Other engravers: Mutopia (LilyPond) and the
+     Commons Sibelius samples, checked by eye.
+   - Order: SMuFL path end to end first (MuseScore PDFs), then the two other font families.
+8. **Scan import with oemer (decided 2026-11-13: after 7).** oemer is MIT, ONNX models
+   (235 MB), Python post-processing. Options to weigh when we get there: run its ONNX models
+   in the browser with onnxruntime-web (WebGPU) and port the post-processing to TypeScript,
+   or a helper the user runs locally. A scan gives a draft to correct.
+9. **Release** once 1-7 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
 a few percussion effects play a beat off against MuseScore's export; a real-phone pass on
