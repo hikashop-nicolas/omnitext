@@ -288,6 +288,7 @@ const ja: Dict = {
       translate: "翻訳",
       generate: "文章作成アシスト",
       transcribe: "文字起こし",
+      scan: "楽譜の読み取り",
     },
   },
   tree: {
@@ -1077,6 +1078,16 @@ const ja: Dict = {
     guitarPro: "Guitar Pro 7 (.gp)",
     mp3: "MP3 音声",
     wav: "WAV 音声",
+  },
+  scan: {
+    read: "楽譜を読み取る",
+    preparing: "楽譜を読み取り中…",
+    downloading: "楽譜を読み取り中: モデルをダウンロード中 {percent}%",
+    reading: "楽譜を読み取り中: {done} / {total}",
+    finishing: "楽譜を読み取り中: 楽譜を組み立てています",
+    draft: "画像から読み取った楽譜です。誤った音符があるかもしれないので確認してください。",
+    failed: "楽譜を読み取れませんでした: {message}",
+    cancel: "読み取りを中止",
   },
 };
 

@@ -288,6 +288,7 @@ const en: Dict = {
       translate: "Translation",
       generate: "The writing assist",
       transcribe: "Transcription",
+      scan: "sheet music reading",
     },
   },
   tree: {
@@ -1077,6 +1078,16 @@ const en: Dict = {
     guitarPro: "Guitar Pro 7 (.gp)",
     mp3: "MP3 audio",
     wav: "WAV audio",
+  },
+  scan: {
+    read: "Read sheet music",
+    preparing: "Reading sheet music…",
+    downloading: "Reading sheet music: downloading the model, {percent}%",
+    reading: "Reading sheet music: {done} of {total}",
+    finishing: "Reading sheet music: putting the score together",
+    draft: "The score was read from a picture: check it, some notes may be wrong.",
+    failed: "The sheet music could not be read: {message}",
+    cancel: "Stop reading",
   },
 };
 

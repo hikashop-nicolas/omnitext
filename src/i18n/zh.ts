@@ -290,6 +290,7 @@ const zh: Dict = {
       translate: "翻译",
       generate: "写作辅助",
       transcribe: "转录",
+      scan: "乐谱识别",
     },
   },
   tree: {
@@ -1079,6 +1080,16 @@ const zh: Dict = {
     guitarPro: "Guitar Pro 7 (.gp)",
     mp3: "MP3 音频",
     wav: "WAV 音频",
+  },
+  scan: {
+    read: "识别乐谱",
+    preparing: "正在识别乐谱…",
+    downloading: "正在识别乐谱：正在下载模型 {percent}%",
+    reading: "正在识别乐谱：{done} / {total}",
+    finishing: "正在识别乐谱：正在整理乐谱",
+    draft: "乐谱是从图片识别的：请检查，部分音符可能有误。",
+    failed: "无法识别乐谱：{message}",
+    cancel: "停止识别",
   },
 };
 

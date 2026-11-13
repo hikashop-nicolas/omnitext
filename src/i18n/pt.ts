@@ -286,6 +286,7 @@ const pt: Dict = {
       translate: "A tradução",
       generate: "A ajuda à escrita",
       transcribe: "A transcrição",
+      scan: "a leitura de partituras",
     },
   },
   tree: {
@@ -1075,6 +1076,16 @@ const pt: Dict = {
     guitarPro: "Guitar Pro 7 (.gp)",
     mp3: "Áudio MP3",
     wav: "Áudio WAV",
+  },
+  scan: {
+    read: "Ler a partitura",
+    preparing: "Lendo a partitura…",
+    downloading: "Lendo a partitura: baixando o modelo, {percent}%",
+    reading: "Lendo a partitura: {done} de {total}",
+    finishing: "Lendo a partitura: montando a partitura",
+    draft: "A partitura foi lida de uma imagem: confira, algumas notas podem estar erradas.",
+    failed: "Não foi possível ler a partitura: {message}",
+    cancel: "Parar a leitura",
   },
 };
 

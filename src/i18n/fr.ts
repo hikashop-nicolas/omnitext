@@ -289,6 +289,7 @@ const fr: Dict = {
       translate: "La traduction",
       generate: "L'aide à la rédaction",
       transcribe: "La transcription",
+      scan: "la lecture de partitions",
     },
   },
   tree: {
@@ -1078,6 +1079,16 @@ const fr: Dict = {
     guitarPro: "Guitar Pro 7 (.gp)",
     mp3: "Audio MP3",
     wav: "Audio WAV",
+  },
+  scan: {
+    read: "Lire la partition",
+    preparing: "Lecture de la partition…",
+    downloading: "Lecture de la partition : téléchargement du modèle, {percent} %",
+    reading: "Lecture de la partition : {done} sur {total}",
+    finishing: "Lecture de la partition : assemblage",
+    draft: "La partition a été lue sur une image : vérifiez-la, certaines notes peuvent être fausses.",
+    failed: "La partition n'a pas pu être lue : {message}",
+    cancel: "Arrêter la lecture",
   },
 };
 
