@@ -117,7 +117,35 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    percentage pill. Playback now holds recorded and plucked notes under the pedal. Not
    done: a worker (spessasynth in a worker needs bundling work), overlapping render and
    encode, MP3 bitrate choice in the UI.
-5. **Release** once 1-4 are done.
+   MuseScore timing (scoredit e22cbd5, 2026-11-13): trills, turns, graces, tremolos and
+   arpeggios timed as MuseScore plays them; notes within 50 ms of MuseScore's MIDI 80.6% to
+   82.7%. The rest: MuseScore plays a repeat after a section-break pause at the next
+   section's tempo (15.8 points, 99.3% if imitated): a MuseScore bug, decided NOT to copy
+   (user, 2026-11-13). MuseScore also sounds linked tab staves and cross-voice unisons twice
+   (0.6 points, deliberate). A barline fermata does not hold in MuseScore either (checked):
+   nothing to do.
+5. **PDF export and print (planned 2026-11-13).** Export as gains PDF: the score laid out on
+   A4/Letter pages (title, page numbers, systems kept whole) as vector graphics, from the
+   SVG OSMD draws per system. Converter to pick: svg2pdf.js + jsPDF (MIT) or SVG paths into
+   pdf-lib (already in Omnitext through pdfedit). The same paged rendering backs a proper
+   Print: today the score gets Omnitext's Print button but prints the live page view, which
+   keeps only the systems near the screen drawn, so a long score prints incomplete
+   (unverified). Page size from the score's own page settings when it has them, else the
+   locale's (A4 or Letter). In scoredit (exportPdf(score, opts) like exportMp3), Omnitext
+   adds the export target and printable().
+6. **PDF and scan import: research spike first (planned 2026-11-13), then a go/no-go.**
+   - Vector PDFs from notation software (MuseScore, Sibelius, Dorico, Finale, LilyPond):
+     glyphs of music fonts (SMuFL Bravura/Leland, Emmentaler, older Maestro/Opus) at exact
+     positions, staff lines and stems as paths; pdf.js extracts both. Rebuilding notation
+     from them is deterministic. To test: how each program embeds and subsets its fonts
+     (are SMuFL code points kept?), on real exports.
+   - Scans and photos: optical music recognition. Audiveris is AGPL (excluded). Survey
+     permissively licensed models (code AND weights) that could run in the browser
+     (onnxruntime-web, as localml does for OCR), and their accuracy on clean scans. Output is
+     a draft to correct, not a faithful copy.
+   - Spike output: findings with evidence, a recommendation, and effort, for the user to
+     decide.
+7. **Release** once 1-5 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
 a few percussion effects play a beat off against MuseScore's export; a real-phone pass on
