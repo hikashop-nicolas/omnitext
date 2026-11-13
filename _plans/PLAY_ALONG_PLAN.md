@@ -1,6 +1,12 @@
 # Playing along: MIDI instruments and practice modes in scoredit
 
-Draft 2026-11-13, for review. Research notes first, then the proposal.
+Draft 2026-11-13, reviewed the same day. Research notes first, then the proposal.
+
+## Decisions (user, 2026-11-13)
+
+- Wait mode ignores extra wrong keys: it moves on once every expected pitch is held.
+- No kept results or progress tracking: this is a practice aid, not a game.
+- After wait mode, MIDI step entry in the editor comes next; in-time scoring after that.
 
 ## Research
 
@@ -57,11 +63,11 @@ live in Omnitext.
 
 - **Wait**: the cursor (page/line) or the falling notes stop before the next onset of the
   practised part(s) until every pitch of that onset is held (any order, within one onset;
-  extra keys ignored or flagged, to decide). Other parts wait too (accompaniment
+  extra wrong keys are ignored). Other parts wait too (accompaniment
   continues only in "in time" mode).
 - **In time**: playback runs; each expected note is matched to an incoming note of the same
   pitch within a window (e.g. 120 ms at speed 1, scaled with the speed); hits green, early or
-  late amber, wrong red, missed grey; a summary at the end (accuracy, timing spread).
+  late amber, wrong red, missed grey; a short summary at the end of the run, not kept.
 - **Practised part**: the part(s) chosen with "my parts", or a staff (right hand / left
   hand) for piano; the rest is played by the app (or muted, a toggle).
 - **Loop**: select measures (the selection the editor already has) and repeat them, with an
@@ -94,13 +100,8 @@ user calibration step: tap along with clicks, stored in Settings).
    between Web MIDI everywhere and a native plugin for the app.
 2. scoredit: MidiInput/MidiOutput types; the note matcher (pure, unit tested on timelines
    and recorded note streams); wait mode in keys and page views.
-3. Omnitext: device picker, permission flow, Settings (latency calibration, default mode).
-4. In-time mode with feedback and a result summary; hands separately; loop with speed-up.
-5. MIDI output; step entry from a MIDI keyboard.
-6. Microphone, monophonic.
-
-## Open questions
-
-- Wait mode with extra keys pressed: ignore, or require exactly the expected keys?
-- Should the result of a practice run be kept (per score, per passage) to show progress?
-- Which comes first after wait mode: in-time scoring or MIDI step entry in the editor?
+3. Omnitext: device picker, permission flow, Settings (latency calibration).
+4. Step entry from a MIDI keyboard in the editor.
+5. In-time mode with feedback; hands separately; loop with speed-up.
+6. MIDI output.
+7. Microphone, monophonic.
