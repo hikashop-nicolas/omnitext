@@ -1,6 +1,17 @@
 # Opening PDFs and MIDI files with the right editor
 
-Draft 2026-11-13, for review.
+Draft 2026-11-13, reviewed the same day: decisions below.
+
+## Decisions (user, 2026-11-13)
+
+- A score PDF opened with scoredit is scoredit's alone: no View switcher, no pdfcraft tools.
+  Ordinary PDFs keep pdfcraft as today.
+- Every MIDI opens in scoredit, never mediaplay (no MIDI-to-WAV bridge). A performance MIDI
+  opens in the keys layout (keyboard with falling notes) instead of the page; a
+  notation-like MIDI opens on the page as now.
+- Later: a piano-roll layout in scoredit for played-in MIDI (one lane per track, note bars
+  over time, velocity as shade, play cursor, zoom and scroll, in the spirit of subedit's
+  waveform lanes), as a fourth layout next to page, line and keys.
 
 ## Goal
 
@@ -59,36 +70,28 @@ Scanned scores (images only) stay in pdfcraft; once scan import (oemer) exists, 
 
 ### 3. MIDI: notation or performance?
 
-`pickEditor` for `midi` reads the header and events (a small parser, no scoredit needed):
-- Notation-like: time-signature and key-signature meta events, track names, onsets that sit
-  on a grid (most within a few ticks of a 16th or triplet grid at the file's division),
-  few tempo changes, note lengths that are whole grid values.
+scoredit's `isNotationMidi(bytes)` reads the header and events:
+- Notation-like: time-signature and key-signature meta events, track names, onsets on a
+  grid (most within a few ticks of a 16th or triplet grid at the file's division), few
+  tempo changes, note lengths that are whole grid values.
 - Performance: onsets off the grid (played in), many tempo or controller changes
-  (expression, sustain pedal streams), drum channel with GM-song density, very long files.
-- Score if notation-like, else mediaplay.
+  (expression, sustain pedal streams), very long files.
 
-mediaplay needs MIDI playback for this. Recommended: Omnitext renders the MIDI to audio with
-scoredit's renderer (`readMidi` then `renderAudio`, recorded instruments when allowed, the
-built-in synth otherwise; about 9 s for 2.5 minutes of piano) and hands mediaplay a WAV in
-memory, with a progress line while it renders. No MIDI code in mediaplay itself, no second
-synthesizer to maintain. Cost: a wait before playback starts; later, render the first
-seconds first and stream the rest.
+Both open in scoredit. Omnitext passes the viewer's starting layout: page for
+notation-like, keys for a performance. The person can still change layout from the bar.
 
-### 4. Switching, and remembering
+### 4. No switching
 
-- Show the View switcher for PDF and MIDI whenever both editors are candidates (today it is
-  hidden for pdfcraft): "Score" and "PDF" / "Score" and "Player".
-- A switch made by the person is remembered for that file (by file key, as recent files
-  are) and wins over detection next time. No global setting needed; the existing
-  per-format preference keeps working for people who always want one or the other.
-- When detection picked the score editor and reading fails (unknown font, empty result),
-  fall back to pdfcraft or mediaplay with a short notice instead of an error page.
+- A score PDF in scoredit has no View switcher and no pdfcraft tools (decided).
+- MIDI only ever opens in scoredit; the layout is the only choice, in scoredit's own bar.
+- When detection picked scoredit for a PDF and reading fails (unknown font, empty result),
+  the file opens in pdfcraft with a short notice instead of an error page.
 
 ### 5. Where the code goes
 
-- Omnitext: `pickEditor` in FormatDescriptor and resolveEditor; `pdf` and `midi` formats get
-  scoredit as a second candidate editor (the score editor consuming a "score" view from
-  them); View switcher rules; per-file memory; the MIDI-to-WAV bridge into mediaplay.
+- Omnitext: `pickEditor` in FormatDescriptor and resolveEditor; the `pdf` format gets
+  scoredit as its editor when the PDF is a score (pdfcraft otherwise); MIDI passes the
+  starting layout to the score viewer.
 - scoredit: export the music-font list and a `isScorePdf(bytes)` / `isNotationMidi(bytes)`
   pair so the logic lives next to the readers and is unit tested there; Omnitext's
   pickEditor just calls them.
@@ -99,17 +102,10 @@ seconds first and stream the rest.
    the corpus (all corpus PDFs from MuseScore, the LilyPond and Sibelius samples, some
    ordinary PDFs: none misdetected) and on MIDI (corpus MIDI exported by MuseScore vs
    performance MIDIs).
-2. Omnitext core: `pickEditor`, per-file remembered choice, View switcher for PDF/MIDI.
-3. PDF: score editor as candidate for `pdf`, opened through scoredit's PDF reader (needs the
-   reader merged first); fallback to pdfcraft on failure.
-4. MIDI: mediaplay as candidate for `midi` via the WAV bridge; drop `soleEditor`.
-5. Tests: routing unit tests; e2e: open a MuseScore PDF (score), an ordinary PDF (pdfcraft),
-   a notation MIDI (score), a performance MIDI (player); switch and reopen (remembered).
-
-## Open questions
-
-- Should a score PDF opened as a score still offer pdfcraft's tools (annotate, sign) in the
-  same session, or only through the switcher? Proposed: the switcher.
-- MIDI in mediaplay: is a few seconds of rendering before playback acceptable, or should a
-  performance MIDI rather open in the score editor's player (no notation shown, piano roll
-  view)? Proposed: the WAV bridge, since a performance MIDI shown as notation looks broken.
+2. Omnitext core: `pickEditor` in resolveEditor.
+3. PDF: scoredit for score PDFs through its PDF reader (needs the reader merged), no
+   switcher; fallback to pdfcraft with a notice on failure.
+4. MIDI: starting layout from `isNotationMidi` (keys for a performance).
+5. Tests: routing unit tests; e2e: a MuseScore PDF (score), an ordinary PDF (pdfcraft), a
+   notation MIDI (page), a performance MIDI (keys).
+6. Later: the piano-roll layout in scoredit.
