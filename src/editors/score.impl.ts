@@ -10,8 +10,8 @@ import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, Ho
 import { ReadingFullscreen } from "./reading-fullscreen";
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
-// US Letter where it is the norm, A4 elsewhere.
-const paper = (): "a4" | "letter" => (/-(US|CA|MX|PH)\b/i.test(navigator.language) ? "letter" : "a4");
+// The page size chosen in Settings.
+const paper = () => getSettings().pageSize;
 
 // The parts of the user's instrument (Settings), when the score has several and some match.
 function myParts(score: ScoreDoc): number[] | null {

@@ -10,7 +10,7 @@ export type AiDownloads = "ask" | "allow" | "deny";
 
 export interface Settings {
   name: string;
-  /** Default page size for rich documents that declare none (richdoc). */
+  /** Default page size for rich documents that declare none (richdoc), and for scores printed or exported to PDF. */
   pageSize: PageSize;
   /** Paginated (page cards) vs a single continuous page in the rich-document editor. */
   paginated: boolean;
