@@ -113,6 +113,7 @@ import { geojsonFormat } from "./formats/geojson";
 import { kmlFormat } from "./formats/kml";
 import { kmzFormat } from "./formats/kmz";
 import { gpxFormat } from "./formats/gpx";
+import { pdfScoreXml } from "./editors/score-pdf";
 import { abcFormat, guitarproFormat, midiFormat, mscxFormat, msczFormat, musicxmlFormat, mxlFormat, scorePdfFormat } from "./formats/musicxml";
 import { topojsonFormat } from "./formats/topojson";
 import { wktFormat } from "./formats/wkt";
@@ -535,7 +536,8 @@ function updateUI(): void {
   if (session?.editorId) viewLabelEl.textContent = editorLabel(session.editorId);
   // Encoding pill: only for text documents whose original bytes are re-decodable. Shows
   // the decode plus the file's BOM and line ending; clicking still reopens with an encoding.
-  encBtnEl.hidden = !session || session.binary || !session.srcBytes;
+  // A score has no use for its text encoding: the pill would keep the status bar up for nothing.
+  encBtnEl.hidden = !session || session.binary || !session.srcBytes || session.editorId === "score";
   if (session && !encBtnEl.hidden) {
     const parts = [session.encoding.label];
     if (session.encoding.bom) parts.push("BOM");
@@ -830,7 +832,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     // the note only costs a row of the picture. Say it for the formats that do look
     // editable (slides, ebooks, RTF, raw photos), where the missing Save needs a reason.
     : session.readOnly ? (/^(audio|video|image)\//.test(session.mime ?? "") ? "" : t("status.readOnly"))
-    : chosen.editor.manifest.id === "pdfcraft" || chosen.editor.manifest.id === "pptxcraft" ? ""
+    : chosen.editor.manifest.id === "pdfcraft" || chosen.editor.manifest.id === "pptxcraft" || chosen.editor.manifest.id === "score" ? ""
     : t("status.ready", { where }),
   );
 }
@@ -950,7 +952,7 @@ async function openLocalFile(file: File, scheme: string, handle: FsHandle | null
 let lastOpen = { name: "", size: 0, at: 0 };
 
 /** Opens a score PDF in the score editor; false (with a notice when reading failed) otherwise. */
-async function openScorePdf(buffer: ArrayBuffer, filename: string, scheme: string, mime?: string): Promise<boolean> {
+async function openScorePdf(buffer: ArrayBuffer, filename: string, scheme: string, handle: FsHandle | null, mime?: string): Promise<boolean> {
   const bytes = new Uint8Array(buffer);
   if (String.fromCharCode(...bytes.subarray(0, 5)) !== "%PDF-") return false;
   const scoredit = await import("scoredit").catch(() => null);
@@ -965,7 +967,8 @@ async function openScorePdf(buffer: ArrayBuffer, filename: string, scheme: strin
     engine.notificationSink.warn(t("notify.scorePdfFallback"));
     return false;
   }
-  await mountDoc({ text: xml, formatId: "score-pdf", filename, encoding: { label: "UTF-8", bom: false }, uri: `${scheme}://${filename}`, fileHandle: null, mime });
+  pdfScoreXml.set(buffer, xml);
+  await mountDoc({ bytes, binary: true, formatId: "score-pdf", filename, encoding: { label: "binary", bom: false }, uri: `${scheme}://${filename}`, fileHandle: handle, mime });
   return true;
 }
 
@@ -1020,7 +1023,7 @@ async function openBuffer(
     }
   }
   // A PDF engraved by notation software opens as the score it is (read-only), not as a PDF.
-  if (lower.endsWith(".pdf") && (await openScorePdf(buffer, filename, scheme, mime))) return;
+  if (lower.endsWith(".pdf") && (await openScorePdf(buffer, filename, scheme, handle, mime))) return;
   // A registered binary format by extension (image/media/office/pdf) wins.
   const bin = binaryFormatFor(filename, new Uint8Array(buffer, 0, Math.min(16, buffer.byteLength)));
   if (bin) {

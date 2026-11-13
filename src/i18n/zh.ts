@@ -164,6 +164,7 @@ const zh: Dict = {
     scoreNotSaved: "已编辑音符上的部分记号尚未保存到 MuseScore 文件：{marks}。",
     scoreMarksDropped: "部分记号无法写入 {format} 文件：{marks}。",
     scorePdfFallback: "此 PDF 看起来是乐谱，但无法按乐谱读取，因此以 PDF 打开。",
+    scorePdfReengraved: "保存时会根据编辑后的乐谱重新排版 PDF。",
   },
   history: {
     title: "版本历史",

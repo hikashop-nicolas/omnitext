@@ -160,6 +160,7 @@ const pt: Dict = {
     scoreNotSaved: "Alguns sinais das notas editadas ainda não são salvos no arquivo do MuseScore: {marks}.",
     scoreMarksDropped: "Alguns sinais não puderam ser gravados no arquivo do {format}: {marks}.",
     scorePdfFallback: "Este PDF parece uma partitura, mas não pôde ser lido como tal: abre como PDF.",
+    scorePdfReengraved: "Ao salvar, o PDF é gravado de novo a partir da partitura editada.",
   },
   history: {
     title: "Histórico de versões",

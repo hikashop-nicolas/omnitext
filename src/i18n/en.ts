@@ -162,6 +162,7 @@ const en: Dict = {
     scoreNotSaved: "Some marks on edited notes are not saved into the MuseScore file yet: {marks}.",
     scoreMarksDropped: "Some marks could not be written into the {format} file: {marks}.",
     scorePdfFallback: "This PDF looks like a score but could not be read as one, so it opens as a PDF.",
+    scorePdfReengraved: "Saving writes the PDF again, engraved from the edited score.",
   },
   history: {
     title: "Version history",

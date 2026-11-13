@@ -5,7 +5,7 @@ import { requestInstrumentSounds } from "../remote-consent";
 
 // Recorded instruments, downloaded per instrument when a score uses them, after asking once.
 const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, cacheName: "omnitext-sounds" });
-import { isNative } from "../core/platform";
+import { pdfScoreXml } from "./score-pdf";
 import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
 
@@ -33,8 +33,9 @@ class ScoreInstance implements EditorInstance {
   private binary = false;
   private loaded: LoadedScore | null = null;
   private warned = "";
-  /** Read from a PDF: shown and exported, never saved back. */
+  /** Read from a PDF: saved as a PDF engraved again from the edited score. */
   private fromPdf = false;
+  private warnedPdf = false;
   private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
 
@@ -46,8 +47,10 @@ class ScoreInstance implements EditorInstance {
     this.text = ctx.text;
     this.bytes = ctx.bytes;
     this.binary = !!ctx.binary;
-    const input = ctx.binary ? (ctx.bytes ?? new Uint8Array(0)) : new TextEncoder().encode(ctx.text);
-    const fromPdf = (this.fromPdf = /\.pdf$/i.test(ctx.filename ?? ""));
+    // A score PDF shows the MusicXML read from it when it was opened.
+    const pdfXml = ctx.bytes ? pdfScoreXml.get(ctx.bytes.buffer) : undefined;
+    this.fromPdf = pdfXml !== undefined;
+    const input = pdfXml !== undefined ? new TextEncoder().encode(pdfXml) : ctx.binary ? (ctx.bytes ?? new Uint8Array(0)) : new TextEncoder().encode(ctx.text);
     // The file as it stands, edits included, for reading it again (the TAB toggle).
     const current = () => (!this.edited || !this.handle ? input : this.loaded?.save ? this.loaded.save().bytes : new TextEncoder().encode(this.handle.score.serialize()));
     try {
@@ -71,8 +74,7 @@ class ScoreInstance implements EditorInstance {
         sounds,
         parts: { show: myParts(loaded.score) },
         // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
-        // A score read from a PDF is shown, not edited: it cannot be saved back into the PDF.
-        editable: !fromPdf && (loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input)))),
+        editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
         // A played-in MIDI file reads better as falling notes than as notation.
         layout: loaded.format === "midi" && !isNotationMidi(input) ? "keys" : undefined,
         onChange: () => {
@@ -95,8 +97,14 @@ class ScoreInstance implements EditorInstance {
     return this.handle.score.serialize();
   }
 
-  getBytes(): Uint8Array | undefined {
+  getBytes(): Uint8Array | Promise<Uint8Array> | undefined {
     if (!this.edited || !this.handle || !this.binary) return this.bytes ?? undefined;
+    // An edited score PDF is engraved again (the original engraving cannot take the edits).
+    if (this.fromPdf) {
+      if (!this.warnedPdf) this.host.notifications.info(t("notify.scorePdfReengraved"));
+      this.warnedPdf = true;
+      return exportPdf(this.handle.score, { paper: paper() });
+    }
     if (this.loaded?.save) return this.saveMuseScore();
     return writeMxl(this.handle.score.serialize(), this.bytes ?? undefined);
   }
@@ -152,7 +160,7 @@ class ScoreInstance implements EditorInstance {
 
   /** On the phone the viewer's bar takes the status bar's place, with the view switcher in it. */
   viewSwitcherSlot(): HTMLElement | null {
-    return isNative() ? (this.handle?.getBarEnd() ?? null) : null;
+    return this.handle?.getBarEnd() ?? null;
   }
 
   dispose(): void {
