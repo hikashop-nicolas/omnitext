@@ -203,7 +203,16 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    Licence: oemer's staff network (unet_big, 71 MB) was trained on CVC-MUSCIMA, CC BY-NC-SA
    "non-commercial research only": not shippable. Decided (user, 2026-11-13): replace it
    with classic staff-line detection (no ML), keep seg_net and the SVM classifiers
-   (DeepScoresV2, CC BY 4.0, attribution). In progress.
+   (DeepScoresV2, CC BY 4.0, attribution). Done 2026-11-14: classic staff lines (scoredit
+   fb07f14, 80.2% pitch / 72.1% pitch+duration over 24 staffs, better rhythm than unet_big's
+   69.1%), the scan in a module worker (multi-thread ORT hangs inside a worker: 1 thread or
+   WebGPU there). Models on Hugging Face hikashop-nicolas/scoredit-scan (fp32 38.4 MB, int8
+   10.3 MB, classifiers 5.9 MB, model card crediting oemer and DeepScoresV2), fetched and
+   cached by localml/files behind the AI consent ("sheet music reading", hosts huggingface.co
+   and cdn.jsdelivr.net for the ORT engine, version from scoredit's scanEngineVersion).
+   Omnitext 58ddc34: a "Read sheet music" button in the image viewer opens the result as a
+   new score with a draft notice; checked live on a scan-like Für Elise page (about 2 min
+   with WebGPU). Not yet: image-only PDFs (waiting for the pdfcraft work), phone timing.
 9. **Release** once 1-7 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
