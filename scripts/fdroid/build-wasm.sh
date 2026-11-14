@@ -498,11 +498,9 @@ build_mp3() {
   d="$src/wasm/mp3"
   (cd "$d" && cargo build -q --release --locked --target wasm32-unknown-unknown)
   "$binaryen/bin/wasm-opt" -O3 "$d/target/wasm32-unknown-unknown/release/scoredit_mp3.wasm" -o "$WORK/mp3.wasm"
-  for f in mp3-wasm.js mp3-wasm.d.ts; do
-    python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$WORK/mp3.wasm" \
-      "node_modules/scoredit/dist/vendor/$f" "$WORK/scoredit-$f"
-    install_over "$WORK/scoredit-$f" "node_modules/scoredit/dist/vendor/$f"
-  done
+  python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$WORK/mp3.wasm" \
+    node_modules/scoredit/dist/vendor/mp3-wasm.js "$WORK/scoredit-mp3-wasm.js"
+  install_over "$WORK/scoredit-mp3-wasm.js" node_modules/scoredit/dist/vendor/mp3-wasm.js
 }
 
 # The Ogg Vorbis decoder spessasynth_core (scoredit's synthesizer) reads compressed SoundFont
