@@ -124,7 +124,9 @@ user calibration step: tap along with clicks, stored in Settings).
    other parts play up to the gate and wait; keys and keyboard strip show expected (outline)
    and played (green or red); "Hear my notes" echoes keys on the built-in synth. Omnitext
    connects MIDI at once where access is granted (the app), else from the palette (Connect a
-   MIDI keyboard). e2e with a fake input; not yet tried with a device.
+   MIDI keyboard). e2e with a fake input. Phone, 2026-11-14 (virtual keyboard app): MIDI
+   connected by itself, Practice shown; with "Wait for me" the cursor held on C4, ignored a
+   wrong C#4, moved on for C4, D4... B4, and playback ended at the last bar.
 3. Omnitext: device picker, permission flow, Settings (latency calibration).
 4. Step entry from a MIDI keyboard in the editor.
 5. In-time mode with feedback; hands separately; loop with speed-up.

@@ -212,7 +212,14 @@ As with pdfedit / richdoc, the work lives in a standalone MIT library, **scoredi
    and cdn.jsdelivr.net for the ORT engine, version from scoredit's scanEngineVersion).
    Omnitext 58ddc34: a "Read sheet music" button in the image viewer opens the result as a
    new score with a draft notice; checked live on a scan-like Für Elise page (about 2 min
-   with WebGPU). Not yet: image-only PDFs (waiting for the pdfcraft work), phone timing.
+   with WebGPU). Phone (moto g85, Adreno 6xx), 2026-11-14: WebGPU loses its device ("mapAsync:
+   Device is lost") and ORT never settles, so a reading with no tile done for 45 s falls back
+   to the CPU path (int8, step 256, worker, 1 thread) and the device is remembered; WebGPU
+   readings run in the page (inside a worker they stall on Android). Für Elise page on the
+   phone CPU: 13.6 min (about 10 s a tile). Omnitext 3bab4f1: the separate button is gone,
+   the OCR button reads sheet music when scoredit/scan-detect finds staves (16 of 16 score
+   pictures, 0 of 9 photos, text pages and UI screenshots, 50 to 300 ms), text otherwise.
+   Not yet: image-only PDFs (waiting for the pdfcraft work).
 9. **Release** once 1-7 are done.
 
 Small leftovers: very long text runs off the right edge of a system (1812 Overture);
