@@ -2,7 +2,8 @@
 
 **One free app that opens and edits practically any file, entirely in your browser.**
 
-Documents, spreadsheets, PDFs, code, images, maps, books, audio and video, archives: Omnitext
+Documents, spreadsheets, PDFs, sheet music, code, images, maps, books, audio and video,
+archives: Omnitext
 picks the right editing surface for each file, lets you edit it, and saves it back. Nothing is
 uploaded, there is no account, and no file ever fails to open.
 
@@ -53,6 +54,14 @@ Markdown, Word documents and web pages open as rich text, with the raw source on
   <img src="public/shots/markdown.webp" alt="A Markdown file open as rich text" width="1400" />
 </picture>
 
+Sheet music is engraved, played and edited, with tab for guitar and falling notes for
+practising at a keyboard:
+
+<picture>
+  <source srcset="public/shots/score-page-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="public/shots/score-page.webp" alt="A song for voice and piano open in the score editor" width="1400" />
+</picture>
+
 Code and configuration files get highlighting, folding and live checking, in about seventy
 languages:
 
@@ -71,7 +80,8 @@ a page for each one, generated from the app itself.
 | **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets), SMART Health Cards |
 | **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
-| **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor) |
+| **Sheet music** | MusicXML and MXL, MuseScore (.mscz, .mscx), Guitar Pro 3 to 7, MIDI, ABC, and PDFs made by notation software, which open as editable scores |
+| **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor). Text recognition (OCR) on the device, which reads a photo or scan of printed music as a score |
 | **Audio and video** | The usual web formats plus MKV, MOV, AVCHD and more, including Dolby and Apple Lossless audio that browsers normally refuse, with subtitles. Several files, a folder or a playlist (M3U, PLS, XSPF) play as one queue with next, previous, repeat and shuffle |
 | **Maps** | GeoJSON, KML, KMZ and GPX in an interactive map editor, with measuring and drawing |
 | **Subtitles** | SRT, WebVTT, ASS and SSA, with a waveform timeline, transcription and translation |
@@ -80,8 +90,34 @@ a page for each one, generated from the app itself.
 
 Files that can be edited are saved back in place: the parts you did not touch keep their
 original bytes, down to the encoding and the line endings. A few formats are shown but not
-edited (RTF, ebooks, camera RAW and the other viewers above), and the app says so
+edited (RTF, ebooks, camera RAW, MIDI and the other viewers above), and the app says so
 instead of pretending.
+
+## Sheet music
+
+Scores open in an editor of their own, on a computer or a phone.
+[A page per format](https://hikashop-nicolas.github.io/omnitext/formats.html) says
+what each one can do.
+
+- **Read and play.** See the score as pages, as one long line to play along with, or as notes
+  falling onto a keyboard. It plays at once on a built-in sound; recorded instruments are
+  downloaded the first time, after asking. Slow it down, show only your own part, and read
+  guitar parts as tab.
+- **Edit.** Enter notes from the computer keyboard, an on-screen piano or fretboard, or a MIDI
+  keyboard. Add marks, dynamics, lyrics and chord symbols, change key, time and clef, add bars
+  and instruments, transpose, or start a new score from the New dialog. MusicXML, MuseScore 3
+  and 4 and Guitar Pro 7 files save back in place; MuseScore files keep everything you did not
+  touch.
+- **Practise with a MIDI keyboard.** The score waits for you to play each note, or runs in time
+  and ends with a summary of what was on time, early, late, missed or wrong. In the browser,
+  "Connect a MIDI keyboard" in the command palette asks for access (Chrome and Edge support
+  Web MIDI); the Android app connects by itself.
+- **Export** as MusicXML, MXL, Guitar Pro 7, MIDI, PDF, MP3 or WAV, or print on real pages. A
+  PDF exported from Omnitext carries the score inside it and reopens as that exact score.
+- **PDFs and scans.** A PDF engraved by MuseScore, Sibelius, Finale, LilyPond or Dorico opens as
+  an editable score instead of a PDF. A photo or scan of printed music goes through the image
+  viewer's OCR button, which recognises sheet music on its own and gives a draft score to
+  correct; its small recognition model is downloaded the first time, after asking.
 
 ## Editing together
 
@@ -150,11 +186,27 @@ can embed in your own projects, commercial ones included:
 [scoredit](https://github.com/hikashop-nicolas/scoredit) and
 [walletview](https://github.com/hikashop-nicolas/walletview).
 
-The score player starts on a built-in sound ([webaudio-tinysynth](https://github.com/g200kg/webaudio-tinysynth),
+The score editor, scoredit, engraves with
+[OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay)
+(BSD-3-Clause) and reads Guitar Pro files with
+[guitarpro-parser](https://github.com/emilienbev/guitarpro-parser) (Apache-2.0). Its player
+starts on a built-in sound ([webaudio-tinysynth](https://github.com/g200kg/webaudio-tinysynth),
 Apache-2.0). Recorded instruments, after you allow them, are downloaded per instrument from
 [scoredit-sounds](https://github.com/hikashop-nicolas/scoredit-sounds): the sounds of
 [MuseScore_General](https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/) by
-S. Christian Collins (MIT), played with [spessasynth](https://github.com/spessasus/spessasynth_core) (Apache-2.0).
+S. Christian Collins (MIT), played with [spessasynth](https://github.com/spessasus/spessasynth_core)
+(Apache-2.0). MP3 export uses the [rusty_mp3](https://github.com/Remade-With-Rust/remade_ffmpeg_rs)
+encoder (Apache-2.0) built to WebAssembly; PDF export uses [jsPDF](https://github.com/parallax/jsPDF)
+and [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) (both MIT); score PDFs are read with
+[pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0).
+
+Sheet music in photos and scans is read with the models in
+[hikashop-nicolas/scoredit-scan](https://huggingface.co/hikashop-nicolas/scoredit-scan) on
+Hugging Face, run by [onnxruntime-web](https://github.com/microsoft/onnxruntime) (MIT): a small
+symbol network distilled from [oemer](https://github.com/BreezeWhite/oemer) (MIT), trained on
+renders of [OpenScore](https://openscore.cc/) scores (CC0), and oemer's symbol classifiers,
+trained by oemer's author on [DeepScoresV2](https://zenodo.org/record/4012193) (Tuggener et al.,
+CC BY 4.0).
 
 Architecture, the module system, the build and how to add a format or an editor:
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**.
