@@ -45,13 +45,24 @@ reviewer objects to the download. The web and Play builds still drop it and stil
 | libheif (HEIC) | 1.4 MB | npm libheif-js | libheif v1.23.2 + libde265 1.0.15 (checksum pinned), emcc 3.1.61, decoder only: no AOM, no x265, so nothing non-free | Done: byte-identical |
 | Tesseract (OCR) | 3.9 MB | npm tesseract.js-core (fetched from jsDelivr at run time before this) | tesseract.js-core v6.1.2 through its own build-scripts with its nine pinned submodules (zlib, libtiff, openlibm, giflib, libpng, libjpeg, libwebp, leptonica, Balearica's tesseract fork), emcc 3.1.38, only the SIMD LSTM-only variant: the one the app loads. 15 min | Done: not byte-identical (the glue JS matches except for two wasm offsets; the wasm is 2.4 KB larger), reads four test images to exactly npm's text and confidence, and the packaged build OCRs in the app with no jsDelivr request but the language data |
 | onnxruntime (translation, writing assist, transcription) | 23.7 MB | npm onnxruntime-web (fetched from jsDelivr at run time before this) | onnxruntime v1.26.0 (npm ships an untagged 1.26.0-dev snapshot of it) with upstream's own flags for this artifact (web.yml's wasm_Release job, WebGPU step: simd + threads + webgpu + webnn, reduced types, asyncify), emcc 4.0.23 from its emsdk submodule, only the asyncify variant: the one transformers.js asks for. 35 min | Done: not byte-identical (the glue JS matches except for the embedded wasm offsets; the wasm is 122 KB larger), runs an inference to the right answer, and in the packaged build a translation loads the engine from the package with no jsDelivr request |
+| scoredit MP3 encoder (score audio export) | 127 KB | base64 in scoredit's dist/vendor/mp3-wasm.js | scoredit's wasm/mp3 (rusty_mp3 1.0.5, Apache-2.0) at the commit package-lock.json pins, fetched from GitHub; Rust 1.100.0 + binaryen 133 (both official releases, checksums pinned), as the shipped binary was made | Done 2026-11-14: differs only in panic path strings (the shipped binary carries its builder's CARGO_HOME; remapped to that path the output was byte-identical), and exports an MP3 that ffprobe reads |
+| stb-vorbis (Ogg Vorbis in the SoundFont samples) | 84 KB | base64 in npm stb-vorbis (via scoredit's spessasynth_core) | its build-wasm.ts emcc call at v0.0.7, emcc 6.0.6 (its release workflow's pin, own emsdk checkout), __FILE__ mapped onto upstream's CI path | Done 2026-11-14: byte-identical; decodes a test .ogg and plays a recorded instrument into an MP3 export |
+
+2026-11-14, the score editor: the sheet-music scan used to fetch onnxruntime from jsDelivr through
+scoredit's own nested onnxruntime-web 1.31.1. Vite now dedupes it onto the onnxruntime-web
+transformers.js uses (an npm override would not reach Debian's npm 9, which reports the lockfile
+out of sync), and in the F-Droid build the scan imports its WebGPU bundle
+(vite.config.ts alias) and loads the packaged ort/ pair, so jsDelivr is gone from its prompt too;
+checked in a headless browser on that build (models from huggingface.co, engine from ort/). The
+recorded instrument sounds scoredit downloads (scoredit-sounds, SoundFonts) are data, behind their
+own prompt.
 
 Also to check: the pdf.js wasm decoders (jbig2, openjpeg) are not in dist today, although scanned
 PDFs need them (see the pdf.js memory note); find out how pdfedit loads them before the recipe.
 
 ## Shape of the F-Droid build
 
-- One script in this repo, `scripts/fdroid/build-wasm.sh` (all twelve binaries; run it locally
+- One script in this repo, `scripts/fdroid/build-wasm.sh` (every binary above; run it locally
   in a clean Debian with `scripts/fdroid/in-docker.sh`), that compiles every binary above from
   pinned upstream sources with a pinned emsdk and writes them where the npm copies would be.
   The Play build never runs it.
