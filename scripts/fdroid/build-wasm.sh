@@ -6,8 +6,8 @@
 # so the build that follows packages our compile instead. The Play and web builds never run this.
 #
 # Some binaries are base64 inside a JavaScript file rather than a .wasm beside it; those are
-# rebuilt and the string replaced (embed-wasm.py): libheif-js, @webtoon/psd, xzwasm and
-# hysnappy. Nothing the app ships is a prebuilt binary any more.
+# rebuilt and the string replaced (embed-wasm.py): libheif-js, @webtoon/psd, xzwasm, hysnappy,
+# scoredit's MP3 encoder and stb-vorbis. Nothing the app ships is a prebuilt binary any more.
 #
 # The Tesseract and onnxruntime engines are the binaries the app used to download instead of
 # shipping; the F-Droid build now packages them (OMNITEXT_BUNDLE_TESSERACT=1 and
@@ -45,14 +45,17 @@ chmod +x "$WORK/bin/curl"
 export PATH="$WORK/bin:$PATH"
 BASE_PATH="$PATH" # each emsdk_use starts from this, so versions do not stack
 
-# Activate one Emscripten version, installing it on first use.
-emsdk_use() {
-  if [ ! -d "$WORK/emsdk" ]; then
-    git -c advice.detachedHead=false clone -q --depth 1 --branch "$EMSDK_TAG" https://github.com/emscripten-core/emsdk.git "$WORK/emsdk"
+# Activate one Emscripten version, installing it on first use. A version newer than EMSDK_TAG
+# knows comes with its own emsdk checkout, named as the second argument.
+emsdk_use() { # compiler-version [emsdk-tag]
+  tag="${2:-$EMSDK_TAG}" dir="$WORK/emsdk"
+  [ "$tag" = "$EMSDK_TAG" ] || dir="$WORK/emsdk-$tag"
+  if [ ! -d "$dir" ]; then
+    git -c advice.detachedHead=false clone -q --depth 1 --branch "$tag" https://github.com/emscripten-core/emsdk.git "$dir"
   fi
-  (cd "$WORK/emsdk" && ./emsdk install "$1" >/dev/null && ./emsdk activate "$1" >/dev/null)
+  (cd "$dir" && ./emsdk install "$1" >/dev/null && ./emsdk activate "$1" >/dev/null)
   # emsdk_env.sh cannot locate itself when sourced from plain sh, so set what it would.
-  export EMSDK="$WORK/emsdk" EM_CONFIG="$WORK/emsdk/.emscripten"
+  export EMSDK="$dir" EM_CONFIG="$dir/.emscripten"
   # Old toolchains build their system libraries in filesystem order, which differs per machine;
   # sorting those lists is what makes the output the same everywhere. Patching drops the cache.
   if python3 "$ROOT/scripts/fdroid/emsdk-sort-sources.py" "$EMSDK/upstream/emscripten/tools/system_libs.py"; then
@@ -438,27 +441,89 @@ build_onnxruntime() {
   done
 }
 
-# The PDF engine: PdfCraft (Rust) as wasm through craftbridge, at the commit in craftbridge.rev. It needs a newer
-# rustc than Debian ships (1.96 or newer, for the workspace manifests of its git dependencies), so the official standalone installers are used, with their checksums pinned. wasm-opt is
-# left out (Debian's binaryen is too old for the engine's reference types), which makes the wasm a few MB larger.
-build_pdfengine() {
-  echo "PDF engine"
-  rust=1.99.1
-  if [ ! -x "$WORK/rust/bin/rustc" ]; then
-    for part in "rust-$rust-x86_64-unknown-linux-gnu 231fcae47ee950621374725b5fc3b5441d2fbda2955ac45dd7dc816d8876cfe7" \
-      "rust-std-$rust-wasm32-unknown-unknown 5f628f857dd00a8aa3fcac2e275665d2782066a5795274ed124c5b560f46423c"; do
+# A Rust toolchain from the official standalone installers, checksums pinned (Debian's is too old).
+rust_use() { # [version]
+  rust="${1:-1.99.1}" prefix="$WORK/rust"
+  case "$rust" in
+    1.99.1) sums="231fcae47ee950621374725b5fc3b5441d2fbda2955ac45dd7dc816d8876cfe7 5f628f857dd00a8aa3fcac2e275665d2782066a5795274ed124c5b560f46423c" ;;
+    1.100.0) sums="98ee6bec240e1cfe944f17e7092412dc5ef6e008484bb668c6936d35a7d15acd 19b7954d650fc0d22767eceb76b8e03d07ce0d6a9f4234f33c32a17ee8d6d7b9"; prefix="$WORK/rust-$rust" ;;
+    *) echo "no checksums for Rust $rust" >&2; exit 1 ;;
+  esac
+  if [ ! -x "$prefix/bin/rustc" ]; then
+    set -- $sums
+    for part in "rust-$rust-x86_64-unknown-linux-gnu $1" "rust-std-$rust-wasm32-unknown-unknown $2"; do
       set -- $part
       curl -sSLf -o "$WORK/$1.tar.xz" "https://static.rust-lang.org/dist/$1.tar.xz"
       echo "$2  $WORK/$1.tar.xz" | sha256sum -c -
       tar xJf "$WORK/$1.tar.xz" -C "$WORK"
-      (cd "$WORK/$1" && ./install.sh --prefix="$WORK/rust" --disable-ldconfig >/dev/null)
+      (cd "$WORK/$1" && ./install.sh --prefix="$prefix" --disable-ldconfig >/dev/null)
     done
   fi
   export CARGO_HOME="$WORK/cargo"
-  export PATH="$WORK/rust/bin:$CARGO_HOME/bin:$PATH"
+  export PATH="$prefix/bin:$CARGO_HOME/bin:$BASE_PATH"
   # the same bytes wherever the build runs
   export RUSTFLAGS="--remap-path-prefix=$WORK=/build --remap-path-prefix=$CARGO_HOME=/cargo"
+  echo "  $(rustc --version | cut -d' ' -f1-2)"
+}
+
+# The PDF engine: PdfCraft (Rust) as wasm through craftbridge, at the commit in craftbridge.rev. It
+# needs rustc 1.96 or newer, for the workspace manifests of its git dependencies. wasm-opt is left
+# out (Debian's binaryen is too old for the engine's reference types), so the wasm is a few MB larger.
+build_pdfengine() {
+  echo "PDF engine"
+  rust_use
   INSTALL_WASM_BINDGEN=1 SKIP_WASM_OPT=1 sh "$ROOT/scripts/build-craftbridge.sh"
+}
+
+# scoredit's MP3 encoder: rusty_mp3 (Apache-2.0) behind scoredit's C ABI in wasm/mp3, at the scoredit
+# commit package-lock.json pins. The npm tarball leaves wasm/ out, so that commit is fetched. Built
+# as scoredit's build-mp3-wasm.sh does (cargo, then wasm-opt -O3), on the Rust and binaryen the
+# shipped binary was made with: Debian's binaryen 120 drops two target features 1.100 emits, and
+# optimises differently. The binary is base64 in dist/vendor/mp3-wasm.js (and its .d.ts).
+MP3_RUST="1.100.0"
+BINARYEN_VERSION="133"
+BINARYEN_SHA256="2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489"
+build_mp3() {
+  c="$(node -p "require('./package-lock.json').packages['node_modules/scoredit'].resolved.split('#')[1]")"
+  echo "scoredit MP3 encoder at $c"
+  rust_use "$MP3_RUST"
+  binaryen="$WORK/binaryen-version_$BINARYEN_VERSION"
+  [ -x "$binaryen/bin/wasm-opt" ] || tar xzf "$(fetch "https://github.com/WebAssembly/binaryen/releases/download/version_$BINARYEN_VERSION/binaryen-version_$BINARYEN_VERSION-x86_64-linux.tar.gz" "$BINARYEN_SHA256")" -C "$WORK"
+  src="$WORK/scoredit"
+  if [ "$(git -C "$src" rev-parse HEAD 2>/dev/null)" != "$c" ]; then
+    rm -rf "$src" && mkdir -p "$src"
+    (cd "$src" && git init -q && git remote add origin https://github.com/hikashop-nicolas/scoredit.git &&
+      git fetch -q --depth 1 origin "$c" && git -c advice.detachedHead=false checkout -q FETCH_HEAD)
+  fi
+  d="$src/wasm/mp3"
+  (cd "$d" && cargo build -q --release --locked --target wasm32-unknown-unknown)
+  "$binaryen/bin/wasm-opt" -O3 "$d/target/wasm32-unknown-unknown/release/scoredit_mp3.wasm" -o "$WORK/mp3.wasm"
+  for f in mp3-wasm.js mp3-wasm.d.ts; do
+    python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$WORK/mp3.wasm" \
+      "node_modules/scoredit/dist/vendor/$f" "$WORK/scoredit-$f"
+    install_over "$WORK/scoredit-$f" "node_modules/scoredit/dist/vendor/$f"
+  done
+}
+
+# The Ogg Vorbis decoder spessasynth_core (scoredit's synthesizer) reads compressed SoundFont
+# samples with: stb-vorbis, Sean Barrett's stb_vorbis (public domain or MIT) behind an Apache-2.0
+# wrapper. Its scripts/build-wasm.ts is one emcc call, repeated here with the same flags on the
+# Emscripten its release workflow pins; the binary is base64 inside dist/index.js.
+STBVORBIS_EMSCRIPTEN="6.0.6"
+build_stbvorbis() {
+  v="$(npm_version stb-vorbis)"
+  echo "stb-vorbis $v"
+  emsdk_use "$STBVORBIS_EMSCRIPTEN" "$STBVORBIS_EMSCRIPTEN"
+  src="$WORK/stb-vorbis-$v"
+  [ -d "$src" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "v$v" https://github.com/spessasus/stb-vorbis.git "$src"
+  # stb_vorbis's asserts keep __FILE__, absolute as upstream passes it: map ours onto its CI checkout.
+  (cd "$src" && emcc "$src/wasm/vorbis_wrapper.c" -fmacro-prefix-map="$src=/home/runner/work/stb-vorbis/stb-vorbis" \
+    -O3 -flto --no-entry -sSTANDALONE_WASM=1 \
+    -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0 -sSTACK_SIZE=1048576 -sEXPORTED_RUNTIME_METHODS=[] \
+    -sEXPORTED_FUNCTIONS=_vorbis_decode,_vorbis_free,_malloc,_free -o "$WORK/vorbis.wasm")
+  python3 "$ROOT/scripts/fdroid/embed-wasm.py" "$WORK/vorbis.wasm" \
+    node_modules/stb-vorbis/dist/index.js "$WORK/stb-vorbis-index.js"
+  install_over "$WORK/stb-vorbis-index.js" node_modules/stb-vorbis/dist/index.js
 }
 
 build_restore() {
@@ -467,7 +532,7 @@ build_restore() {
   (cd "$WORK/npm-originals" && find . -type f) | while read -r f; do cp "$WORK/npm-originals/$f" "$ROOT/$f"; echo "  $f"; done
 }
 
-ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif tesseract onnxruntime pdfengine"
+ALL="alac sqljs libav 7zip libarchive libass hysnappy xzwasm psd libheif tesseract onnxruntime pdfengine mp3 stbvorbis"
 for target in ${*:-$ALL}; do
   "build_$target"
 done
