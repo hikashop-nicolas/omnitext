@@ -1090,6 +1090,12 @@ const fr: Dict = {
     failed: "La partition n'a pas pu être lue : {message}",
     cancel: "Arrêter la lecture",
   },
+  midi: {
+    connect: "Connecter un clavier MIDI",
+    connected: "Clavier MIDI connecté : utilisez Entraînement dans la barre de la partition.",
+    unavailable: "Ce navigateur ne peut pas utiliser d'appareils MIDI.",
+    denied: "L'accès MIDI a été refusé.",
+  },
 };
 
 export default fr;

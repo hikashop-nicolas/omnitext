@@ -1089,6 +1089,12 @@ const en: Dict = {
     failed: "The sheet music could not be read: {message}",
     cancel: "Stop reading",
   },
+  midi: {
+    connect: "Connect a MIDI keyboard",
+    connected: "MIDI keyboard connected: practise with Practice in the score's bar.",
+    unavailable: "This browser cannot use MIDI devices.",
+    denied: "MIDI access was refused.",
+  },
 };
 
 export default en;

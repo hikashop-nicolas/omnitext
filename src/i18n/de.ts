@@ -1087,6 +1087,12 @@ const de: Dict = {
     failed: "Die Noten konnten nicht gelesen werden: {message}",
     cancel: "Lesen abbrechen",
   },
+  midi: {
+    connect: "MIDI-Keyboard verbinden",
+    connected: "MIDI-Keyboard verbunden: Mit Üben in der Leiste der Partitur üben.",
+    unavailable: "Dieser Browser kann keine MIDI-Geräte verwenden.",
+    denied: "Der MIDI-Zugriff wurde verweigert.",
+  },
 };
 
 export default de;

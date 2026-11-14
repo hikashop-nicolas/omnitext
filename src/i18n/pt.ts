@@ -1087,6 +1087,12 @@ const pt: Dict = {
     failed: "Não foi possível ler a partitura: {message}",
     cancel: "Parar a leitura",
   },
+  midi: {
+    connect: "Conectar um teclado MIDI",
+    connected: "Teclado MIDI conectado: pratique com Prática na barra da partitura.",
+    unavailable: "Este navegador não pode usar dispositivos MIDI.",
+    denied: "O acesso MIDI foi recusado.",
+  },
 };
 
 export default pt;

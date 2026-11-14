@@ -1089,6 +1089,12 @@ const ja: Dict = {
     failed: "楽譜を読み取れませんでした: {message}",
     cancel: "読み取りを中止",
   },
+  midi: {
+    connect: "MIDI キーボードを接続",
+    connected: "MIDI キーボードを接続しました。楽譜のバーの「練習」で練習できます。",
+    unavailable: "このブラウザーでは MIDI 機器を使えません。",
+    denied: "MIDI へのアクセスが拒否されました。",
+  },
 };
 
 export default ja;

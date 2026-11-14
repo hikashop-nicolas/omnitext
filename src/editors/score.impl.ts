@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, isNotationMidi, loadScore, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, isNotationMidi, loadScore, webMidiInput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -6,7 +6,7 @@ import { requestInstrumentSounds } from "../remote-consent";
 // Recorded instruments, downloaded per instrument when a score uses them, after asking once.
 const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, cacheName: "omnitext-sounds" });
 import { pdfScoreXml } from "./score-pdf";
-import type { EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
+import type { Disposable, EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
@@ -36,6 +36,7 @@ class ScoreInstance implements EditorInstance {
   /** Read from a PDF: saved as a PDF engraved again from the edited score. */
   private fromPdf = false;
   private warnedPdf = false;
+  private midiCommand: Disposable | null = null;
   private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
 
@@ -83,6 +84,10 @@ class ScoreInstance implements EditorInstance {
         },
       });
       this.fullscreen.attach(this.handle);
+      // A MIDI keyboard for practising: connected at once where access is already granted (the app),
+      // otherwise on request from the palette, since browsers ask for permission.
+      void this.connectMidi(false);
+      this.midiCommand = this.host.commands.register({ id: "score.connectMidi", title: t("midi.connect"), run: () => this.connectMidi(true) });
     } catch (e) {
       const p = document.createElement("p");
       p.className = "ot-score-msg";
@@ -163,7 +168,29 @@ class ScoreInstance implements EditorInstance {
     return this.handle?.getBarEnd() ?? null;
   }
 
+  /** Gives the score a MIDI keyboard; asking only when the person asked for it. */
+  private async connectMidi(ask: boolean): Promise<void> {
+    const nav = navigator as Navigator & { requestMIDIAccess?: () => Promise<MIDIAccess> };
+    if (!nav.requestMIDIAccess || !this.handle) {
+      if (ask) this.host.notifications.warn(t("midi.unavailable"));
+      return;
+    }
+    if (!ask) {
+      const state = await navigator.permissions?.query({ name: "midi" as PermissionName }).then((p) => p.state, () => "prompt");
+      if (state !== "granted") return;
+    }
+    try {
+      const access = await nav.requestMIDIAccess();
+      this.handle?.setMidiInput(webMidiInput(access));
+      if (ask) this.host.notifications.info(t("midi.connected"));
+    } catch {
+      if (ask) this.host.notifications.warn(t("midi.denied"));
+    }
+  }
+
   dispose(): void {
+    this.midiCommand?.dispose();
+    this.midiCommand = null;
     this.fullscreen?.dispose();
     this.fullscreen = null;
     this.handle?.destroy();

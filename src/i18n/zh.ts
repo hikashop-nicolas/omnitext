@@ -1091,6 +1091,12 @@ const zh: Dict = {
     failed: "无法识别乐谱：{message}",
     cancel: "停止识别",
   },
+  midi: {
+    connect: "连接 MIDI 键盘",
+    connected: "已连接 MIDI 键盘：可在乐谱工具栏的“练习”中练习。",
+    unavailable: "此浏览器无法使用 MIDI 设备。",
+    denied: "MIDI 访问被拒绝。",
+  },
 };
 
 export default zh;
