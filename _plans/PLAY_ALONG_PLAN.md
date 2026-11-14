@@ -116,6 +116,15 @@ user calibration step: tap along with clicks, stored in Settings).
    keyboard remain to try when one is at hand.
 2. scoredit: MidiInput/MidiOutput types; the note matcher (pure, unit tested on timelines
    and recorded note streams); wait mode in keys and page views.
+   Done 2026-11-14 (scoredit 6b24022, Omnitext ebb3bcb): webMidiInput merges ports and drops
+   twin-port duplicates within 2 ms; WaitMatcher (a group counts once each pitch is struck
+   since it became current, any order, wrong keys ignored, a held key must be re-struck; ties
+   expect their first note, graces never, ornaments their written note, tremolos their first
+   stroke); practised parts are the parts shown, right/left hand by staff for piano; the
+   other parts play up to the gate and wait; keys and keyboard strip show expected (outline)
+   and played (green or red); "Hear my notes" echoes keys on the built-in synth. Omnitext
+   connects MIDI at once where access is granted (the app), else from the palette (Connect a
+   MIDI keyboard). e2e with a fake input; not yet tried with a device.
 3. Omnitext: device picker, permission flow, Settings (latency calibration).
 4. Step entry from a MIDI keyboard in the editor.
 5. In-time mode with feedback; hands separately; loop with speed-up.
