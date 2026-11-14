@@ -12,7 +12,7 @@ const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, ca
 // PDF faces for non-Western text: the app's own font files (craftbridge's), fetched only for scripts a
 // score uses; an empty URL (a build without the engines) keeps the standard font.
 const fontBytes = new Map<string, Promise<Uint8Array | null>>();
-const face = (key: "japanese" | "hans" | "hangul") => async () => {
+const face = (key: "japanese" | "hans" | "hangul" | "latin" | "arabic" | "hebrew") => async () => {
   const url = (await import("craftbridge/deck")).deckFontUrls[key];
   if (!url) return null;
   if (!fontBytes.has(url))
@@ -25,9 +25,9 @@ const face = (key: "japanese" | "hans" | "hangul") => async () => {
     );
   return fontBytes.get(url)!;
 };
-// BIZ UDPGothic also has Cyrillic, Greek and extended Latin (Cyrillic and Greek full-width).
-const japanese = face("japanese");
-const scoreFonts: PdfFonts = { japanese, chinese: face("hans"), korean: face("hangul"), latin: japanese, cyrillic: japanese, greek: japanese };
+// Inter covers extended Latin, Cyrillic and Greek.
+const latin = face("latin");
+const scoreFonts: PdfFonts = { japanese: face("japanese"), chinese: face("hans"), korean: face("hangul"), latin, cyrillic: latin, greek: latin, arabic: face("arabic"), hebrew: face("hebrew") };
 const exportPdf = (score: ScoreDoc, opts: PdfExportOptions = {}) => scoreditPdf(score, { fonts: scoreFonts, ...opts });
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
