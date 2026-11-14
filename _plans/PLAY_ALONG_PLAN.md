@@ -129,6 +129,13 @@ user calibration step: tap along with clicks, stored in Settings).
    wrong C#4, moved on for C4, D4... B4, and playback ended at the last bar.
 3. Omnitext: device picker, permission flow, Settings (latency calibration).
 4. Step entry from a MIDI keyboard in the editor.
+   Done 2026-11-14 (scoredit 68c344c, Omnitext 38aebf1): in note input a key enters its exact
+   pitch with the current length (spelled from the key: scale notes as the key writes them,
+   other black keys sharp in sharp keys and C, flat in flat keys), keys within 60 ms make one
+   chord (holding does not), the sustain pedal enters a rest, one undo step each; out of note
+   input a key re-pitches the one selected note; transposing parts get the written pitch,
+   drum parts the drum on that key; editing takes MIDI from practice. Phone: a chord E4 G4
+   C5 and a D4 from the virtual keyboard entered as expected.
 5. In-time mode with feedback; hands separately; loop with speed-up.
 6. MIDI output.
 7. Microphone, monophonic.
