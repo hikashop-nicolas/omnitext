@@ -1,13 +1,34 @@
-import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf, exportWav, isNotationMidi, loadScore, webMidiInput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf as scoreditPdf, exportWav, isNotationMidi, loadScore, webMidiInput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type PdfExportOptions, type PdfFonts, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
-
-// Recorded instruments, downloaded per instrument when a score uses them, after asking once.
-const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, cacheName: "omnitext-sounds" });
 import { pdfScoreXml } from "./score-pdf";
 import type { Disposable, EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
+
+// Recorded instruments, downloaded per instrument when a score uses them, after asking once.
+const sounds = remoteSounds({ base: SOUNDS_CDN, ask: requestInstrumentSounds, cacheName: "omnitext-sounds" });
+
+// PDF faces for non-Western text: the app's own font files (craftbridge's), fetched only for scripts a
+// score uses; an empty URL (a build without the engines) keeps the standard font.
+const fontBytes = new Map<string, Promise<Uint8Array | null>>();
+const face = (key: "japanese" | "hans" | "hangul") => async () => {
+  const url = (await import("craftbridge/deck")).deckFontUrls[key];
+  if (!url) return null;
+  if (!fontBytes.has(url))
+    fontBytes.set(
+      url,
+      fetch(url)
+        .then(async (r) => (r.ok ? new Uint8Array(await r.arrayBuffer()) : null))
+        .catch(() => null)
+        .then((b) => (b || fontBytes.delete(url), b)),
+    );
+  return fontBytes.get(url)!;
+};
+// BIZ UDPGothic also has Cyrillic, Greek and extended Latin (Cyrillic and Greek full-width).
+const japanese = face("japanese");
+const scoreFonts: PdfFonts = { japanese, chinese: face("hans"), korean: face("hangul"), latin: japanese, cyrillic: japanese, greek: japanese };
+const exportPdf = (score: ScoreDoc, opts: PdfExportOptions = {}) => scoreditPdf(score, { fonts: scoreFonts, ...opts });
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b;
 // The page size chosen in Settings.
