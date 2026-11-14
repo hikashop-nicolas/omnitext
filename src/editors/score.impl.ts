@@ -1,4 +1,4 @@
-import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf as scoreditPdf, exportWav, isNotationMidi, loadScore, webMidiInput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type PdfExportOptions, type PdfFonts, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
+import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf as scoreditPdf, exportWav, isNotationMidi, loadScore, webMidiInput, webMidiOutput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type PdfExportOptions, type PdfFonts, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
 import { getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
@@ -58,6 +58,8 @@ class ScoreInstance implements EditorInstance {
   private fromPdf = false;
   private warnedPdf = false;
   private midiCommand: Disposable | null = null;
+  // Stops following the MIDI ports (devices plugged in or out) for the instrument's output.
+  private midiPorts: (() => void) | null = null;
   private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
 
@@ -96,6 +98,8 @@ class ScoreInstance implements EditorInstance {
         sounds,
         parts: { show: myParts(loaded.score) },
         practice: { latencyMs: getSettings().midiDelayMs },
+        // Practice shows before a keyboard is connected, with a button that asks the browser for MIDI.
+        connectMidi: () => void this.connectMidi(true),
         // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
         editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
         // A played-in MIDI file reads better as falling notes than as notation.
@@ -204,6 +208,12 @@ class ScoreInstance implements EditorInstance {
     try {
       const access = await nav.requestMIDIAccess();
       this.handle?.setMidiInput(webMidiInput(access));
+      // The keyboard's output, so it can play the parts not practised; picked again as devices come and go.
+      this.midiPorts?.();
+      const outputs = () => this.handle?.setMidiOutput(webMidiOutput(access));
+      access.addEventListener("statechange", outputs);
+      this.midiPorts = () => access.removeEventListener("statechange", outputs);
+      outputs();
       if (ask) this.host.notifications.info(t("midi.connected"));
     } catch {
       if (ask) this.host.notifications.warn(t("midi.denied"));
@@ -211,6 +221,8 @@ class ScoreInstance implements EditorInstance {
   }
 
   dispose(): void {
+    this.midiPorts?.();
+    this.midiPorts = null;
     this.midiCommand?.dispose();
     this.midiCommand = null;
     this.fullscreen?.dispose();
