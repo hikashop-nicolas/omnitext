@@ -55,6 +55,8 @@ const fr: Dict = {
     instrumentSoundsHint: "Les partitions jouent tout de suite avec un son intégré. Si c'est autorisé, les instruments utilisés par une partition sont téléchargés depuis cdn.jsdelivr.net la première fois (la plupart moins de 0,5 Mo, le piano 15 Mo) et gardés pour une utilisation hors ligne. Rien de votre fichier n'est envoyé.",
     scoreInstrument: "Mon instrument",
     scoreInstrumentHint: "Les partitions à plusieurs instruments s'ouvrent en ne montrant que les parties de cet instrument, quand elles en ont. Le bouton Parties de la barre de la partition affiche les autres.",
+    midiDelay: "Délai MIDI (ms)",
+    midiDelayHint: "Pour s'entraîner en rythme avec un clavier MIDI. Jouez un passage en rythme : le bilan affiche votre décalage moyen ; s'il reste en retard (+) ou en avance (-) sur des notes que vous savez avoir jouées à temps, ajoutez ce nombre ici.",
     famAll: "Toutes les parties",
     famKeys: "Piano et claviers",
     famGuitar: "Guitare",

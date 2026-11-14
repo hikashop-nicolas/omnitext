@@ -55,6 +55,8 @@ const en: Dict = {
     instrumentSoundsHint: "Scores play on a built-in sound right away. Allowed, the instruments a score uses are downloaded from cdn.jsdelivr.net the first time (most under 0.5 MB, the piano 15 MB) and kept for offline use. Nothing about your file is sent.",
     scoreInstrument: "My instrument",
     scoreInstrumentHint: "Scores with several instruments open showing only the parts for this instrument, when they have one. The Parts button in the score's bar shows the others.",
+    midiDelay: "MIDI delay (ms)",
+    midiDelayHint: "For practising in time with a MIDI keyboard. Play a passage in time: the summary shows your average timing, and if it stays late (+) or early (-) on notes you know you played in time, add that number here.",
     famAll: "All parts",
     famKeys: "Piano and keyboards",
     famGuitar: "Guitar",

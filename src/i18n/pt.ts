@@ -55,6 +55,8 @@ const pt: Dict = {
     instrumentSoundsHint: "As partituras tocam logo com um som integrado. Se permitido, os instrumentos que uma partitura usa são descarregados de cdn.jsdelivr.net da primeira vez (a maioria com menos de 0,5 MB, o piano 15 MB) e guardados para uso offline. Nada do seu ficheiro é enviado.",
     scoreInstrument: "Meu instrumento",
     scoreInstrumentHint: "Partituras com vários instrumentos abrem mostrando só as partes deste instrumento, quando as têm. O botão Partes da barra da partitura mostra as outras.",
+    midiDelay: "Atraso MIDI (ms)",
+    midiDelayHint: "Para praticar no tempo com um teclado MIDI. Toque um trecho no tempo: o resumo mostra o seu desvio médio; se continuar atrasado (+) ou adiantado (-) em notas que sabe que tocou no tempo, some esse número aqui.",
     famAll: "Todas as partes",
     famKeys: "Piano e teclados",
     famGuitar: "Violão e guitarra",

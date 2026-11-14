@@ -74,6 +74,7 @@ class ScoreInstance implements EditorInstance {
           : undefined,
         sounds,
         parts: { show: myParts(loaded.score) },
+        practice: { latencyMs: getSettings().midiDelayMs },
         // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
         editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
         // A played-in MIDI file reads better as falling notes than as notation.

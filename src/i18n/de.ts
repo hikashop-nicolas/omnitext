@@ -55,6 +55,8 @@ const de: Dict = {
     instrumentSoundsHint: "Partituren spielen sofort mit einem eingebauten Klang. Wenn erlaubt, werden die Instrumente einer Partitur beim ersten Mal von cdn.jsdelivr.net geladen (meist unter 0,5 MB, das Klavier 15 MB) und für die Offline-Nutzung behalten. Nichts aus Ihrer Datei wird gesendet.",
     scoreInstrument: "Mein Instrument",
     scoreInstrumentHint: "Partituren mit mehreren Instrumenten zeigen beim Öffnen nur die Stimmen dieses Instruments, wenn es welche gibt. Die Schaltfläche Stimmen in der Leiste der Partitur zeigt die anderen.",
+    midiDelay: "MIDI-Verzögerung (ms)",
+    midiDelayHint: "Zum Üben im Takt mit einem MIDI-Keyboard. Spielen Sie eine Passage im Takt: Die Auswertung zeigt Ihre mittlere Abweichung; bleibt sie bei Noten, die Sie sicher im Takt gespielt haben, zu spät (+) oder zu früh (-), tragen Sie diese Zahl hier ein.",
     famAll: "Alle Stimmen",
     famKeys: "Klavier und Tasteninstrumente",
     famGuitar: "Gitarre",

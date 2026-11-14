@@ -33,6 +33,8 @@ export interface Settings {
   instrumentSounds: AiDownloads;
   /** The instrument family a multi-instrument score opens on ("" shows every part). */
   scoreInstrument: string;
+  /** Delay of the MIDI keyboard and speakers for in-time practice, ms (scoredit's practice.latencyMs). */
+  midiDelayMs: number;
 }
 
 const DEFAULTS: Settings = {
@@ -45,6 +47,7 @@ const DEFAULTS: Settings = {
   mapBasemap: "ask",
   instrumentSounds: "ask",
   scoreInstrument: "",
+  midiDelayMs: 0,
 };
 
 export function getSettings(): Settings {

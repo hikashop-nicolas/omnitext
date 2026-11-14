@@ -59,6 +59,8 @@ const zh: Dict = {
     instrumentSoundsHint: "乐谱会立即用内置声音播放。允许后，乐谱用到的乐器会在首次使用时从 cdn.jsdelivr.net 下载（大多小于 0.5 MB，钢琴 15 MB），并保存以便离线使用。不会发送您文件中的任何内容。",
     scoreInstrument: "我的乐器",
     scoreInstrumentHint: "多乐器乐谱打开时只显示该乐器的声部（如果有）。乐谱工具栏中的“声部”按钮可显示其他声部。",
+    midiDelay: "MIDI 延迟（毫秒）",
+    midiDelayHint: "用于配合 MIDI 键盘按节奏练习。按节奏弹奏一段：总结会显示平均偏差；如果在你确定弹准的音符上仍然偏晚 (+) 或偏早 (-)，请把这个数字加到这里。",
     famAll: "全部声部",
     famKeys: "钢琴与键盘",
     famGuitar: "吉他",
