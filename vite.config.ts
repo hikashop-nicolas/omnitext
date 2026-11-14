@@ -79,6 +79,13 @@ const bundleOnnxruntimeEngine: Plugin = {
 };
 
 /**
+ * scoredit's sheet-music scan imports plain "onnxruntime-web", whose bundle loads the JSEP engine.
+ * The F-Droid build points it at the WebGPU bundle instead, which loads the asyncify pair already
+ * packaged for transformers.js, so one engine serves both (src/editors/sheet-scan.ts passes ort/).
+ */
+const scanEngineAlias = bundleOnnxruntime ? [{ find: /^onnxruntime-web$/, replacement: "onnxruntime-web/webgpu" }] : [];
+
+/**
  * The F-Droid build ships the Tesseract OCR engine instead of fetching it from jsDelivr on first
  * use, because F-Droid's inclusion policy objects to downloading executable code. With
  * OMNITEXT_BUNDLE_TESSERACT=1 the engine is emitted into dist/tesseract/ and
@@ -179,6 +186,7 @@ export default defineConfig({
     __CRAFT_PDF__: JSON.stringify(craftReady),
     __CRAFT_DECK__: JSON.stringify(deckReady),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
+    __ORT_ENGINE_DIR__: JSON.stringify(bundleOnnxruntime ? ORT_ENGINE_DIR : ""),
   },
   // the editors and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in
@@ -186,8 +194,15 @@ export default defineConfig({
   resolve: {
     // three: the 3D model viewer and dxf-viewer both use it; keep a single instance so
     // cross-instance objects (e.g. a THREE.Color passed to dxf-viewer) work correctly.
-    dedupe: ["pdfjs-dist", "pdf-lib", "three"],
-    alias: [{ find: "jsdom", replacement: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname }, ...craftAliases, ...deckAliases],
+    // onnxruntime-web: scoredit pins its own release; its scan runs on the copy transformers.js
+    // uses, the one build-wasm.sh compiles and the F-Droid build packages. npm 9 ignores overrides.
+    dedupe: ["pdfjs-dist", "pdf-lib", "three", "onnxruntime-web"],
+    alias: [
+      { find: "jsdom", replacement: new URL("./src/vendor/jsdom-stub.ts", import.meta.url).pathname },
+      ...craftAliases,
+      ...deckAliases,
+      ...scanEngineAlias,
+    ],
   },
   server: { fs: { allow: [".", craftDir] } },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every

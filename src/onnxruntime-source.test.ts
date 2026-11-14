@@ -43,3 +43,17 @@ describe("where transformers.js loads onnxruntime from", () => {
     expect(() => rewriteOnnxBackend("// nothing to anchor on")).toThrow(/cannot find/);
   });
 });
+
+// Vite dedupes scoredit's onnxruntime-web onto ours, and the F-Droid build aliases the plain import
+// to the WebGPU bundle, so the scan loads the packaged pair (vite.config.ts); both rest on these.
+describe("where the sheet-music scan loads onnxruntime from", () => {
+  it("imports plain onnxruntime-web, the specifier the alias catches", () => {
+    const read = readFileSync("node_modules/scoredit/dist/formats/scan/read.js", "utf8");
+    expect(read).toContain('import("onnxruntime-web")');
+  });
+
+  it("gets the packaged pair from the WebGPU bundle", () => {
+    const bundle = readFileSync("node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs", "utf8");
+    for (const file of ORT_ENGINE_FILES) expect(bundle, file).toContain(file);
+  });
+});

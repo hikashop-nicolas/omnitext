@@ -10,6 +10,9 @@ export const SCAN_MODELS_REPO = "hikashop-nicolas/scoredit-scan";
 const SYMBOLS = { name: "scoredit-symbols-small-int8.onnx", bytes: 1_813_217 };
 const CLASSIFIERS = { name: "oemer-classifiers.json", bytes: 5_850_300 };
 const ENGINE_HOST = "cdn.jsdelivr.net";
+// The F-Droid build packages the engine under this folder of dist (vite.config.ts); empty elsewhere.
+declare const __ORT_ENGINE_DIR__: string | undefined;
+const PACKAGED_ENGINE = typeof __ORT_ENGINE_DIR__ === "string" ? __ORT_ENGINE_DIR__ : "";
 
 let running: AbortController | null = null;
 
@@ -42,19 +45,21 @@ async function read(bytes: Uint8Array, mime: string | undefined, base: string, s
     label: "oemer",
     repo: SCAN_MODELS_REPO,
     files: [SYMBOLS, CLASSIFIERS],
-    alsoFrom: [ENGINE_HOST],
+    alsoFrom: PACKAGED_ENGINE ? [] : [ENGINE_HOST],
     signal,
     onProgress: (loaded, total) => pill(t("scan.downloading", { percent: String(Math.round((loaded / Math.max(1, total)) * 100)) })),
   });
   const { scanToMusicXml, scanEngineVersion } = await import("scoredit");
-  const engine = await scanEngineVersion();
+  const wasmPaths = PACKAGED_ENGINE
+    ? new URL(PACKAGED_ENGINE, document.baseURI).href
+    : `https://${ENGINE_HOST}/npm/onnxruntime-web@${await scanEngineVersion()}/dist/`;
   const result = await scanToMusicXml(new Blob([bytes as BlobPart], { type: mime ?? "image/png" }), {
     models: { symbols: files.get(SYMBOLS.name)!, classifiers: files.get(CLASSIFIERS.name)! },
     // The dev server pre-bundles scoredit, which breaks its worker's URL: in the page there.
     worker: import.meta.env.DEV ? undefined : true,
     threads: 1,
     tiles: "strips",
-    wasmPaths: `https://${ENGINE_HOST}/npm/onnxruntime-web@${engine}/dist/`,
+    wasmPaths,
     title: base,
     signal,
     progress: (p) => pill(p.total > 1 ? t("scan.reading", { done: String(p.done), total: String(p.total) }) : t("scan.finishing")),
