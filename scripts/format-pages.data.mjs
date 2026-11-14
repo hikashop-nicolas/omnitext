@@ -542,6 +542,142 @@ export const PAGES = [
     ],
   },
   {
+    id: "musicxml",
+    shot: {
+      name: "score-page",
+      caption:
+        "A song for voice and piano (Schubert, from the OpenScore collection) open in the score editor's page view.",
+    },
+    formats: ["musicxml", "mxl"],
+    name: "MusicXML",
+    headline: "Open, play and edit MusicXML in your browser",
+    summary:
+      "Read, play and edit MusicXML and compressed .mxl scores in the browser, then save them back or export them. No account, no upload.",
+    lead: "MusicXML is how notation programs pass scores to each other. Omnitext engraves it on the page, plays it, and lets you edit it with real note entry, on a computer or a phone, without installing a notation program.",
+    can: [
+      "See the score as pages, as one long line to play along with, or as falling notes over a keyboard",
+      "Play it with a built-in sound at once, or with recorded instruments, downloaded the first time after asking",
+      "Enter and change notes from the computer keyboard, an on-screen piano or fretboard, or a MIDI keyboard",
+      "Add marks, dynamics, lyrics, chord symbols and text, change key, time and clef, add bars and instruments, and transpose",
+      "Practise with a MIDI keyboard: the score waits for your notes, or runs in time and tells you how it went",
+      "Show only your own part when the score has several, and a tab staff for guitar",
+      "Save as .musicxml or .mxl, or export as Guitar Pro, MIDI, PDF, MP3 or WAV",
+    ],
+    note: "A PDF exported from Omnitext carries the score inside it, so opening that PDF again gives back the exact score, ready to edit.",
+  },
+  {
+    id: "mscz",
+    shot: {
+      name: "score-page",
+      caption:
+        "The score editor in its page view, here with a MusicXML song; MuseScore files open the same way.",
+    },
+    formats: ["mscz", "mscx"],
+    name: "MuseScore",
+    headline: "Open and edit a MuseScore file without MuseScore",
+    summary:
+      "Open .mscz and .mscx scores from MuseScore 3 and 4 in the browser, play them, edit them and save them back. Nothing is uploaded.",
+    lead: "A MuseScore file normally needs MuseScore to open. Omnitext reads it in the browser, plays it, and saves your edits back into the same file, rewriting only the bars you changed so the rest stays as MuseScore wrote it.",
+    can: [
+      "Read a score someone sent you on a phone or a computer with no notation program",
+      "Play it, slower if you like, with the notes lit as they sound",
+      "Edit notes, marks, lyrics, chords and instruments, and save straight back to .mscz",
+      "Switch to the page, a single long line, or falling notes over a keyboard",
+      "Practise your part with a MIDI keyboard",
+      "Start a new score from the New dialog, with its title, instruments, key and time",
+      "Export as MusicXML, Guitar Pro, MIDI, PDF, MP3 or WAV",
+    ],
+    note: "Scores from MuseScore 3 and 4 can be edited and saved. Older MuseScore 2 files open for playing and exporting only. If a save cannot carry something over, Omnitext says what.",
+  },
+  {
+    id: "guitarpro",
+    shot: {
+      name: "score-tab",
+      caption:
+        "A guitar arrangement of Greensleeves with its tab staff under the notation.",
+    },
+    formats: ["guitarpro"],
+    name: "Guitar Pro",
+    headline: "Open a Guitar Pro tab in your browser",
+    summary:
+      "Read and play Guitar Pro 3 to 7 tabs in the browser, with notation and tab together, and edit Guitar Pro 7 files. No install, no upload.",
+    lead: "Omnitext opens Guitar Pro files from version 3 to 7, shows the notation with the tab underneath, and plays them, so a tab someone sent you does not mean buying or installing anything.",
+    can: [
+      "Read the tab and the notation together, or turn the tab staff off",
+      "Play it, with a fretboard under the score showing where the notes are",
+      "Slow it down to learn a passage",
+      "Edit a Guitar Pro 7 file, entering notes on the fretboard, and save it back",
+      "Export any of them as Guitar Pro 7, MusicXML, MIDI, PDF, MP3 or WAV",
+    ],
+    note: "Files from Guitar Pro 3 to 6 (.gp3, .gp4, .gp5, .gpx) open for playing and exporting; export as Guitar Pro 7 to edit them. A .gpx that is a GPS track still opens on the map.",
+  },
+  {
+    id: "midi",
+    shot: {
+      name: "score-keys",
+      caption:
+        "A MIDI file (a Schumann song, exported from the OpenScore collection) as falling notes over the keyboard.",
+    },
+    formats: ["midi"],
+    name: "MIDI",
+    headline: "Open a MIDI file as a score, or as falling notes",
+    summary:
+      "Play MIDI files in the browser as sheet music or as falling notes over a keyboard, practise them with a MIDI keyboard, and export them.",
+    lead: "Omnitext turns a MIDI file into something to read and play along with. A file exported from a score opens as notation; one played in by hand opens as notes falling onto a keyboard, which reads better than notation for a performance.",
+    can: [
+      "Play it with a built-in sound, or with recorded instruments after you allow the download",
+      "Switch between the page, one long line, and falling notes over a keyboard",
+      "Practise along with a MIDI keyboard, with the music waiting for you or running in time",
+      "Slow it down, and show only the parts you want",
+      "Export it as MusicXML, Guitar Pro, PDF, MP3 or WAV",
+    ],
+    note: "MIDI files open for playing and practising. To edit one, export it as MusicXML and open that.",
+  },
+  {
+    id: "abc",
+    shot: {
+      name: "score-page",
+      caption:
+        "The score editor in its page view, here with a MusicXML song; ABC tunes open in the same viewer.",
+    },
+    formats: ["abc"],
+    name: "ABC",
+    headline: "See and hear ABC notation in your browser",
+    summary:
+      "Open ABC tunes as engraved sheet music, play them, and export them as MusicXML, MIDI, PDF or audio. Nothing to install.",
+    lead: "ABC is the plain-text notation folk musicians trade tunes in. Omnitext engraves it as sheet music and plays it, and the text itself is one click away when you want to change a note.",
+    can: [
+      "See the tunes in the file engraved as sheet music",
+      "Play it, slower if you are learning it",
+      "Edit the ABC text in the text view",
+      "Export the tune as MusicXML, Guitar Pro, MIDI, PDF, MP3 or WAV",
+    ],
+    note: "The score view shows and plays ABC; edits are made in the text.",
+  },
+  {
+    id: "sheet-music-pdf",
+    shot: {
+      name: "score-page",
+      caption:
+        "The score editor in its page view, here with a MusicXML song; a PDF from notation software opens in the same editor.",
+    },
+    formats: ["score-pdf", "pdf"],
+    name: "score PDFs",
+    headline: "Turn a sheet music PDF back into an editable score",
+    summary:
+      "Open a score PDF from MuseScore, Sibelius, Finale, LilyPond or Dorico as a score you can play, edit and export, in the browser.",
+    lead: "A PDF of sheet music is usually a dead end: you can print it, not play or change it. When a PDF was made by notation software, Omnitext reads the notation back out of it and opens it as a real score, without asking you which kind of PDF it is.",
+    can: [
+      "Open PDFs engraved by MuseScore, Sibelius, Finale, LilyPond or Dorico as scores",
+      "Play them, and practise with a MIDI keyboard",
+      "Edit the notes, then save a newly engraved PDF",
+      "Export as MusicXML, Guitar Pro, MIDI, MP3 or WAV to keep working elsewhere",
+      "Reopen a PDF exported from Omnitext exactly as the score it came from",
+      "Read a photo or scan of printed music with the OCR button in the image viewer",
+    ],
+    note: "Reading a PDF from notation software is not guesswork, but it can miss details. A photo or scan is different: the OCR button recognises sheet music and gives a draft to correct, and its recognition model is downloaded the first time, after asking. Any other PDF opens in the PDF editor as usual.",
+  },
+  {
     id: "code",
     shot: {
       name: "code",

@@ -261,6 +261,7 @@ const GROUPS = [
   { title: "Spreadsheets and data", ids: ["xlsx", "ods", "csv", "sqlite", "parquet", "ipynb", "json"] },
   { title: "Pictures and drawings", ids: ["svg", "psd", "heic", "dwg", "dxf", "dicom"] },
   { title: "Audio, video and subtitles", ids: ["video", "audio", "srt", "vtt", "ass"] },
+  { title: "Sheet music", ids: ["musicxml", "mscz", "guitarpro", "midi", "abc", "sheet-music-pdf"] },
   { title: "Maps", ids: ["geojson", "kml", "gpx"] },
   { title: "Mail and everything else", ids: ["eml", "msg", "archives", "code"] },
 ];
@@ -275,7 +276,7 @@ function indexPage(pages, manifests) {
   const body = `
 <h1>Every format Omnitext opens</h1>
 <p class="lead">Omnitext opens and edits files in your browser: documents, spreadsheets, PDFs,
-drawings, subtitles, maps, images and more. Nothing is uploaded, there is no account, and it
+drawings, sheet music, subtitles, maps, images and more. Nothing is uploaded, there is no account, and it
 is free and open source.</p>
 <a class="cta" href="index.html">Open Omnitext</a>
 ${figure({ name: "home", caption: "Omnitext when it opens: pick a file, or drop one on the page." }, "")}
