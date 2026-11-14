@@ -204,7 +204,8 @@ Sheet music in photos and scans is read with the models in
 [hikashop-nicolas/scoredit-scan](https://huggingface.co/hikashop-nicolas/scoredit-scan) on
 Hugging Face, run by [onnxruntime-web](https://github.com/microsoft/onnxruntime) (MIT): a small
 symbol network distilled from [oemer](https://github.com/BreezeWhite/oemer) (MIT), trained on
-renders of [OpenScore](https://openscore.cc/) scores (CC0), and oemer's symbol classifiers,
+renders of 24 scores (15 from [OpenScore](https://openscore.cc/), CC0; 6 OpenSheetMusicDisplay
+test files, BSD-3; 3 guitar scores from musescore.com), and oemer's symbol classifiers,
 trained by oemer's author on [DeepScoresV2](https://zenodo.org/record/4012193) (Tuggener et al.,
 CC BY 4.0).
 
