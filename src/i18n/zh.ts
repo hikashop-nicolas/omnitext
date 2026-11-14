@@ -1082,7 +1082,6 @@ const zh: Dict = {
     wav: "WAV 音频",
   },
   scan: {
-    read: "识别乐谱",
     preparing: "正在识别乐谱…",
     downloading: "正在识别乐谱：正在下载模型 {percent}%",
     reading: "正在识别乐谱：{done} / {total}",

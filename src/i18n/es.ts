@@ -1078,7 +1078,6 @@ const es: Dict = {
     wav: "Audio WAV",
   },
   scan: {
-    read: "Leer la partitura",
     preparing: "Leyendo la partitura…",
     downloading: "Leyendo la partitura: descargando el modelo, {percent} %",
     reading: "Leyendo la partitura: {done} de {total}",

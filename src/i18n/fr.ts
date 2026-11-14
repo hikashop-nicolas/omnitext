@@ -1081,7 +1081,6 @@ const fr: Dict = {
     wav: "Audio WAV",
   },
   scan: {
-    read: "Lire la partition",
     preparing: "Lecture de la partition…",
     downloading: "Lecture de la partition : téléchargement du modèle, {percent} %",
     reading: "Lecture de la partition : {done} sur {total}",

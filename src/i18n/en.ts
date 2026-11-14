@@ -1080,7 +1080,6 @@ const en: Dict = {
     wav: "WAV audio",
   },
   scan: {
-    read: "Read sheet music",
     preparing: "Reading sheet music…",
     downloading: "Reading sheet music: downloading the model, {percent}%",
     reading: "Reading sheet music: {done} of {total}",

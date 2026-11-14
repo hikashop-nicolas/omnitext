@@ -1080,7 +1080,6 @@ const ja: Dict = {
     wav: "WAV 音声",
   },
   scan: {
-    read: "楽譜を読み取る",
     preparing: "楽譜を読み取り中…",
     downloading: "楽譜を読み取り中: モデルをダウンロード中 {percent}%",
     reading: "楽譜を読み取り中: {done} / {total}",

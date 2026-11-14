@@ -1101,7 +1101,6 @@ const ru: Dict = {
     wav: "Аудио WAV",
   },
   scan: {
-    read: "Распознать ноты",
     preparing: "Распознавание нот…",
     downloading: "Распознавание нот: загрузка модели, {percent}%",
     reading: "Распознавание нот: {done} из {total}",
