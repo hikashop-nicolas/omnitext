@@ -7,7 +7,7 @@ name: Retry a run whose runner was taken away
 #
 # The retry loop around npm ci cannot help: the whole machine goes away, not just the
 # command. So this listens for a failed run and re-runs it, but only after reading the log
-# and finding that message (or finding no log at all, which is what a vanished runner leaves). A build that failed on its own merits is left failed, because a
+# and finding that message, or the "lost communication with the server" annotation (or finding no log at all, which is what a vanished runner leaves). A build that failed on its own merits is left failed, because a
 # red build that quietly goes green on a second try is worse than a flaky one.
 
 on:
@@ -17,6 +17,7 @@ on:
 
 permissions:
   actions: write
+  checks: read
   contents: read
 
 jobs:
@@ -34,13 +35,16 @@ jobs:
           ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           REPO: ${{ github.repository }}
         run: |
-          if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/logs" > logs.zip 2>/dev/null; then
-            # a runner that vanished takes its log with it
+          # a runner that vanished takes its log with it: no log, or an empty archive
+          if ! gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/logs" > logs.zip 2>/dev/null || ! unzip -tq logs.zip >/dev/null 2>&1; then
             echo "No log for run $RUN_ID; the runner was lost. Re-running the failed jobs."
             gh api --method POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
             exit 0
           fi
-          if unzip -p logs.zip | grep -q "The runner has received a shutdown signal"; then
+          # a runner that lost contact leaves its message on the jobs' annotations rather than in the log
+          lost=$(gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/jobs" --jq '.jobs[].id' \
+            | while read -r job; do gh api "repos/$REPO/check-runs/$job/annotations" --jq '.[].message'; done | grep -c "lost communication with the server" || true)
+          if [ "$lost" -gt 0 ] || unzip -p logs.zip | grep -q "The runner has received a shutdown signal"; then
             echo "Run $RUN_ID lost its runner. Re-running the failed jobs."
             gh api --method POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
           else
