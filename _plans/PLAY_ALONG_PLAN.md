@@ -137,5 +137,11 @@ user calibration step: tap along with clicks, stored in Settings).
    drum parts the drum on that key; editing takes MIDI from practice. Phone: a chord E4 G4
    C5 and a D4 from the virtual keyboard entered as expected.
 5. In-time mode with feedback; hands separately; loop with speed-up.
+   In-time mode done 2026-11-14 (scoredit 365a1a9): window ±max(80, 120/speed) ms, on time
+   within ±max(35, 50/speed) ms, else early or late, missed once the window passes; wrong keys
+   use up nothing; accuracy counts early/late as half; keys and notes coloured green, amber,
+   red, grey; a summary at the end of a run, not kept. Timing on the audio clock minus output
+   latency and practice.latencyMs (calibration UI in Omnitext Settings still to do). Not yet
+   tried on the phone. Hands separately and loop remain.
 6. MIDI output.
 7. Microphone, monophonic.
