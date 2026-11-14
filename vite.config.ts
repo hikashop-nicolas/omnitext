@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import {
@@ -114,7 +114,8 @@ const bundleTesseractEngine: Plugin = {
 
 /**
  * Third-party notices the minified bundle would otherwise lose: richdoc's EMF / WMF, chart, SmartArt and WordArt code is a
- * port of WordCraft's MIT code, and its notice ships beside the app.
+ * port of WordCraft's MIT code, and its notice ships beside the app. The font files craftbridge serves (SIL OFL 1.1) ship
+ * with their licences too, under third-party/fonts/.
  */
 const THIRD_PARTY_NOTICES = { "third-party/richdoc-wordcraft.LICENSE.md": "richdoc/dist/adapters/docx/wordcraft.LICENSE.md" };
 const emitThirdPartyNotices: Plugin = {
@@ -122,6 +123,10 @@ const emitThirdPartyNotices: Plugin = {
   generateBundle() {
     for (const [fileName, src] of Object.entries(THIRD_PARTY_NOTICES)) {
       if (existsSync(`node_modules/${src}`)) this.emitFile({ type: "asset", fileName, source: readFileSync(`node_modules/${src}`) });
+    }
+    const fonts = `${craftDir}/wasm/fonts`;
+    for (const name of existsSync(fonts) ? readdirSync(fonts).filter((n) => n.endsWith(".OFL.txt")) : []) {
+      this.emitFile({ type: "asset", fileName: `third-party/fonts/${name}`, source: readFileSync(`${fonts}/${name}`) });
     }
   },
 };
