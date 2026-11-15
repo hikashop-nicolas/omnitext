@@ -123,7 +123,7 @@ release: bump fdroidVersionCode/versionName, tag fdroid-<version>, put that tag'
 in the recipe's `commit:` (F-Droid refuses a tag or branch there), run the dry run above, then
 `scripts/fdroid/sign-apk.sh <dry-run>/unsigned/app.omnitext_<code>.apk <version>` (the user types
 the key password), and attach the omnitext-fdroid-<version>.apk it writes next to the unsigned one
-to a GitHub release on the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing.
+to a GitHub release on the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing. Before the release exists the dry run builds, then stops with "Downloading Binaries ... failed" (404) and leaves the APK out of unsigned/: copy build/app.omnitext/android/app/build/outputs/apk/release/app-release-unsigned.apk to unsigned/app.omnitext_<code>.apk and sign that.
 
 Reproducibility rests on two things the wasm build does on purpose: libass is built at a fixed
 absolute path (fontconfig bakes its prefix in), and old Emscripten versions get their system
