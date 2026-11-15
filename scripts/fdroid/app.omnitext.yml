@@ -16,9 +16,9 @@ Binaries:
   https://github.com/hikashop-nicolas/omnitext/releases/download/fdroid-%v/omnitext-fdroid-%v.apk
 
 Builds:
-  - versionName: '2.1'
-    versionCode: 20100
-    commit: 7ab896e54ac1326c5be2fe7cd5c571ca649af872
+  - versionName: '2.2'
+    versionCode: 20200
+    commit: 44a9c6195ec8e81c1c2801bdf880c3763e762db3
     subdir: android/app
     sudo:
       - apt-get update
@@ -44,5 +44,5 @@ AutoUpdateMode: Version
 UpdateCheckMode: Tags ^fdroid-
 UpdateCheckData: android/app/build.gradle|fdroidVersionCode = (\d+)|.|versionName
   "(.*)"
-CurrentVersion: '2.1'
-CurrentVersionCode: 20100
+CurrentVersion: '2.2'
+CurrentVersionCode: 20200
