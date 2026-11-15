@@ -1,0 +1,11 @@
+New in this update:
+
+• Sheet music: open, play and edit MusicXML, MuseScore, Guitar Pro, ABC and MIDI files
+• Turn a photo or a PDF of a score into an editable score
+• Practise with a MIDI keyboard: wait mode, falling notes, loop and metronome
+• Export scores as PDF, MP3, WAV, MIDI or Guitar Pro
+• Word: shapes, text boxes, charts and SmartArt
+• Save any document as another format
+• More PDF forms run their scripts
+
+Still offline unless you choose to share.
