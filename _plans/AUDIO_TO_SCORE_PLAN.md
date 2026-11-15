@@ -1,7 +1,9 @@
 # Audio to score: transcribe a recording into an editable score
 
-Draft for review (2026-11-15). Spike done for a solo piano recording; nothing built yet.
-Next step: the bake-off below, before any building. Open points for the user are at the end.
+Draft for review (2026-11-16). Spike and model bake-off done; nothing built yet.
+Direction chosen from the bake-off (below): Basic Pitch + Beat This! small for solo
+instruments, then Spleeter stems for songs. Next step: measure that route on the phone.
+Open points for the user are at the end.
 
 ## Goal
 
@@ -41,15 +43,15 @@ file, which needs its own licence, separate from the code.
 | Piece | What it does | Licence | Size | Verdict |
 |---|---|---|---|---|
 | **Basic Pitch** (Spotify) | Audio to notes, polyphonic, any instrument | Apache-2.0, code and weights (model card) | 230 KB ONNX | **Use**. Works best on one instrument at a time, does not say which instrument plays |
-| **Beat This!** (JKU Linz, ISMIR 2024) | Beats **and downbeats** (where bars start) | MIT, code and weights (README) | small 8.1 MB, final 78 MB | **Use the small model**. Solves the metre and pickup problem the spike hit. README warns some training audio was copyrighted |
-| **Spleeter** (Deezer) | Separates a song into 2, 4 or 5 stems (vocals, drums, bass, piano, other) | MIT, code and models (JOSS paper) | about 20 MB per stem fp16 (ONNX ports) | **Candidate for songs**. 2019 quality, but clearly licensed and light |
+| **Beat This!** (JKU Linz, ISMIR 2024) | Beats **and downbeats** (where bars start) | MIT, code and weights (README) | small 10.5 MB ONNX, final 80 MB | **Use the small model**. Solves the metre and pickup problem the spike hit. README warns some training audio was copyrighted. A community ONNX export exists and matched the official checkpoint beat for beat |
+| **Spleeter** (Deezer) | Separates a song into 2, 4 or 5 stems (vocals, drums, bass, piano, other) | MIT, code and models (JOSS paper) | 151 MB (4 stems) / 189 MB (5 stems) as fp32 TF checkpoints; ONNX ports exist, fp16 should halve it | **Use for songs**. 2019 quality, but the bake-off found it within half a point of HT-Demucs once notes are transcribed |
 | **HT-Demucs** (Meta) | Same, better quality; a 6-stem variant adds guitar and piano | Code MIT; **no licence stated for the weights**; repo archived Jan 2025 | 166 MB fp16, 316 MB fp32 | Not now: unclear weights licence, too heavy for a phone |
 | BS/Mel-RoFormer (community) | State-of-the-art vocal separation | Code MIT; weights from various people, terms unclear | 100+ MB | No: provenance unclear |
 | Open-Unmix UMX-L | 4 stems | Weights CC BY-NC-SA | | No: non-commercial |
-| RMVPE | Sung pitch straight from a full mix | Code Apache-2.0; usable weights come from the RVC project (MIT, provenance murky) | about 180 MB | Maybe later, if Basic Pitch on a vocal stem is not enough |
-| MT3 (Google) | All instruments at once, names them | Code Apache-2.0; checkpoint terms not stated | large T5 (JAX) | No: unclear weights, hard to run in a browser |
+| RMVPE | Sung pitch straight from a full mix | Code Apache-2.0; usable weights come from the RVC project (MIT, provenance murky) | 181 MB .pt, 345 MB ONNX | Not now: much better than Basic Pitch on voice, but weights of unclear origin. Look for a clean equivalent |
+| MT3 (Google) | All instruments at once, names them | Code Apache-2.0; checkpoint terms not stated | large T5 (JAX) | No: unclear weights, hard to run in a browser, would not even install on the Mac |
 | YourMT3+ | Same, better | GPL-3.0 | | No: GPL |
-| MuScriptor (Mirelo + Kyutai, 2026) | Best multi-instrument results reported, names the instruments | Code MIT; weights CC BY-NC 4.0, gated download (contact sharing), large adds a rights clause | small about 100M params, medium 300M, large 1.3B | **Test it**. Free Omnitext is non-commercial use, but F-Droid counts NC assets as non-free (anti-feature, maybe a Play-only or desktop-only feature) and each user may have to pass the gate |
+| MuScriptor (Mirelo + Kyutai, 2026) | Best multi-instrument results reported, names the instruments | Code MIT; weights CC BY-NC 4.0, gated download (contact sharing), large adds a rights clause | small 393 MB (about 100M params), medium 300M, large 1.3B | **Not the default; maybe an optional desktop download later.** Best drums and bass of the bake-off, but NC (F-Droid anti-feature), a per-user gate with a rights and indemnity clause, no ONNX export, about 2x real time on a desktop CPU |
 | Whisper | Lyrics with word times | MIT, already in Omnitext (transcription) | already downloaded by users of transcription | **Use** for lyrics under the vocal line |
 
 So there is no permissively licensed model that hears a whole band and writes every
@@ -73,11 +75,16 @@ Partly, and only for some parts:
 So frequency splitting is worth having for drums and bass, and as a fallback when
 the separation model is not downloaded. It is not a substitute for it.
 
+The bake-off confirmed this: drum hits by band score 60 F1 on a Spleeter drum stem and
+64 on the harmonic/percussive split of the mix, but only 50 on the raw mix. The bass
+register rule scores 11 F1 against 16 to 17 from a bass stem, so it is a fallback only.
+
 ## Pipeline
 
 1. **Decode** the audio to mono 22.05 kHz (Omnitext already decodes every audio format
    it plays).
-2. **Separate** (songs only, phase 4): Spleeter stems, or the frequency fallback.
+2. **Separate** (songs only, phase 4): Spleeter stems, or the frequency fallback. Drums
+   come from the drum stem by frequency band, bass from the bass stem.
 3. **Notes**: Basic Pitch per stem, in a worker, in chunks with a progress bar. The note
    decoding (from the model's frame output to notes) is ported to TypeScript (Apache-2.0
    allows this, with its notice kept).
@@ -97,35 +104,56 @@ the separation model is not downloaded. It is not a substitute for it.
   open, and "From a recording" in the New score dialog.
 - **One question first**: "What is playing?" Solo instrument / Voice / A song with
   several instruments. The answer picks the route and the downloads.
-- **Downloads asked for once**, with sizes, as for recorded instruments: Beat This!
-  (8 MB), Spleeter stems (about 80 MB for 4 stems), Whisper only for lyrics.
+- **Downloads asked for once**, with sizes, as for recorded instruments: Basic Pitch
+  (230 KB) and Beat This! small (about 11 MB), Spleeter stems (about 75 to 150 MB for 4
+  stems, depending on fp16), Whisper only for lyrics.
 - **Result review**: the score opens with the suggested time signature and first bar;
   a small bar lets the user change the metre or move bar 1 and redo the last steps
   without running the models again.
 - Offline after the downloads, nothing leaves the device, as for every Omnitext model.
 
-## Bake-off before choosing (decided 2026-11-15)
+## Bake-off results (2026-11-15)
 
-Test every candidate on the Mac with the same material and metrics before building
-anything, then measure the best ones on the phone.
+Every candidate run on the Intel Mac CPU with the same material and metrics. Speeds are
+pessimistic (an unrelated VM used most of the cores) and only good for ranking. Full
+tables, scripts and rendered pages: session scratchpad `bake/RESULTS.md`.
 
-- **Material**, local only: synthetic multi-instrument tracks with exact MIDI (BabySlakh,
-  CC BY 4.0), corpus scores rendered to audio with scoredit's sounds, public-domain solo
-  recordings (Für Elise), and real songs with a singer where note or melody truth exists.
-- **Candidates**: Basic Pitch on the mix and per stem; MuScriptor small and medium; MT3 if
-  it installs; Spleeter 4 and 5 stems; HT-Demucs 4 and 6 stems (quality ceiling); Beat
-  This! small and final against librosa; Basic Pitch against RMVPE on a vocal stem; the
-  model-free frequency route (harmonic/percussive split, drum bands, bass register).
-- **Metrics**: note F1 with mir_eval (onset within 50 ms, with and without offsets), per
-  instrument when the truth names them; beat and downbeat F-measure; time per minute of
-  audio on the Mac CPU; download size; whether an ONNX export exists; licence.
-- **Output**: a results table in this plan and a recommended direction.
+**Material**, local only: BabySlakh (5 multi-instrument tracks, 45 s each, exact MIDI,
+CC BY 4.0), 3 MAESTRO piano pieces rendered by MuseScore (exact notes), the Für Elise
+recording, and a MedleyDB song with a lead singer (CC BY-SA, sung-pitch truth).
+
+**Metric**: note F1 from mir_eval, a note counting when it starts within 50 ms of the
+truth (0 to 100, higher is better). Beats: F-measure within 70 ms.
+
+| Question | Result | Decision |
+|---|---|---|
+| Notes, solo piano | Basic Pitch 83.1, MuScriptor small 86.7 | Basic Pitch: 3.6 points do not justify 393 MB NC and 50x the time |
+| Beats | Beat This! small 99.4 beats, right 3/8 on Für Elise; librosa 68.2, no bar lines | Beat This! small (ONNX, 10.5 MB, 2.4 s per minute) |
+| Downbeats | Beat This! small 64.3: 3 tracks perfect, 2 with bar 1 on the wrong beat | Keep the "move bar 1" control |
+| Band notes, all pitched parts | Raw mix 36.5, Spleeter 5 stems 41.1, HT-Demucs 6 stems 41.6, perfect stems 53.7, MuScriptor small 42.5 | Spleeter: Demucs adds 0.5 after transcription. Separation is the bottleneck |
+| Band, drums (any hit) | Band detector on Spleeter drum stem 60.5, MuScriptor small 84.0 | Band detector on the stem |
+| Band, bass | Spleeter bass stem + Basic Pitch 16, register rule 11, MuScriptor small 78 (octave-corrected) | Bass stem; bass stays the weak part |
+| Voice (sung pitch on Spleeter vocal) | Basic Pitch 57 raw pitch / 50 note F1, RMVPE 90 / 74, MuScriptor 23 | Basic Pitch by default; look for a clean pitch model |
+| MT3 | Would not install on the Mac | Dropped |
+
+Rendered pages: Für Elise is readable (3/8, melody and left hand in the right bars;
+pickup folded into bar 1, rests from ghost notes). The band page has a clean drum staff
+and the right chords, a noisy bass, an almost empty piano. MuScriptor's band page is the
+cleanest, but its BabySlakh numbers may be optimistic (it may have trained on Slakh) and
+it was not tried on real band recordings.
+
+**Direction**: Basic Pitch + Beat This! small for solo instruments, spending the effort
+on clean-up (ghost notes, voices, pickup) rather than a bigger note model. For songs,
+Spleeter 4 or 5 stems, Basic Pitch per stem, drums by band on the drum stem. MuScriptor
+stays out of the default path; maybe an optional desktop download later, after a test on
+real band recordings.
 
 ## Phases
 
-0. **Spike** (done for solo piano). Still to measure before committing: Basic Pitch and
-   Beat This! speed on the phone, and Spleeter 4 stems on a 3-minute song on the phone
-   (if that takes minutes, songs become a desktop-first feature).
+0. **Spike and bake-off** (done on the Mac). Still to measure before committing: Basic
+   Pitch and Beat This! small (ONNX) speed on the phone, and Spleeter 4 stems on a
+   3-minute song on the phone (about 40 s per minute on the Mac, so if the phone takes
+   many minutes, songs become a desktop-first feature).
 1. **Solo instrument in scoredit**: note decoding port, Beat This! small, warping,
    quantizer tuning, clean-up, hand split. Test bed: corpus scores rendered to audio
    with scoredit's own sounds (exact ground truth) plus a few public-domain recordings
@@ -133,12 +161,14 @@ anything, then measure the best ones on the phone.
 2. **Omnitext integration**: the button, the dialog, worker and progress, the downloads
    (models on the existing Hugging Face repo, as for the scan model), i18n in all 8
    languages, F-Droid notes.
-3. **Voice**: melody from a sung line (Basic Pitch, RMVPE if needed), lyrics from
-   Whisper word times placed under the notes.
+3. **Voice**: melody from a sung line (Basic Pitch on the vocal stem; a clearly
+   licensed pitch model if one is found), lyrics from Whisper word times placed under
+   the notes.
 4. **Songs**: Spleeter stems, one staff per stem, drums by frequency band, bass by
    register; the frequency-only fallback when the stems are not downloaded.
 5. **Later**: chord symbols from the transcribed harmony, a better separation model if
-   a clearly licensed one appears (HT-Demucs if Meta states a weights licence).
+   a clearly licensed one appears (HT-Demucs if Meta states a weights licence),
+   MuScriptor as an optional desktop download if it holds up on real band recordings.
 
 ## Risks
 
@@ -153,7 +183,8 @@ anything, then measure the best ones on the phone.
 
 1. Start with solo instruments only (phases 1-2), and decide on songs after measuring
    Spleeter on the phone?
-2. Is Spleeter's 2019 quality acceptable for songs, given that the better models are
-   either unlicensed (Demucs weights) or non-commercial?
+2. Songs with Spleeter give a rough draft (right chords and drums, weak bass, quiet
+   parts lost). Is that worth shipping, given the better route (MuScriptor) is
+   non-commercial and gated?
 3. Lyrics under the vocal line through Whisper: in scope?
 4. Entry points: media player button and New score dialog, or one of them?
