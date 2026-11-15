@@ -48,7 +48,8 @@ export class FormatRegistry implements FormatRegistryReadonly {
         if (dot >= 0) {
           const ext = normalizeExt(input.filename.slice(dot));
           if (descriptor.manifest.extensions.some((e) => normalizeExt(e) === ext)) {
-            confidence = Math.max(confidence, 0.95);
+            // a.kml.xml is KML: a shared extension stays below what a dialect's content scores
+            confidence = Math.max(confidence, descriptor.manifest.sharedExtension ? 0.78 : 0.95);
           }
         }
       }

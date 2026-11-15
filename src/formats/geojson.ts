@@ -15,6 +15,7 @@ export const geojsonFormat: FormatDescriptor = {
   // Only claim a .json file when it clearly is GeoJSON, so ordinary JSON keeps its
   // code/tree editor. The .geojson extension routes here without this sniff.
   detect({ sample }) {
+    if (/"type"\s*:\s*"(?:FeatureCollection|Feature)"/.test(sample)) return 0.8;
     return /"(?:FeatureCollection|Feature|Point|LineString|Polygon|MultiPolygon)"/.test(sample)
       ? 0.7
       : 0;

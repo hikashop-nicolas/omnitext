@@ -10,6 +10,7 @@ export const jsonFormat: FormatDescriptor = {
     extensions: [".json"],
     mimeTypes: ["application/json"],
     nativeEditor: "codemirror",
+    sharedExtension: true,
     viewAdapters: ["tree"],
     defaultEditor: "tree",
   },

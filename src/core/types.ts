@@ -100,6 +100,8 @@ export interface FormatManifest {
   /** Suppress the universal CodeMirror text fallback: the native editor is the only
    *  surface (e.g. geospatial files edited only on the interactive map). */
   soleEditor?: boolean;
+  /** Its extension is shared by many dialects (.xml, .json): a dialect recognised by content wins over it. */
+  sharedExtension?: boolean;
   /** Documents of this format are shown, never saved back (a score read from a PDF). */
   readOnly?: boolean;
   /** Open a *new blank* document in this format's default editor rather than the usual

@@ -29,6 +29,7 @@ function allFormats(): FormatRegistry {
 }
 
 const detected = (sample: string) => allFormats().detect({ sample })?.descriptor.manifest.id ?? "plain text";
+const named = (filename: string, sample: string) => allFormats().detect({ sample, filename })?.descriptor.manifest.id ?? "plain text";
 
 describe("content detection across every format", () => {
   it("registers the formats it is meant to test", () => {
@@ -61,6 +62,19 @@ describe("content detection across every format", () => {
     expect(detected(head + '<score-partwise version="4.0">\n  <part-list/>\n</score-partwise>')).toBe("musicxml");
     expect(detected('<?xml version="1.0"?>\n<catalog><book id="1"/></catalog>')).toBe("xml");
     expect(detected('<?xml version="1.0" encoding="UTF-8"?>\n<museScore version="4.70">\n  <Score/>\n</museScore>')).toBe("mscx");
+  });
+
+  it("opens a dialect in a .xml or .json file by its content, other files by their extension", () => {
+    const kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document/></kml>';
+    expect(named("route.kml.xml", kml)).toBe("kml");
+    expect(named("track.gpx.xml", '<?xml version="1.0"?>\n<gpx version="1.1" creator="x"><trk/></gpx>')).toBe("gpx");
+    expect(named("song.xml", '<?xml version="1.0"?>\n<score-partwise version="4.0"><part-list/></score-partwise>')).toBe("musicxml");
+    expect(named("books.xml", '<?xml version="1.0"?>\n<catalog><book id="1"/></catalog>')).toBe("xml");
+    expect(named("places.json", '{"type": "FeatureCollection", "features": []}')).toBe("geojson");
+    expect(named("shapes.json", '{"shapes": ["Point", "Polygon"], "count": 2}')).toBe("json");
+    // a file's own extension still wins over a look-alike
+    expect(named("notes.txt", kml)).not.toBe("kml");
+    expect(named("route.kml", kml)).toBe("kml");
   });
 
   it("does not take ordinary text for a boarding pass", () => {

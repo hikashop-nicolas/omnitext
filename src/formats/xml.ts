@@ -7,6 +7,7 @@ export const xmlFormat: FormatDescriptor = {
     extensions: [".xml", ".xsd", ".xsl"],
     mimeTypes: ["application/xml", "text/xml"],
     nativeEditor: "codemirror",
+    sharedExtension: true,
   },
   detect({ sample }) {
     return sample.trimStart().startsWith("<") ? 0.5 : 0;
