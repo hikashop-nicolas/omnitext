@@ -4,8 +4,8 @@ New in this update:
 • Turn a photo or a PDF of a score into an editable score
 • Practise with a MIDI keyboard: wait mode, falling notes, loop and metronome
 • Export scores as PDF, MP3, WAV, MIDI or Guitar Pro
+• PDFs open to read: links work, text can be copied
 • Word: shapes, text boxes, charts and SmartArt
 • Save any document as another format
-• More PDF forms run their scripts
 
 Still offline unless you choose to share.
