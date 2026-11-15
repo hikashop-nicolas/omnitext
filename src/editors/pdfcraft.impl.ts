@@ -70,8 +70,6 @@ function ensureStyles(): void {
     @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
     /* Fullscreen reading: only the pages and the way out, in the corner the button came from. */
     .ot-pc.reading .ot-pc-bar, .ot-pc.reading .ot-pc-sub { display:none !important; }
-    .ot-pc-mode { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 6px; font:500 13px system-ui, sans-serif; }
-    .ot-pc-mode svg { width:18px; height:18px; }
     .ot-pc.fs .ot-pc-bar, .ot-pc.fs .ot-pc-sub, .ot-pc.fs .ot-pc-find, .ot-pc.fs .ot-pc-float, .ot-pc.fs .ot-pc-sel { display:none !important; }
     .ot-pc.fs .ot-pc-bottom { position:absolute; right:12px; bottom:12px; z-index:20; padding:0; border:0; background:transparent; }
     .ot-pc.fs .ot-pc-bottom > :not(.ot-pc-fs) { display:none; }
@@ -381,6 +379,9 @@ class PdfCraftInstance implements EditorInstance {
   private viewOnly = false;
   /** View mode: taps follow links and fill forms; the edit tools wait behind the Edit button. */
   private reading = true;
+  /** View mode, touch: a finger held still starts a text selection, and from then on drags it instead of scrolling. */
+  private pressTimer = 0;
+  private touchSel = false;
   private modeBtn!: HTMLButtonElement;
   private localEdits = 0;
   /** The file every peer started the session from, and the bytes offered for it before the session binds. */
@@ -442,6 +443,8 @@ class PdfCraftInstance implements EditorInstance {
     this.scroller.addEventListener("pointerup", (e) => this.onPointerUp(e));
     this.scroller.addEventListener("pointercancel", (e) => this.onPointerEnd(e));
     this.scroller.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
+    this.scroller.addEventListener("touchmove", (e) => this.touchSel && e.preventDefault(), { passive: false });
+    this.scroller.addEventListener("contextmenu", (e) => (this.reading || this.viewOnly) && e.preventDefault());
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKey);
     document.addEventListener("fullscreenchange", this.onFullscreen);
@@ -741,10 +744,7 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Fit button, zoom slider and the percentage, as the other editors have them. */
   private buildZoom(): void {
-    this.modeBtn = el("button", "btn ot-pc-mode");
-    this.modeBtn.type = "button";
-    this.modeBtn.addEventListener("click", () => this.setReading(!this.reading));
-    this.zoomRow.appendChild(this.modeBtn);
+    this.modeBtn = this.button(this.zoomRow, this.buttons, "mode", "edit", t("pdfcraft.editPdfTip"), () => this.setReading(!this.reading));
     this.button(this.zoomRow, this.buttons, "find", "search", t("pdfcraft.find"), () => this.toggleFind()).disabled = true;
     this.zoomRow.append(this.pill, el("span", "grow"));
     this.button(this.zoomRow, this.buttons, "fit", "fit", t("pdfcraft.fitPage"), () => this.fit(this.fitKind === "page" ? "width" : "page")).disabled = true;
@@ -975,7 +975,7 @@ class PdfCraftInstance implements EditorInstance {
     this.root.classList.toggle("reading", r);
     const b = this.modeBtn;
     b.hidden = this.viewOnly;
-    b.innerHTML = `${icon(r ? "edit" : "check")}<span>${t(r ? "pdfcraft.editPdf" : "pdfcraft.done")}</span>`;
+    b.innerHTML = icon(r ? "edit" : "check");
     const tip = t(r ? "pdfcraft.editPdfTip" : "pdfcraft.readingTip");
     b.title = tip;
     b.setAttribute("aria-label", tip);
@@ -1374,10 +1374,21 @@ class PdfCraftInstance implements EditorInstance {
     } else if (this.fs) {
       // reading only: a finger scrolls, two fingers zoom
     } else if ((this.reading || this.viewOnly) && this.pointers.size === 1) {
-      // view mode: a mouse drag selects text to copy; a finger scrolls
-      const at = e.pointerType === "mouse" ? this.pageAt(e.clientX, e.clientY) : null;
-      this.clearTextSelection();
-      if (at) this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
+      // view mode: a mouse drag selects text to copy; a finger scrolls, or held still selects
+      const at = this.pageAt(e.clientX, e.clientY);
+      if (at && e.pointerType === "mouse") {
+        this.clearTextSelection();
+        this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
+      } else if (at) {
+        const tap = this.tap;
+        this.pressTimer = window.setTimeout(() => {
+          if (!tap || this.tap !== tap || tap.moved || this.pointers.size !== 1) return;
+          this.clearTextSelection();
+          this.touchSel = true;
+          this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
+          navigator.vibrate?.(15);
+        }, 450);
+      }
     } else if (this.tool === "cover" && this.pointers.size === 1) {
       const at = this.pageAt(e.clientX, e.clientY);
       if (at) this.startRubber(at.page, [at.x, at.y]);
@@ -1449,6 +1460,8 @@ class PdfCraftInstance implements EditorInstance {
   private onPointerEnd(e: PointerEvent): void {
     this.pointers.delete(e.pointerId);
     this.tap = null;
+    clearTimeout(this.pressTimer);
+    this.touchSel = false;
     if (this.pinch && this.pointers.size < 2) {
       const pinch = this.pinch;
       this.pinch = null;
@@ -1537,6 +1550,11 @@ class PdfCraftInstance implements EditorInstance {
     if (!this.doc || this.tool !== "select") return;
     const at = this.pageAt(clientX, clientY);
     if (!at) return;
+    if (this.reading || this.viewOnly) {
+      // held still: the line under the finger, ready to copy (a tap already follows links)
+      await this.finishSelection({ page: at.page, from: [0, at.y] }, [this.sizes[at.page]!.w, at.y]);
+      return;
+    }
     const extras = await this.extras(at.page);
     const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
     if (link >= 0) this.followLink(extras.links[link]!);
@@ -1655,7 +1673,7 @@ class PdfCraftInstance implements EditorInstance {
       bar.appendChild(b);
     };
     if (this.reading || this.viewOnly) {
-      add("copy", t("pdfcraft.copy"), () => void navigator.clipboard?.writeText(sel.text).catch(() => {}));
+      add("copy", t("pdfcraft.copy"), () => void this.copyText(sel.text));
       add("close", t("pdfcraft.cancel"), () => this.clearTextSelection());
       slot.box.appendChild(bar);
       this.floatEl = bar;
@@ -1673,6 +1691,29 @@ class PdfCraftInstance implements EditorInstance {
     slot.box.appendChild(bar);
     this.floatEl = bar;
     this.placeFloat(bar, sel.page, bounds(sel.rects));
+  }
+
+  private async copyText(text: string): Promise<void> {
+    let failure: unknown = null;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      failure = e;
+      // the clipboard API can be refused (permissions, older WebViews): the old copy command still works there
+      const area = el("textarea");
+      area.value = text;
+      area.style.cssText = "position:fixed; top:0; left:0; opacity:0;";
+      this.root.appendChild(area);
+      area.select();
+      if (document.execCommand("copy")) failure = null;
+      area.remove();
+    }
+    if (failure) {
+      this.host.notifications.error(t("pdfcraft.copyFailed", { message: message(failure) }));
+      return;
+    }
+    this.clearTextSelection();
+    this.host.notifications.info(t("pdfcraft.copied"));
   }
 
   private async markSelection(kind: MarkupKind): Promise<void> {
