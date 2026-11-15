@@ -7,7 +7,7 @@ import type { HostAPI } from "../core/types";
 
 /** The Hugging Face repository holding the scan models (see scoredit's README). */
 export const SCAN_MODELS_REPO = "hikashop-nicolas/scoredit-scan";
-const SYMBOLS = { name: "scoredit-symbols-small-int8.onnx", bytes: 1_813_217 };
+const SYMBOLS = { name: "scoredit-symbols-small-v2-int8.onnx", bytes: 1_813_255 };
 const CLASSIFIERS = { name: "oemer-classifiers.json", bytes: 5_850_300 };
 const ENGINE_HOST = "cdn.jsdelivr.net";
 // The F-Droid build packages the engine under this folder of dist (vite.config.ts); empty elsewhere.
