@@ -57,6 +57,50 @@
                 <data android:mimeType="application/vnd.apple.pkpass" />
                 <data android:mimeType="application/vnd.apple.pkpasses" />
                 <data android:mimeType="application/smart-health-card" />
+                <!-- The rest of what the formats declare (src/android-manifest.test.ts keeps them in step). -->
+                <data android:mimeType="application/dicom" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/font-sfnt" />
+                <data android:mimeType="application/geo+json" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/illustrator" />
+                <data android:mimeType="application/json5" />
+                <data android:mimeType="application/msword" />
+                <data android:mimeType="application/postscript" />
+                <data android:mimeType="application/rtf" />
+                <data android:mimeType="application/smil+xml" />
+                <data android:mimeType="application/ttml+xml" />
+                <data android:mimeType="application/ttxt+xml" />
+                <data android:mimeType="application/vnd.apache.arrow.file" />
+                <data android:mimeType="application/vnd.apache.parquet" />
+                <data android:mimeType="application/vnd.google-earth.kml+xml" />
+                <data android:mimeType="application/vnd.google-earth.kmz" />
+                <data android:mimeType="application/vnd.ms-outlook" />
+                <data android:mimeType="application/vnd.musescore" />
+                <data android:mimeType="application/vnd.musescore+xml" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+                <data android:mimeType="application/vnd.recordare.musicxml" />
+                <data android:mimeType="application/vnd.recordare.musicxml+xml" />
+                <data android:mimeType="application/vnd.shp" />
+                <data android:mimeType="application/vnd.sqlite3" />
+                <data android:mimeType="application/x-bittorrent" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/x-guitar-pro" />
+                <data android:mimeType="application/x-ipynb+json" />
+                <data android:mimeType="application/x-lrc" />
+                <data android:mimeType="application/x-mobipocket-ebook" />
+                <data android:mimeType="application/x-sqlite3" />
+                <data android:mimeType="application/x-subrip" />
+                <data android:mimeType="application/x-tex" />
+                <data android:mimeType="font/otf" />
+                <data android:mimeType="font/ttf" />
+                <data android:mimeType="font/woff" />
+                <data android:mimeType="message/rfc822" />
+                <data android:mimeType="model/gltf+json" />
+                <data android:mimeType="model/gltf-binary" />
+                <data android:mimeType="model/obj" />
+                <data android:mimeType="model/stl" />
+                <data android:mimeType="x-gis/x-shapefile" />
                 <!-- File managers report anything they do not recognise as this, which
                      is how a drawing usually arrives. Omnitext opens almost any file, so
                      offering it for an unknown one is honest rather than noise. -->
@@ -98,6 +142,50 @@
                 <data android:mimeType="application/vnd.apple.pkpass" />
                 <data android:mimeType="application/vnd.apple.pkpasses" />
                 <data android:mimeType="application/smart-health-card" />
+                <!-- The rest of what the formats declare (src/android-manifest.test.ts keeps them in step). -->
+                <data android:mimeType="application/dicom" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/font-sfnt" />
+                <data android:mimeType="application/geo+json" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/illustrator" />
+                <data android:mimeType="application/json5" />
+                <data android:mimeType="application/msword" />
+                <data android:mimeType="application/postscript" />
+                <data android:mimeType="application/rtf" />
+                <data android:mimeType="application/smil+xml" />
+                <data android:mimeType="application/ttml+xml" />
+                <data android:mimeType="application/ttxt+xml" />
+                <data android:mimeType="application/vnd.apache.arrow.file" />
+                <data android:mimeType="application/vnd.apache.parquet" />
+                <data android:mimeType="application/vnd.google-earth.kml+xml" />
+                <data android:mimeType="application/vnd.google-earth.kmz" />
+                <data android:mimeType="application/vnd.ms-outlook" />
+                <data android:mimeType="application/vnd.musescore" />
+                <data android:mimeType="application/vnd.musescore+xml" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+                <data android:mimeType="application/vnd.recordare.musicxml" />
+                <data android:mimeType="application/vnd.recordare.musicxml+xml" />
+                <data android:mimeType="application/vnd.shp" />
+                <data android:mimeType="application/vnd.sqlite3" />
+                <data android:mimeType="application/x-bittorrent" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/x-guitar-pro" />
+                <data android:mimeType="application/x-ipynb+json" />
+                <data android:mimeType="application/x-lrc" />
+                <data android:mimeType="application/x-mobipocket-ebook" />
+                <data android:mimeType="application/x-sqlite3" />
+                <data android:mimeType="application/x-subrip" />
+                <data android:mimeType="application/x-tex" />
+                <data android:mimeType="font/otf" />
+                <data android:mimeType="font/ttf" />
+                <data android:mimeType="font/woff" />
+                <data android:mimeType="message/rfc822" />
+                <data android:mimeType="model/gltf+json" />
+                <data android:mimeType="model/gltf-binary" />
+                <data android:mimeType="model/obj" />
+                <data android:mimeType="model/stl" />
+                <data android:mimeType="x-gis/x-shapefile" />
                 <!-- File managers report anything they do not recognise as this, which
                      is how a drawing usually arrives. Omnitext opens almost any file, so
                      offering it for an unknown one is honest rather than noise. -->
