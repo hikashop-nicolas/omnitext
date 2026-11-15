@@ -772,6 +772,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       format: formatModule,
       view: chosen.view,
       docOptions: opts.docOptions,
+      created: !!opts.created,
       onChange: () => {
         if (!session) return;
         session.dirty = session.binary

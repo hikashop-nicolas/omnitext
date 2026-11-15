@@ -182,6 +182,8 @@ export interface EditorMountContext {
   view: ViewKind;
   /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
   docOptions?: { paginated?: boolean };
+  /** Just made from the New dialog: editors with a view mode open ready to edit. */
+  created?: boolean;
   /** Editor calls this after a user edit so the host can mark dirty + autosave. */
   onChange(): void;
 }

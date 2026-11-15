@@ -69,6 +69,9 @@ function ensureStyles(): void {
     .ot-pc-bottom .grow { flex:1 1 auto; }
     @media (max-width:600px) { .ot-pc-bottom input[type=range] { flex-basis:64px; width:64px; } }
     /* Fullscreen reading: only the pages and the way out, in the corner the button came from. */
+    .ot-pc.reading .ot-pc-bar, .ot-pc.reading .ot-pc-sub { display:none !important; }
+    .ot-pc-mode { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 6px; font:500 13px system-ui, sans-serif; }
+    .ot-pc-mode svg { width:18px; height:18px; }
     .ot-pc.fs .ot-pc-bar, .ot-pc.fs .ot-pc-sub, .ot-pc.fs .ot-pc-find, .ot-pc.fs .ot-pc-float, .ot-pc.fs .ot-pc-sel { display:none !important; }
     .ot-pc.fs .ot-pc-bottom { position:absolute; right:12px; bottom:12px; z-index:20; padding:0; border:0; background:transparent; }
     .ot-pc.fs .ot-pc-bottom > :not(.ot-pc-fs) { display:none; }
@@ -376,6 +379,9 @@ class PdfCraftInstance implements EditorInstance {
   /** Set while this peer is in a sharing session: every edit goes through the shared log. */
   private shared: PdfLog | null = null;
   private viewOnly = false;
+  /** View mode: taps follow links and fill forms; the edit tools wait behind the Edit button. */
+  private reading = true;
+  private modeBtn!: HTMLButtonElement;
   private localEdits = 0;
   /** The file every peer started the session from, and the bytes offered for it before the session binds. */
   private sessionBase: Uint8Array | null = null;
@@ -398,6 +404,7 @@ class PdfCraftInstance implements EditorInstance {
     ensureStyles();
     this.onChange = ctx.onChange;
     this.original = ctx.bytes ?? new Uint8Array();
+    this.reading = !ctx.created;
     this.root = el("div", "ot-pc");
     this.bar = el("div", "ot-pc-bar");
     this.zoomRow = el("div", "ot-pc-bottom");
@@ -428,6 +435,7 @@ class PdfCraftInstance implements EditorInstance {
     this.buildZoom();
     this.buildFind();
     this.buildSub();
+    this.applyMode();
     this.scroller.addEventListener("scroll", () => this.scheduleRender(), { passive: true });
     this.scroller.addEventListener("pointerdown", (e) => this.onPointerDown(e));
     this.scroller.addEventListener("pointermove", (e) => this.onPointerMove(e));
@@ -580,7 +588,7 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Does what a shortcut says; true when it was used (so the browser's own meaning is held back). */
   private run_shortcut(sc: Shortcut, e: KeyboardEvent): boolean {
-    const editable = !this.viewOnly;
+    const editable = !this.viewOnly && !this.reading;
     const place = (p: Placing): boolean => {
       if (!editable) return false;
       this.startPlacing(p);
@@ -733,6 +741,10 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Fit button, zoom slider and the percentage, as the other editors have them. */
   private buildZoom(): void {
+    this.modeBtn = el("button", "btn ot-pc-mode");
+    this.modeBtn.type = "button";
+    this.modeBtn.addEventListener("click", () => this.setReading(!this.reading));
+    this.zoomRow.appendChild(this.modeBtn);
     this.button(this.zoomRow, this.buttons, "find", "search", t("pdfcraft.find"), () => this.toggleFind()).disabled = true;
     this.zoomRow.append(this.pill, el("span", "grow"));
     this.button(this.zoomRow, this.buttons, "fit", "fit", t("pdfcraft.fitPage"), () => this.fit(this.fitKind === "page" ? "width" : "page")).disabled = true;
@@ -943,6 +955,32 @@ class PdfCraftInstance implements EditorInstance {
     for (const group of ["comment", "form", "sign", "redact"] as const) this.buttons[group]?.classList.toggle("on", this.placing?.group === group);
     if (tool !== "select") this.select(null);
     if (tool !== "textsel") this.clearTextSelection();
+  }
+
+  /** Switches between view mode and edit mode; nothing is saved or lost either way. */
+  private setReading(on: boolean): void {
+    if (!on && this.viewOnly) return;
+    if (on) {
+      this.setTool("select");
+      this.select(null);
+      this.clearTextSelection();
+      if (this.pagesOpen) this.togglePages();
+    }
+    this.reading = on;
+    this.applyMode();
+  }
+
+  private applyMode(): void {
+    const r = this.reading || this.viewOnly;
+    this.root.classList.toggle("reading", r);
+    const b = this.modeBtn;
+    b.hidden = this.viewOnly;
+    b.innerHTML = `${icon(r ? "edit" : "check")}<span>${t(r ? "pdfcraft.editPdf" : "pdfcraft.done")}</span>`;
+    const tip = t(r ? "pdfcraft.editPdfTip" : "pdfcraft.readingTip");
+    b.title = tip;
+    b.setAttribute("aria-label", tip);
+    b.setAttribute("aria-pressed", String(!r));
+    if (!r) this.layoutBar();
   }
 
   private togglePages(): void {
@@ -1335,6 +1373,11 @@ class PdfCraftInstance implements EditorInstance {
       this.cancelRubber();
     } else if (this.fs) {
       // reading only: a finger scrolls, two fingers zoom
+    } else if ((this.reading || this.viewOnly) && this.pointers.size === 1) {
+      // view mode: a mouse drag selects text to copy; a finger scrolls
+      const at = e.pointerType === "mouse" ? this.pageAt(e.clientX, e.clientY) : null;
+      this.clearTextSelection();
+      if (at) this.selDrag = { page: at.page, from: [at.x, at.y], busy: false, pending: null };
     } else if (this.tool === "cover" && this.pointers.size === 1) {
       const at = this.pageAt(e.clientX, e.clientY);
       if (at) this.startRubber(at.page, [at.x, at.y]);
@@ -1385,16 +1428,18 @@ class PdfCraftInstance implements EditorInstance {
       const r = this.slots[rubber.page]!.box.getBoundingClientRect();
       void this.finishRubber([(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
-    const drag = this.selDrag;
+    // in view mode a mouse click starts a text drag too: unmoved, it is a click
+    const click = !!this.selDrag && !!tap && !tap.moved && (this.reading || this.viewOnly);
+    const drag = click ? null : this.selDrag;
+    this.selDrag = null;
     if (drag) {
       const r = this.slots[drag.page]!.box.getBoundingClientRect();
-      this.selDrag = null;
       void this.finishSelection(drag, [(e.clientX - r.left) / this.zoom, (e.clientY - r.top) / this.zoom]);
     }
     const stroked = !!this.stroke;
     if (stroked) void this.finishStroke();
     this.onPointerEnd(e);
-    if (tap && !this.fs && !tap.moved && !rubber && !drag && !wasPinch && !stroked) {
+    if (tap && !tap.moved && !rubber && !drag && !wasPinch && !stroked) {
       const held = Date.now() - tap.time;
       if (held < 500) void this.onTap(e.clientX, e.clientY);
       else void this.onLongPress(e.clientX, e.clientY);
@@ -1432,6 +1477,10 @@ class PdfCraftInstance implements EditorInstance {
       this.select(null);
       return;
     }
+    if (this.reading || this.viewOnly || this.fs) {
+      await this.readingTap(at);
+      return;
+    }
     if (this.tool === "text") {
       this.startEdit(at.page, null, newTextBox(at.x, at.y, this.sizes[at.page]!));
       return;
@@ -1464,6 +1513,23 @@ class PdfCraftInstance implements EditorInstance {
     this.select(null);
     const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
     if (link >= 0) this.followLink(extras.links[link]!);
+  }
+
+  /** View mode: a form field fills, a link opens, anything else clears the text selection. */
+  private async readingTap(at: { page: number; x: number; y: number }): Promise<void> {
+    const extras = await this.extras(at.page);
+    const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
+    if (field >= 0 && !this.fs) {
+      this.clearTextSelection();
+      await this.useField(at.page, extras.fields[field]!);
+      return;
+    }
+    const link = hitBlock(extras.links.map((l) => l.view), at.x, at.y);
+    if (link >= 0) {
+      this.followLink(extras.links[link]!);
+      return;
+    }
+    this.clearTextSelection();
   }
 
   /** A long press follows a link even where text sits under it, which a tap would select for editing. */
@@ -1588,6 +1654,14 @@ class PdfCraftInstance implements EditorInstance {
       b.addEventListener("click", cb);
       bar.appendChild(b);
     };
+    if (this.reading || this.viewOnly) {
+      add("copy", t("pdfcraft.copy"), () => void navigator.clipboard?.writeText(sel.text).catch(() => {}));
+      add("close", t("pdfcraft.cancel"), () => this.clearTextSelection());
+      slot.box.appendChild(bar);
+      this.floatEl = bar;
+      this.placeFloat(bar, sel.page, bounds(sel.rects));
+      return;
+    }
     const mark = (kind: MarkupKind) => () => void this.markSelection(kind);
     add("highlight", t("pdfcraft.highlight"), mark("highlight"));
     add("underline", t("pdfcraft.underline"), mark("underline"));
@@ -1646,7 +1720,7 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   private select(sel: Selection | null): void {
-    this.sel = sel;
+    this.sel = this.reading || this.viewOnly ? null : sel;
     this.renderSelection();
   }
 
@@ -2798,6 +2872,7 @@ class PdfCraftInstance implements EditorInstance {
       this.fullSave = false;
       this.viewOnly = true;
       for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = true;
+      this.setReading(true);
       await this.reloadPages(page);
       await this.refreshHistory();
       this.onChange?.();
@@ -2886,7 +2961,8 @@ class PdfCraftInstance implements EditorInstance {
     cancel.addEventListener("click", () => void this.finishEdit(false));
     bar.append(done, cancel);
     const info = field?.info;
-    if (info) {
+    // filling in a form in view mode: OK and Cancel only, the field itself is not edited there
+    if (info && !this.reading && !this.viewOnly) {
       // the same buttons as the floating bar of a selected field, beside OK and Cancel
       const props = el("button", "btn icon");
       const remove = el("button", "btn icon");
@@ -3057,6 +3133,8 @@ class PdfCraftInstance implements EditorInstance {
     this.shared = new PdfLog({ doc: ctx.doc as never, readOnly: ctx.readOnly, blobs: ctx.blobs }, { run: (call) => doc.execute(call), undo: () => doc.execute({ op: "undo" }) }, (change) => this.onSharedChange(change));
     await this.shared.start();
     for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = this.viewOnly;
+    if (this.viewOnly) this.setReading(true);
+    this.applyMode();
     await this.reloadPages(this.currentIndex());
     await this.refreshHistory();
   }
@@ -3067,6 +3145,7 @@ class PdfCraftInstance implements EditorInstance {
     this.sessionBase = null;
     this.viewOnly = false;
     for (const k of EDIT_BUTTONS) if (this.buttons[k]) this.buttons[k]!.disabled = false;
+    this.applyMode();
     void this.refreshHistory();
   }
 
