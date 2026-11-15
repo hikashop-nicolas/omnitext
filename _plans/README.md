@@ -16,6 +16,9 @@
 - **SCORE_PLAN.md**: in progress, sheet music (MuseScore, MusicXML, MIDI, ABC,
   Guitar Pro) viewing, playback and note entry via the scoredit lib (OSMD per system,
   webaudio-tinysynth). Phase 0 spike done 2026-11-10.
+- **AUDIO_TO_SCORE_PLAN.md**: draft for review, transcribing a recording into a score
+  (Basic Pitch notes, Beat This! bars, Spleeter stems for songs). Solo piano spike done
+  2026-11-15.
 - **FORMAT_COVERAGE_REPORT.md** — 2026-07-10 gap analysis and library survey that
   grounds the next round of format work. Reference, not a checklist.
 
