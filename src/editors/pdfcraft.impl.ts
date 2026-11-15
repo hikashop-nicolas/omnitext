@@ -1663,6 +1663,8 @@ class PdfCraftInstance implements EditorInstance {
     const slot = sel && this.slots[sel.page];
     if (!sel || !slot || !sel.rects.length) return;
     const bar = el("div", "ot-pc-float");
+    const row = el("div", "ot-pc-row"); // the bar is a column of rows
+    bar.appendChild(row);
     const add = (glyph: IconName, label: string, cb: () => void) => {
       const b = el("button", "btn icon");
       b.type = "button";
@@ -1670,7 +1672,7 @@ class PdfCraftInstance implements EditorInstance {
       b.title = label;
       b.setAttribute("aria-label", label);
       b.addEventListener("click", cb);
-      bar.appendChild(b);
+      row.appendChild(b);
     };
     if (this.reading || this.viewOnly) {
       add("copy", t("pdfcraft.copy"), () => void this.copyText(sel.text));
