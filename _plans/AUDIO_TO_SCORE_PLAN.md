@@ -1,7 +1,7 @@
 # Audio to score: transcribe a recording into an editable score
 
 Draft for review (2026-11-15). Spike done for a solo piano recording; nothing built yet.
-Open points for the user are at the end.
+Next step: the bake-off below, before any building. Open points for the user are at the end.
 
 ## Goal
 
@@ -49,7 +49,7 @@ file, which needs its own licence, separate from the code.
 | RMVPE | Sung pitch straight from a full mix | Code Apache-2.0; usable weights come from the RVC project (MIT, provenance murky) | about 180 MB | Maybe later, if Basic Pitch on a vocal stem is not enough |
 | MT3 (Google) | All instruments at once, names them | Code Apache-2.0; checkpoint terms not stated | large T5 (JAX) | No: unclear weights, hard to run in a browser |
 | YourMT3+ | Same, better | GPL-3.0 | | No: GPL |
-| MuScriptor (Kyutai, 2026) | Best multi-instrument results reported | Weights CC BY-NC 4.0 | | No: non-commercial |
+| MuScriptor (Mirelo + Kyutai, 2026) | Best multi-instrument results reported, names the instruments | Code MIT; weights CC BY-NC 4.0, gated download (contact sharing), large adds a rights clause | small about 100M params, medium 300M, large 1.3B | **Test it**. Free Omnitext is non-commercial use, but F-Droid counts NC assets as non-free (anti-feature, maybe a Play-only or desktop-only feature) and each user may have to pass the gate |
 | Whisper | Lyrics with word times | MIT, already in Omnitext (transcription) | already downloaded by users of transcription | **Use** for lyrics under the vocal line |
 
 So there is no permissively licensed model that hears a whole band and writes every
@@ -103,6 +103,23 @@ the separation model is not downloaded. It is not a substitute for it.
   a small bar lets the user change the metre or move bar 1 and redo the last steps
   without running the models again.
 - Offline after the downloads, nothing leaves the device, as for every Omnitext model.
+
+## Bake-off before choosing (decided 2026-11-15)
+
+Test every candidate on the Mac with the same material and metrics before building
+anything, then measure the best ones on the phone.
+
+- **Material**, local only: synthetic multi-instrument tracks with exact MIDI (BabySlakh,
+  CC BY 4.0), corpus scores rendered to audio with scoredit's sounds, public-domain solo
+  recordings (Für Elise), and real songs with a singer where note or melody truth exists.
+- **Candidates**: Basic Pitch on the mix and per stem; MuScriptor small and medium; MT3 if
+  it installs; Spleeter 4 and 5 stems; HT-Demucs 4 and 6 stems (quality ceiling); Beat
+  This! small and final against librosa; Basic Pitch against RMVPE on a vocal stem; the
+  model-free frequency route (harmonic/percussive split, drum bands, bass register).
+- **Metrics**: note F1 with mir_eval (onset within 50 ms, with and without offsets), per
+  instrument when the truth names them; beat and downbeat F-measure; time per minute of
+  audio on the Mac CPU; download size; whether an ONNX export exists; licence.
+- **Output**: a results table in this plan and a recommended direction.
 
 ## Phases
 
