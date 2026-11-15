@@ -28,6 +28,8 @@ jobs:
       # there has been the single biggest cause of failed runs. Retry before giving up, so a
       # transient network blip does not fail a build that has nothing wrong with it.
       - name: Install dependencies
+        env:
+          CYPRESS_INSTALL_BINARY: 0 # git-hosted libs install their dev deps to build; skip their e2e browser
         run: |
           for attempt in 1 2 3; do
             npm ci && exit 0
