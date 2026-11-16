@@ -125,6 +125,14 @@ in the recipe's `commit:` (F-Droid refuses a tag or branch there), run the dry r
 the key password), and attach the omnitext-fdroid-<version>.apk it writes next to the unsigned one
 to a GitHub release on the fdroid-<version> tag. Never realign or rebuild the APK between the dry run and signing. Before the release exists the dry run builds, then stops with "Downloading Binaries ... failed" (404) and leaves the APK out of unsigned/: copy build/app.omnitext/android/app/build/outputs/apk/release/app-release-unsigned.apk to unsigned/app.omnitext_<code>.apk and sign that.
 
+Since the inclusion (fdroiddata MR !49770 merged 2026-11-16 with 2.2), there is no merge request
+per release. The recipe's `AutoUpdateMode: Version` with `UpdateCheckMode: Tags ^fdroid-` lets
+F-Droid's update bot find each new fdroid-<version> tag, read the version from build.gradle there
+and add the build itself; its build server then checks it against the APK at the `Binaries:` URL.
+So the signed APK must be on the GitHub release when the tag goes out (create both together), or
+that version fails the reproducibility check. `scripts/fdroid/app.omnitext.yml` stays as the
+input of our own dry runs; the fdroiddata fork's `omnitext` branch is no longer used.
+
 Reproducibility rests on two things the wasm build does on purpose: libass is built at a fixed
 absolute path (fontconfig bakes its prefix in), and old Emscripten versions get their system
 library sources sorted (emsdk-sort-sources.py), because otherwise the cached libc, and the layout
