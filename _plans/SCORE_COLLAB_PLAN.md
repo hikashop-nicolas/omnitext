@@ -150,6 +150,25 @@ Throwaway page on the session: two tabs on the Mac and the Android phone, same w
 If the onset gap stays under about 20 ms after calibration, Part 3 goes ahead as above;
 otherwise sound stays on the conductor's device and the others follow visually.
 
+## Status (2026-11-16)
+
+Phases 1, 2 and the code of phase 4 are built (scoredit 9379154, Omnitext 794da4c and
+0d0077b); editing together (phase 3) is deferred.
+
+- scoredit: `Player.playAt` / `anchor` / `lagBehind` / `setDelay`; the viewer's
+  `onTransport` (re-sent every 4 s while playing), `follow` (left alone within 25 ms),
+  `setLock` with reasons, `outputDelayMs`, a "Tap to follow along" hint when the browser
+  holds audio back.
+- Omnitext: `clock` session channel (ClockSync, shortest round trip of the last 8
+  pings, every 3 s after a burst); score `collab()` binding; editing and practice off
+  for everyone while shared; Settings > Sound delay (ms); `?debug=sync` logs each
+  follower's lag and clock estimate every 2 s.
+- Two tabs on the Mac: clock estimate within 1 ms of the tabs' real offset, round trip
+  about 1 ms, follower lag 0.5 to 6 ms over 20 s.
+- Not measured yet: Mac and phone over wifi, by ear or microphone (onset gap, Bluetooth,
+  drift over 5 minutes). Per-device sounding of parts (mute my own part) not built: each
+  device has its volume and mute only.
+
 ## Phases
 
 1. **Read-only share**: score editor gets `collab()`, joiners view the score with their
