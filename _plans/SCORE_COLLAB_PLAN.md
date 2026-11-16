@@ -166,8 +166,9 @@ Phases 1, 2 and the code of phase 4 are built (scoredit 9379154, Omnitext 794da4
 - Two tabs on the Mac: clock estimate within 1 ms of the tabs' real offset, round trip
   about 1 ms, follower lag 0.5 to 6 ms over 20 s.
 - Not measured yet: Mac and phone over wifi, by ear or microphone (onset gap, Bluetooth,
-  drift over 5 minutes). Per-device sounding of parts (mute my own part) not built: each
-  device has its volume and mute only.
+  drift over 5 minutes).
+- Per-device sounding of parts: a sound button beside each part in the Parts menu
+  (scoredit e248946, Omnitext d47d333), independent of the parts shown.
 
 ## Phases
 
