@@ -52,6 +52,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const soundsEl = $("setting-sounds") as HTMLSelectElement;
   const instrumentEl = $("setting-instrument") as HTMLSelectElement;
   const midiDelayEl = $("setting-midi-delay") as HTMLInputElement;
+  const soundDelayEl = $("setting-sound-delay") as HTMLInputElement;
   const turnUrlEl = $("setting-turn-url") as HTMLInputElement;
   const turnUserEl = $("setting-turn-user") as HTMLInputElement;
   const turnPassEl = $("setting-turn-pass") as HTMLInputElement;
@@ -212,6 +213,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
     soundsEl.value = s.instrumentSounds;
     instrumentEl.value = s.scoreInstrument;
     midiDelayEl.value = String(s.midiDelayMs);
+    soundDelayEl.value = String(s.soundDelayMs);
     turnUrlEl.value = s.turn?.url ?? "";
     turnUserEl.value = s.turn?.username ?? "";
     turnPassEl.value = s.turn?.credential ?? "";
@@ -257,6 +259,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       instrumentSounds: soundsEl.value === "allow" ? "allow" : soundsEl.value === "deny" ? "deny" : "ask",
       scoreInstrument: instrumentEl.value,
       midiDelayMs: Math.max(-300, Math.min(300, Math.round(Number(midiDelayEl.value) || 0))),
+      soundDelayMs: Math.max(0, Math.min(500, Math.round(Number(soundDelayEl.value) || 0))),
     });
     if (themeChanged) {
       applyThemeAttribute(theme);

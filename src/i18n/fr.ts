@@ -57,6 +57,8 @@ const fr: Dict = {
     scoreInstrumentHint: "Les partitions à plusieurs instruments s'ouvrent en ne montrant que les parties de cet instrument, quand elles en ont. Le bouton Parties de la barre de la partition affiche les autres.",
     midiDelay: "Délai MIDI (ms)",
     midiDelayHint: "Pour s'entraîner en rythme avec un clavier MIDI. Jouez un passage en rythme : le bilan affiche votre décalage moyen ; s'il reste en retard (+) ou en avance (-) sur des notes que vous savez avoir jouées à temps, ajoutez ce nombre ici.",
+    soundDelay: "Délai du son (ms)",
+    soundDelayHint: "Pour une partition partagée jouée sur plusieurs appareils à la fois. Si cet appareil sonne plus tard que les autres (une enceinte Bluetooth, par exemple), augmentez cette valeur jusqu'à ce qu'ils jouent ensemble.",
     famAll: "Toutes les parties",
     famKeys: "Piano et claviers",
     famGuitar: "Guitare",
@@ -226,6 +228,9 @@ const fr: Dict = {
     wrongEditor:
       "Ce document est partagé via un autre éditeur : vos modifications ne parviendraient à personne. Basculez sur la même vue pour participer.",
     wrongBuild: "L'autre personne utilise une version différente d'Omnitext ; éditer ensemble ne serait pas fiable. Rechargez la page de chaque côté pour obtenir la version actuelle.",
+    scoreFollows: "La personne qui a partagé la partition contrôle la lecture",
+    scoreEditOff: "La modification est désactivée pendant le partage de la partition",
+    scorePracticeOff: "L'entraînement est désactivé pendant le partage de la partition",
     wrongEditorHint: "Partagé via la vue « {editor} ». Basculez dessus pour éditer ensemble.",
     editorPinned: "Quittez la session avant de changer de vue : tout le monde édite via celle-ci.",
     nameHint: "Ce que les autres voient. Conservé pour la prochaine fois, et utilisé aussi pour signer les commentaires.",

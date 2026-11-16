@@ -57,6 +57,8 @@ const es: Dict = {
     scoreInstrumentHint: "Las partituras con varios instrumentos se abren mostrando solo las partes de este instrumento, cuando las tienen. El botón Partes de la barra de la partitura muestra las demás.",
     midiDelay: "Retardo MIDI (ms)",
     midiDelayHint: "Para practicar a tiempo con un teclado MIDI. Toque un pasaje a tiempo: el resumen muestra su desfase medio; si sigue tarde (+) o adelantado (-) en notas que sabe que tocó a tiempo, sume ese número aquí.",
+    soundDelay: "Retraso del sonido (ms)",
+    soundDelayHint: "Para una partitura compartida que suena en varios dispositivos a la vez. Si este dispositivo suena más tarde que los demás (un altavoz Bluetooth, por ejemplo), aumenta el valor hasta que suenen juntos.",
     famAll: "Todas las partes",
     famKeys: "Piano y teclados",
     famGuitar: "Guitarra",
@@ -226,6 +228,9 @@ const es: Dict = {
     wrongEditor:
       "Este documento se está compartiendo desde otro editor, así que sus cambios no llegarían a nadie. Cambie a la misma vista para participar.",
     wrongBuild: "La otra persona usa una versión distinta de Omnitext, así que editar en conjunto no sería seguro. Recarguen los dos la página para tener la versión actual.",
+    scoreFollows: "La persona que compartió la partitura controla la reproducción",
+    scoreEditOff: "La edición está desactivada mientras se comparte la partitura",
+    scorePracticeOff: "La práctica está desactivada mientras se comparte la partitura",
     wrongEditorHint: "Compartido desde la vista «{editor}». Cambie a ella para editar en conjunto.",
     editorPinned: "Salga de la sesión antes de cambiar de vista: todos están editando desde esta.",
     nameHint: "Lo que ven los demás. Se guarda para la próxima vez y también firma los comentarios.",

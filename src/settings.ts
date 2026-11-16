@@ -35,6 +35,8 @@ export interface Settings {
   scoreInstrument: string;
   /** Delay of the MIDI keyboard and speakers for in-time practice, ms (scoredit's practice.latencyMs). */
   midiDelayMs: number;
+  /** Delay of this device's sound the browser does not report, ms, for scores played in sync. */
+  soundDelayMs: number;
 }
 
 const DEFAULTS: Settings = {
@@ -48,6 +50,7 @@ const DEFAULTS: Settings = {
   instrumentSounds: "ask",
   scoreInstrument: "",
   midiDelayMs: 0,
+  soundDelayMs: 0,
 };
 
 export function getSettings(): Settings {
@@ -67,7 +70,11 @@ export function saveSettings(patch: Partial<Settings>): void {
   } catch {
     /* storage unavailable; settings stay in-memory only */
   }
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SETTINGS_SAVED));
 }
+
+/** Fired on window after the settings were saved, for open editors to apply them. */
+export const SETTINGS_SAVED = "omnitext-settings-saved";
 
 /** The user's display name, or undefined if unset. */
 export const userName = (): string | undefined => getSettings().name.trim() || undefined;

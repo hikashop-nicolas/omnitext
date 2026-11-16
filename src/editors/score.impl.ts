@@ -1,9 +1,11 @@
 import { SOUNDS_CDN, createScoreViewer, exportMp3, exportPdf as scoreditPdf, exportWav, isNotationMidi, loadScore, webMidiInput, webMidiOutput, partFamily, remoteSounds, writeGuitarPro, writeMidi, writeMxl, type LoadedScore, type PdfExportOptions, type PdfFonts, type ScoreDoc, type ScoreViewerHandle } from "scoredit";
 import { t } from "../i18n";
-import { getSettings } from "../settings";
+import { SETTINGS_SAVED, getSettings } from "../settings";
 import { requestInstrumentSounds } from "../remote-consent";
 import { pdfScoreXml } from "./score-pdf";
-import type { Disposable, EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
+import type { CollabBinding, Disposable, EditorInstance, EditorModule, EditorMountContext, ExportTarget, HostAPI } from "../core/types";
+import type { Transport } from "scoredit";
+import { scoreBinding } from "./score-collab";
 import { ReadingFullscreen } from "./reading-fullscreen";
 
 // Recorded instruments, downloaded per instrument when a score uses them, after asking once.
@@ -62,6 +64,9 @@ class ScoreInstance implements EditorInstance {
   private midiPorts: (() => void) | null = null;
   private host: HostAPI;
   private fullscreen: ReadingFullscreen | null = null;
+  // In a shared session, where this device's playback changes go (the conductor's only).
+  private transportOut: ((t: Transport) => void) | null = null;
+  private readonly applySettings = () => this.handle?.setOutputDelay(getSettings().soundDelayMs);
 
   constructor(host: HostAPI) {
     this.host = host;
@@ -108,8 +113,11 @@ class ScoreInstance implements EditorInstance {
           this.edited = true;
           ctx.onChange();
         },
+        onTransport: (t) => this.transportOut?.(t),
+        outputDelayMs: getSettings().soundDelayMs,
       });
       this.fullscreen.attach(this.handle);
+      window.addEventListener(SETTINGS_SAVED, this.applySettings);
       // A MIDI keyboard for practising: connected at once where access is already granted (the app),
       // otherwise on request from the palette, since browsers ask for permission.
       void this.connectMidi(false);
@@ -187,6 +195,23 @@ class ScoreInstance implements EditorInstance {
     return null;
   }
 
+  /** Shared: the person who shared it conducts playback, the others follow; nobody edits. */
+  collab(): CollabBinding | null {
+    if (!this.handle) return null;
+    const off = { edit: t("collab.scoreEditOff"), practice: t("collab.scorePracticeOff") };
+    return scoreBinding({
+      viewer: () => this.handle,
+      onTransport: (emit) => (this.transportOut = emit),
+      current: () => {
+        const p = this.handle?.player;
+        const a = p?.anchor();
+        const speed = p?.getSpeed() ?? 1;
+        return a ? { playing: true, time: a.time, at: a.at, speed } : { playing: false, time: p?.time ?? 0, at: performance.now(), speed };
+      },
+      reasons: { conductor: off, follower: { ...off, play: t("collab.scoreFollows") } },
+    });
+  }
+
   focus(): void {}
 
   /** On the phone the viewer's bar takes the status bar's place, with the view switcher in it. */
@@ -221,6 +246,7 @@ class ScoreInstance implements EditorInstance {
   }
 
   dispose(): void {
+    window.removeEventListener(SETTINGS_SAVED, this.applySettings);
     this.midiPorts?.();
     this.midiPorts = null;
     this.midiCommand?.dispose();

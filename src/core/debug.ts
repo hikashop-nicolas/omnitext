@@ -16,7 +16,9 @@ export type DebugArea =
   /** What actually crosses the wire, per message. Loud. */
   | "wire"
   /** Presence: who is where. */
-  | "peers";
+  | "peers"
+  /** A shared score's playback: how far each follower is from the conductor, every 2 s. */
+  | "sync";
 
 const KEY = "omnitext:debug";
 

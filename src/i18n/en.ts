@@ -57,6 +57,8 @@ const en: Dict = {
     scoreInstrumentHint: "Scores with several instruments open showing only the parts for this instrument, when they have one. The Parts button in the score's bar shows the others.",
     midiDelay: "MIDI delay (ms)",
     midiDelayHint: "For practising in time with a MIDI keyboard. Play a passage in time: the summary shows your average timing, and if it stays late (+) or early (-) on notes you know you played in time, add that number here.",
+    soundDelay: "Sound delay (ms)",
+    soundDelayHint: "For a shared score played on several devices at once. If this device sounds later than the others (a Bluetooth speaker, for one), raise this until they play together.",
     famAll: "All parts",
     famKeys: "Piano and keyboards",
     famGuitar: "Guitar",
@@ -228,6 +230,9 @@ const en: Dict = {
     wrongEditor:
       "This document is being shared through a different editor, so your changes would not reach anyone. Switch to the same view to join in.",
     wrongBuild: "The other person is running a different version of Omnitext, so editing together would not be safe. Both of you reload the page to get the current version.",
+    scoreFollows: "The person who shared the score controls playback",
+    scoreEditOff: "Editing is off while the score is shared",
+    scorePracticeOff: "Practice is off while the score is shared",
     wrongEditorHint: "Shared through the \u201c{editor}\u201d view. Switch to it to edit together.",
     editorPinned: "Leave the session before switching view: everyone is editing through this one.",
     nameHint: "What the others see. Saved for next time, and used to sign comments too.",

@@ -61,6 +61,8 @@ const zh: Dict = {
     scoreInstrumentHint: "多乐器乐谱打开时只显示该乐器的声部（如果有）。乐谱工具栏中的“声部”按钮可显示其他声部。",
     midiDelay: "MIDI 延迟（毫秒）",
     midiDelayHint: "用于配合 MIDI 键盘按节奏练习。按节奏弹奏一段：总结会显示平均偏差；如果在你确定弹准的音符上仍然偏晚 (+) 或偏早 (-)，请把这个数字加到这里。",
+    soundDelay: "声音延迟（毫秒）",
+    soundDelayHint: "用于在多台设备上同时播放共享的乐谱。如果这台设备的声音比其他设备晚（例如使用蓝牙音箱），请调高此值，直到它们同步播放。",
     famAll: "全部声部",
     famKeys: "钢琴与键盘",
     famGuitar: "吉他",
@@ -230,6 +232,9 @@ const zh: Dict = {
     wrongEditor:
       "此文档是通过另一个编辑器共享的，您的修改不会传给任何人。请切换到相同的视图再参与。",
     wrongBuild: "对方运行的 Omnitext 版本不同，共同编辑并不安全。请双方都重新加载页面以获取当前版本。",
+    scoreFollows: "由共享乐谱的人控制播放",
+    scoreEditOff: "共享乐谱期间无法编辑",
+    scorePracticeOff: "共享乐谱期间无法使用练习模式",
     wrongEditorHint: "通过“{editor}”视图共享。请切换到该视图以共同编辑。",
     editorPinned: "切换视图前请先离开会话：大家都在通过这个视图编辑。",
     nameHint: "其他人看到的名字。会保存以备下次使用，也用于署名批注。",
