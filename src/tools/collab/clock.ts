@@ -8,12 +8,16 @@
 
 const PING = 0;
 const PONG = 1;
-/** Samples kept per peer: the best of these is the estimate. */
-const KEEP = 8;
+/**
+ * Samples kept per peer: the best of these is the estimate. Over phone wifi round trips sit
+ * around 50 ms and only now and then come in short, so the window has to be long enough to
+ * catch one: half a minute at one ping a second.
+ */
+const KEEP = 30;
 /** A burst at the start for a good estimate quickly, then one now and then for drift. */
 const BURST = 6;
 const BURST_MS = 150;
-const STEADY_MS = 3_000;
+const STEADY_MS = 1_000;
 
 export interface ClockSample {
   /** Their clock minus ours, in ms. */
