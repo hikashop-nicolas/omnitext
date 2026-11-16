@@ -47,7 +47,7 @@ export type PeersHandler = (peers: Peer[]) => void;
 export const RESYNC_MS = 15_000;
 
 /** Carried by the provider, interpreted by the session: not CRDT traffic. */
-const SESSION_CHANNELS: ReadonlySet<Channel> = new Set<Channel>(["base", "control", "blob"]);
+const SESSION_CHANNELS: ReadonlySet<Channel> = new Set<Channel>(["base", "control", "blob", "clock"]);
 /** y-protocols sync message types; only step 1 carries no content. */
 const SYNC_STEP_1 = 0;
 /** How long a joiner waits to hear the session's contents before giving up on waiting. */

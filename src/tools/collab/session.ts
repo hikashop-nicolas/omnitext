@@ -10,6 +10,7 @@ import { localTransport } from "./local-transport";
 import { trysteroTransport, type CollabTransport } from "./transport";
 import { turnServers } from "./turn";
 import { BlobStore } from "./blobs";
+import { ClockSync } from "./clock";
 import { getSettings } from "../../settings";
 
 // One live collaboration session: a room, a shared document, the base file, and the
@@ -201,6 +202,7 @@ export class CollabSession {
   readonly provider: CollabProvider;
   private readonly base: BaseTransfer;
   private readonly blobs: BlobStore;
+  private readonly clock: ClockSync;
   private readonly host: SessionHost;
   private readonly makeTransport: (key: RoomKey) => CollabTransport;
   private binding: CollabBinding | null = null;
@@ -272,6 +274,8 @@ export class CollabSession {
       peers: () => this.provider.peers().map((p) => p.peerId).filter((id): id is string => !!id),
     });
     this.provider.onChannel("blob", (payload, peerId) => void this.blobs.receive(payload, peerId));
+    this.clock = new ClockSync({ send: (payload, peerId) => this.provider.sendOn("clock", payload, peerId), now: () => performance.now() });
+    this.provider.onChannel("clock", (payload, peerId) => this.clock.receive(payload, peerId));
     this.provider.onChannel("base", (payload, peerId) => void this.base.receive(payload, peerId));
     this.provider.onChannel("control", (payload, peerId) => void this.onControl(payload, peerId));
     // Anyone holding the session's document serves it, not only the peer who started the
@@ -529,6 +533,12 @@ export class CollabSession {
       seed: this.isHost,
       readOnly: this.readOnly,
       blobs: this.blobs,
+      clock: {
+        selfId: () => this.provider.selfId,
+        track: (peerId, onFirst) => this.clock.track(peerId, onFirst),
+        toLocal: (peerId, theirs) => this.clock.toLocal(peerId, theirs),
+        estimate: (peerId) => this.clock.estimate(peerId),
+      },
       ordered: this.ordered,
       me: {
         name: this.me.name,
@@ -806,6 +816,7 @@ export class CollabSession {
     if (this.closed) return;
     for (const t of this.reachTimers) clearTimeout(t);
     this.blobs.dispose();
+    this.clock.dispose();
     this.base.dispose();
     this.closed = true;
     this.binding?.unbind();

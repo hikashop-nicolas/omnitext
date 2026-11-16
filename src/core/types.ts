@@ -240,12 +240,26 @@ export interface CollabContext {
     colour: string;
     onChanged(handler: (me: { name: string; colour: string }) => void): { dispose(): void };
   };
+  /** Other peers' clocks, for things that must happen at the same moment everywhere. */
+  clock?: CollabClock;
   /** For operations that cannot be merged and must be put in one order for everyone.
    *  Absent when the session does not offer it. */
   ordered?: {
     propose(op: unknown): void;
     onOrdered(handler: (op: unknown, seq: number) => void): { dispose(): void };
   };
+}
+
+/** Peers' performance.now() clocks, measured against ours. */
+export interface CollabClock {
+  /** This peer's id, for others to measure against. */
+  selfId(): string;
+  /** Starts measuring a peer's clock; `onFirst` runs once there is an estimate. */
+  track(peerId: string, onFirst?: () => void): { dispose(): void };
+  /** A time on the peer's clock as a time on ours (ms), or null before any estimate. */
+  toLocal(peerId: string, theirs: number): number | null;
+  /** The estimate (their clock minus ours, and the round trip it came from), for measuring. */
+  estimate(peerId: string): { offset: number; rtt: number } | null;
 }
 
 /** The shape of a Y.Doc the core needs to know about; bindings cast to the real type. */
