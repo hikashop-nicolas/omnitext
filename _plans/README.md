@@ -16,6 +16,9 @@
 - **SCORE_PLAN.md**: in progress, sheet music (MuseScore, MusicXML, MIDI, ABC,
   Guitar Pro) viewing, playback and note entry via the scoredit lib (OSMD per system,
   webaudio-tinysynth). Phase 0 spike done 2026-11-10.
+- **SCORE_COLLAB_PLAN.md**: draft for review, scores in a shared session: editing
+  together (one shared entry per bar of a part, ordered bar inserts), following the
+  conductor's playback, and sound in sync across devices after measuring it.
 - **AUDIO_TO_SCORE_PLAN.md**: draft for review, transcribing a recording into a score
   (Basic Pitch notes, Beat This! bars, Spleeter stems for songs). Spike and model
   bake-off done 2026-11-15; next is measuring on the phone.
