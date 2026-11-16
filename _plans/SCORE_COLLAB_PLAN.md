@@ -167,6 +167,15 @@ Phases 1, 2 and the code of phase 4 are built (scoredit 9379154, Omnitext 794da4
   about 1 ms, follower lag 0.5 to 6 ms over 20 s.
 - Not measured yet: Mac and phone over wifi, by ear or microphone (onset gap, Bluetooth,
   drift over 5 minutes).
+- Mac (production build in the browser pane) as host, phone (debug APK, wifi) as
+  follower, 2026-11-16: joining, the greyed-out controls (French on the phone), play and
+  pause all work, and both showed 1:11 at the same check. Clock round trip 52 to 55 ms
+  (so the estimate may be off by up to about 26 ms), and the phone's own lag readout
+  swung between -70 and +44 ms over 35 s, beyond the 25 ms slack it is meant to keep.
+  To find out next: whether that is the clock estimate, Android's audio clock or output
+  latency moving after the start, or a correction that does not fire. Not yet heard by ear.
+  Sessions refuse peers on different builds, so the host must run the same build as the
+  APK (vite preview of the same dist), not the dev server.
 - Per-device sounding of parts: a sound button beside each part in the Parts menu
   (scoredit e248946, Omnitext d47d333), independent of the parts shown.
 
