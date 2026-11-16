@@ -176,6 +176,14 @@ Phases 1, 2 and the code of phase 4 are built (scoredit 9379154, Omnitext 794da4
   latency moving after the start, or a correction that does not fire. Not yet heard by ear.
   Sessions refuse peers on different builds, so the host must run the same build as the
   APK (vite preview of the same dist), not the dev server.
+- Fixed after logging (scoredit 5e76938, Omnitext 04c5afa, 9b578aa): on the phone
+  currentTime moves in buffer steps and drifts against performance.now (about 1.4 ms/s),
+  which caused the swings. Timing now comes from getOutputTimestamp: second run, the
+  phone followed within 0 to 2.4 ms for a minute with no correction, clock estimate
+  stable within 2 ms (30 samples, 1 ping/s). The start still takes up to 3 placements
+  over about 1.2 s while the phone's audio settles (checks at 0.4, 1.2, 2.5 s).
+  What the logs cannot see: a bias in the clock estimate from uneven network legs (up to
+  half the 47 ms round trip) and the speakers themselves; only a microphone settles that.
 - Per-device sounding of parts: a sound button beside each part in the Parts menu
   (scoredit e248946, Omnitext d47d333), independent of the parts shown.
 
