@@ -27,6 +27,8 @@ export interface ConductedViewer {
   follow(t: Transport): void;
   /** How late this device sounds the followed playback, ms (for measuring). */
   readonly followLag?: number | null;
+  /** Follow decisions since the last call and the audio clocks, for measuring. */
+  followDebug?(): unknown;
 }
 
 export interface ScoreCollabDeps {
@@ -92,9 +94,9 @@ export function scoreBinding(deps: ScoreCollabDeps): CollabBinding {
         ? setInterval(() => {
             const s = map.get(STATE);
             if (!s?.playing) return;
-            const lag = deps.viewer()?.followLag;
             const est = ctx.clock?.estimate(s.peer);
-            debug("sync", "following", () => ({ lagMs: lag == null ? null : Math.round(lag * 10) / 10, offsetMs: est && Math.round(est.offset * 10) / 10, rttMs: est && Math.round(est.rtt * 10) / 10 }));
+            const detail = deps.viewer()?.followDebug?.();
+            debug("sync", "following", () => ({ offsetMs: est && Math.round(est.offset * 10) / 10, rttMs: est && Math.round(est.rtt * 10) / 10, ...(detail as object) }));
           }, 2000)
         : null;
       cleanup = () => {
