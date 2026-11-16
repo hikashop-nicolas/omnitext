@@ -101,7 +101,8 @@ class ScoreInstance implements EditorInstance {
             }
           : undefined,
         sounds,
-        parts: { show: myParts(loaded.score) },
+        // Each part can also be left silent here: to play it yourself, or in a shared score.
+        parts: { show: myParts(loaded.score), onSilentChange: () => {} },
         practice: { latencyMs: getSettings().midiDelayMs },
         // Practice shows before a keyboard is connected, with a button that asks the browser for MIDI.
         connectMidi: () => void this.connectMidi(true),
