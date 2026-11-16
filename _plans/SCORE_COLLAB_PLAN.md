@@ -174,9 +174,11 @@ otherwise sound stays on the conductor's device and the others follow visually.
   stutter on the phone.
 - **Audio on Android**: WebView audio latency and suspended contexts in the background.
 
-## Open points for the user
+## Settled details (user, 2026-11-16)
 
-1. When the host leaves edit mode while a joiner is mid-edit (a note half entered), the
-   joiner's pending edit is committed as it stands, then the mode switches. Fine?
-2. Does the host's playback keep running while in edit mode (editing while it plays), or
-   does entering edit mode pause it for everyone?
+- When the host leaves edit mode while a joiner is mid-edit (a note half entered), the
+  joiner's pending edit is committed as it stands, then the mode switches.
+- Switching mode does not touch playback: it keeps playing for everyone, and edits made
+  while it plays are heard on the next pass (the timeline is rebuilt as today).
+
+No open points left; next step is phase 1.
