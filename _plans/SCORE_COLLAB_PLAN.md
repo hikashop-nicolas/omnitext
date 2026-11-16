@@ -3,6 +3,18 @@
 Draft for review (2026-11-16). Nothing built. Follows up SCORE_PLAN.md item 8
 ("Collaboration binding, later") and uses the session of COLLABORATION_PLAN.md as it is.
 
+## Decisions (user, 2026-11-16)
+
+- **The host is the conductor**, always. No handing over the baton.
+- **The host controls the mode for everyone.** On the other devices the play button and
+  the edit button are greyed out. When the host enters edit mode, every joiner enters it
+  too; when the host leaves it, they all leave it. Editing is therefore allowed by the
+  host, by hand, and only while the host is in edit mode. Joiners who came in through a
+  read-only link stay in view mode.
+- **What a device shows stays its own choice**: the guitarist shows only the guitar part,
+  the pianist only the piano, the host all parts or a few. Shown parts are never shared;
+  only the score, the mode and the playback are.
+
 ## Goal
 
 Share an open score the way a text, a sheet or subtitles are shared today, and add what
@@ -88,14 +100,20 @@ and writeMeasure already split a bar into voices.)
 
 ## Part 2: following together
 
-The session's playback state, owned by one peer (the conductor, the host by default):
+The session's state, written only by the host (the conductor):
 
-- `score.transport`: Y.Map with `playing`, `pieceTime`, `speed`, `at` (the conductor's
-  clock time from which these hold), and a counter bumped on each change.
+- `score.transport`: Y.Map with `playing`, `pieceTime`, `speed`, `at` (the host's clock
+  time from which these hold), and a counter bumped on each change.
+- `score.mode`: `view` or `edit`. Joiners follow it (read-only joiners stay in view).
 
-Every device moves its cursor and turns its pages from that state, so the conductor's
-play, pause, seek, bar jump and speed change reach everyone. Practice wait mode is off in
-a session. Visual sync needs about 50 ms, which plain message delivery gives on a LAN; the
+Every device moves its cursor and turns its pages from that state, so the host's play,
+pause, seek, bar jump and speed change reach everyone. On joiners the play and edit
+buttons are greyed out with a tooltip saying the host controls them, and seeking by
+tapping a bar is off. Each device keeps its own parts menu, zoom and layout; the cursor
+follows the shown parts like it does today. Practice wait mode is off in a session.
+
+Only the host writes these two maps; a joiner's binding ignores its own writes to them
+and the host's binding rejects them, so a modified client cannot take the baton. Visual sync needs about 50 ms, which plain message delivery gives on a LAN; the
 common clock below makes it independent of relay hops.
 
 ## Part 3: playing together
@@ -115,7 +133,10 @@ common clock below makes it independent of relay hops.
   with the conductor's timeline and corrects small gaps with a slight speed change, a
   seek only beyond about 80 ms.
 - **Parts**: each device chooses which parts it shows and which it sounds (its own part
-  muted, the others played), as the parts menu and practice skip already allow.
+  muted, the others played), as the parts menu and practice skip already allow. What it
+  sounds is independent of what it shows: the guitarist can show only the guitar and still
+  hear the rest. Whether every device sounds or only some (one speaker in the room is
+  often enough) is a per-device switch too.
 
 ## Measurements first (before Part 3)
 
@@ -131,11 +152,13 @@ otherwise sound stays on the conductor's device and the others follow visually.
 
 ## Phases
 
-1. **Read-only share**: score editor gets `collab()`, joiners view the score, carets in
-   presence. Small, and makes the binding real.
-2. **Editing together**: shared bars, ordered structural edits, session undo, carets.
-   Tests with two Y.Docs and no DOM, as for subtitles and sheets (session-pair tests).
-3. **Following together**: transport state, conductor role, cursor and page turns.
+1. **Read-only share**: score editor gets `collab()`, joiners view the score with their
+   own parts choice, play and edit greyed out. Small, and makes the binding real.
+2. **Following together**: transport state from the host, cursor and page turns.
+   Before editing, because it is smaller and is the case musicians meet first.
+3. **Editing together**: `score.mode` from the host, shared bars, ordered structural
+   edits, session undo, carets. Tests with two Y.Docs and no DOM, as for subtitles and
+   sheets (session-pair tests).
 4. **Measurements**, then **playing together**: clock channel, `playAt`, output delay
    setting and calibration, drift correction, per-device parts.
 5. i18n in all 8 languages for every new string, at each phase.
@@ -153,8 +176,7 @@ otherwise sound stays on the conductor's device and the others follow visually.
 
 ## Open points for the user
 
-1. Who conducts: always the host, or anyone can take the baton?
-2. Should a joiner be able to edit by default, or only after the host allows it (the
-   session already has read-only joiners)?
-3. In "playing together", does each device only show its own part, or the full score with
-   its part highlighted?
+1. When the host leaves edit mode while a joiner is mid-edit (a note half entered), the
+   joiner's pending edit is committed as it stands, then the mode switches. Fine?
+2. Does the host's playback keep running while in edit mode (editing while it plays), or
+   does entering edit mode pause it for everyone?
