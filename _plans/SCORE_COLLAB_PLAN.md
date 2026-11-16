@@ -178,7 +178,8 @@ otherwise sound stays on the conductor's device and the others follow visually.
 
 - When the host leaves edit mode while a joiner is mid-edit (a note half entered), the
   joiner's pending edit is committed as it stands, then the mode switches.
-- Switching mode does not touch playback: it keeps playing for everyone, and edits made
-  while it plays are heard on the next pass (the timeline is rebuilt as today).
+- Switching mode does not touch playback: it keeps playing for everyone, and an edit
+  made while it plays swaps in the new timeline (Player.setTimeline, which resumes at the
+  same position), so the edit is heard when playback reaches it.
 
 No open points left; next step is phase 1.
