@@ -1,9 +1,10 @@
 import exifr from "exifr";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
+import { largestPreview } from "./raw-preview";
 
 // Read-only viewer for camera RAW files (CR2/CR3, NEF, ARW, DNG, RW2, ORF, RAF, …). A
 // full RAW demosaic needs a multi-megabyte decoder; instead this shows the JPEG preview
-// the camera embeds in the file plus the EXIF shot metadata (camera, lens, exposure),
+// the camera embeds in the file (the largest one, see raw-preview.ts) plus the EXIF shot metadata,
 // via exifr (pure JS). Everything is read in the browser.
 
 const STYLE_ID = "omnitext-raw-style";
@@ -58,10 +59,8 @@ class RawInstance implements EditorInstance {
   private async render(root: HTMLElement, bytes: Uint8Array, filename: string): Promise<void> {
     try {
       const buf = bytes.slice().buffer;
-      const [thumb, meta] = await Promise.all([
-        exifr.thumbnail(buf).catch(() => undefined),
-        exifr.parse(buf, true).catch(() => ({}) as Record<string, unknown>),
-      ]);
+      const meta = await exifr.parse(buf, true).catch(() => ({}) as Record<string, unknown>);
+      const thumb = largestPreview(bytes);
       root.textContent = "";
 
       const view = document.createElement("div");
