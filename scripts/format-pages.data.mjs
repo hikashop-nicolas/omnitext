@@ -17,6 +17,8 @@
  * @property {string} lead      Opening paragraph.
  * @property {string[]} can     What you can actually do, most useful first.
  * @property {string} [note]    A caveat or a detail worth knowing. Optional.
+ * @property {boolean} [viewOnly] The format opens in a viewer and is never written back; the
+ *                              page then says so instead of promising an edit and a save.
  * @property {{name: string, caption: string}} [shot] Screenshot in public/shots (name.webp
  *                              plus name-light.webp) and the caption under it. The caption
  *                              says what is actually in the picture: several pages share a
@@ -177,6 +179,7 @@ export const PAGES = [
   },
   {
     id: "dwg",
+    viewOnly: true,
     formats: ["dwg"],
     name: "DWG drawing",
     headline: "Open a DWG drawing without AutoCAD",
@@ -193,6 +196,7 @@ export const PAGES = [
   },
   {
     id: "dxf",
+    viewOnly: true,
     formats: ["dxf"],
     name: "DXF drawing",
     headline: "Open a DXF drawing in the browser",
@@ -208,6 +212,7 @@ export const PAGES = [
   },
   {
     id: "epub",
+    viewOnly: true,
     shot: {
       name: "epub",
       caption:
@@ -366,6 +371,7 @@ export const PAGES = [
   },
   {
     id: "eml",
+    viewOnly: true,
     shot: {
       name: "email",
       caption:
@@ -385,6 +391,7 @@ export const PAGES = [
   },
   {
     id: "msg",
+    viewOnly: true,
     shot: {
       name: "email",
       caption:
@@ -404,6 +411,7 @@ export const PAGES = [
   },
   {
     id: "sqlite",
+    viewOnly: true,
     shot: {
       name: "sqlite",
       caption:
@@ -423,6 +431,7 @@ export const PAGES = [
   },
   {
     id: "ipynb",
+    viewOnly: true,
     shot: {
       name: "notebook",
       caption:
@@ -443,6 +452,7 @@ export const PAGES = [
   },
   {
     id: "parquet",
+    viewOnly: true,
     formats: ["parquet", "arrow"],
     name: "Parquet",
     headline: "Look inside a Parquet file in the browser",
@@ -458,6 +468,7 @@ export const PAGES = [
   },
   {
     id: "psd",
+    viewOnly: true,
     formats: ["psd"],
     name: "Photoshop document",
     headline: "Open a .psd without Photoshop",
@@ -472,6 +483,7 @@ export const PAGES = [
   },
   {
     id: "heic",
+    viewOnly: true,
     shot: {
       name: "heic",
       caption:
@@ -491,6 +503,7 @@ export const PAGES = [
   },
   {
     id: "dicom",
+    viewOnly: true,
     formats: ["dicom"],
     name: "DICOM image",
     headline: "Open a DICOM medical image",
@@ -529,6 +542,7 @@ export const PAGES = [
   },
   {
     id: "video",
+    viewOnly: true,
     shot: {
       name: "video",
       caption:
@@ -551,6 +565,7 @@ export const PAGES = [
   },
   {
     id: "audio",
+    viewOnly: true,
     shot: {
       name: "audio",
       caption:

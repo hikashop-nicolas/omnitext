@@ -209,8 +209,13 @@ ${page.note ? `<p class="note">${esc(page.note)}</p>` : ""}
 <h2>How it works</h2>
 <ol class="steps">
   <li>Open Omnitext and pick your file, or drop it anywhere on the page.</li>
-  <li>Edit it in the surface that suits it, with everything else left as it was.</li>
-  <li>Save, and the file is written back to your disk.</li>
+${
+  page.viewOnly
+    ? `  <li>It opens in a viewer made for it, and the file itself is never changed.</li>
+  <li>Close it when you are done: nothing was sent anywhere, so there is nothing to clean up.</li>`
+    : `  <li>Edit it in the surface that suits it, with everything else left as it was.</li>
+  <li>Save, and the file is written back to your disk.</li>`
+}
 </ol>
 <div class="facts">
   <dl>
@@ -223,8 +228,9 @@ ${page.note ? `<p class="note">${esc(page.note)}</p>` : ""}
 </div>
 <h2>Questions</h2>
 <details><summary>Is my file uploaded anywhere?</summary>
-<p>No. Omnitext is a static page with no server behind it: it reads the file from your disk,
-edits it in the browser and writes it back there. Nothing is sent, and there is nothing to
+<p>No. Omnitext is a static page with no server behind it: it reads the file from your disk${
+    page.viewOnly ? " and shows it in the browser" : ",\nedits it in the browser and writes it back there"
+  }. Nothing is sent, and there is nothing to
 delete afterwards.</p></details>
 <details><summary>Is it really free?</summary>
 <p>Yes. Every feature is available to everyone, with no account, no trial, no watermark and
