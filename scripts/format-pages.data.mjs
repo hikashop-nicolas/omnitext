@@ -93,6 +93,11 @@ export const PAGES = [
   },
   {
     id: "pptx",
+    shot: {
+      name: "pptx",
+      caption:
+        "A PowerPoint presentation open in Omnitext, with its slides down the side and a slide holding a table open for editing.",
+    },
     formats: ["pptx"],
     name: "PowerPoint presentation",
     headline: "Open, edit and present a .pptx in your browser",
