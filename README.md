@@ -8,6 +8,7 @@ picks the right editing surface for each file, lets you edit it, and saves it ba
 uploaded, there is no account, and no file ever fails to open.
 
 **[▶ Open Omnitext](https://hikashop-nicolas.github.io/omnitext/)** &nbsp;·&nbsp;
+[Install on your computer](https://hikashop-nicolas.github.io/omnitext/#install) &nbsp;·&nbsp;
 [Every format it opens](https://hikashop-nicolas.github.io/omnitext/formats.html) &nbsp;·&nbsp;
 [Google Play](https://play.google.com/store/apps/details?id=app.omnitext) &nbsp;·&nbsp;
 [Android APK](https://github.com/hikashop-nicolas/omnitext/releases/download/android-latest/omnitext.apk)
@@ -147,8 +148,10 @@ join.
 
 ## Installing it
 
-- **In a browser**: just [open it](https://hikashop-nicolas.github.io/omnitext/). Your browser
-  menu offers to install it, which also registers Omnitext in your desktop's "Open with" menu.
+- **On a computer**: [install it](https://hikashop-nicolas.github.io/omnitext/#install) from
+  the page itself. In Chrome and Edge one click installs it; other browsers are told where
+  their own install command is (File > Add to Dock in Safari). Installing also registers
+  Omnitext in your desktop's "Open with" menu.
 - **On Android**: [Google Play](https://play.google.com/store/apps/details?id=app.omnitext) is
   the easy route. The same app is also available as a
   [direct APK](https://github.com/hikashop-nicolas/omnitext/releases/download/android-latest/omnitext.apk),
