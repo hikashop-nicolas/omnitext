@@ -1,5 +1,7 @@
 import { DxfViewer, isDwg } from "cadview";
 import * as THREE from "three";
+// Text in drawings is drawn from this font; without one the viewer leaves every label out.
+import textFontUrl from "pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf?url";
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 
 // Read-only 2D CAD viewer for DXF and DWG drawings, built on cadview (a fork of dxf-viewer,
@@ -435,6 +437,8 @@ class DxfInstance implements EditorInstance {
       const worker = makeCadWorker();
       const workerFactory = worker ? () => worker : null;
 
+      // Absolute: the worker resolves a relative URL against its own script, not the page.
+      const fonts = [new URL(textFontUrl, document.baseURI).href];
       const dwg = isDwg(bytes);
       let unsupported: Record<string, number> = {};
       let missingLinks: string[] = [];
@@ -445,10 +449,11 @@ class DxfInstance implements EditorInstance {
         ({ unsupported, missingLinks } = await viewer.LoadDwg({
           bytes: bytes.slice().buffer,
           workerFactory,
+          fonts,
         }));
       } else {
         this.url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/dxf" }));
-        await viewer.Load({ url: this.url, workerFactory });
+        await viewer.Load({ url: this.url, fonts, workerFactory });
       }
 
       const bar = document.createElement("div");
