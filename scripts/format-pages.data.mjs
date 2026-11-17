@@ -180,6 +180,11 @@ export const PAGES = [
   {
     id: "dwg",
     viewOnly: true,
+    shot: {
+      name: "dxf",
+      caption:
+        "The drawing viewer, here with a DXF site plan and its layer list: DWG files open in the same viewer.",
+    },
     formats: ["dwg"],
     name: "DWG drawing",
     headline: "Open a DWG drawing without AutoCAD",
@@ -197,6 +202,11 @@ export const PAGES = [
   {
     id: "dxf",
     viewOnly: true,
+    shot: {
+      name: "dxf",
+      caption:
+        "A DXF site plan open in Omnitext, with its labels, title block and the layer list.",
+    },
     formats: ["dxf"],
     name: "DXF drawing",
     headline: "Open a DXF drawing in the browser",
@@ -453,6 +463,11 @@ export const PAGES = [
   {
     id: "parquet",
     viewOnly: true,
+    shot: {
+      name: "parquet",
+      caption:
+        "A Parquet file of tide readings open as a table, with each column's type.",
+    },
     formats: ["parquet", "arrow"],
     name: "Parquet",
     headline: "Look inside a Parquet file in the browser",
@@ -469,6 +484,11 @@ export const PAGES = [
   {
     id: "psd",
     viewOnly: true,
+    shot: {
+      name: "psd",
+      caption:
+        "A layered Photoshop file shown as its composite, with the layer list beside it.",
+    },
     formats: ["psd"],
     name: "Photoshop document",
     headline: "Open a .psd without Photoshop",
@@ -504,6 +524,11 @@ export const PAGES = [
   {
     id: "dicom",
     viewOnly: true,
+    shot: {
+      name: "dicom",
+      caption:
+        "A synthetic test phantom saved as DICOM, with the scan's tags beside it.",
+    },
     formats: ["dicom"],
     name: "DICOM image",
     headline: "Open a DICOM medical image",
@@ -808,6 +833,11 @@ export const PAGES = [
   {
     id: "3d-models",
     viewOnly: true,
+    shot: {
+      name: "model3d",
+      caption:
+        "An STL lighthouse in the 3D viewer, keeping the colours stored in its faces.",
+    },
     formats: ["model3d"],
     name: "3D model",
     headline: "View an STL, OBJ or glTF model in your browser",
@@ -825,6 +855,11 @@ export const PAGES = [
   {
     id: "camera-raw",
     viewOnly: true,
+    shot: {
+      name: "raw",
+      caption:
+        "A Canon CR2 photo: the preview stored in the file, with the camera, lens and exposure beside it.",
+    },
     formats: ["raw"],
     name: "camera RAW photo",
     headline: "Look inside a camera RAW file without an editor",
@@ -842,6 +877,11 @@ export const PAGES = [
   {
     id: "calendar-contacts",
     viewOnly: true,
+    shot: {
+      name: "calendar",
+      caption:
+        "An .ics file with three event invitations, each shown as a card.",
+    },
     formats: ["ics", "vcf"],
     name: "calendar and contact",
     headline: "Open an .ics invitation or a .vcf contact card",
@@ -857,6 +897,11 @@ export const PAGES = [
   {
     id: "fonts",
     viewOnly: true,
+    shot: {
+      name: "font",
+      caption:
+        "Playfair Display open in Omnitext: sample text at five sizes, then the glyphs.",
+    },
     formats: ["font"],
     name: "font",
     headline: "Preview a font file before you install it",
@@ -874,6 +919,11 @@ export const PAGES = [
   {
     id: "kindle-ebooks",
     viewOnly: true,
+    shot: {
+      name: "ebook",
+      caption:
+        "A FictionBook e-book open in the reader, a page at a time.",
+    },
     formats: ["ebook"],
     name: "Kindle and FictionBook e-book",
     headline: "Read a MOBI, AZW3 or FB2 e-book in your browser",
@@ -890,6 +940,11 @@ export const PAGES = [
   {
     id: "wallet-passes",
     viewOnly: true,
+    shot: {
+      name: "wallet",
+      caption:
+        "A ferry boarding pass from a .pkpass file, its QR code redrawn so it can be scanned from the screen.",
+    },
     formats: ["pkpass", "bcbp", "healthcard"],
     name: "wallet passes",
     headline: "Open a .pkpass ticket or boarding pass without an iPhone",
@@ -908,6 +963,11 @@ export const PAGES = [
   {
     id: "tiff",
     viewOnly: true,
+    shot: {
+      name: "tiff",
+      caption:
+        "A scanned three-page TIFF log, every page shown one under the other.",
+    },
     formats: ["tiff"],
     name: "TIFF image",
     headline: "Open a TIFF, every page of it, in the browser",
@@ -923,6 +983,11 @@ export const PAGES = [
   {
     id: "illustrator",
     viewOnly: true,
+    shot: {
+      name: "illustrator",
+      caption:
+        "An Illustrator file with two artboards, a logo and a business card.",
+    },
     formats: ["ai"],
     name: "Illustrator",
     headline: "Open an Illustrator .ai file without Illustrator",
@@ -938,6 +1003,11 @@ export const PAGES = [
   {
     id: "torrent",
     viewOnly: true,
+    shot: {
+      name: "torrent",
+      caption:
+        "A .torrent file's contents: the info hash, the trackers and the files it would download.",
+    },
     formats: ["torrent"],
     name: "torrent",
     headline: "See what is inside a .torrent file before you download",
