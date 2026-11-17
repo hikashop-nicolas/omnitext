@@ -161,7 +161,7 @@ export const PAGES = [
       caption:
         "A CSV file open as a grid, one column per field.",
     },
-    formats: ["csv"],
+    formats: ["csv", "tsv"],
     name: "CSV",
     headline: "Open a CSV as a table, or as text",
     summary:
@@ -173,6 +173,7 @@ export const PAGES = [
       "Keep the separator and quoting style the file arrived with",
       "Open files far larger than a spreadsheet page would show comfortably",
     ],
+    note: "Tab-separated .tsv files open in the same grid.",
   },
   {
     id: "dwg",
@@ -231,7 +232,7 @@ export const PAGES = [
       caption:
         "The subtitle editor, here with an .srt file: a cue list, the cue you are editing, and a timeline to retime it.",
     },
-    formats: ["srt"],
+    formats: ["srt", "ssa", "sbv", "ttml", "lrc", "microdvd", "sami", "mpl2", "ttxt", "ytjson", "spruce"],
     name: "SRT subtitles",
     headline: "Edit .srt subtitles in your browser",
     summary:
@@ -243,6 +244,7 @@ export const PAGES = [
       "Drag cues on a waveform to retime them against what you can hear",
       "Convert between subtitle formats by saving under another name",
     ],
+    note: "The same editor opens the other subtitle formats people run into: SubStation Alpha, YouTube's .sbv and caption JSON, TTML and DFXP from broadcast, LRC lyrics, MicroDVD, SAMI, MPL2, 3GPP timed text and Spruce .stl.",
   },
   {
     id: "vtt",
@@ -291,7 +293,7 @@ export const PAGES = [
       caption:
         "A GeoJSON survey file open in the map editor: the features drawn over the map, with the drawing and measuring tools above.",
     },
-    formats: ["geojson"],
+    formats: ["geojson", "topojson", "shp", "wkt"],
     name: "GeoJSON",
     headline: "Edit GeoJSON on a map, in the browser",
     summary:
@@ -303,6 +305,7 @@ export const PAGES = [
       "Edit the raw JSON when that is quicker",
       "Save without your file being reformatted end to end",
     ],
+    note: "TopoJSON, shapefiles (.shp) and WKT open on the same map, read-only: export them as GeoJSON, KML or GPX to edit. A .shp opened on its own shows the shapes without the attributes kept in its .dbf.",
   },
   {
     id: "kml",
@@ -440,7 +443,7 @@ export const PAGES = [
   },
   {
     id: "parquet",
-    formats: ["parquet"],
+    formats: ["parquet", "arrow"],
     name: "Parquet",
     headline: "Look inside a Parquet file in the browser",
     summary:
@@ -451,6 +454,7 @@ export const PAGES = [
       "Check what is actually in a file before wiring it into a pipeline",
       "Keep the data on your machine while you look at it",
     ],
+    note: "Apache Arrow and Feather files (.arrow, .feather) open as a table the same way.",
   },
   {
     id: "psd",
@@ -712,7 +716,7 @@ export const PAGES = [
       "javascript", "typescript", "python", "c", "cpp", "java", "csharp", "php", "rust",
       "go", "ruby", "swift", "kotlin", "sql", "shell", "html", "css", "yaml", "xml",
       "toml", "ini", "vue", "svelte", "powershell", "lua", "perl", "haskell", "scala",
-      "dart", "clojure", "erlang", "graphql", "asciidoc", "log", "diff",
+      "dart", "clojure", "erlang", "graphql", "asciidoc", "log", "diff", "dotenv", "properties", "json5",
     ],
     headline: "Open a code file with syntax highlighting",
     summary:
