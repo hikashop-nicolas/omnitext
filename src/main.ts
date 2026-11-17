@@ -168,7 +168,7 @@ import {
 } from "./formats/binary-viewers";
 import { applyDom, getLocale, initI18n, t } from "./i18n";
 import { activeQueue, handOverFiles, naturalCompare, pickFolderFiles, relativePath } from "./core/media-handoff";
-import { readDropped } from "./core/dropped";
+import { dropHandles, readDropped } from "./core/dropped";
 import { saveFile as saveFileAs } from "./core/save-file";
 import { getSettings } from "./settings";
 import type {
@@ -1332,9 +1332,17 @@ window.addEventListener("drop", async (e) => {
   dropzoneEl.classList.remove("show");
   if (!e.dataTransfer) return;
   // Read the drop before anything is awaited: its entries are gone once the event returns.
+  const handlesRead = dropHandles<FsHandle & { kind: string }>(e.dataTransfer);
   const files = await readDropped(e.dataTransfer);
   if (!files.length) return;
   if (!confirmDiscard()) return;
+  // Plain files with handles open like the picker's: saved in place and listed as recent.
+  const handles = await handlesRead;
+  if (handles.length === files.length && handles.every((h) => h?.kind === "file")) {
+    const opened = await openSelection(files.map((file, i) => ({ file, handle: handles[i] })), "fs");
+    if (opened?.handle) void rememberRecent({ kind: "handle", name: opened.file.name, handle: opened.handle });
+    return;
+  }
   await openSelection(files.map((file) => ({ file, handle: null })), "upload");
 });
 

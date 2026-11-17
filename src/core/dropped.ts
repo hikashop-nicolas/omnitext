@@ -39,3 +39,16 @@ export function readDropped(data: DataTransfer): Promise<File[]> {
     return out;
   })();
 }
+
+/**
+ * Each dropped item's file handle (Chromium), or null where the browser gives none, so a dropped
+ * file can be saved in place and listed as recent. Call it in the event, like readDropped.
+ */
+export function dropHandles<H extends { kind: string }>(data: DataTransfer): Promise<(H | null)[]> {
+  const items = Array.from(data.items ?? []).filter((i) => i.kind === "file");
+  const pending = items.map((i) => {
+    const get = (i as DataTransferItem & { getAsFileSystemHandle?: () => Promise<H | null> }).getAsFileSystemHandle;
+    return get ? get.call(i).catch(() => null) : Promise.resolve(null);
+  });
+  return Promise.all(pending);
+}
