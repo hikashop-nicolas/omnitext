@@ -257,7 +257,7 @@ Omnitext to your computer's "Open with" menu. There is an Android app as well.</
 // must appear exactly once: a page added without a group would otherwise vanish from the
 // index while still being built.
 const GROUPS = [
-  { title: "Documents", ids: ["pdf", "docx", "odt", "markdown", "latex", "epub"] },
+  { title: "Documents", ids: ["pdf", "docx", "odt", "pptx", "markdown", "latex", "epub"] },
   { title: "Spreadsheets and data", ids: ["xlsx", "ods", "csv", "sqlite", "parquet", "ipynb", "json"] },
   { title: "Pictures and drawings", ids: ["svg", "psd", "heic", "dwg", "dxf", "dicom"] },
   { title: "Audio, video and subtitles", ids: ["video", "audio", "srt", "vtt", "ass"] },

@@ -92,6 +92,24 @@ export const PAGES = [
     ],
   },
   {
+    id: "pptx",
+    formats: ["pptx"],
+    name: "PowerPoint presentation",
+    headline: "Open, edit and present a .pptx in your browser",
+    summary:
+      "Edit PowerPoint slides, run the slideshow with a presenter view, and export to PDF. No account, no upload: the file stays on your device.",
+    lead: "Opening a presentation someone sent you usually means installing PowerPoint or uploading the file to an online office suite. Omnitext opens the .pptx in the browser, lets you change it and present it, and saves it back as a .pptx, without the file ever leaving your device.",
+    can: [
+      "Edit text, with bold, italic, size, colour, bullets and alignment",
+      "Add text boxes, shapes, pictures, tables, video and audio",
+      "Add, duplicate, delete and reorder slides, and group them in sections",
+      "Write speaker notes, and edit the slide master and its layouts",
+      "Present full screen, with a presenter view showing your notes and the next slide",
+      "Export to PDF as slides, notes pages or handouts, or one slide as an image",
+    ],
+    note: "Only the current .pptx format opens. Save old .ppt files, or .odp from LibreOffice Impress, as .pptx first.",
+  },
+  {
     id: "xlsx",
     shot: {
       name: "sheet",
