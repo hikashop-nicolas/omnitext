@@ -1105,6 +1105,20 @@ const en: Dict = {
     unavailable: "This browser cannot use MIDI devices.",
     denied: "MIDI access was refused.",
   },
+  install: {
+    title: "Install Omnitext",
+    intro: "Installed, Omnitext opens in its own window, works offline and appears in your computer's “Open with” menu.",
+    install: "Install",
+    notNow: "Not now",
+    close: "Close",
+    done: "Omnitext is installed. Open it from your apps, or from the “Open with” menu of a file it edits.",
+    running: "You are already using the installed Omnitext.",
+    safariMac: "In Safari, choose File > Add to Dock.",
+    safariIos: "In Safari, tap the Share button, then Add to Home Screen.",
+    firefox: "Firefox installs web apps only on some systems. If its menu offers nothing for Omnitext, open this page in Chrome or Edge to install it.",
+    android: "On Android, the Omnitext app from Google Play or F-Droid is the easiest route. To install this page instead, choose Add to Home screen in the browser menu.",
+    menu: "Choose Install Omnitext in your browser's menu. If there is no such entry, Omnitext may already be installed: look for it among your apps.",
+  },
 };
 
 export default en;

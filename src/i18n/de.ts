@@ -1103,6 +1103,20 @@ const de: Dict = {
     unavailable: "Dieser Browser kann keine MIDI-Geräte verwenden.",
     denied: "Der MIDI-Zugriff wurde verweigert.",
   },
+  install: {
+    title: "Omnitext installieren",
+    intro: "Installiert öffnet sich Omnitext in einem eigenen Fenster, funktioniert offline und erscheint im Menü „Öffnen mit“ Ihres Computers.",
+    install: "Installieren",
+    notNow: "Später",
+    close: "Schließen",
+    done: "Omnitext ist installiert. Öffnen Sie es über Ihre Apps oder über das Menü „Öffnen mit“ einer Datei, die es bearbeitet.",
+    running: "Sie verwenden bereits das installierte Omnitext.",
+    safariMac: "Wählen Sie in Safari Ablage > Zum Dock hinzufügen.",
+    safariIos: "Tippen Sie in Safari auf Teilen und dann auf Zum Home-Bildschirm.",
+    firefox: "Firefox installiert Web-Apps nur auf manchen Systemen. Wenn sein Menü nichts für Omnitext anbietet, öffnen Sie diese Seite in Chrome oder Edge, um sie zu installieren.",
+    android: "Unter Android ist die Omnitext-App aus Google Play oder F-Droid der einfachste Weg. Um stattdessen diese Seite zu installieren, wählen Sie im Browsermenü Zum Startbildschirm hinzufügen.",
+    menu: "Wählen Sie im Menü Ihres Browsers Omnitext installieren. Fehlt dieser Eintrag, ist Omnitext vielleicht schon installiert: Suchen Sie es unter Ihren Apps.",
+  },
 };
 
 export default de;

@@ -1107,6 +1107,20 @@ const zh: Dict = {
     unavailable: "此浏览器无法使用 MIDI 设备。",
     denied: "MIDI 访问被拒绝。",
   },
+  install: {
+    title: "安装 Omnitext",
+    intro: "安装后，Omnitext 会在独立窗口中打开，可离线使用，并出现在电脑的“打开方式”菜单中。",
+    install: "安装",
+    notNow: "以后再说",
+    close: "关闭",
+    done: "Omnitext 已安装。可以从应用列表打开，也可以从它能编辑的文件的“打开方式”菜单打开。",
+    running: "你正在使用已安装的 Omnitext。",
+    safariMac: "在 Safari 中选择“文件”>“添加到程序坞”。",
+    safariIos: "在 Safari 中轻点“共享”按钮，然后选择“添加到主屏幕”。",
+    firefox: "Firefox 只在部分系统上能安装网页应用。如果它的菜单中没有 Omnitext 的选项，请在 Chrome 或 Edge 中打开此页面进行安装。",
+    android: "在 Android 上，最简单的是从 Google Play 或 F-Droid 安装 Omnitext 应用。若要安装此页面，请在浏览器菜单中选择“添加到主屏幕”。",
+    menu: "请在浏览器菜单中选择“安装 Omnitext”。如果没有这一项，Omnitext 可能已经安装：请在应用列表中查找。",
+  },
 };
 
 export default zh;

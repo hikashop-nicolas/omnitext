@@ -167,6 +167,7 @@ import {
   makeViewerFormats,
 } from "./formats/binary-viewers";
 import { applyDom, getLocale, initI18n, t } from "./i18n";
+import { initInstall } from "./install";
 import { activeQueue, handOverFiles, naturalCompare, pickFolderFiles, relativePath } from "./core/media-handoff";
 import { dropHandles, readDropped } from "./core/dropped";
 import { saveFile as saveFileAs } from "./core/save-file";
@@ -2342,6 +2343,9 @@ newFormatInput.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !newDlgEl.hidden) closeNewDialog();
 });
+
+// --- install dialog (…/#install) --------------------------------------------
+initInstall({ trapModalTab, ready: i18nReady });
 
 // --- settings dialog ---------------------------------------------------------
 // The dialog itself lives in settings-dialog.ts; what a setting means to the running

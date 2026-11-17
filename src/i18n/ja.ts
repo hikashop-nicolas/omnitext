@@ -1105,6 +1105,20 @@ const ja: Dict = {
     unavailable: "このブラウザーでは MIDI 機器を使えません。",
     denied: "MIDI へのアクセスが拒否されました。",
   },
+  install: {
+    title: "Omnitext をインストール",
+    intro: "インストールすると、Omnitext は専用のウィンドウで開き、オフラインでも使え、パソコンの「このアプリケーションで開く」メニューにも表示されます。",
+    install: "インストール",
+    notNow: "後で",
+    close: "閉じる",
+    done: "Omnitext をインストールしました。アプリ一覧から、または編集できるファイルの「このアプリケーションで開く」メニューから開けます。",
+    running: "すでにインストール済みの Omnitext を使っています。",
+    safariMac: "Safari で「ファイル」>「Dockに追加」を選んでください。",
+    safariIos: "Safari で共有ボタンをタップし、「ホーム画面に追加」を選んでください。",
+    firefox: "Firefox がウェブアプリをインストールできるのは一部の環境だけです。メニューに Omnitext 用の項目がなければ、このページを Chrome か Edge で開いてインストールしてください。",
+    android: "Android では、Google Play か F-Droid の Omnitext アプリがいちばん簡単です。このページをインストールする場合は、ブラウザのメニューで「ホーム画面に追加」を選んでください。",
+    menu: "ブラウザのメニューから「Omnitext をインストール」を選んでください。その項目がなければ、Omnitext はすでにインストール済みかもしれません。アプリ一覧を確認してください。",
+  },
 };
 
 export default ja;

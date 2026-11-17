@@ -373,6 +373,7 @@ body.ot-own-bar #status { display: none; }
 .modal-check { justify-content: flex-start; }
 .modal-check input { flex: 0 0 auto; width: auto; padding: 0; border: none; background: none; }
 .modal-hint { margin: -10px 0 16px; font-size: 12px; color: var(--muted, #8b949e); }
+.modal-text { margin: 0 0 14px; max-width: 46ch; line-height: 1.5; }
 .modal-field select {
   flex: 1;
   font: inherit; font-size: 13px;
