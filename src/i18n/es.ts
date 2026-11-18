@@ -1117,6 +1117,12 @@ const es: Dict = {
     android: "En Android, la aplicación Omnitext de Google Play o F-Droid es lo más sencillo. Para instalar esta página en su lugar, elige Añadir a pantalla de inicio en el menú del navegador.",
     menu: "Elige Instalar Omnitext en el menú del navegador. Si no aparece, puede que Omnitext ya esté instalado: búscalo entre tus aplicaciones.",
   },
+  code: {
+    zoom: "Tamaño del texto",
+    zoomPercent: "Tamaño del texto en porcentaje",
+    position: "Línea {line}, columna {col}",
+    positionShort: "Lín {line}, Col {col}",
+  },
 };
 
 export default es;

@@ -1117,6 +1117,12 @@ const de: Dict = {
     android: "Unter Android ist die Omnitext-App aus Google Play oder F-Droid der einfachste Weg. Um stattdessen diese Seite zu installieren, wählen Sie im Browsermenü Zum Startbildschirm hinzufügen.",
     menu: "Wählen Sie im Menü Ihres Browsers Omnitext installieren. Fehlt dieser Eintrag, ist Omnitext vielleicht schon installiert: Suchen Sie es unter Ihren Apps.",
   },
+  code: {
+    zoom: "Textgröße",
+    zoomPercent: "Textgröße in Prozent",
+    position: "Zeile {line}, Spalte {col}",
+    positionShort: "Z {line}, Sp {col}",
+  },
 };
 
 export default de;

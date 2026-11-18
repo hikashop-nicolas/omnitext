@@ -1121,6 +1121,12 @@ const zh: Dict = {
     android: "在 Android 上，最简单的是从 Google Play 或 F-Droid 安装 Omnitext 应用。若要安装此页面，请在浏览器菜单中选择“添加到主屏幕”。",
     menu: "请在浏览器菜单中选择“安装 Omnitext”。如果没有这一项，Omnitext 可能已经安装：请在应用列表中查找。",
   },
+  code: {
+    zoom: "文字大小",
+    zoomPercent: "文字大小（百分比）",
+    position: "第 {line} 行，第 {col} 列",
+    positionShort: "行 {line}，列 {col}",
+  },
 };
 
 export default zh;

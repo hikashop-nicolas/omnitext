@@ -350,6 +350,8 @@ export interface EditorInstance {
    * the button there while the editor is shown and puts it back before any other one is.
    */
   viewSwitcherSlot?(): HTMLElement | null;
+  /** Controls this editor adds to the app's status bar while it is shown (the text editor's zoom). */
+  statusItems?(): HTMLElement | null;
   dispose(): void;
 }
 

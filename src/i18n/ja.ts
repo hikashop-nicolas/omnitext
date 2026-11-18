@@ -1119,6 +1119,12 @@ const ja: Dict = {
     android: "Android では、Google Play か F-Droid の Omnitext アプリがいちばん簡単です。このページをインストールする場合は、ブラウザのメニューで「ホーム画面に追加」を選んでください。",
     menu: "ブラウザのメニューから「Omnitext をインストール」を選んでください。その項目がなければ、Omnitext はすでにインストール済みかもしれません。アプリ一覧を確認してください。",
   },
+  code: {
+    zoom: "文字サイズ",
+    zoomPercent: "文字サイズ（パーセント）",
+    position: "{line} 行、{col} 列",
+    positionShort: "{line} 行、{col} 列",
+  },
 };
 
 export default ja;

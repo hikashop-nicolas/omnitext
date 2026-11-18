@@ -1119,6 +1119,12 @@ const en: Dict = {
     android: "On Android, the Omnitext app from Google Play or F-Droid is the easiest route. To install this page instead, choose Add to Home screen in the browser menu.",
     menu: "Choose Install Omnitext in your browser's menu. If there is no such entry, Omnitext may already be installed: look for it among your apps.",
   },
+  code: {
+    zoom: "Text size",
+    zoomPercent: "Text size in percent",
+    position: "Line {line}, column {col}",
+    positionShort: "Ln {line}, Col {col}",
+  },
 };
 
 export default en;

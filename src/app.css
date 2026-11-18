@@ -254,6 +254,18 @@ body {
 #status[hidden] { display: none; }
 body.ot-own-bar #status { display: none; }
 #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The text editor's cursor position and text size slider. */
+.cm-statusbar { display: flex; align-items: center; gap: 8px; flex: none; }
+.cm-statusbar-pos {
+  font: inherit; color: var(--muted); background: none; border: 0; border-radius: 4px;
+  padding: 2px 4px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.cm-statusbar-pos:hover { color: var(--text); background: var(--surface-hover); }
+.cm-statusbar input[type=range] { width: 96px; margin: 0; accent-color: var(--accent); }
+.cm-statusbar-pct { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .cm-statusbar input[type=range] { width: 72px; }
+}
 /* View switcher: an eye button pinned bottom-right, always visible (desktop + mobile).
    With two views a click toggles directly; with more it opens a popover. */
 .status-view {

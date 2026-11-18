@@ -506,6 +506,14 @@ function placeViewSwitcher(instance: EditorInstance): void {
   releaseViewSwitcher = null;
   const slot = instance.viewSwitcherSlot?.();
   if (slot) releaseViewSwitcher = adoptViewButton(slot);
+  // the shown editor's own status bar controls, before the encoding and view buttons
+  statusEl.querySelector(".status-items")?.remove();
+  const items = instance.statusItems?.();
+  if (items) {
+    items.classList.add("status-items");
+    statusEl.insertBefore(items, encBtnEl);
+  }
+  refreshStatusBar();
 }
 function populateEditorSelect(choices: EditorResolution[], currentId: string): void {
   viewChoices = choices;
@@ -575,7 +583,7 @@ function setStatus(msg: string): void {
  * row off the picture to say so.
  */
 function refreshStatusBar(): void {
-  const empty = !statusTextEl.textContent && encBtnEl.hidden && viewBtn.hidden;
+  const empty = !statusTextEl.textContent && encBtnEl.hidden && viewBtn.hidden && !statusEl.querySelector(".status-items");
   statusEl.hidden = empty;
 }
 
