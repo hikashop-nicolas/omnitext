@@ -1,0 +1,11 @@
+New in this update:
+
+• Text editor: a text size slider, pinch zoom and fullscreen
+• Text editor: a new find and replace bar
+• Text editor: the cursor position, tap it to go to a line
+• DXF and DWG drawings show their text
+• Camera RAW photos show at full size
+• STL 3D models open in the 3D viewer again
+• Files you drop on Omnitext appear in recent files
+
+Still offline unless you choose to share.
