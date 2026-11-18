@@ -400,9 +400,13 @@ build_onnxruntime() {
   src="$WORK/onnxruntime"
   if [ ! -d "$src" ]; then
     mkdir -p "$src"
-    # Fetch the one commit: it carries no tag, so clone --branch cannot reach it.
-    (cd "$src" && git init -q && git remote add origin https://github.com/microsoft/onnxruntime.git &&
-      git fetch -q --depth 1 origin "$ONNXRUNTIME_COMMIT" &&
+    # Fetch the one commit: it carries no tag, so clone --branch cannot reach it. Intel's fork
+    # holds the same commits, for when Microsoft's repository is unreachable (it was in 2026-11).
+    (cd "$src" && git init -q &&
+      for url in https://github.com/microsoft/onnxruntime.git https://github.com/intel/onnxruntime.git; do
+        GIT_TERMINAL_PROMPT=0 git fetch -q --depth 1 "$url" "$ONNXRUNTIME_COMMIT" && break
+        echo "  $ONNXRUNTIME_COMMIT not fetched from $url" >&2
+      done &&
       git -c advice.detachedHead=false checkout -q FETCH_HEAD &&
       git submodule update -q --init --depth 1 cmake/external/emsdk cmake/external/onnx)
     # Its post-build script uses require(), and the checkout sits under a repository whose
