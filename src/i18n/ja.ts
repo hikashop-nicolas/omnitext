@@ -1127,6 +1127,9 @@ const ja: Dict = {
     search: "検索と置換",
     fullscreen: "全画面表示",
     exitFullscreen: "全画面表示を終了",
+    matchOf: "{n} / {total}",
+    noMatch: "一致なし",
+    showReplace: "置換",
     cm: {
       find: "検索",
       replace: "置換",

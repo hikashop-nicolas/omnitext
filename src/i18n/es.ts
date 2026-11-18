@@ -1125,6 +1125,9 @@ const es: Dict = {
     search: "Buscar y reemplazar",
     fullscreen: "Pantalla completa",
     exitFullscreen: "Salir de pantalla completa",
+    matchOf: "{n} de {total}",
+    noMatch: "Sin resultados",
+    showReplace: "Reemplazar",
     cm: {
       find: "Buscar",
       replace: "Reemplazar",

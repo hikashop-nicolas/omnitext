@@ -3,6 +3,7 @@ import { Compartment, EditorState, type Extension, type StateEffect } from "@cod
 import { EditorView } from "@codemirror/view";
 import { type Diagnostic as CmDiagnostic, linter, lintGutter } from "@codemirror/lint";
 import { closeSearchPanel, gotoLine, openSearchPanel, searchPanelOpen } from "@codemirror/search";
+import { findBar } from "./codemirror-find";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type * as Y from "yjs"; // types only: the adapter itself is loaded on demand
 import type {
@@ -41,7 +42,8 @@ const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
 const ZOOM_KEY = "omnitext:codeZoom";
 const clampZoom = (z: number): number => Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)));
-const fontTheme = (zoom: number): Extension => EditorView.theme({ "&": { fontSize: `${(BASE_FONT * zoom) / 100}px` } });
+// On the scroller (text and gutters) only: the find bar and tooltips keep their size.
+const fontTheme = (zoom: number): Extension => EditorView.theme({ ".cm-scroller": { fontSize: `${(BASE_FONT * zoom) / 100}px` } });
 
 function savedZoom(): number {
   try {
@@ -106,6 +108,7 @@ class CodeMirrorInstance implements EditorInstance {
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     const extensions: Extension[] = [
       basicSetup,
+      findBar(),
       baseTheme,
       EditorView.lineWrapping,
       this.collabSlot.of([]),

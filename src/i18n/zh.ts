@@ -1129,6 +1129,9 @@ const zh: Dict = {
     search: "查找和替换",
     fullscreen: "全屏",
     exitFullscreen: "退出全屏",
+    matchOf: "第 {n} 个，共 {total} 个",
+    noMatch: "无结果",
+    showReplace: "替换",
     cm: {
       find: "查找",
       replace: "替换",

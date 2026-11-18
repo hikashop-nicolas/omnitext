@@ -273,6 +273,45 @@ body.ot-own-bar #status { display: none; }
 }
 .cm-statusbar-btn:hover { background: var(--surface-hover); }
 .cm-statusbar-btn svg { width: 16px; height: 16px; display: block; }
+/* The text editor's find bar (codemirror-find.ts), in the app's colours in both themes. */
+.cm-wrap .cm-panels { background: var(--chrome); color: var(--text); font-size: 13px; }
+.cm-wrap .cm-panels.cm-panels-bottom { border-top: 1px solid var(--border); }
+.ot-find { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; font-family: system-ui, sans-serif; }
+.ot-find-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ot-find-row[hidden] { display: none; }
+.ot-find-replace { padding-left: 32px; }
+.ot-find-field {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 3px 0 8px;
+  background: var(--canvas); border: 1px solid var(--border); border-radius: 6px;
+}
+.ot-find-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ot-find-input {
+  flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; outline: none;
+  background: transparent; color: var(--text); font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.ot-find-input::placeholder { color: var(--muted); font-family: system-ui, sans-serif; }
+.ot-find-input.is-invalid { color: #dc2626; }
+.ot-find-toggle {
+  flex: none; min-width: 24px; height: 22px; padding: 0 4px; border: 1px solid transparent; border-radius: 4px;
+  background: none; color: var(--muted); font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer;
+}
+.ot-find-toggle:hover { background: var(--surface-hover); color: var(--text); }
+.ot-find-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.ot-find-count {
+  flex: none; min-width: 5ch; padding: 0 4px; text-align: center; color: var(--muted);
+  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ot-find-count.is-none { color: #dc2626; }
+.ot-find-btn {
+  flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer;
+}
+.ot-find-btn:hover { background: var(--surface-hover); }
+.ot-find-btn:focus-visible, .ot-find-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ot-find-btn svg { width: 16px; height: 16px; display: block; }
+.ot-find-expand svg { transition: transform .15s; }
+.ot-find-expand.is-open svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .ot-find-expand svg { transition: none; } }
 .cm-statusbar-pos {
   font: inherit; color: var(--muted); background: none; border: 0; border-radius: 4px;
   padding: 2px 4px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;

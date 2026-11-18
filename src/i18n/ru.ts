@@ -1148,6 +1148,9 @@ const ru: Dict = {
     search: "Найти и заменить",
     fullscreen: "Во весь экран",
     exitFullscreen: "Выйти из полноэкранного режима",
+    matchOf: "{n} из {total}",
+    noMatch: "Нет совпадений",
+    showReplace: "Замена",
     cm: {
       find: "Найти",
       replace: "Заменить",

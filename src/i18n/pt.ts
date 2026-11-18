@@ -1125,6 +1125,9 @@ const pt: Dict = {
     search: "Localizar e substituir",
     fullscreen: "Ecrã inteiro",
     exitFullscreen: "Sair do ecrã inteiro",
+    matchOf: "{n} de {total}",
+    noMatch: "Sem resultados",
+    showReplace: "Substituir",
     cm: {
       find: "Localizar",
       replace: "Substituir",

@@ -1127,6 +1127,9 @@ const en: Dict = {
     search: "Find and replace",
     fullscreen: "Fullscreen",
     exitFullscreen: "Exit fullscreen",
+    matchOf: "{n} of {total}",
+    noMatch: "No results",
+    showReplace: "Replace",
     cm: {
       find: "Find",
       replace: "Replace",

@@ -1128,6 +1128,9 @@ const fr: Dict = {
     search: "Rechercher et remplacer",
     fullscreen: "Plein écran",
     exitFullscreen: "Quitter le plein écran",
+    matchOf: "{n} sur {total}",
+    noMatch: "Aucun résultat",
+    showReplace: "Remplacer",
     cm: {
       find: "Rechercher",
       replace: "Remplacer",
