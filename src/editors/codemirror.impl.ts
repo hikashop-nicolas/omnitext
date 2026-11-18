@@ -1,8 +1,8 @@
 import { basicSetup } from "codemirror";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type Diagnostic as CmDiagnostic, linter, lintGutter } from "@codemirror/lint";
-import { gotoLine } from "@codemirror/search";
+import { closeSearchPanel, gotoLine, openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type * as Y from "yjs"; // types only: the adapter itself is loaded on demand
 import type {
@@ -12,6 +12,7 @@ import type {
   EditorModule,
   EditorMountContext,
 } from "../core/types";
+import { isNative } from "../core/platform";
 import { t } from "../i18n";
 
 // The universal text editor (lazy-loaded). It consumes the "text" view, so it is the
@@ -51,6 +52,36 @@ function savedZoom(): number {
   }
 }
 
+// Lucide-style outline icons, as on the app's toolbar.
+const SEARCH_ICON = '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>';
+const FS_ICON = '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>';
+const FS_EXIT_ICON = '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/>';
+const svgIcon = (body: string): string =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+
+// CodeMirror's own words (the search panel, Go to line), in the app's language.
+const CM_PHRASES: [string, string][] = [
+  ["Find", "find"],
+  ["Replace", "replace"],
+  ["next", "next"],
+  ["previous", "previous"],
+  ["all", "all"],
+  ["match case", "matchCase"],
+  ["regexp", "regexp"],
+  ["by word", "byWord"],
+  ["replace", "replaceOne"],
+  ["replace all", "replaceAll"],
+  ["close", "close"],
+  ["Go to line", "goToLine"],
+  ["go", "go"],
+  ["current match", "currentMatch"],
+  ["on line", "onLine"],
+  ["replaced $ matches", "replacedMatches"],
+  ["replaced match on line $", "replacedMatchOnLine"],
+];
+const phrases = (): Extension =>
+  EditorState.phrases.of(Object.fromEntries(CM_PHRASES.map(([en, id]) => [en, t(`code.cm.${id}`)])));
+
 const prefersDark = (): boolean =>
   typeof window !== "undefined" &&
   !!window.matchMedia &&
@@ -66,7 +97,11 @@ class CodeMirrorInstance implements EditorInstance {
   private pos: HTMLButtonElement | null = null;
   private range: HTMLInputElement | null = null;
   private pct: HTMLElement | null = null;
-  private pinch: { dist: number; zoom: number } | null = null;
+  private pinch: { dist: number; zoom: number; at: number; off: number } | null = null;
+  private wrap: HTMLElement | null = null;
+  private fsButton: HTMLButtonElement | null = null;
+  /** Where the bar sat in the status bar, to put it back when fullscreen ends. */
+  private barHome: { parent: Node; next: Node | null } | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     const extensions: Extension[] = [
@@ -75,6 +110,7 @@ class CodeMirrorInstance implements EditorInstance {
       EditorView.lineWrapping,
       this.collabSlot.of([]),
       this.zoomSlot.of(fontTheme(this.zoom)),
+      phrases(),
       EditorView.updateListener.of((u) => {
         // Remote edits arrive as ordinary document changes, which is what we want: they
         // mark the document dirty and drive autosave exactly as typing does.
@@ -104,15 +140,21 @@ class CodeMirrorInstance implements EditorInstance {
       );
     }
 
+    // A wrapper of our own, so fullscreen takes the bar along with the text.
+    const wrap = document.createElement("div");
+    wrap.className = "cm-wrap";
+    container.appendChild(wrap);
+    this.wrap = wrap;
     this.view = new EditorView({
-      parent: container,
+      parent: wrap,
       state: EditorState.create({ doc: ctx.text, extensions }),
     });
     this.buildBar();
     this.listenZoomGestures(this.view.scrollDOM);
+    document.addEventListener("fullscreenchange", this.onFullscreen);
   }
 
-  /** Cursor position (a tap opens Go to line) and the text size slider, for the status bar. */
+  /** Search, cursor position (a tap opens Go to line), text size and fullscreen, for the status bar. */
   private buildBar(): void {
     const bar = document.createElement("div");
     bar.className = "cm-statusbar";
@@ -134,7 +176,20 @@ class CodeMirrorInstance implements EditorInstance {
     const pct = document.createElement("span");
     pct.className = "cm-statusbar-pct";
     pct.setAttribute("aria-label", t("code.zoomPercent"));
-    bar.append(pos, range, pct);
+    const search = this.iconButton(SEARCH_ICON, t("code.search"), () => {
+      const v = this.view;
+      if (!v) return;
+      if (searchPanelOpen(v.state)) closeSearchPanel(v);
+      else openSearchPanel(v);
+    });
+    const grow = document.createElement("span");
+    grow.className = "cm-statusbar-grow";
+    bar.append(search, pos, grow, range, pct);
+    // Fullscreen exists where it works, the app, as in the other editors.
+    if (isNative() && document.fullscreenEnabled) {
+      this.fsButton = this.iconButton(FS_ICON, t("code.fullscreen"), () => void this.toggleFullscreen());
+      bar.append(this.fsButton);
+    }
     this.bar = bar;
     this.pos = pos;
     this.range = range;
@@ -142,6 +197,49 @@ class CodeMirrorInstance implements EditorInstance {
     this.showPosition();
     this.showZoom();
   }
+
+  private iconButton(svg: string, label: string, run: () => void): HTMLButtonElement {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "cm-statusbar-btn";
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    b.innerHTML = svgIcon(svg);
+    b.addEventListener("click", run);
+    return b;
+  }
+
+  private toggleFullscreen(): Promise<void> {
+    const wrap = this.wrap;
+    if (!wrap) return Promise.resolve();
+    if (document.fullscreenElement === wrap) return document.exitFullscreen().catch(() => undefined);
+    return wrap.requestFullscreen?.().catch(() => undefined) ?? Promise.resolve();
+  }
+
+  /** In fullscreen the bar moves under the text, and goes back to the status bar after. */
+  private onFullscreen = (): void => {
+    const bar = this.bar;
+    const wrap = this.wrap;
+    if (!bar || !wrap) return;
+    const on = document.fullscreenElement === wrap;
+    if (on && bar.parentNode !== wrap) {
+      if (bar.parentNode) this.barHome = { parent: bar.parentNode, next: bar.nextSibling };
+      wrap.appendChild(bar);
+    } else if (!on && bar.parentNode === wrap) {
+      const home = this.barHome;
+      if (home) home.parent.insertBefore(bar, home.next && home.next.parentNode === home.parent ? home.next : null);
+      else bar.remove();
+    }
+    bar.classList.toggle("is-fs", on);
+    const b = this.fsButton;
+    if (b) {
+      const label = t(on ? "code.exitFullscreen" : "code.fullscreen");
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.innerHTML = svgIcon(on ? FS_EXIT_ICON : FS_ICON);
+    }
+    this.view?.requestMeasure();
+  };
 
   statusItems(): HTMLElement | null {
     return this.bar;
@@ -162,23 +260,39 @@ class CodeMirrorInstance implements EditorInstance {
     if (this.pct) this.pct.textContent = `${this.zoom}%`;
   }
 
-  /** Changes the text size, keeping the text under `anchor` (client coords) in place. */
-  private setZoom(zoom: number, anchor?: { x: number; y: number }): void {
+  /**
+   * Changes the text size. With an anchor, the character `at` ends up `off` pixels above
+   * screen height `y` (off as measured at size `from`, scaled with the text), so the text
+   * stays under the fingers or the pointer.
+   */
+  private setZoom(zoom: number, anchor?: { at: number; off: number; from: number; y: number }): void {
     const view = this.view;
     const z = clampZoom(zoom);
-    if (!view || z === this.zoom) return;
-    this.zoom = z;
-    this.showZoom();
-    const at = anchor ? view.posAtCoords(anchor, false) : null;
-    view.dispatch({ effects: this.zoomSlot.reconfigure(fontTheme(z)) });
-    if (anchor && at != null) {
-      view.requestMeasure({
-        read: (v) => v.coordsAtPos(at),
-        write: (c, v) => {
-          if (c) v.scrollDOM.scrollTop += c.top - anchor.y;
-        },
-      });
+    // at a size limit a pinch still moves the text along with the fingers
+    if (!view || (z === this.zoom && !anchor)) return;
+    const effects: StateEffect<unknown>[] = [];
+    if (z !== this.zoom) {
+      this.zoom = z;
+      this.showZoom();
+      effects.push(this.zoomSlot.reconfigure(fontTheme(z)));
     }
+    // CodeMirror places the character itself once the new size is laid out; a scroll set from
+    // outside is undone by its own scroll anchoring.
+    if (anchor) {
+      const top = view.scrollDOM.getBoundingClientRect().top;
+      const yMargin = anchor.y - top - (anchor.off * z) / anchor.from;
+      effects.push(EditorView.scrollIntoView(anchor.at, { y: "start", yMargin }));
+    }
+    view.dispatch({ effects });
+  }
+
+  /** The character under a screen point, and how far below its top the point is. */
+  private anchorAt(x: number, y: number): { at: number; off: number } | null {
+    const view = this.view;
+    if (!view) return null;
+    const at = view.posAtCoords({ x, y }, false);
+    const c = view.coordsAtPos(at);
+    return c ? { at, off: y - c.top } : null;
   }
 
   private saveZoom(): void {
@@ -191,31 +305,56 @@ class CodeMirrorInstance implements EditorInstance {
 
   /** Two-finger pinch on touch screens, and Ctrl+wheel (a trackpad pinch) elsewhere. */
   private listenZoomGestures(el: HTMLElement): void {
-    const span = (e: TouchEvent): number =>
-      Math.hypot(e.touches[0]!.clientX - e.touches[1]!.clientX, e.touches[0]!.clientY - e.touches[1]!.clientY) || 1;
-    const mid = (e: TouchEvent): { x: number; y: number } => ({
-      x: (e.touches[0]!.clientX + e.touches[1]!.clientX) / 2,
-      y: (e.touches[0]!.clientY + e.touches[1]!.clientY) / 2,
+    // Pointer events, captured by the scroller: a resize redraws the lines, and touch events
+    // keep going to the line a finger first landed on, which by then is out of the page.
+    const fingers = new Map<number, { x: number; y: number }>();
+    const two = (): [{ x: number; y: number }, { x: number; y: number }] => {
+      const [a, b] = [...fingers.values()];
+      return [a!, b!];
+    };
+    el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") return;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (fingers.size !== 2) return;
+      for (const id of fingers.keys()) {
+        try {
+          el.setPointerCapture(id);
+        } catch {
+          // a finger already lifted
+        }
+      }
+      const [a, b] = two();
+      const at = this.anchorAt((a.x + b.x) / 2, (a.y + b.y) / 2);
+      this.pinch = at ? { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: this.zoom, ...at } : null;
     });
-    el.addEventListener("touchstart", (e) => {
-      if (e.touches.length === 2) this.pinch = { dist: span(e), zoom: this.zoom };
-    }, { passive: true });
-    el.addEventListener("touchmove", (e) => {
-      if (!this.pinch || e.touches.length !== 2) return;
-      e.preventDefault();
-      this.setZoom(this.pinch.zoom * (span(e) / this.pinch.dist), mid(e));
-    }, { passive: false });
-    const end = (e: TouchEvent): void => {
-      if (!this.pinch || e.touches.length >= 2) return;
+    el.addEventListener("pointermove", (e) => {
+      if (!fingers.has(e.pointerId)) return;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = this.pinch;
+      if (!p || fingers.size !== 2) return;
+      const [a, b] = two();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      this.setZoom(p.zoom * (dist / p.dist), { at: p.at, off: p.off, from: p.zoom, y: (a.y + b.y) / 2 });
+    });
+    const lift = (e: PointerEvent): void => {
+      if (!fingers.delete(e.pointerId) || !this.pinch || fingers.size >= 2) return;
       this.pinch = null;
       this.saveZoom();
     };
-    el.addEventListener("touchend", end);
-    el.addEventListener("touchcancel", end);
+    el.addEventListener("pointerup", lift);
+    el.addEventListener("pointercancel", lift);
+    // The browser must not scroll or zoom the page under a pinch: claimed from the second finger on.
+    el.addEventListener("touchstart", (e) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    }, { passive: false });
+    el.addEventListener("touchmove", (e) => {
+      if (this.pinch || e.touches.length >= 2) e.preventDefault();
+    }, { passive: false });
     el.addEventListener("wheel", (e) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      this.setZoom(this.zoom * Math.exp(-e.deltaY / 100), { x: e.clientX, y: e.clientY });
+      const a = this.anchorAt(e.clientX, e.clientY);
+      this.setZoom(this.zoom * Math.exp(-e.deltaY / 100), a ? { ...a, from: this.zoom, y: e.clientY } : undefined);
       this.saveZoom();
     }, { passive: false });
   }
@@ -280,6 +419,10 @@ class CodeMirrorInstance implements EditorInstance {
   }
 
   dispose(): void {
+    document.removeEventListener("fullscreenchange", this.onFullscreen);
+    if (this.wrap && document.fullscreenElement === this.wrap) void document.exitFullscreen().catch(() => undefined);
+    this.wrap?.remove();
+    this.wrap = null;
     this.bar?.remove();
     this.bar = null;
     this.view?.destroy();

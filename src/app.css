@@ -254,8 +254,25 @@ body {
 #status[hidden] { display: none; }
 body.ot-own-bar #status { display: none; }
 #status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The text editor's cursor position and text size slider. */
-.cm-statusbar { display: flex; align-items: center; gap: 8px; flex: none; }
+/* The text editor's bar: it replaces the status message and the encoding button. */
+#status:has(.status-items) #status-text,
+#status:has(.status-items) .status-dot,
+#status:has(.status-items) #enc-btn { display: none; }
+.cm-wrap { height: 100%; display: flex; flex-direction: column; background: var(--canvas); }
+.cm-wrap > .cm-editor { flex: 1 1 auto; min-height: 0; height: auto; }
+.cm-statusbar { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.cm-statusbar-grow { flex: 1; }
+.cm-statusbar.is-fs {
+  flex: none; padding: 5px 14px; background: var(--chrome); border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 11.5px;
+}
+.cm-statusbar-btn {
+  display: flex; align-items: center; justify-content: center; flex: none;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--text); cursor: pointer;
+}
+.cm-statusbar-btn:hover { background: var(--surface-hover); }
+.cm-statusbar-btn svg { width: 16px; height: 16px; display: block; }
 .cm-statusbar-pos {
   font: inherit; color: var(--muted); background: none; border: 0; border-radius: 4px;
   padding: 2px 4px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;
