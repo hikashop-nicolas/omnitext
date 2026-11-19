@@ -1,5 +1,6 @@
 import { isNative } from "../core/platform";
 import { ReadingFullscreen } from "./reading-fullscreen";
+import { richdocFonts } from "./richdoc-fonts";
 import { createSheetEditorAsync, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
 import type * as Y from "yjs";
 import type {
@@ -89,6 +90,7 @@ class SheetInstance implements EditorInstance {
       ...(this.fullscreen = new ReadingFullscreen(container, ".sheetedit-wrap")).options(),
       onCellsChanged: (changes) => this.publish(changes),
       onSelectionChanged: (at) => this.publishSelection?.(at),
+      fonts: richdocFonts(), // same gate as the documents: no Google Fonts in the F-Droid build
       // Cells are shared by address, so inserting a row moves every address below it.
       // That cannot be merged, so it is ordered instead: the edit is proposed, one peer
       // puts it in sequence, and everyone applies it there. Always refused locally, since

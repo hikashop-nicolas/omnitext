@@ -20,6 +20,7 @@ import {
 } from "./subtitle-collab";
 import { publishPosition, watchPeers } from "./peer-presence";
 import { debug } from "../core/debug";
+import { richdocFonts } from "./richdoc-fonts";
 
 // subedit reads the format from the filename extension. A new blank document has no
 // filename, so map the format's MIME (always set by the host) to a synthetic name, else
@@ -81,6 +82,8 @@ class SubtitleInstance implements EditorInstance {
         },
         onSelectionChanged: (cueId) => this.publishSelection?.(cueId),
         showSave: false,
+        // Same gate as the richdoc editors: no Google Fonts in the F-Droid build.
+        fonts: richdocFonts(),
       },
     );
   }
