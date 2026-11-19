@@ -807,6 +807,10 @@ const pt: Dict = {
     zoomSection: "Zoom de seção",
     zoomSlide: "Zoom de slide",
     zoomSummary: "Zoom de resumo",
+    fontBigTitle: "Transferir um tipo de letra grande?",
+    fontBigNote: "{name} tem {size} MB. Transferi-lo para desenhar os diapositivos com ele?",
+    fontDownload: "Transferir",
+    fontUnavailable: "{name} não está disponível para desenhar os diapositivos, por isso é usado um tipo de letra semelhante.",
   },
   pdfcraft: {
     password: "Este PDF está protegido. Introduza a palavra-passe.",

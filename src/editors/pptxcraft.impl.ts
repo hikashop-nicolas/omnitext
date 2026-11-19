@@ -4,6 +4,7 @@ import DeckWorker from "craftbridge/deck/worker?worker";
 import type { EditorInstance, EditorMountContext, EditorModule, ExportTarget, HostAPI } from "../core/types";
 import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
+import { SlideFonts } from "./pptxcraft-fonts";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
 import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, type IconName } from "./pptxcraft-ui";
@@ -22,7 +23,9 @@ function ensureStyles(): void {
   const s = document.createElement("style");
   s.id = STYLE_ID;
   s.textContent = `
-    .ot-px { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); position:relative; outline:none; }
+    .ot-px { height:100%; display:flex; flex-direction:column; background:var(--canvas); color:var(--text); position:relative; outline:none;
+      --fontshelf-bg:var(--surface); --fontshelf-fg:var(--text); --fontshelf-border:var(--border); --fontshelf-accent:var(--accent); --fontshelf-accent-fg:var(--accent-fg);
+      --fontshelf-hover:var(--surface-hover); --fontshelf-hover-strong:var(--border); --fontshelf-input-bg:var(--canvas); }
     .ot-px-bar, .ot-px-bottom { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; overflow:hidden;
       border-bottom:1px solid var(--border); background:var(--surface); scrollbar-width:none; }
     .ot-px-bottom { border-bottom:0; border-top:1px solid var(--border); }
@@ -170,6 +173,8 @@ class PptxCraftInstance implements EditorInstance {
   private root!: HTMLElement;
   private bar!: HTMLElement;
   private inspector!: Inspector;
+  private fonts!: SlideFonts;
+  private fontsTimer = 0;
   private float!: HTMLElement;
   private rowText!: HTMLElement;
   private rowAll!: HTMLElement;
@@ -296,8 +301,28 @@ class PptxCraftInstance implements EditorInstance {
     bannerClose.addEventListener("click", () => void this.cmd("view.closeMaster", {}, true));
     this.banner.append(bannerLabel, bannerClose);
     main.append(this.banner, this.stage, this.notesWrap);
+    this.fonts = new SlideFonts({
+      root: this.root,
+      addFont: async (bytes) => {
+        const session = this.session;
+        if (!session) return false;
+        return (await this.enqueue(() => session.addFont(bytes).then(() => true, () => false))) === true;
+      },
+      used: async () => {
+        const session = this.session;
+        return (session && (await this.enqueue(() => session.execute<string[]>("font.used", {})))) || [];
+      },
+      redraw: () => {
+        if (this.disposed) return;
+        this.renderedKey = "";
+        this.syncSlides(true);
+        void this.enqueue(() => this.refresh());
+      },
+      confirm: (title, message, ok) => messageDialog(this.root, { title, message, ok, cancel: t("pptxcraft.cancel") }),
+    });
     const inspectorHost: InspectorHost = {
       root: this.root,
+      fonts: this.fonts,
       run: (id, params, slides) => this.cmd(id, params, slides),
       query: <T>(id: string, params?: unknown): Promise<T | undefined> => {
         const session = this.session;
@@ -372,11 +397,12 @@ class PptxCraftInstance implements EditorInstance {
         this.session.close();
         return;
       }
-      await this.session.load(name, bytes.slice());
+      const info = await this.session.load(name, bytes.slice());
       await this.scanFonts(bytes);
       await this.refresh(true);
       this.fit();
       this.syncSlides();
+      void this.fonts.opened(info.missingFonts ?? []);
     } catch (e) {
       if (!this.disposed) this.fail(e);
     } finally {
@@ -645,6 +671,8 @@ class PptxCraftInstance implements EditorInstance {
       } else this.thumbDirty.add(ov.slide ?? 0);
       this.pumpThumbs();
       this.onChange();
+      window.clearTimeout(this.fontsTimer);
+      this.fontsTimer = window.setTimeout(() => void this.fonts.edited(), 800);
     }
     if (ov.revision !== undefined) this.lastRevision = ov.revision;
     if (ov.slides !== undefined && ov.slides !== this.thumbSlides) this.syncSlides(true);
@@ -2335,6 +2363,8 @@ class PptxCraftInstance implements EditorInstance {
     this.floatFit?.close();
     this.editMedia?.();
     this.inspector.dispose();
+    window.clearTimeout(this.fontsTimer);
+    this.fonts?.dispose();
     this.session?.close();
     this.session = null;
     this.root?.remove();

@@ -830,6 +830,10 @@ const ru: Dict = {
     zoomSection: "Масштаб раздела",
     zoomSlide: "Масштаб слайда",
     zoomSummary: "Сводный масштаб",
+    fontBigTitle: "Скачать большой шрифт?",
+    fontBigNote: "{name} занимает {size} МБ. Скачать его, чтобы показывать слайды этим шрифтом?",
+    fontDownload: "Скачать",
+    fontUnavailable: "Шрифт {name} недоступен для слайдов, поэтому используется похожий шрифт.",
   },
   pdfcraft: {
     password: "Этот PDF защищён. Введите пароль.",

@@ -809,6 +809,10 @@ const en: Dict = {
     zoomSection: "Section zoom",
     zoomSlide: "Slide zoom",
     zoomSummary: "Summary zoom",
+    fontBigTitle: "Download a large font?",
+    fontBigNote: "{name} is {size} MB. Download it to draw the slides with it?",
+    fontDownload: "Download",
+    fontUnavailable: "{name} is not available to draw the slides, so a similar font is used.",
   },
   pdfcraft: {
     password: "This PDF is protected. Enter its password.",

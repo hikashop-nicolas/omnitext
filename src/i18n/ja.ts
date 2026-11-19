@@ -809,6 +809,10 @@ const ja: Dict = {
     zoomSection: "セクションズーム",
     zoomSlide: "スライドズーム",
     zoomSummary: "サマリーズーム",
+    fontBigTitle: "大きなフォントをダウンロードしますか？",
+    fontBigNote: "{name} は {size} MB です。スライドの表示に使うためにダウンロードしますか？",
+    fontDownload: "ダウンロード",
+    fontUnavailable: "{name} はスライドの表示に使えないため、似たフォントで表示します。",
   },
   pdfcraft: {
     password: "この PDF は保護されています。パスワードを入力してください。",

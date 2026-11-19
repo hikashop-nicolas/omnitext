@@ -811,6 +811,10 @@ const zh: Dict = {
     zoomSection: "节缩放定位",
     zoomSlide: "幻灯片缩放定位",
     zoomSummary: "摘要缩放定位",
+    fontBigTitle: "下载较大的字体？",
+    fontBigNote: "{name} 大小为 {size} MB。要下载它来显示幻灯片吗？",
+    fontDownload: "下载",
+    fontUnavailable: "{name} 无法用于显示幻灯片，因此改用相近的字体。",
   },
   pdfcraft: {
     password: "此 PDF 受密码保护，请输入密码。",

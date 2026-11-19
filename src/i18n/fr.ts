@@ -810,6 +810,10 @@ const fr: Dict = {
     zoomSection: "Zoom de section",
     zoomSlide: "Zoom de diapositive",
     zoomSummary: "Zoom de synthèse",
+    fontBigTitle: "Télécharger une grande police ?",
+    fontBigNote: "{name} pèse {size} Mo. La télécharger pour dessiner les diapositives avec ?",
+    fontDownload: "Télécharger",
+    fontUnavailable: "{name} n'est pas disponible pour dessiner les diapositives : une police proche est utilisée.",
   },
   pdfcraft: {
     password: "Ce PDF est protégé. Saisissez son mot de passe.",

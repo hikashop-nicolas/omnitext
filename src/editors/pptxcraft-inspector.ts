@@ -1,5 +1,6 @@
 import type { Overlay } from "craftbridge/deck";
 import { t } from "../i18n";
+import type { SlideFonts } from "./pptxcraft-fonts";
 import { formDialog } from "./pdfcraft-tools";
 import { base64, colorMenu, el } from "./pptxcraft-ui";
 
@@ -8,6 +9,8 @@ import { base64, colorMenu, el } from "./pptxcraft-ui";
 
 export interface InspectorHost {
   root: HTMLElement;
+  /** The font picker and the engine's font files. */
+  fonts: SlideFonts;
   run(id: string, params?: unknown, slides?: boolean): Promise<unknown>;
   query<T>(id: string, params?: unknown): Promise<T | undefined>;
   overlay(): Overlay;
@@ -86,8 +89,6 @@ const hex = (c?: Rgb): string | null => {
 };
 
 const ANIM_CLASS: Record<string, string> = { entr: "entrance", emph: "emphasis", exit: "exit", path: "path" };
-
-const FONTS = ["Inter", "BIZ UDPGothic", "Arial", "Calibri", "Cambria", "Georgia", "Times New Roman", "Courier New", "Verdana", "Segoe UI", "Open Sans", "Roboto", "Lato", "Montserrat"];
 
 export class Inspector {
   readonly el = el("div", "ot-px-insp");
@@ -316,16 +317,8 @@ export class Inspector {
     const d = this.section("text", t("pptxcraft.text"));
     const s = state ?? {};
     const body = info?.shape?.text?.body;
-    const list = el("datalist");
-    list.id = "ot-px-fonts";
-    for (const f of FONTS) list.appendChild(Object.assign(el("option"), { value: f }));
-    const fam = el("input");
-    fam.type = "text";
-    fam.setAttribute("list", "ot-px-fonts");
-    fam.value = s.font ?? "";
-    fam.setAttribute("aria-label", t("pptxcraft.font"));
-    fam.addEventListener("change", () => fam.value.trim() && this.do("format.font", { family: fam.value.trim() }));
-    this.row(d, t("pptxcraft.font"), fam, list);
+    const fam = this.h.fonts.sync(s.font, s.bold, s.italic, (family) => this.do("format.font", { family }));
+    this.row(d, t("pptxcraft.font"), fam);
     this.row(d, t("pptxcraft.fontSize"), this.num(s.size, t("pptxcraft.fontSize"), (v) => this.do("format.size", { size: v }), { min: 1, max: 999 }));
     const tog = (label: string, on: boolean | undefined, id: string, params?: unknown) => this.button(label, () => this.do(id, params), { on, title: label });
     this.row(d, "", tog("B", s.bold, "format.bold"), tog("I", s.italic, "format.italic"), tog("U", s.underline, "format.underline"), tog("S", s.strike, "format.strikethrough"), tog("x²", s.superscript, "format.superscript"), tog("x₂", s.subscript, "format.subscript"));

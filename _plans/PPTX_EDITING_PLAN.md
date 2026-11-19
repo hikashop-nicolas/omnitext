@@ -53,6 +53,14 @@ starts by itself (the engine used to drop it on save), one-row toolbars with a "
 panel, and the CJK faces shipped once as files in wasm/fonts that both engines load at run time (the PDF engine at open, the
 deck engine when a deck has Japanese, Korean or Chinese text). The release APK went from 43.3 MB to 37.1 MB.
 
+## Font choice (2026-11-19)
+The Format panel's font list comes from fontshelf (src/editors/pptxcraft-fonts.ts): the deck's fonts (marked missing until the
+engine has a file for them), installed fonts ("Show my fonts"), and Google Fonts ("Get more fonts", behind consent and off in
+the F-Droid build, the same gate as the documents). A picked family, and on open every family the slides use, is fetched with
+getFontFile (static instances of variable files, regular and bold, italic when the caret text is italic) and handed to the
+engine with addFont; downloads over 5 MB ask first. Calibri and Cambria fall back to their Carlito and Caladea twins. The
+engine matches instances by the catalog family name. Saving writes font names only; embedding fonts in the .pptx is not done.
+
 ## Known gaps (not blocking 2.0; pick these up when there is time)
 Editing and show
 - Rehearse timings and kiosk mode.
