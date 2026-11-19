@@ -17,7 +17,7 @@ function sfnt(fsType: number): Uint8Array {
 
 const file = (over: Partial<FontFile>): FontFile => ({
   bytes: sfnt(0), family: "X", source: "local", format: "ttf", embeddable: true, embedding: "installable",
-  noSubsetting: false, weight: 400, italic: false, variable: false, postscriptName: null, fullName: null, index: 0, ...over,
+  noSubsetting: false, weight: 400, italic: false, variable: false, postscriptName: null, fullName: null, index: 0, renamed: false, ...over,
 });
 
 describe("pdfcraft fonts", () => {
