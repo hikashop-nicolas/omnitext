@@ -49,7 +49,7 @@ function ensureStyles(): void {
     .ot-px-thumb.on .frame { border-color:var(--accent); }
     .ot-px-thumb canvas { width:${THUMB_W}px; display:block; }
     .ot-px-thumb.drop { outline:2px dashed var(--accent); }
-    .ot-px-addslide { flex:0 0 auto; margin-left:22px; width:${THUMB_W + 4}px; height:44px; display:flex; align-items:center; justify-content:center;
+    .ot-px-addslide { flex:0 0 auto; align-self:stretch; margin-left:22px; height:44px; box-sizing:border-box; display:flex; align-items:center; justify-content:center;
       border:2px dashed var(--border); border-radius:6px; background:none; color:var(--muted); cursor:pointer; }
     .ot-px-addslide:hover, .ot-px-addslide:focus-visible { border-color:var(--accent); color:var(--accent); outline:none; }
     .ot-px-addslide svg { width:22px; height:22px; }
