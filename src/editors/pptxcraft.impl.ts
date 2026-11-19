@@ -96,7 +96,7 @@ function ensureStyles(): void {
     .ot-px-row { display:flex; gap:4px; min-width:0; overflow:hidden; }
     .ot-px-float > .ot-px-row > .ot-px-row { display:contents; }
     .ot-px-row[hidden] { display:none; }
-    .ot-px-slidebar { position:sticky; top:-10px; z-index:2; display:flex; gap:4px; padding:2px 0 6px; background:var(--surface); }
+    .ot-px-slidebar { position:sticky; top:-10px; z-index:2; display:flex; flex-wrap:wrap; gap:4px; padding:2px 0 6px; background:var(--surface); }
     .ot-px-slidebar .btn { padding:6px 8px; }
     .ot-px-bottom span { color:var(--muted); font:13px system-ui, sans-serif; white-space:nowrap; }
     .ot-px-input { position:absolute; left:-9999px; top:0; width:1px; height:1px; opacity:0; resize:none; border:0; padding:0; }
