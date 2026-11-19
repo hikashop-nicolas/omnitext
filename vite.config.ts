@@ -187,6 +187,8 @@ export default defineConfig({
     __CRAFT_DECK__: JSON.stringify(deckReady),
     __TESSERACT_ENGINE_DIR__: JSON.stringify(bundleTesseract ? TESSERACT_ENGINE_DIR : ""),
     __ORT_ENGINE_DIR__: JSON.stringify(bundleOnnxruntime ? ORT_ENGINE_DIR : ""),
+    // Only the F-Droid recipe sets this flag: Google Fonts is a non-free network service F-Droid flags.
+    __REMOTE_FONTS__: JSON.stringify(!bundleTesseract),
   },
   // the editors and the app both use pdf.js/pdf-lib; keep one copy each.
   // jsdom: notebookjs statically references it in a Node-only branch that never runs in

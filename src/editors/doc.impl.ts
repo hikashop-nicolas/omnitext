@@ -1,4 +1,5 @@
 import { createDocEditorAsync, initLocale, type DocEditor } from "richdoc";
+import { richdocFonts } from "./richdoc-fonts";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
 import { richdocBinding } from "./richdoc-binding";
@@ -32,6 +33,7 @@ class DocInstance implements EditorInstance {
           onChange: ctx.onChange,
           ...(this.fullscreen = new ReadingFullscreen(container)).options(),
           author: userName(),
+          fonts: richdocFonts(),
           defaultPageSize: s.pageSize,
           paginated: ctx.docOptions?.paginated ?? s.paginated,
         });

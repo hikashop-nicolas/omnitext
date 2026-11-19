@@ -1,4 +1,5 @@
 import { createOdtEditorAsync, initLocale, type OdtEditor } from "richdoc";
+import { richdocFonts } from "./richdoc-fonts";
 import type { CollabBinding, EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
 import { ReadingFullscreen } from "./reading-fullscreen";
 import { richdocBinding } from "./richdoc-binding";
@@ -32,6 +33,7 @@ class OdtInstance implements EditorInstance {
         return createOdtEditorAsync(container, this.bytes, {
           onChange: ctx.onChange,
           ...(this.fullscreen = new ReadingFullscreen(container)).options(),
+          fonts: richdocFonts(),
           defaultPageSize: s.pageSize,
           paginated: ctx.docOptions?.paginated ?? s.paginated, // per-doc choice (New dialog) wins
         });
