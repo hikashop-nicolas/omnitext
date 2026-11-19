@@ -57,9 +57,10 @@ deck engine when a deck has Japanese, Korean or Chinese text). The release APK w
 The Format panel's font list comes from fontshelf (src/editors/pptxcraft-fonts.ts): the deck's fonts (marked missing until the
 engine has a file for them), installed fonts ("Show my fonts"), and Google Fonts ("Get more fonts", behind consent and off in
 the F-Droid build, the same gate as the documents). A picked family, and on open every family the slides use, is fetched with
-getFontFile (static instances of variable files, regular and bold, italic when the caret text is italic) and handed to the
+getFontFile (Google Fonts' static files from fonts.gstatic.com, regular and bold, italic when the caret text is italic) and handed to the
 engine with addFont; downloads over 5 MB ask first. Calibri and Cambria fall back to their Carlito and Caladea twins. The
-engine matches instances by the catalog family name. Saving writes font names only; embedding fonts in the .pptx is not done.
+engine matches a face by its family name; a non-RIBBI catalog face such as Klee One SemiBold names itself "Klee One SemiBold"
+in name ID 1 with no ID 16, so it does not serve a "Klee One" bold run. Saving writes font names only; embedding fonts in the .pptx is not done.
 
 ## Known gaps (not blocking 2.0; pick these up when there is time)
 Editing and show

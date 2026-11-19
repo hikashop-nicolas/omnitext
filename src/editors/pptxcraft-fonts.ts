@@ -170,7 +170,7 @@ export class SlideFonts {
   }
 
   private async load(family: string, style: Style, gesture: boolean): Promise<boolean> {
-    const base = { weight: style.weight, italic: style.italic, instance: true };
+    const base = { weight: style.weight, italic: style.italic };
     const cat = catalogFiles(family);
     // A catalog family never prompts for the local-fonts permission: the download serves it.
     let file = await getFontFile(family, { ...base, remote: false, gesture: gesture && !cat }).catch(() => null);

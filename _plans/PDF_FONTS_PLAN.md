@@ -38,7 +38,7 @@ pdfcraft.rev (50a1befd67).
 src/editors/pdfcraft-fonts.ts: when the editor first enters edit mode, it reads the font names of the
 first 20 pages' text blocks, asks fontshelf for a face per name (installed font when the local-fonts
 permission is already granted; the Google Fonts catalog file when the build offers remote fonts and
-the user consented, files up to 4 MB; variable files instanced), keeps the faces the engine would
+the user consented, Google Fonts' static file of the nearest weight, up to 4 MB), keeps the faces the engine would
 embed, and reopens the still untouched document with them registered under the PDF's own font name
 and no scripts (so they only ever match by name). The first change waits up to 2.5 s for that, then
 reopening stops. Not in a sharing session, where every peer must produce the same file. Effect: a
@@ -66,7 +66,7 @@ API shape (wasm facade, mirrored in craftbridge's protocol):
 
 fontshelf mapping: the picker is `createFontSelect` (document fonts from `listTextFonts`, "Show my
 fonts", "Get more fonts" behind consent, off in F-Droid); choosing a family calls
-`getFontFile(family, { weight, italic, instance: true, gesture: true })`, checks `embeddable` and
+`getFontFile(family, { weight, italic, gesture: true })`, checks `embeddable` and
 `embedding` ("restricted" and "preview-print" refused, `noSubsetting` passed on), then
 `registerTextFont` and `setText({ resource })`.
 

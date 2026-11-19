@@ -59,7 +59,7 @@ function remoteOk(): boolean {
 }
 
 async function faceFor(q: FontQuery, remote: boolean): Promise<PdfFontFace | null> {
-  const opts = { weight: q.weight, italic: q.italic, instance: true };
+  const opts = { weight: q.weight, italic: q.italic };
   // installed fonts only with the permission already granted (fontshelf never prompts without a gesture)
   let f = await getFontFile(q.name, { ...opts, remote: false });
   if (!f && q.family !== q.name) f = await getFontFile(q.family, { ...opts, remote: false });

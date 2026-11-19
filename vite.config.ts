@@ -209,7 +209,7 @@ export default defineConfig({
   server: { fs: { allow: [".", craftDir] } },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every
   // LaTeX command; serve its raw ESM instead.
-  optimizeDeps: { exclude: ["temml", "fontshelf"] }, // fontshelf: keeps its wasm next to the module in dev
+  optimizeDeps: { exclude: ["temml"] },
   build: {
     target: "es2022",
     // No sourcemaps in the shipped build: they were ~18MB of the dist (two-thirds of it),
