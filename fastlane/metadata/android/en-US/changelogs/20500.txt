@@ -1,0 +1,10 @@
+New in this update:
+
+• Use the fonts installed on your device in documents, spreadsheets, slides and subtitles
+• Slides: add slides from the slide list
+• Spreadsheets on phones: grips to select cells, a Cut, Copy, Paste and Fill bar
+• Videos: sound starts at once on large files, and the volume slider is easier to reach
+• OpenDocument files show their own fonts
+• Fits better on small phones
+
+Still offline unless you choose to share.
