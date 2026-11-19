@@ -112,7 +112,13 @@ export function popupMenu(host: HTMLElement, anchor: HTMLElement, items: MenuIte
   const a = anchor.getBoundingClientRect();
   const h = host.getBoundingClientRect();
   menu.style.left = `${Math.max(4, Math.min(a.left - h.left, h.width - menu.offsetWidth - 4))}px`;
-  menu.style.top = `${a.bottom - h.top + 4}px`;
+  // Below the anchor when it fits, else above (the strip's last "+"), scrolling if neither side has room.
+  const below = h.bottom - a.bottom - 12;
+  const above = a.top - h.top - 12;
+  const up = menu.offsetHeight > below && above > below;
+  menu.style.maxHeight = `${Math.max(120, up ? above : below)}px`;
+  menu.style.overflowY = "auto";
+  menu.style.top = up ? `${Math.max(4, a.top - h.top - 4 - menu.offsetHeight)}px` : `${a.bottom - h.top + 4}px`;
   setTimeout(() => {
     document.addEventListener("pointerdown", away, true);
     document.addEventListener("keydown", esc, true);
@@ -172,7 +178,13 @@ export function colorMenu(host: HTMLElement, anchor: HTMLElement, o: { none?: st
   const a = anchor.getBoundingClientRect();
   const h = host.getBoundingClientRect();
   menu.style.left = `${Math.max(4, Math.min(a.left - h.left, h.width - menu.offsetWidth - 4))}px`;
-  menu.style.top = `${a.bottom - h.top + 4}px`;
+  // Below the anchor when it fits, else above (the strip's last "+"), scrolling if neither side has room.
+  const below = h.bottom - a.bottom - 12;
+  const above = a.top - h.top - 12;
+  const up = menu.offsetHeight > below && above > below;
+  menu.style.maxHeight = `${Math.max(120, up ? above : below)}px`;
+  menu.style.overflowY = "auto";
+  menu.style.top = up ? `${Math.max(4, a.top - h.top - 4 - menu.offsetHeight)}px` : `${a.bottom - h.top + 4}px`;
   setTimeout(() => {
     document.addEventListener("pointerdown", away, true);
     document.addEventListener("keydown", esc, true);

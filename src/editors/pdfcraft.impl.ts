@@ -81,7 +81,8 @@ function ensureStyles(): void {
     .ot-pc-float { position:absolute; z-index:8; display:flex; flex-direction:column; white-space:nowrap; gap:4px; padding:4px; background:var(--surface); color:var(--text);
       border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-pc-float .btn { padding:6px 8px; }
-    .ot-pc-row { display:flex; gap:4px; }
+    .ot-pc-row { display:flex; flex-wrap:wrap; gap:4px; }
+    .ot-pc-float { max-width:calc(100vw - 16px); } /* wraps its rows on small phones instead of running off screen */
     .ot-pc-row[hidden] { display:none; }
     .ot-pc-float input[type=color] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
     .ot-pc-stripe { position:absolute; left:8px; right:8px; bottom:4px; height:4px; border-radius:2px; border:1px solid var(--border); }
@@ -2229,6 +2230,9 @@ class PdfCraftInstance implements EditorInstance {
     this.root.appendChild(menu);
     menu.style.top = `${a.bottom - root.top + 4}px`;
     menu.style.left = `${Math.max(4, Math.min(a.left - root.left, root.width - menu.offsetWidth - 4))}px`;
+    // On a short screen the longest menus would run off the bottom: scroll them instead.
+    menu.style.maxHeight = `${Math.max(120, root.bottom - a.bottom - 12)}px`;
+    menu.style.overflowY = "auto";
     this.menuEl = menu;
     const close = (e: PointerEvent): void => {
       if (menu.contains(e.target as Node) || anchor.contains(e.target as Node)) return;

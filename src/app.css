@@ -562,6 +562,13 @@ body.ot-own-bar #status { display: none; }
   .settings-panes { height: 42vh; }
 }
 
+/* Small phones (320-380px): tighter chrome so the save dot and the close button stay on screen. */
+@media (max-width: 380px) {
+  #toolbar { gap: 4px; padding: 8px; }
+  #toolbar .sep { display: none; }
+  #toolbar .group .btn.icon { padding: 6px; }
+}
+
 /* Skip link: first tab stop, jumps focus to the editor; visible only when focused. */
 .skip-link {
   position: fixed;
