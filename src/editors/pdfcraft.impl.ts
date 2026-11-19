@@ -2,6 +2,7 @@ import { EngineError, openPdf, pdfFontFaces, type PdfFontFace, type FieldAction,
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
+import { documentFaces } from "./pdfcraft-fonts";
 import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pdfcraft-keys";
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
@@ -384,6 +385,9 @@ class PdfCraftInstance implements EditorInstance {
   private touchSel = false;
   private modeBtn!: HTMLButtonElement;
   private localEdits = 0;
+  /** Faces named like the document's fonts go in by reopening it, so only before its first change. */
+  private fontsReady: Promise<void> | null = null;
+  private fontsFrozen = false;
   /** The file every peer started the session from, and the bytes offered for it before the session binds. */
   private sessionBase: Uint8Array | null = null;
   private pendingBase: Uint8Array | null = null;
@@ -968,6 +972,33 @@ class PdfCraftInstance implements EditorInstance {
     }
     this.reading = on;
     this.applyMode();
+    if (!on && this.doc && !this.fontsReady && !this.fontsFrozen && !this.shared) this.fontsReady = this.addDocumentFaces(this.doc);
+  }
+
+  /** Reopens the untouched document with the installed or downloaded faces its fonts name (see pdfcraft-fonts). */
+  private async addDocumentFaces(doc: PdfDocument): Promise<void> {
+    try {
+      const faces = await documentFaces(doc);
+      const stale = () => this.fontsFrozen || this.disposed || this.shared !== null || this.doc !== doc;
+      if (!faces.length || stale()) return;
+      const next = await openPdf(this.original, { password: this.password, worker: new PdfWorker(), fonts: [...(await pdfFonts()), ...faces] });
+      if (stale()) {
+        next.close();
+        return;
+      }
+      this.doc = next;
+      // draws already asked of the old engine finish first
+      window.setTimeout(() => doc.close(), 5000);
+    } catch {
+      // the document stays as opened
+    }
+  }
+
+  /** Before the first change: waits a little for the face lookup, then no more reopening. */
+  private async settleFonts(): Promise<void> {
+    const ready = this.fontsReady;
+    if (ready && !this.fontsFrozen) await Promise.race([ready, new Promise((r) => window.setTimeout(r, 2500))]);
+    this.fontsFrozen = true;
   }
 
   private applyMode(): void {
@@ -1003,6 +1034,7 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Every change to the document goes through here: straight to the engine, or through the shared log in a session. */
   private async commit(call: EditCall): Promise<void> {
+    await this.settleFonts();
     const doc = this.doc;
     if (!doc) return;
     if (this.viewOnly) throw new Error("this session is view-only");
@@ -2732,6 +2764,7 @@ class PdfCraftInstance implements EditorInstance {
 
   /** Presses a button: runs the action it has for a click, then does what the script asked of the page. */
   private async pressButton(page: number, field: FieldInfo): Promise<void> {
+    await this.settleFonts();
     const doc = this.doc;
     if (!doc || this.viewOnly) return;
     const actions = await doc.fieldActions(field.name).catch(() => [] as FieldActionInfo[]);
@@ -2856,6 +2889,7 @@ class PdfCraftInstance implements EditorInstance {
       fields: layers.map((l): Field => ({ key: String(l.index), label: l.name || `#${l.index + 1}`, kind: "check", value: l.visible })),
     });
     if (!v) return;
+    await this.settleFonts();
     let changed = false;
     for (const l of layers) changed = (await this.doc.setLayerVisible(l.index, !!v[String(l.index)])) || changed;
     if (changed) this.redrawAll();
