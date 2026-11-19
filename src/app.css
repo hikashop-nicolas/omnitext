@@ -568,6 +568,14 @@ body.ot-own-bar #status { display: none; }
   #toolbar .sep { display: none; }
   #toolbar .group .btn.icon { padding: 6px; }
 }
+/* Narrow windows: the Format label gives way before the file name and close button do. */
+#toolbar > .field { min-width: 0; overflow: hidden; white-space: nowrap; flex-shrink: 100; }
+@media (max-width: 760px) { #reason { display: none; } }
+/* 320px with the slide editor's extra History and Collaborate buttons. */
+@media (max-width: 360px) {
+  #toolbar .group { gap: 2px; }
+  #toolbar .group .btn.icon { padding: 4px; }
+}
 
 /* Skip link: first tab stop, jumps focus to the editor; visible only when focused. */
 .skip-link {

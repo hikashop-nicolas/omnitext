@@ -100,6 +100,10 @@ function ensureStyles(): void {
       background:var(--canvas); border:1px solid var(--border); border-radius:6px; }
     @media (max-width:480px) { .ot-px-pct { display:none; } .ot-px-bottom input[type=number] { width:48px; } }
     @media (max-width:600px) { .ot-px-bottom input[type=range] { flex-basis:64px; width:64px; } }
+    /* Phones: the zoom box and Fit stay, the slider goes; tiny phones get a "3/25" counter. */
+    @media (max-width:480px) { .ot-px-bottom input[type=range] { display:none; } }
+    @media (max-width:360px) { .ot-px-bottom { gap:4px; } .ot-px-count { font-size:0 !important; }
+      .ot-px-count::after { content:attr(data-short); font-size:13px; } }
     .ot-px-float { position:absolute; z-index:8; display:flex; white-space:nowrap; gap:4px; padding:4px; background:var(--surface);
       color:var(--text); border:1px solid var(--border); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.35); touch-action:none; }
     .ot-px-float .btn { padding:6px 8px; }
@@ -567,7 +571,7 @@ class PptxCraftInstance implements EditorInstance {
     }, bottom);
     this.buttons.prev = this.button("up", t("pptxcraft.previous"), () => void this.cmd("slide.previous", {}), bottom);
     this.buttons.next = this.button("down", t("pptxcraft.next"), () => void this.cmd("slide.next", {}), bottom);
-    this.counter = el("span");
+    this.counter = el("span", "ot-px-count");
     bottom.append(this.counter, el("span", "grow"));
     this.button("fit", t("pptxcraft.fit"), () => this.fit(), bottom);
     this.zoomRange = el("input");
@@ -1105,6 +1109,7 @@ class PptxCraftInstance implements EditorInstance {
     const n = ov.slides ?? 0;
     const cur = ov.slide ?? 0;
     this.counter.textContent = t("pptxcraft.slideOf", { n: cur + 1, total: n });
+    this.counter.dataset.short = `${cur + 1}/${n}`;
     this.buttons.prev.disabled = cur <= 0;
     this.buttons.next.disabled = cur >= n - 1;
     this.buttons.up.disabled = cur <= 0;
@@ -2362,7 +2367,9 @@ class PptxCraftInstance implements EditorInstance {
       e.preventDefault();
       end();
     });
-    await show.requestFullscreen?.().catch(() => undefined);
+    // Some browsers and webviews never settle this promise: start the show anyway after a second.
+    const full = show.requestFullscreen?.().catch(() => undefined);
+    await Promise.race([full, new Promise((r) => setTimeout(r, 1000))]);
     await new Promise((r) => setTimeout(r, 350));
     await runner.goto(from === 0 ? runner.first() : (from ?? this.ov.slide ?? 0));
     show.focus();
