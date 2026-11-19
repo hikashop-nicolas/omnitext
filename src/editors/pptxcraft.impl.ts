@@ -49,6 +49,16 @@ function ensureStyles(): void {
     .ot-px-thumb.on .frame { border-color:var(--accent); }
     .ot-px-thumb canvas { width:${THUMB_W}px; display:block; }
     .ot-px-thumb.drop { outline:2px dashed var(--accent); }
+    .ot-px-addslide { flex:0 0 auto; margin-left:22px; width:${THUMB_W + 4}px; height:44px; display:flex; align-items:center; justify-content:center;
+      border:2px dashed var(--border); border-radius:6px; background:none; color:var(--muted); cursor:pointer; }
+    .ot-px-addslide:hover, .ot-px-addslide:focus-visible { border-color:var(--accent); color:var(--accent); outline:none; }
+    .ot-px-addslide svg { width:22px; height:22px; }
+    .ot-px-ins { position:absolute; left:22px; right:0; top:-12px; height:14px; padding:0; border:0; background:none; cursor:pointer; opacity:0; z-index:1; }
+    .ot-px-ins::before { content:""; position:absolute; left:0; right:0; top:6px; height:2px; border-radius:1px; background:var(--accent); }
+    .ot-px-ins svg { position:relative; width:16px; height:16px; margin:-1px auto 0; display:block; padding:1px; border-radius:50%; background:var(--accent); color:var(--accent-fg, #fff); }
+    .ot-px-ins:hover { opacity:1; }
+    .ot-px-thumb.sec-start .ot-px-ins { display:none; }
+    @media (hover:none) { .ot-px-ins { display:none; } }
     .ot-px-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
     .ot-px-stage { flex:1 1 auto; min-height:0; overflow:auto; display:flex; padding:16px; touch-action:pan-x pan-y; }
     .ot-px-slide { position:relative; margin:auto; flex:0 0 auto; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.4); user-select:none; }
@@ -469,7 +479,7 @@ class PptxCraftInstance implements EditorInstance {
     this.buttons.shapes = this.button("shapes", t("pptxcraft.shapes"), () => this.shapesMenu());
     this.buttons.insert = this.button("insert", t("pptxcraft.insert"), () => this.insertMenu());
     this.sepTo(b);
-    this.buttons.newSlide = this.button("slideNew", t("pptxcraft.newSlide"), () => this.newSlideMenu());
+    this.buttons.newSlide = this.button("slideNew", t("pptxcraft.newSlide"), () => void this.newSlideMenu());
     this.sepTo(b);
     this.buttons.present = this.button("present", t("pptxcraft.present"), () => this.presentMenu());
     this.buttons.notes = this.button("notes", t("pptxcraft.notes"), () => this.toggleNotes());
@@ -593,12 +603,29 @@ class PptxCraftInstance implements EditorInstance {
     );
   }
 
-  private newSlideMenu(): void {
-    popupMenu(
-      this.root,
-      this.buttons.newSlide,
-      LAYOUTS.map(([layout, key]) => ({ label: t(`pptxcraft.${key}`), run: () => void this.cmd("slide.new", { layout, at: (this.ov.slide ?? 0) + 1 }, true) })),
-    );
+  private async newSlideMenu(anchor: HTMLElement = this.buttons.newSlide, at = (this.ov.slide ?? 0) + 1): Promise<void> {
+    // The deck's own layouts: decks from LibreOffice and others carry no standard layout types.
+    const session = this.session;
+    const masters = session ? await this.enqueue(() => session.masters()) : undefined;
+    const names = [...new Set((masters ?? []).flatMap((m) => m.layouts.map((l) => l.name)).filter(Boolean))];
+    const items = names.length
+      ? names.map((layout) => ({ label: layout, run: () => void this.cmd("slide.new", { layout, at }, true) }))
+      : LAYOUTS.map(([layout, key]) => ({ label: t(`pptxcraft.${key}`), run: () => void this.cmd("slide.new", { layout, at }, true) }));
+    popupMenu(this.root, anchor, items);
+  }
+
+  /** The strip's own way to add a slide: a big "+" at the end, a hover "+" between two slides. */
+  private addSlideButton(cls: string, at: number): HTMLButtonElement {
+    const b = el("button", cls);
+    b.type = "button";
+    b.title = t("pptxcraft.newSlide");
+    b.setAttribute("aria-label", t("pptxcraft.newSlide"));
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+    b.addEventListener("click", (e) => {
+      e.stopPropagation(); // a gap button sits inside a thumbnail row
+      void this.newSlideMenu(b, at);
+    });
+    return b;
   }
 
   private setTool(tool: Tool): void {
@@ -893,6 +920,12 @@ class PptxCraftInstance implements EditorInstance {
         const frame = el("div", "frame");
         frame.appendChild(el("canvas"));
         row.appendChild(frame);
+        if (i > 0) {
+          const gap = this.addSlideButton("ot-px-ins", i);
+          gap.tabIndex = -1; // mouse shortcut; keyboard users have the toolbar button and Ctrl+M
+          gap.draggable = false;
+          row.appendChild(gap);
+        }
         row.addEventListener("click", (e) => this.pickSlide(i, e));
         row.addEventListener("dragstart", (e) => e.dataTransfer?.setData("text/plain", String(i)));
         row.addEventListener("dragover", (e) => {
@@ -910,6 +943,7 @@ class PptxCraftInstance implements EditorInstance {
         this.thumbs.push(row);
         this.thumbDirty.add(i);
       }
+      this.side.appendChild(this.addSlideButton("ot-px-addslide", n));
       this.markActiveThumb();
       void this.decorateStrip();
     }
@@ -923,6 +957,7 @@ class PptxCraftInstance implements EditorInstance {
     const info = await this.enqueue(() => session.execute<{ slides?: { hidden?: boolean }[]; sections?: { name: string; slides: number }[] }>("document.inspect", {}));
     if (!info || this.masterMode) return;
     for (const h of this.side.querySelectorAll(".ot-px-sechead")) h.remove();
+    for (const r of this.thumbs) r.classList.remove("sec-start");
     info.slides?.forEach((x, i) => this.thumbs[i]?.classList.toggle("hidden", !!x.hidden));
     let at = 0;
     (info.sections ?? []).forEach((sec, si) => {
@@ -936,6 +971,7 @@ class PptxCraftInstance implements EditorInstance {
       head.appendChild(more);
       const row = this.thumbs[at];
       if (row) this.side.insertBefore(head, row);
+      row?.classList.add("sec-start"); // its gap "+" would cover the header's menu button
       at += sec.slides;
     });
   }
