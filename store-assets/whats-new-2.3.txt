@@ -4,7 +4,7 @@ New in this update:
 • Play or silence each part of a score
 • Sound delay setting for Bluetooth speakers
 • KML and GPX files saved as .xml open on the map
-• Omnitext appears in Open with for more file types
+• Omnitext appears in "Open with" for more file types
 • Pinch zoom moves the document, not the whole app
 • Smoother zooming and dragging in spreadsheets
 
