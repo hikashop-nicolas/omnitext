@@ -252,8 +252,12 @@ export class CollabSession {
       room: this.currentKey.roomId,
       readOnly: this.readOnly,
     }));
-    this.provider = new CollabProvider(this.makeTransport(this.currentKey));
+    const transport = this.makeTransport(this.currentKey);
+    this.provider = new CollabProvider(transport);
     this.announce();
+    void transport.ready?.then(() => {
+      if (!this.closed && this.provider.selfId) this.announce();
+    });
 
     this.base = new BaseTransfer(
       (payload, peerId) => this.provider.sendOn("base", payload, peerId),
@@ -724,7 +728,9 @@ export class CollabSession {
   private async moveTo(room: RoomKey): Promise<void> {
     this.seenRooms.add(this.currentKey.roomId);
     this.currentKey = room;
-    await this.provider.moveTo(this.makeTransport(room));
+    const transport = this.makeTransport(room);
+    await transport.ready;
+    await this.provider.moveTo(transport);
     this.announce(); // our transport id changed with the room
     this.host.onChange?.();
   }

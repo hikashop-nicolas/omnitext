@@ -1,12 +1,4 @@
-import {
-  getRelaySockets,
-  joinRoom,
-  pauseRelayReconnection,
-  resumeRelayReconnection,
-  selfId,
-  type MessageAction,
-  type Room,
-} from "trystero";
+import { joinRoom, type MessageAction } from "trystero";
 
 // The network under a collaboration session.
 //
@@ -22,8 +14,10 @@ export type MessageHandler = (channel: Channel, payload: Uint8Array, peerId: str
 export type PeerHandler = (peerId: string) => void;
 
 export interface CollabTransport {
-  /** The id this peer is known by to the others. */
+  /** The id this peer is known by to the others. Empty until ready settles. */
   readonly selfId: string;
+  /** Settles once selfId is known. Absent when it is known from the start. */
+  readonly ready?: Promise<void>;
   /** Send to one peer, to a chosen set, or to every peer when target is null. */
   send(channel: Channel, payload: Uint8Array, target: string | string[] | null): void;
   onMessage(handler: MessageHandler): void;
@@ -73,63 +67,46 @@ export interface RoomOptions {
   turnServers?: RTCIceServer[];
 }
 
-// Trystero keeps one socket per relay for the life of the page and reconnects it forever, even
-// with no room open. Closing the last room drops them; the next room revives them.
-let openRooms = 0;
-
-function dropRelaySockets(): void {
-  pauseRelayReconnection();
-  for (const socket of Object.values(getRelaySockets()) as WebSocket[]) {
-    try {
-      socket.close();
-    } catch {
-      /* already closed */
-    }
-  }
-}
-
 export function trysteroTransport(opts: RoomOptions): CollabTransport {
-  resumeRelayReconnection();
-  openRooms++;
-  let room: Room;
-  try {
-    room = joinRoom(
-      {
-        appId: opts.appId ?? APP_ID,
-        password: opts.secret,
-        ...(opts.relayUrls ? { relayConfig: { urls: opts.relayUrls } } : {}),
-        ...(opts.turnServers?.length ? { turnConfig: opts.turnServers } : {}),
-      },
-      opts.roomId,
-    );
-  } catch (e) {
-    if (--openRooms === 0) dropRelaySockets();
-    throw e;
-  }
+  const room = joinRoom(
+    {
+      appId: opts.appId ?? APP_ID,
+      password: opts.secret,
+      // A fresh id per room, kept nowhere: nothing about a session outlives it.
+      identity: "none",
+      ...(opts.relayUrls ? { relayConfig: { urls: opts.relayUrls } } : {}),
+      ...(opts.turnServers?.length ? { turnConfig: opts.turnServers } : {}),
+    },
+    opts.roomId,
+  );
   let closed = false;
+  let selfId = "";
+  // Trystero 0.27 derives the id from a key it makes asynchronously. No peer can reach us
+  // before it exists, so the session re-announces itself once it is known.
+  const ready = room.getSelf().then((self) => void (selfId = self.peerId), () => undefined);
 
   const actions = Object.fromEntries(
     CHANNELS.map((c) => [c, room.makeAction<Wire>(NAMESPACE[c])]),
   ) as Record<Channel, MessageAction<Wire>>;
 
-  // Every hook fans out to a list. Trystero's own onPeerJoin/onPeerLeave are single
-  // slots, so assigning them directly would let a second subscriber silently unhook the
-  // provider's handshake.
   const handlers: MessageHandler[] = [];
   const joined: PeerHandler[] = [];
   const left: PeerHandler[] = [];
 
   for (const channel of CHANNELS) {
-    actions[channel].onMessage = (data, { peerId }) => {
+    actions[channel].onMessage((data, { peerId }) => {
       const payload = asBytes(data);
       for (const h of handlers) h(channel, payload, peerId);
-    };
+    });
   }
-  room.onPeerJoin = (peerId) => joined.forEach((h) => h(peerId));
-  room.onPeerLeave = (peerId) => left.forEach((h) => h(peerId));
+  room.onPeerJoin(({ peerId }) => joined.forEach((h) => h(peerId)));
+  room.onPeerLeave(({ peerId }) => left.forEach((h) => h(peerId)));
 
   return {
-    selfId,
+    get selfId() {
+      return selfId;
+    },
+    ready,
     send(channel, payload, target) {
       if (Array.isArray(target) && !target.length) return;
       // Fire and forget: a peer that vanished mid-send is a normal event, not an error,
@@ -141,11 +118,11 @@ export function trysteroTransport(opts: RoomOptions): CollabTransport {
     onPeerJoin: (handler) => void joined.push(handler),
     onPeerLeave: (handler) => void left.push(handler),
     peers: () => Object.keys(room.getPeers()),
+    // Leaving the last room also closes Trystero's relay sockets.
     async close() {
       if (closed) return;
       closed = true;
       await room.leave();
-      if (--openRooms === 0) dropRelaySockets();
     },
   };
 }

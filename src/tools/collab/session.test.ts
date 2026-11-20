@@ -183,6 +183,32 @@ describe("different builds", () => {
   });
 });
 
+describe("an id that arrives late", () => {
+  // Trystero makes its id asynchronously; presence must not keep the empty one.
+  it("re-announces once the transport knows its id", async () => {
+    let id = "";
+    let resolve!: () => void;
+    const ready = new Promise<void>((r) => (resolve = r));
+    const inner = new Net().connect("x");
+    const transport: CollabTransport = {
+      ...inner,
+      get selfId() {
+        return id;
+      },
+      ready,
+    };
+    const h = host({ editor: fakeEditor("") });
+    const session = new CollabSession(h.api, { ...me, makeTransport: () => transport });
+    const peerId = () => (session.provider.awareness.getLocalState() as { peerId?: string }).peerId;
+    expect(peerId()).toBe("");
+    id = "late";
+    resolve();
+    await ready;
+    await Promise.resolve();
+    expect(peerId()).toBe("late");
+  });
+});
+
 describe("reachability", () => {
   // There is no relay for the document, so two peers whose networks cannot be joined never
   // connect and nothing fails on its own. Trystero cannot tell us that has happened, so it
