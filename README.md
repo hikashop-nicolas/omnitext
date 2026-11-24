@@ -78,11 +78,11 @@ a page for each one, generated from the app itself.
 
 | | |
 | --- | --- |
-| **Documents** | PDF, Word (DOCX), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets), SMART Health Cards |
-| **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
+| **Documents** | PDF (sounds and videos embedded in one play too), Word (DOCX and the older DOC), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets), SMART Health Cards |
+| **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, Excel templates, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
 | **Sheet music** | MusicXML and MXL, MuseScore (.mscz, .mscx), Guitar Pro 3 to 7, MIDI, ABC, and PDFs made by notation software, which open as editable scores |
-| **Pictures** | PNG, JPEG, GIF, WebP, AVIF, HEIC from an iPhone, camera RAW, TIFF, PSD, SVG (with a full vector editor). Text recognition (OCR) on the device, which reads a photo or scan of printed music as a score |
+| **Pictures** | PNG, JPEG, GIF, WebP, AVIF, JPEG XL, HEIC from an iPhone, camera RAW, TIFF, PSD, BMP, ICO, SVG (with a full vector editor). Text recognition (OCR) on the device, which reads a photo or scan of printed music as a score. Any of them can be added to a PDF, a slide, a spreadsheet or a document: Omnitext converts it when that file cannot hold it as it is |
 | **Audio and video** | The usual web formats plus MKV, MOV, AVCHD and more, including Dolby and Apple Lossless audio that browsers normally refuse, with subtitles. Several files, a folder or a playlist (M3U, PLS, XSPF) play as one queue with next, previous, repeat and shuffle |
 | **Maps** | GeoJSON, KML, KMZ and GPX in an interactive map editor, with measuring and drawing |
 | **Subtitles** | SRT, WebVTT, ASS and SSA, with a waveform timeline, transcription and translation |
@@ -127,8 +127,8 @@ each other's cursors. There is no server holding the document and no account: th
 the room, the browsers connect to each other directly, and the file goes from one machine to
 another and nowhere else.
 
-It works in the code editor, the subtitle editor, the spreadsheet, the rich text editor and
-the PDF editor. Edits merge rather than overwrite, even inside the same paragraph, the same
+It works in the code editor, the subtitle editor, the spreadsheet, the rich text editor, the
+score editor and the PDF editor. Edits merge rather than overwrite, even inside the same paragraph, the same
 cue or the same cell.
 
 Two things are never done on your behalf: refreshing someone else's Power Query, which would
@@ -139,6 +139,12 @@ travel; running them is your decision.
 
 Everything runs on your machine. Files never leave the browser, there is no server, no account
 and no telemetry. That guarantee is the point of the project.
+
+A few extras are downloaded only when you ask for them, and Omnitext asks first: the recorded
+instruments of the score player, the on-device recognition and translation models, the
+background tiles of the map editor, and fonts
+from the Google Fonts catalog (the F-Droid build has no Google Fonts). These downloads carry
+nothing of your files.
 
 Collaboration keeps the promise for the document itself: peers connect directly and the file
 passes between them. What is not private is the room. Finding each other uses a public relay,
@@ -180,6 +186,7 @@ waiting.
 Omnitext is MIT licensed, and so are the standalone editor libraries it is built on, which you
 can embed in your own projects, commercial ones included:
 [craftbridge](https://github.com/hikashop-nicolas/craftbridge) (the PDF editor's bridge to the [PdfCraft](https://github.com/storytold/pdfcraft) engine),
+[fontshelf](https://github.com/hikashop-nicolas/fontshelf) (the font menus shared by the editors),
 [richdoc](https://github.com/hikashop-nicolas/richdoc),
 [sheetedit](https://github.com/hikashop-nicolas/sheetedit),
 [geoedit](https://github.com/hikashop-nicolas/geoedit),
