@@ -21,6 +21,8 @@ const VIEWER_FORMATS: ViewerFormat[] = [
   { id: "gif", exts: [".gif"], mime: "image/gif", viewer: "image" },
   { id: "webp", exts: [".webp"], mime: "image/webp", viewer: "image" },
   { id: "avif", exts: [".avif"], mime: "image/avif", viewer: "image" },
+  // Shown natively from Chrome/WebView 155; older WebViews get the viewer's "could not be displayed".
+  { id: "jxl", exts: [".jxl"], mime: "image/jxl", viewer: "image" },
   { id: "bmp", exts: [".bmp"], mime: "image/bmp", viewer: "image" },
   { id: "icon", exts: [".ico"], mime: "image/x-icon", viewer: "image" },
   // Video. Chrome/WebView play more containers than commonly assumed (mkv shares the
