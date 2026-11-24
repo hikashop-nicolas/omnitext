@@ -6,6 +6,7 @@ import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
 import { SlideFonts } from "./pptxcraft-fonts";
 import { OFFICE_PICTURES, pictureFor } from "../formats/picture-convert";
+import { videoPosterPng } from "./video-poster";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
 import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, type IconName } from "./pptxcraft-ui";
@@ -1802,7 +1803,13 @@ class PptxCraftInstance implements EditorInstance {
         return;
       }
     }
-    const r = (await this.cmd(`insert.${kind === "image" ? "picture" : kind}`, { name, data: base64(bytes) })) as { id?: number } | undefined;
+    const params: Record<string, unknown> = { name, data: base64(bytes) };
+    // The engine is built without video decoders: the browser draws the poster frame.
+    if (kind === "video") {
+      const poster = await videoPosterPng(bytes, file.type);
+      if (poster) params.poster = base64(poster);
+    }
+    const r = (await this.cmd(`insert.${kind === "image" ? "picture" : kind}`, params)) as { id?: number } | undefined;
     // played from these bytes until the file is saved and opened again
     if (kind !== "image") {
       const entry = { bytes, mime: file.type, name: file.name.toLowerCase() };
