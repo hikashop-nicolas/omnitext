@@ -44,7 +44,8 @@ export const PAGES = [
     can: [
       "Change the text that is already on the page, keeping the original font where it can be reused",
       "Add, delete, rotate and reorder pages",
-      "Place images and draw over the page",
+      "Place images and draw over the page, with any picture Omnitext opens (a phone's HEIC or WebP photo included)",
+      "Play the sounds and videos embedded in the PDF",
       "Cover something up rather than leaving it readable underneath",
       "Fill in and keep form fields",
       "Print, or export back to PDF at full quality",
@@ -71,7 +72,7 @@ export const PAGES = [
       "Track what changed against the version you opened",
       "Print or save as PDF",
     ],
-    note: "Files still in the old binary .doc format open read-only. Save them as .docx from any word processor to edit them here.",
+    note: "Files in the old binary .doc format open and save back as .doc, rebuilt from the text and its formatting. To keep anything richer, save them as .docx.",
   },
   {
     id: "odt",
@@ -133,6 +134,7 @@ export const PAGES = [
       "Edit cells across several sheets, with the tabs along the bottom",
       "Keep existing formulas and write new ones, recalculated as you type",
       "Sort and edit large sheets without loading them into a server",
+      "Open macro workbooks (.xlsm) and Excel templates; a macro runs only after you turn macros on",
       "Save back to .xlsx, or export the sheet as CSV",
     ],
     note: "The older binary .xls opens too, through a simpler table view that does not carry formulas.",
