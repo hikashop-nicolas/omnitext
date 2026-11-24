@@ -107,6 +107,7 @@ class ScoreInstance implements EditorInstance {
         // Practice shows before a keyboard is connected, with a button that asks the browser for MIDI.
         connectMidi: () => void this.connectMidi(true),
         // Guitar Pro saves as GP7: only a GP7 file can take its edits under its own name.
+        // MIDI saves in place, played timing kept on untouched notes; edits happen in the page view.
         editable: loaded.format === "musicxml" || loaded.format === "mxl" || (!!loaded.save && (loaded.format !== "guitarpro" || isZip(input))),
         // A played-in MIDI file reads better as falling notes than as notation.
         layout: loaded.format === "midi" && !isNotationMidi(input) ? "keys" : undefined,
@@ -149,12 +150,13 @@ class ScoreInstance implements EditorInstance {
     return writeMxl(this.handle.score.serialize(), this.bytes ?? undefined);
   }
 
-  /** The MuseScore or Guitar Pro file with the edits; says once what it could not carry over. */
+  /** The MuseScore, Guitar Pro or MIDI file with the edits; says once what it could not carry over. */
   private saveMuseScore(): Uint8Array {
     const { bytes, dropped } = this.loaded!.save!();
     const kinds = Object.keys(dropped).sort().join(", ");
-    const key = this.loaded?.format === "guitarpro" ? "notify.scoreMarksDropped" : "notify.scoreNotSaved";
-    if (kinds && kinds !== this.warned) this.host.notifications.warn(t(key, { format: "Guitar Pro", marks: kinds }));
+    const format = this.loaded?.format === "guitarpro" ? "Guitar Pro" : this.loaded?.format === "midi" ? "MIDI" : "";
+    const key = format ? "notify.scoreMarksDropped" : "notify.scoreNotSaved";
+    if (kinds && kinds !== this.warned) this.host.notifications.warn(t(key, { format, marks: kinds }));
     this.warned = kinds;
     return bytes;
   }

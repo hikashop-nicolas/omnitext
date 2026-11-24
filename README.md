@@ -91,7 +91,7 @@ a page for each one, generated from the app itself.
 
 Files that can be edited are saved back in place: the parts you did not touch keep their
 original bytes, down to the encoding and the line endings. A few formats are shown but not
-edited (RTF, ebooks, camera RAW, MIDI and the other viewers above), and the app says so
+edited (RTF, ebooks, camera RAW and the other viewers above), and the app says so
 instead of pretending.
 
 ## Sheet music
@@ -107,8 +107,8 @@ what each one can do.
 - **Edit.** Enter notes from the computer keyboard, an on-screen piano or fretboard, or a MIDI
   keyboard. Add marks, dynamics, lyrics and chord symbols, change key, time and clef, add bars
   and instruments, transpose, or start a new score from the New dialog. MusicXML, MuseScore 3
-  and 4 and Guitar Pro 7 files save back in place; MuseScore files keep everything you did not
-  touch.
+  and 4, Guitar Pro 7 and MIDI files save back in place; MuseScore and MIDI files keep everything
+  you did not touch (in a MIDI file, the played timing, velocities and controllers).
 - **Practise with a MIDI keyboard.** The score waits for you to play each note, or runs in time
   and ends with a summary of what was on time, early, late, missed or wrong. In the browser,
   "Connect a MIDI keyboard" in the command palette asks for access (Chrome and Edge support

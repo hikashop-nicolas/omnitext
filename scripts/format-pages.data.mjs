@@ -691,16 +691,17 @@ export const PAGES = [
     name: "MIDI",
     headline: "Open a MIDI file as a score, or as falling notes",
     summary:
-      "Play MIDI files in the browser as sheet music or as falling notes over a keyboard, practise them with a MIDI keyboard, and export them.",
+      "Play MIDI files in the browser as sheet music or as falling notes over a keyboard, practise them with a MIDI keyboard, edit them and save them back.",
     lead: "Omnitext turns a MIDI file into something to read and play along with. A file exported from a score opens as notation; one played in by hand opens as notes falling onto a keyboard, which reads better than notation for a performance.",
     can: [
       "Play it with a built-in sound, or with recorded instruments after you allow the download",
       "Switch between the page, one long line, and falling notes over a keyboard",
       "Practise along with a MIDI keyboard, with the music waiting for you or running in time",
       "Slow it down, and show only the parts you want",
+      "Edit notes, tempo, key and time in the page view, and save straight back to the .mid file",
       "Export it as MusicXML, Guitar Pro, PDF, MP3 or WAV",
     ],
-    note: "MIDI files open for playing and practising. To edit one, export it as MusicXML and open that.",
+    note: "Saving keeps the performance: notes you did not touch keep their exact timing and loudness, and controllers, pedals and pitch bends stay as they were. Notes you add or change land on the beat. Marks a MIDI file cannot hold, such as staccato dots or lyrics, are not saved, and Omnitext says which.",
   },
   {
     id: "abc",
