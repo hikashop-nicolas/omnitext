@@ -1,0 +1,7 @@
+New in this update:
+
+• EPUB books open again
+• Outlook .msg emails open again
+• PDFs and slides start faster: their engines are about 7 MB smaller
+
+Still offline unless you choose to share or get fonts.
