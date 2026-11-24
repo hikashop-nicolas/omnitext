@@ -76,6 +76,15 @@
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
           ".xlsx"
         ],
+        "application/vnd.ms-excel.sheet.macroEnabled.12": [
+          ".xlsm"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.template": [
+          ".xltx"
+        ],
+        "application/vnd.ms-excel.template.macroEnabled.12": [
+          ".xltm"
+        ],
         "application/vnd.oasis.opendocument.spreadsheet": [
           ".ods"
         ],

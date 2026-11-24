@@ -7,7 +7,7 @@ const RESERVED_EXTS = new Set([
   ".json", ".json5", ".md", ".markdown", ".csv", ".tsv", ".yaml", ".yml", ".xml",
   ".toml", ".ini", ".html", ".htm", ".css", ".js", ".mjs", ".cjs", ".jsx", ".ts",
   ".tsx", ".py", ".sql", ".sh", ".bash", ".env", ".properties", ".pdf", ".odt",
-  ".docx", ".ods", ".xlsx", ".xls",
+  ".docx", ".ods", ".xlsx", ".xlsm", ".xltx", ".xltm", ".xls",
 ]);
 const RESERVED_IDS = new Set([
   "json", "json5", "markdown", "csv", "tsv", "yaml", "xml", "toml", "ini", "html",
