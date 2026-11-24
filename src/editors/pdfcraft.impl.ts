@@ -1,11 +1,11 @@
-import { EngineError, openPdf, pdfFontFaces, type PdfFontFace, type FieldAction, type FieldActionInfo, type JsOutput, type JsRequest, type ScriptEvent, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
+import { EngineError, listPdfMedia, openPdf, pdfFontFaces, pdfMediaBytes, type PdfMediaInfo, type PdfFontFace, type FieldAction, type FieldActionInfo, type JsOutput, type JsRequest, type ScriptEvent, type AnnotationInfo, type Box, type CommentSpec, type EditCall, type FieldInfo, type FieldType, type StampInfo, type FindMatch, type LinkInfo, type MarkupKind, type ObjectRef, type PageObject, type PdfDocument, type TextStyle } from "craftbridge/pdf";
 import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
 import { documentFaces } from "./pdfcraft-fonts";
 import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pdfcraft-keys";
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
-import { askText, formDialog, listDialog, messageDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
+import { askText, formDialog, listDialog, messageDialog, playerDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
 import { isNative } from "../core/platform";
 import { t } from "../i18n";
@@ -95,6 +95,9 @@ function ensureStyles(): void {
     .ot-pc-scroll.tool { touch-action:none; cursor:crosshair; }
     .ot-pc-content { position:relative; transform-origin:0 0; }
     .ot-pc-slot { position:absolute; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.35); }
+    .ot-pc-media { position:absolute; z-index:3; transform:translate(-50%,-50%); width:48px; height:48px; padding:0; border:0; border-radius:50%;
+      display:grid; place-items:center; color:var(--accent,#2f6fdd); background:none; cursor:pointer; filter:drop-shadow(0 1px 3px rgba(0,0,0,.45)); }
+    .ot-pc-media:hover svg, .ot-pc-media:focus-visible svg { transform:scale(1.12); }
     .ot-pc-slot canvas { display:block; width:100%; height:100%; }
     .ot-pc-sel { position:absolute; z-index:4; box-sizing:border-box; outline:2px solid #2a6df4; touch-action:none; cursor:move; }
     .ot-pc-handle { position:absolute; width:24px; height:24px; margin:-12px 0 0 -12px; box-sizing:border-box; z-index:5;
@@ -333,6 +336,9 @@ class PdfCraftInstance implements EditorInstance {
   private pdfInput!: HTMLInputElement;
   private doc: PdfDocument | null = null;
   private original: Uint8Array = new Uint8Array();
+  /** Sounds and videos embedded in the file's annotations, and the page count they were read at. */
+  private media: PdfMediaInfo[] = [];
+  private mediaPages = 0;
   private onChange: (() => void) | undefined;
   private sizes: PageSize[] = [];
   private layout: Layout = { tops: [], widths: [], heights: [], total: 0 };
@@ -1117,6 +1123,7 @@ class PdfCraftInstance implements EditorInstance {
       return;
     }
     await this.loadPages();
+    void this.loadMedia();
     // the width of the view, whatever the height; the layout may still be settling, so fit again a few times
     this.fit("width");
     for (const ms of [0, 150, 500, 1200]) setTimeout(() => !this.disposed && this.fitKind === "width" && !this.editing && this.fit("width"), ms);
@@ -1173,7 +1180,70 @@ class PdfCraftInstance implements EditorInstance {
       this.content.appendChild(box);
       return { box, canvas: null, drawn: null };
     });
+    this.placeMediaButtons();
     this.applyLayout();
+  }
+
+  // ------------------------------------------------------------------ embedded sounds and videos
+
+  /** Reads the file's embedded sounds and videos (once: they come from the file as opened). */
+  private async loadMedia(): Promise<void> {
+    const pages = this.sizes.length;
+    const media = await listPdfMedia(this.original).catch(() => [] as PdfMediaInfo[]);
+    if (this.disposed) return;
+    this.media = media;
+    this.mediaPages = pages;
+    this.placeMediaButtons();
+  }
+
+  /** A play button on each sound or video area. They sit in the page boxes, in % so zoom moves them. */
+  private placeMediaButtons(): void {
+    for (const slot of this.slots) for (const b of slot.box.querySelectorAll(".ot-pc-media")) b.remove();
+    // Pages added, removed or moved since opening: the positions no longer match.
+    if (this.sizes.length !== this.mediaPages) return;
+    for (const m of this.media) {
+      const slot = this.slots[m.page], size = this.sizes[m.page];
+      if (!slot || !size) continue;
+      const label = `${t("pdfcraft.mediaPlay")}: ${m.kind === "video" ? t("pdfcraft.mediaVideo") : t("pdfcraft.mediaSound")}`;
+      const b = el("button", "ot-pc-media");
+      b.type = "button";
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor" opacity=".92"/><path d="M9.5 7.5v9l7-4.5z" fill="#fff"/></svg>';
+      const [x0, y0, x1, y1] = m.view;
+      // Centred on the area, which LibreOffice draws as an empty frame.
+      b.style.left = `${(((x0 + x1) / 2) / size.w) * 100}%`;
+      b.style.top = `${(((y0 + y1) / 2) / size.h) * 100}%`;
+      b.addEventListener("pointerdown", (e) => e.stopPropagation());
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void this.playMedia(m);
+      });
+      slot.box.appendChild(b);
+    }
+  }
+
+  private mediaAt(page: number, x: number, y: number): PdfMediaInfo | undefined {
+    if (this.sizes.length !== this.mediaPages) return undefined;
+    return this.media.find((m) => m.page === page && x >= m.view[0] && x <= m.view[2] && y >= m.view[1] && y <= m.view[3]);
+  }
+
+  private async playMedia(m: PdfMediaInfo): Promise<void> {
+    try {
+      const media = await pdfMediaBytes(this.original, m.page, m.index);
+      if (!media) throw new Error(m.name || m.mime);
+      const { createMediaPlayer } = await import("mediaplay");
+      playerDialog(this.root, {
+        title: m.kind === "video" ? t("pdfcraft.mediaVideo") : t("pdfcraft.mediaSound"),
+        close: t("pdfcraft.close"),
+        mount: (into) => {
+          const player = createMediaPlayer(into, { bytes: media.bytes, mime: media.mime, filename: media.name });
+          return () => player.destroy();
+        },
+      });
+    } catch (e) {
+      this.host.notifications.error(t("pdfcraft.mediaFailed", { message: message(e) }));
+    }
   }
 
   private applyLayout(): void {
@@ -1563,6 +1633,11 @@ class PdfCraftInstance implements EditorInstance {
 
   /** View mode: a form field fills, a link opens, anything else clears the text selection. */
   private async readingTap(at: { page: number; x: number; y: number }): Promise<void> {
+    const media = this.mediaAt(at.page, at.x, at.y);
+    if (media) {
+      void this.playMedia(media);
+      return;
+    }
     const extras = await this.extras(at.page);
     const field = hitBlock(extras.fields.map((f) => f.view), at.x, at.y);
     if (field >= 0 && !this.fs) {

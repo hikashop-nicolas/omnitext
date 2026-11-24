@@ -451,3 +451,24 @@ export declare class PdfDocument {
 export async function openPdf(_bytes: Uint8Array, _options?: OpenOptions): Promise<PdfDocument> {
   throw new EngineError("failed", "the PDF engine is not part of this build");
 }
+
+export interface PdfMediaInfo {
+  page: number;
+  index: number;
+  subtype: string;
+  view: Box;
+  name: string;
+  mime: string;
+  kind: "audio" | "video";
+}
+export interface PdfMedia {
+  name: string;
+  mime: string;
+  bytes: Uint8Array;
+}
+export async function listPdfMedia(_bytes: Uint8Array): Promise<PdfMediaInfo[]> {
+  return [];
+}
+export async function pdfMediaBytes(_bytes: Uint8Array, _page: number, _index: number): Promise<PdfMedia | null> {
+  return null;
+}

@@ -197,6 +197,26 @@ export function messageDialog(root: HTMLElement, o: { title: string; message: st
   });
 }
 
+/** A player in a dialog: `mount` fills the card and returns what stops it when the dialog closes. */
+export function playerDialog(root: HTMLElement, o: { title: string; close: string; mount(into: HTMLElement): () => void }): void {
+  let stop = (): void => {};
+  const done = (): void => {
+    stop();
+    s.close();
+  };
+  const s = shell(root, o.title, done);
+  s.card.style.width = "min(680px, 92vw)";
+  s.card.style.maxWidth = "none";
+  const stage = el("div", "ot-pcd-player");
+  stage.style.cssText = "width:100%;height:min(380px,60vh);display:flex;flex-direction:column;border-radius:8px;overflow:hidden";
+  s.card.appendChild(stage);
+  const close = button(o.close, true, done);
+  s.actions.appendChild(close);
+  s.card.appendChild(s.actions);
+  stop = o.mount(stage);
+  close.focus();
+}
+
 export interface ListRow {
   label: string;
   /** Shown after the label, smaller. */
