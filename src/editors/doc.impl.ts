@@ -6,6 +6,7 @@ import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
 import { richdocPrintable, takeOverPrinting } from "./richdoc-print";
 import { getSettings, userName } from "../settings";
+import { pictureFromFile } from "../formats/picture-convert";
 
 // Thin adapter wrapping richdoc's legacy Word 97-2003 (.doc) editor as an Omnitext editor
 // module. richdoc reads the binary to HTML and, on save, regenerates a valid .doc from the
@@ -31,6 +32,7 @@ class DocInstance implements EditorInstance {
         if (this.disposed) return null;
         return createDocEditorAsync(container, this.bytes, {
           onChange: ctx.onChange,
+          convertPicture: (file: File) => pictureFromFile(file, ["png", "jpeg"]),
           ...(this.fullscreen = new ReadingFullscreen(container)).options(),
           author: userName(),
           fonts: richdocFonts(),

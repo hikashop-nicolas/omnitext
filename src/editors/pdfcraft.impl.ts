@@ -8,6 +8,7 @@ import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } f
 import { askText, formDialog, listDialog, messageDialog, playerDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
 import { isNative } from "../core/platform";
+import { pictureFromFile, PDF_PICTURES } from "../formats/picture-convert";
 import { t } from "../i18n";
 import {
   boxBetween,
@@ -2212,15 +2213,15 @@ class PdfCraftInstance implements EditorInstance {
     this.fileInput.value = "";
     if (!file || !this.doc) return;
     const page = this.currentIndex();
-    let bytes: Uint8Array;
+    let pic: { name: string; bytes: Uint8Array };
     try {
-      bytes = new Uint8Array(await file.arrayBuffer());
+      pic = await pictureFromFile(file, PDF_PICTURES);
     } catch (e) {
       this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
       return;
     }
     // the new picture is the last added item: select it so it can be moved and sized straight away
-    await this.run(page, () => this.commit({ op: "addImage", page, name: file.name, bytes }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
+    await this.run(page, () => this.commit({ op: "addImage", page, name: pic.name, bytes: pic.bytes }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "image"));
     this.setTool("select");
   }
 
@@ -2385,11 +2386,11 @@ class PdfCraftInstance implements EditorInstance {
     const file = values?.file;
     if (!(file instanceof File)) return;
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const bitmap = await createImageBitmap(file);
-      const ratio = bitmap.height / Math.max(1, bitmap.width);
-      bitmap.close();
-      this.startPlacing({ group: stamp ? "comment" : "sign", kind: "picture", picture: { name: file.name, bytes, ratio, stamp } });
+      const { name, bytes, mime } = await pictureFromFile(file, PDF_PICTURES);
+      const bitmap = await createImageBitmap(new Blob([bytes as BlobPart], { type: mime })).catch(() => null);
+      const ratio = bitmap ? bitmap.height / Math.max(1, bitmap.width) : 1;
+      bitmap?.close();
+      this.startPlacing({ group: stamp ? "comment" : "sign", kind: "picture", picture: { name, bytes, ratio, stamp } });
     } catch (e) {
       this.host.notifications.error(t("pdfcraft.editFailed", { message: message(e) }));
     }

@@ -1,5 +1,6 @@
 import type { EditCall, HiddenInfo } from "craftbridge/pdf";
 import { t } from "../i18n";
+import { pictureFromFile, PDF_PICTURES } from "../formats/picture-convert";
 import { formDialog, type Field } from "./pdfcraft-tools";
 
 // Dialogs for what applies to the whole document. Each one asks and returns the edit to make (or null),
@@ -8,7 +9,9 @@ import { formDialog, type Field } from "./pdfcraft-tools";
 const rgb = (hex: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
 
 async function picture(file: unknown): Promise<{ name: string; bytes: Uint8Array } | undefined> {
-  return file instanceof File ? { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) } : undefined;
+  if (!(file instanceof File)) return undefined;
+  const p = await pictureFromFile(file, PDF_PICTURES);
+  return { name: p.name, bytes: p.bytes };
 }
 
 const pageScope = (): Field => ({

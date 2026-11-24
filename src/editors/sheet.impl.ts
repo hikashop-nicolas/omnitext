@@ -45,6 +45,7 @@ import {
 import { publishPosition, watchPeers } from "./peer-presence";
 import { OpSequencer, shiftCells, type StructuralOp } from "./sheet-structure";
 import { debug } from "../core/debug";
+import { OFFICE_PICTURES, pictureFromFile } from "../formats/picture-convert";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
 // with formula recalculation and in-place preservation) as an Omnitext editor module.
@@ -87,6 +88,7 @@ class SheetInstance implements EditorInstance {
     // Async factory inflates a zip-based workbook off the main thread before the parse.
     void createSheetEditorAsync(container, this.bytes, {
       onChange: ctx.onChange,
+      convertPicture: (file: File) => pictureFromFile(file, OFFICE_PICTURES),
       ...(this.fullscreen = new ReadingFullscreen(container, ".sheetedit-wrap")).options(),
       onCellsChanged: (changes) => this.publish(changes),
       onSelectionChanged: (at) => this.publishSelection?.(at),

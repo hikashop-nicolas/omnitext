@@ -1,4 +1,5 @@
 import type { Overlay } from "craftbridge/deck";
+import { OFFICE_PICTURES, pictureFromFile } from "../formats/picture-convert";
 import { t } from "../i18n";
 import type { SlideFonts } from "./pptxcraft-fonts";
 import { formDialog } from "./pdfcraft-tools";
@@ -419,7 +420,7 @@ export class Inspector {
     file.hidden = true;
     file.addEventListener("change", () => {
       const f = file.files?.[0];
-      if (f) void f.arrayBuffer().then((b) => this.do("picture.change", { data: base64(new Uint8Array(b)), name: f.name, ids: [id] }));
+      if (f) void pictureFromFile(f, OFFICE_PICTURES).then((p) => this.do("picture.change", { data: base64(p.bytes), name: p.name, ids: [id] }), () => undefined);
     });
     this.row(d, "", this.button(t("pptxcraft.removeBackground"), () => this.do("picture.removeBackground", { ids: [id] })), this.button(t("pptxcraft.changePicture"), () => file.click()), this.button(t("pptxcraft.reset"), () => this.do("picture.reset", { ids: [id] })), this.button(t("pptxcraft.compress"), () => this.do("picture.compress", { all: true })), file);
   }

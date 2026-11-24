@@ -6,6 +6,7 @@ import { richdocBinding } from "./richdoc-binding";
 import { t } from "../i18n";
 import { richdocPrintable, takeOverPrinting } from "./richdoc-print";
 import { getSettings, userName } from "../settings";
+import { OFFICE_PICTURES, pictureFromFile } from "../formats/picture-convert";
 
 // Load the browser language once (a dynamic import of the matching richdoc locale chunk; only
 // English is bundled). Started when this lazy editor chunk loads, awaited before the editor is
@@ -32,6 +33,7 @@ class DocxInstance implements EditorInstance {
         // Async factory inflates the .docx off the main thread before the (main-thread) parse.
         return createDocxEditorAsync(container, this.bytes, {
           onChange: ctx.onChange,
+          convertPicture: (file: File) => pictureFromFile(file, OFFICE_PICTURES),
           ...(this.fullscreen = new ReadingFullscreen(container)).options(),
           author: userName(),
           fonts: richdocFonts(),

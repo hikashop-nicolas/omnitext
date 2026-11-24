@@ -5,6 +5,7 @@ import type { EditorInstance, EditorMountContext, EditorModule, ExportTarget, Ho
 import { getLocale, t } from "../i18n";
 import { formDialog, messageDialog, saveFile } from "./pdfcraft-tools";
 import { SlideFonts } from "./pptxcraft-fonts";
+import { OFFICE_PICTURES, pictureFor } from "../formats/picture-convert";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
 import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, type IconName } from "./pptxcraft-ui";
@@ -1790,9 +1791,18 @@ class PptxCraftInstance implements EditorInstance {
     const file = this.fileInput.files?.[0];
     this.fileInput.value = "";
     if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const kind = this.pickKind;
-    const r = (await this.cmd(`insert.${kind === "image" ? "picture" : kind}`, { name: file.name, data: base64(bytes) })) as { id?: number } | undefined;
+    let name = file.name;
+    let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
+    if (kind === "image") {
+      try {
+        ({ name, bytes } = await pictureFor(name, bytes, OFFICE_PICTURES));
+      } catch (e) {
+        this.host.notifications.error(t("pptxcraft.editFailed", { message: message(e) }));
+        return;
+      }
+    }
+    const r = (await this.cmd(`insert.${kind === "image" ? "picture" : kind}`, { name, data: base64(bytes) })) as { id?: number } | undefined;
     // played from these bytes until the file is saved and opened again
     if (kind !== "image") {
       const entry = { bytes, mime: file.type, name: file.name.toLowerCase() };
