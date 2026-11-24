@@ -9,7 +9,7 @@ import { OFFICE_PICTURES, pictureFor } from "../formats/picture-convert";
 import { videoPosterPng } from "./video-poster";
 import { Inspector, type InspectorHost } from "./pptxcraft-inspector";
 import { ShowRunner, type ShowHost, type Surface } from "./pptxcraft-show";
-import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, type IconName } from "./pptxcraft-ui";
+import { base64, colorMenu, el, icon, iconButton, overflowRow, popupMenu, unbase64, type IconName } from "./pptxcraft-ui";
 
 // The presentation editor on DeckCraft's engine. The engine (wasm, in a worker) owns the document, the undo history and the
 // pointer tools; this file draws the chrome around it: the slide, its selection handles and caret, the slide strip, the
@@ -415,6 +415,7 @@ class PptxCraftInstance implements EditorInstance {
       }
       const info = await this.session.load(name, bytes.slice());
       await this.scanFonts(bytes);
+      await this.convertPictures();
       await this.refresh(true);
       this.fit();
       this.syncSlides();
@@ -424,6 +425,26 @@ class PptxCraftInstance implements EditorInstance {
     } finally {
       this.endBusy();
     }
+  }
+
+  /**
+   * The engine is built without TIFF and WebP decoders: such pictures (old decks, Office's WebP) are converted
+   * here and the engine draws the copy, while the file keeps the original. True when something was converted.
+   */
+  private async convertPictures(): Promise<boolean> {
+    const session = this.session;
+    if (!session) return false;
+    const list = (await session.execute("media.undecodable", {}).catch(() => [])) as { media: number; name: string; data: string }[];
+    if (!Array.isArray(list) || !list.length) return false;
+    for (const p of list) {
+      try {
+        const pic = await pictureFor(p.name, unbase64(p.data), ["png", "jpeg"]);
+        await session.execute("media.setDisplay", { media: p.media, data: base64(pic.bytes) });
+      } catch {
+        // stays an empty frame, as any picture the engine can't read
+      }
+    }
+    return true;
   }
 
   /** Loads the Japanese, Korean or Simplified Chinese face the first time `text` needs it. */
@@ -669,6 +690,11 @@ class PptxCraftInstance implements EditorInstance {
       const typed = (params as { text?: unknown } | null)?.text;
       if (typeof typed === "string") await this.needFonts(typed);
       const r = await session.execute(id, params);
+      // Slides reused from another file or pasted in can bring pictures the engine can't decode.
+      if ((id === "slide.reuse" || id === "edit.paste") && (await this.convertPictures())) {
+        this.renderedKey = "";
+        slides = true;
+      }
       if (slides) this.syncSlides(true);
       await this.refresh();
       return r;
