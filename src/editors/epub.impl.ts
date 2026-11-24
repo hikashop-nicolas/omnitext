@@ -66,7 +66,11 @@ class EpubInstance implements EditorInstance {
       return;
     }
     try {
-      const ePub = (await import("@intity/epub-js")).default;
+      // epub-js's ESM entry is Babel-built CommonJS: depending on the bundler's interop, the default
+      // export is the ePub function or the exports object holding it as `default`.
+      type EPub = (typeof import("@intity/epub-js"))["default"];
+      const mod = (await import("@intity/epub-js")).default as EPub | { default: EPub };
+      const ePub: EPub = typeof mod === "function" ? mod : mod.default;
       const book = ePub(bytes.slice().buffer as ArrayBuffer);
       await book.opened;
       if (!this.wrap) {

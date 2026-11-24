@@ -78,7 +78,10 @@ export async function parseEml(bytes: Uint8Array): Promise<NormEmail> {
 }
 
 async function parseMsg(bytes: Uint8Array): Promise<NormEmail> {
-  const { default: MsgReader } = await import("@kenjiuno/msgreader");
+  // Babel-built CommonJS: depending on the bundler's interop the default export is the class or an object holding it.
+  type Reader = (typeof import("@kenjiuno/msgreader"))["default"];
+  const mod = (await import("@kenjiuno/msgreader")).default as Reader | { default: Reader };
+  const MsgReader: Reader = typeof mod === "function" ? mod : mod.default;
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const data = new MsgReader(buf).getFileData();
   const label = (r: { name?: string; email?: string }) =>
