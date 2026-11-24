@@ -1,0 +1,10 @@
+New in this update:
+
+• Edit MIDI files and save them back, with your playing kept
+• PDFs play the sounds and videos embedded in them
+• Add any photo to a PDF, slide, spreadsheet or document, iPhone HEIC included
+• Open JPEG XL pictures
+• Open Excel macro workbooks (.xlsm) and templates
+• PDF forms open faster, on the latest PDF engine
+
+Still offline unless you choose to share or get fonts.
