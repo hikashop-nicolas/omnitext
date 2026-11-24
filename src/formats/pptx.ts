@@ -1,8 +1,6 @@
 import type { FormatDescriptor } from "../core/types";
 
-// PowerPoint presentations: edited by pptxcraft where the engine is built in, else shown read-only by the pptx editor
-// (@aiden0z/pptx-renderer, Apache-2.0) as a scrollable list of DOM/SVG slides,
-// with a fullscreen presentation mode.
+// PowerPoint presentations, edited by pptxcraft on DeckCraft's engine. A build without the engine opens them as bytes.
 export const pptxFormat: FormatDescriptor = {
   manifest: {
     kind: "format",
@@ -10,7 +8,7 @@ export const pptxFormat: FormatDescriptor = {
     extensions: [".pptx"],
     mimeTypes: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
     binary: true,
-    nativeEditor: "pptx",
+    nativeEditor: "pptxcraft",
     viewAdapters: ["pptx"],
   },
   detect: () => 0, // detected by extension

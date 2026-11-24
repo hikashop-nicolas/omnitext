@@ -161,8 +161,8 @@ file needs it.
   XLS goes through a SheetJS-backed grid.
 - **RTF** (read-only): [rtf.js](https://github.com/tbluemel/rtf.js).
 - **PPTX**: edited on DeckCraft's engine (pptxcraft: slide strip, format panel, insert and tools menus, slideshow with
-  transitions and animations, presenter view). Builds without the engine fall back to a read-only slide list
-  ([pptx-renderer](https://github.com/aiden0z/pptx-renderer)). The plan is in `_plans/PPTX_EDITING_PLAN.md`.
+  transitions and animations, presenter view). Builds without the engine open them as bytes. The plan is in
+  `_plans/PPTX_EDITING_PLAN.md`.
 - **EPUB** (read-only): paginated pages via [epub-js](https://github.com/intity/epub-js).
   MOBI, AZW3 and FB2 (DRM-free only) via
   [foliate-js](https://github.com/johnfactotum/foliate-js).

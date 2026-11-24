@@ -35,7 +35,6 @@
     "vitest": "^5.1.0"
   },
   "dependencies": {
-    "@aiden0z/pptx-renderer": "^1.4.0",
     "@capacitor/core": "^8.6.2",
     "@capacitor/filesystem": "^8.1.5",
     "@capacitor/share": "^8.0.3",
