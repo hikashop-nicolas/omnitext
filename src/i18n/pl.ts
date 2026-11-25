@@ -1157,7 +1157,7 @@ const pl: Dict = {
     zoom: "Rozmiar tekstu",
     zoomPercent: "Rozmiar tekstu w procentach",
     position: "Wiersz {line}, kolumna {col}",
-    positionShort: "Wrsz {line}, kol {col}",
+    positionShort: "Wiersz {line}, kol. {col}",
     search: "Znajdź i zamień",
     fullscreen: "Pełny ekran",
     exitFullscreen: "Zamknij pełny ekran",
