@@ -28,7 +28,7 @@ uploaded, there is no account, and no file ever fails to open.
 - **It works offline.** Visit it once and it keeps working without a connection. Installed
   from your browser menu, it also joins your computer's "Open with" menu.
 - **It speaks your language.** English, French, Japanese, Spanish, German, Portuguese,
-  Russian and Simplified Chinese, picked automatically.
+  Russian, Simplified Chinese, Italian, Polish, Korean and Turkish, picked automatically.
 - **Your edits are kept.** Nothing is saved over your file until you say so, but the work in
   progress survives a crash or a closed tab.
 

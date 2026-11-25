@@ -8,6 +8,10 @@ import de from "./de";
 import pt from "./pt";
 import ru from "./ru";
 import zh from "./zh";
+import it_ from "./it";
+import pl from "./pl";
+import ko from "./ko";
+import tr from "./tr";
 import type { Dict } from "./index";
 
 const LOCALES: [string, Dict][] = [
@@ -18,6 +22,10 @@ const LOCALES: [string, Dict][] = [
   ["pt", pt],
   ["ru", ru],
   ["zh", zh],
+  ["it", it_],
+  ["pl", pl],
+  ["ko", ko],
+  ["tr", tr],
 ];
 
 const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"];
