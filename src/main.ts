@@ -1,6 +1,7 @@
 import "./app.css";
 import { detectArchiveKind, readArchiveAsync, writeArchiveAsync } from "./core/archive";
 import { gunzipAsync, gzipAsync } from "./core/zip";
+import { contentFormatFor } from "./core/sniff";
 import { bootDocument } from "./core/boot";
 import { printDocument, printPdfBytes } from "./core/print";
 import { installBundledOcrEngine } from "./ocr-engine";
@@ -1044,6 +1045,24 @@ async function openBuffer(
       uri: `${scheme}://${filename}`,
       fileHandle: handle,
       mime,
+      gzipName,
+    });
+    return;
+  }
+  // The name says nothing (.bin, none, unknown) or binary bytes sit behind a text extension: go by content.
+  const sniffed = contentFormatFor(new Uint8Array(buffer), filename, engine.formats);
+  if (sniffed) {
+    const sniffedId = sniffed.manifest.id;
+    if (sniffedId === "pdf" && (await openScorePdf(buffer, filename, scheme, handle))) return;
+    await mountDoc({
+      bytes: new Uint8Array(buffer),
+      binary: true,
+      formatId: sniffedId,
+      filename,
+      encoding: { label: "binary", bom: false },
+      uri: `${scheme}://${filename}`,
+      fileHandle: handle,
+      // No mime: the OS type (often octet-stream) misled us, so the format supplies its own.
       gzipName,
     });
     return;
