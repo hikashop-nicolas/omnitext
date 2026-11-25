@@ -46,6 +46,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const nameEl = $("setting-name") as HTMLInputElement;
   const pageSizeEl = $("setting-pagesize") as HTMLSelectElement;
   const paginatedEl = $("setting-paginated") as HTMLInputElement;
+  const sheetFormulasEl = $("setting-sheetformulas") as HTMLSelectElement;
   const themeEl = $("setting-theme") as HTMLSelectElement;
   const aiEl = $("setting-ai") as HTMLSelectElement;
   const mapEl = $("setting-map") as HTMLSelectElement;
@@ -207,6 +208,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
     nameEl.value = s.name;
     pageSizeEl.value = s.pageSize;
     paginatedEl.checked = s.paginated;
+    sheetFormulasEl.value = s.sheetFormulas;
     themeEl.value = s.theme;
     aiEl.value = s.aiDownloads;
     mapEl.value = s.mapBasemap;
@@ -252,6 +254,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       name: nameEl.value.trim(),
       pageSize: pageSizeEl.value === "letter" ? "letter" : "a4",
       paginated: paginatedEl.checked,
+      sheetFormulas: sheetFormulasEl.value === "en" ? "en" : "app",
       theme,
       turn,
       aiDownloads: aiEl.value === "allow" ? "allow" : aiEl.value === "deny" ? "deny" : "ask",

@@ -159,6 +159,13 @@
                   </select>
                 </label>
                 <label class="modal-field modal-check"><input id="setting-paginated" type="checkbox" /> <span data-i18n="app.paginated">Show pages (paginated view)</span></label>
+                <label class="modal-field"><span class="settings-label"><span data-i18n="app.sheetConventions">Spreadsheet formulas and numbers</span><button class="settings-info" type="button" data-tip="tip-sheetformulas" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span>
+                  <select id="setting-sheetformulas">
+                    <option value="app" data-i18n="app.sheetConvApp">Follow the app language</option>
+                    <option value="en" data-i18n="app.sheetConvEn">English (SUM, 1,234.5)</option>
+                  </select>
+                </label>
+                <p class="settings-tip-text" id="tip-sheetformulas" data-i18n="app.sheetConvHint" hidden>In French, for example, formulas read =SOMME(A1;0,5) and numbers 1 234,5. Choose English to keep =SUM(A1,0.5) and 1,234.5 whatever the app language. Files store the English form either way. Applies to spreadsheets opened from now on.</p>
                 <label class="modal-field"><span class="settings-label"><span data-i18n="app.aiDownloads">Downloads for AI features</span><button class="settings-info" type="button" data-tip="tip-ai" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span>
                   <select id="setting-ai">
                     <option value="ask" data-i18n="app.aiAsk">Ask first</option>

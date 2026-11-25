@@ -348,6 +348,7 @@ vi.mock("sheetedit", () => ({
     return Promise.resolve(editor);
   },
   setLocale: () => undefined,
+  setRegionalLocale: () => undefined,
 }));
 
 async function baseDoc(): Promise<BaseDoc> {

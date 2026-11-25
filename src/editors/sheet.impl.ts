@@ -1,8 +1,9 @@
 import { isNative } from "../core/platform";
 import { ReadingFullscreen } from "./reading-fullscreen";
 import { richdocFonts } from "./richdoc-fonts";
-import { createSheetEditorAsync, setLocale, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
+import { createSheetEditorAsync, setLocale, setRegionalLocale, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
 import { getLocale } from "../i18n";
+import { getSettings } from "../settings";
 import type * as Y from "yjs";
 import type {
   CollabBinding,
@@ -86,8 +87,10 @@ class SheetInstance implements EditorInstance {
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
     const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
-    // The app's language also sets how numbers, dates and formulas read: "=SOMME(A1;0,5)" in French.
+    // The app's language also sets how numbers, dates and formulas read: "=SOMME(A1;0,5)" in French,
+    // unless the settings keep them English.
     setLocale(getLocale());
+    setRegionalLocale(getSettings().sheetFormulas === "en" ? "en" : null);
     // Async factory inflates a zip-based workbook off the main thread before the parse.
     void createSheetEditorAsync(container, this.bytes, {
       onChange: ctx.onChange,

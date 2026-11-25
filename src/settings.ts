@@ -14,6 +14,8 @@ export interface Settings {
   pageSize: PageSize;
   /** Paginated (page cards) vs a single continuous page in the rich-document editor. */
   paginated: boolean;
+  /** Spreadsheet formulas and numbers: the app language's way ("=SOMME(A1;0,5)" in French) or English. */
+  sheetFormulas: "app" | "en";
   /** Color theme: follow the OS, or force light/dark. */
   theme: Theme;
   /**
@@ -43,6 +45,7 @@ const DEFAULTS: Settings = {
   name: "",
   pageSize: "a4",
   paginated: true,
+  sheetFormulas: "app",
   theme: "system",
   turn: { url: "", username: "", credential: "" },
   aiDownloads: "ask",
