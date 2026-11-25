@@ -363,6 +363,23 @@ export const PAGES = [
     ],
   },
   {
+    id: "images",
+    formats: ["png", "jpeg", "gif", "webp", "avif", "jxl", "bmp", "icon"],
+    name: "picture",
+    headline: "View and edit a picture in your browser",
+    summary:
+      "Open PNG, JPEG, GIF, WebP and other pictures, read the text in them, and crop, rotate or touch them up, with nothing uploaded.",
+    lead: "Pictures open at once, fitted to the window, with zoom one click away. Omnitext can read the text in a photo or a scan, decode a QR code or barcode in it, and switch to an editor to crop, rotate, resize, filter or annotate, then save the picture back.",
+    can: [
+      "Zoom in and out, and see the picture at its real size",
+      "Read the text in a photo or scan (OCR), and translate it, on your device",
+      "Decode a QR code or barcode shown in the picture",
+      "Crop, rotate, flip, resize, adjust, filter and draw on it, then save",
+      "Turn a photo of printed sheet music into a score",
+    ],
+    note: "Editing saves the picture again: an animated GIF keeps only its first frame, and a format the editor can't write (AVIF, JPEG XL, ICO) is saved as PNG. Text recognition and translation download their small models the first time, after asking.",
+  },
+  {
     id: "svg",
     shot: {
       name: "svg",

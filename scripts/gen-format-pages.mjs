@@ -280,7 +280,7 @@ Omnitext to your computer's "Open with" menu. There is an Android app as well.</
 const GROUPS = [
   { title: "Documents", ids: ["pdf", "docx", "odt", "pptx", "markdown", "html", "latex", "epub", "kindle-ebooks"] },
   { title: "Spreadsheets and data", ids: ["xlsx", "ods", "csv", "sqlite", "parquet", "ipynb", "json"] },
-  { title: "Pictures and drawings", ids: ["svg", "psd", "heic", "camera-raw", "tiff", "illustrator", "dwg", "dxf", "3d-models", "dicom"] },
+  { title: "Pictures and drawings", ids: ["images", "svg", "psd", "heic", "camera-raw", "tiff", "illustrator", "dwg", "dxf", "3d-models", "dicom"] },
   { title: "Audio, video and subtitles", ids: ["video", "audio", "srt", "vtt", "ass"] },
   { title: "Sheet music", ids: ["musicxml", "mscz", "guitarpro", "midi", "abc", "sheet-music-pdf"] },
   { title: "Maps", ids: ["geojson", "kml", "gpx"] },
