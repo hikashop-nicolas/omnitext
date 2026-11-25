@@ -44,6 +44,8 @@ const pt: Dict = {
     themeSystem: "Do sistema",
     themeLight: "Claro",
     themeDark: "Escuro",
+    darkDocuments: "Páginas de documentos escuras no modo escuro",
+    darkDocumentsHint: "Por predefinição, os documentos, as folhas de cálculo e as páginas PDF mantêm as cores escolhidas pelo autor, claras como na impressão, enquanto o resto da aplicação fica escuro. Ative esta opção para os mostrar também escuros: o texto fica claro numa página escura e as imagens mantêm as cores.",
     aiDownloads: "Transferências das funções de IA",
     aiAsk: "Perguntar primeiro",
     aiAllow: "Permitidas",

@@ -44,6 +44,8 @@ const ja: Dict = {
     themeSystem: "システム",
     themeLight: "ライト",
     themeDark: "ダーク",
+    darkDocuments: "ダークモードで文書ページも暗く表示",
+    darkDocumentsHint: "既定では、文書、表計算、PDF のページは作成者が選んだ色のまま、印刷と同じく明るく表示され、アプリのそれ以外の部分だけが暗くなります。オンにすると、それらも暗く表示されます。文字は暗いページの上で明るくなり、画像の色はそのまま保たれます。",
     aiDownloads: "AI 機能のダウンロード",
     aiAsk: "最初に確認する",
     aiAllow: "許可",

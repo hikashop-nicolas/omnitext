@@ -6,7 +6,7 @@ import { bootDocument } from "./core/boot";
 import { printDocument, printPdfBytes } from "./core/print";
 import { installBundledOcrEngine } from "./ocr-engine";
 import { installRemoteConsent } from "./remote-consent";
-import { initSettingsDialog } from "./settings-dialog";
+import { applyDocumentCanvas, initSettingsDialog } from "./settings-dialog";
 import { OmnitextEngine } from "./core/engine";
 import { decodeBytes, detectLineEnding, encodeText, exceedsTextDecodeLimit, hasUtf16Bom, looksBinary, looksUtf16, ENCODINGS, type LineEnding } from "./core/encoding";
 import {
@@ -2386,6 +2386,7 @@ const remountForTheme = (): void => {
   if (session?.editorId && !session.binary) void changeEditor(session.editorId, { force: true });
 };
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  applyDocumentCanvas();
   if (getSettings().theme === "system") remountForTheme();
 });
 

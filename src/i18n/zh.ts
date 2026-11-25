@@ -48,6 +48,8 @@ const zh: Dict = {
     themeSystem: "跟随系统",
     themeLight: "浅色",
     themeDark: "深色",
+    darkDocuments: "深色模式下文档页面也显示为深色",
+    darkDocumentsHint: "默认情况下，文档、电子表格和 PDF 页面保留作者选择的颜色，与打印效果一样为浅色，而应用的其余部分为深色。开启此选项后，它们也会显示为深色：文字在深色页面上变为浅色，图片保留原有颜色。",
     aiDownloads: "AI 功能的下载",
     aiAsk: "先询问",
     aiAllow: "允许",

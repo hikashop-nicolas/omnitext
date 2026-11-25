@@ -44,6 +44,8 @@ const en: Dict = {
     themeSystem: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    darkDocuments: "Dark document pages in dark mode",
+    darkDocumentsHint: "By default, documents, spreadsheets and PDF pages keep the colours their author chose, light as they print, while the rest of the app is dark. Turn this on to show them dark too: text turns light on a dark page, and pictures keep their colours.",
     aiDownloads: "Downloads for AI features",
     aiAsk: "Ask first",
     aiAllow: "Allowed",

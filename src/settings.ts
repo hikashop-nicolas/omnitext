@@ -18,6 +18,8 @@ export interface Settings {
   sheetFormulas: "app" | "en";
   /** Color theme: follow the OS, or force light/dark. */
   theme: Theme;
+  /** In dark mode, show document pages, sheets and PDF pages dark too, instead of as authored. */
+  darkDocuments: boolean;
   /**
    * A relay (TURN) server for collaboration, supplied by whoever is using the app.
    *
@@ -47,6 +49,7 @@ const DEFAULTS: Settings = {
   paginated: true,
   sheetFormulas: "app",
   theme: "system",
+  darkDocuments: false,
   turn: { url: "", username: "", credential: "" },
   aiDownloads: "ask",
   mapBasemap: "ask",

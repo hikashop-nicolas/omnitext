@@ -44,6 +44,8 @@ const fr: Dict = {
     themeSystem: "Système",
     themeLight: "Clair",
     themeDark: "Sombre",
+    darkDocuments: "Pages de documents sombres en mode sombre",
+    darkDocumentsHint: "Par défaut, les documents, les tableurs et les pages PDF gardent les couleurs choisies par leur auteur, claires comme à l’impression, alors que le reste de l’application est sombre. Activez cette option pour les afficher en sombre aussi : le texte devient clair sur une page sombre, et les images gardent leurs couleurs.",
     aiDownloads: "Téléchargements des fonctions d'IA",
     aiAsk: "Demander d'abord",
     aiAllow: "Autorisés",

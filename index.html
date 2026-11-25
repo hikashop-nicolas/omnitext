@@ -6,6 +6,9 @@
       try {
         var s = JSON.parse(localStorage.getItem("omnitext:settings") || "{}");
         if (s.theme === "light" || s.theme === "dark") document.documentElement.dataset.theme = s.theme;
+        // Dark document pages (a setting), only while the app itself is dark.
+        var dark = s.theme === "dark" || (s.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (s.darkDocuments && dark) document.documentElement.dataset.docCanvas = document.documentElement.dataset.sheetCanvas = "dark";
       } catch (e) {}
     </script>
     <meta charset="utf-8" />
@@ -152,6 +155,8 @@
                     <option value="dark" data-i18n="app.themeDark">Dark</option>
                   </select>
                 </label>
+                <label class="modal-field modal-check"><input id="setting-darkdocs" type="checkbox" /> <span class="settings-label"><span data-i18n="app.darkDocuments">Dark document pages in dark mode</span><button class="settings-info" type="button" data-tip="tip-darkdocs" data-i18n-aria="app.moreInfo" aria-label="More information"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></button></span></label>
+                <p class="settings-tip-text" id="tip-darkdocs" data-i18n="app.darkDocumentsHint" hidden>By default, documents, spreadsheets and PDF pages keep the colours their author chose, light as they print, while the rest of the app is dark. Turn this on to show them dark too: text turns light on a dark page, and pictures keep their colours.</p>
                 <label class="modal-field"><span data-i18n="app.pageSize">Default page size</span>
                   <select id="setting-pagesize">
                     <option value="a4" data-i18n="app.pageSizeA4">A4</option>

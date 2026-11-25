@@ -44,6 +44,8 @@ const de: Dict = {
     themeSystem: "System",
     themeLight: "Hell",
     themeDark: "Dunkel",
+    darkDocuments: "Dunkle Dokumentseiten im dunklen Modus",
+    darkDocumentsHint: "Standardmäßig behalten Dokumente, Tabellen und PDF-Seiten die Farben, die ihr Autor gewählt hat, hell wie im Druck, während der Rest der App dunkel ist. Aktivieren Sie diese Option, um sie ebenfalls dunkel anzuzeigen: Text wird hell auf einer dunklen Seite, Bilder behalten ihre Farben.",
     aiDownloads: "Downloads für KI-Funktionen",
     aiAsk: "Vorher fragen",
     aiAllow: "Erlaubt",

@@ -39,6 +39,18 @@ export function applyThemeAttribute(theme: Theme): void {
   else document.documentElement.dataset.theme = theme;
 }
 
+/** Mark the root for dark document pages (data-doc-canvas, and sheetedit's data-sheet-canvas)
+ *  when the setting is on and the app is dark; they show as authored otherwise. */
+export function applyDocumentCanvas(): void {
+  const s = getSettings();
+  const dark = s.theme === "dark" || (s.theme === "system" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const root = document.documentElement;
+  for (const k of ["docCanvas", "sheetCanvas"] as const) {
+    if (s.darkDocuments && dark) root.dataset[k] = "dark";
+    else delete root.dataset[k];
+  }
+}
+
 export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const dlgEl = $("settingsdlg");
   // The link lives in one place (core/links), not hardcoded in the markup as well.
@@ -48,6 +60,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
   const paginatedEl = $("setting-paginated") as HTMLInputElement;
   const sheetFormulasEl = $("setting-sheetformulas") as HTMLSelectElement;
   const themeEl = $("setting-theme") as HTMLSelectElement;
+  const darkDocsEl = $("setting-darkdocs") as HTMLInputElement;
   const aiEl = $("setting-ai") as HTMLSelectElement;
   const mapEl = $("setting-map") as HTMLSelectElement;
   const soundsEl = $("setting-sounds") as HTMLSelectElement;
@@ -210,6 +223,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
     paginatedEl.checked = s.paginated;
     sheetFormulasEl.value = s.sheetFormulas;
     themeEl.value = s.theme;
+    darkDocsEl.checked = s.darkDocuments;
     aiEl.value = s.aiDownloads;
     mapEl.value = s.mapBasemap;
     soundsEl.value = s.instrumentSounds;
@@ -256,6 +270,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       paginated: paginatedEl.checked,
       sheetFormulas: sheetFormulasEl.value === "en" ? "en" : "app",
       theme,
+      darkDocuments: darkDocsEl.checked,
       turn,
       aiDownloads: aiEl.value === "allow" ? "allow" : aiEl.value === "deny" ? "deny" : "ask",
       mapBasemap: mapEl.value === "allow" ? "allow" : mapEl.value === "deny" ? "deny" : "ask",
@@ -264,6 +279,7 @@ export function initSettingsDialog(host: SettingsDialogHost): SettingsDialog {
       midiDelayMs: Math.max(-300, Math.min(300, Math.round(Number(midiDelayEl.value) || 0))),
       soundDelayMs: Math.max(0, Math.min(500, Math.round(Number(soundDelayEl.value) || 0))),
     });
+    applyDocumentCanvas();
     if (themeChanged) {
       applyThemeAttribute(theme);
       host.onThemeChanged(theme);
