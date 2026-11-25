@@ -792,6 +792,22 @@ export const PAGES = [
     ],
   },
   {
+    id: "html",
+    formats: ["html"],
+    name: "HTML",
+    headline: "Open and edit an HTML page in your browser",
+    summary:
+      "Edit a web page as rich text or as source, and see it rendered safely, with nothing uploaded and no account.",
+    lead: "An .html file opens as a formatted page you can type into. Its source is one click away in a real code editor, and a preview shows the page as a browser draws it, with its scripts switched off, so a file from somewhere you don't trust can't run anything.",
+    can: [
+      "Edit the page as rich text: headings, bold, lists, links",
+      "Edit the source with highlighting, folding and search, byte for byte",
+      "Preview the page rendered, with its scripts kept off",
+      "Print or save as PDF",
+    ],
+    note: "Rich text suits simple pages: once you edit there, the HTML is rewritten to what a text editor supports, and anything else (scripts, forms, layout) is dropped. Edit in the source view to keep the page exactly as it was. Opening a page and only reading it changes nothing.",
+  },
+  {
     id: "latex",
     shot: {
       name: "latex",
