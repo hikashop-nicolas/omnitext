@@ -116,6 +116,12 @@ footer { margin-top:3rem; padding-top:1.25rem; border-top:1px solid var(--line);
 .grid a { display:block; padding:.75rem .9rem; border:1px solid var(--line); border-radius:9px;
   text-decoration:none; background:var(--card); }
 .grid strong { display:block; color:var(--fg); }
+.grid a { position:relative; }
+.grid .edit, .legend .edit { display:inline-flex; color:var(--accent); }
+.grid .edit { position:absolute; top:.6rem; right:.65rem; }
+.grid .edit + strong { padding-right:1.4rem; }
+.grid .edit svg, .legend .edit svg { width:1rem; height:1rem; }
+.legend { display:flex; align-items:center; gap:.4rem; color:var(--muted); font-size:.92rem; }
 .grid span { color:var(--muted); font-size:.88rem; }
 code { background:var(--card); padding:.1rem .35rem; border-radius:4px; font-size:.9em; }
 figure { margin:1.75rem 0; }
@@ -281,6 +287,10 @@ const GROUPS = [
   { title: "Mail, calendars and everything else", ids: ["eml", "msg", "calendar-contacts", "wallet-passes", "archives", "fonts", "torrent", "code"] },
 ];
 
+/** The pencil that marks a format Omnitext edits (not only shows). */
+const PENCIL =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+
 /** A card shows a few of its extensions; the code editor's page, which has well over a hundred, shows the count. */
 function cardExtensions(page, exts) {
   return page.formatsByEditor ? `${exts.length} file extensions` : exts.slice(0, 4).join(" ");
@@ -290,7 +300,9 @@ function indexPage(pages, manifests) {
   const byId = new Map(pages.map((p) => [p.id, p]));
   const grouped = GROUPS.map((g) => ({ ...g, pages: g.ids.map((id) => byId.get(id)) }));
   const card = (p) =>
-    `<li><a href="formats/${esc(p.id)}.html"><strong>${esc(p.name)}</strong><span>${esc(
+    `<li><a href="formats/${esc(p.id)}.html">${
+      p.viewOnly ? "" : `<i class="edit" title="Can be edited" aria-label="Can be edited" role="img">${PENCIL}</i>`
+    }<strong>${esc(p.name)}</strong><span>${esc(
       cardExtensions(p, extensionsFor(p, manifests)),
     )}</span></a></li>`;
   const body = `
@@ -300,6 +312,7 @@ drawings, sheet music, subtitles, maps, images and more. Nothing is uploaded, th
 is free and open source.</p>
 <a class="cta" href="index.html">Open Omnitext</a>
 ${figure({ name: "home", caption: "Omnitext when it opens: pick a file, or drop one on the page." }, "")}
+<p class="legend"><i class="edit" aria-hidden="true">${PENCIL}</i> Formats with a pencil can be edited and saved back; the others open in a viewer.</p>
 ${grouped
     .map((g) => `<h2>${esc(g.title)}</h2>\n<ul class="grid">${g.pages.map(card).join("")}</ul>`)
     .join("\n")}
