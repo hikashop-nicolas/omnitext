@@ -755,12 +755,9 @@ export const PAGES = [
         "A Python file open in the code editor, with highlighting and folding.",
     },
     name: "source code",
-    formats: [
-      "javascript", "typescript", "python", "c", "cpp", "java", "csharp", "php", "rust",
-      "go", "ruby", "swift", "kotlin", "sql", "shell", "html", "css", "yaml", "xml",
-      "toml", "ini", "vue", "svelte", "powershell", "lua", "perl", "haskell", "scala",
-      "dart", "clojure", "erlang", "graphql", "asciidoc", "log", "diff", "dotenv", "properties", "json5",
-    ],
+    // Every format the code editor opens natively that has no page of its own, read from the app.
+    formatsByEditor: "codemirror",
+    formats: [],
     headline: "Open a code file with syntax highlighting",
     summary:
       "Read and edit source code in the browser with syntax highlighting for 70+ languages. No upload, no account, works offline.",

@@ -183,14 +183,23 @@ upload, no tracking. <a href="${REPO}">Source on GitHub</a> ·
 }
 
 /** Extensions a page may advertise: every one comes from the registry, none is invented. */
-function extensionsFor(page, manifests) {
-  const all = page.formats.flatMap((id) => manifests.get(id).extensions).filter(Boolean);
-  return [...new Set(all)];
+/** Fills `formats` for a page that lists every format an editor opens natively (`formatsByEditor`), except those another page covers. */
+function resolveEditorPages(pages, manifests) {
+  const claimed = new Set(pages.filter((p) => !p.formatsByEditor).flatMap((p) => p.formats));
+  for (const page of pages.filter((p) => p.formatsByEditor)) {
+    page.formats = [...manifests.values()]
+      .filter((m) => m.nativeEditor === page.formatsByEditor && !claimed.has(m.id) && (m.extensions ?? []).length)
+      .map((m) => m.id)
+      .sort();
+  }
 }
 
-// A page covering 60 languages would otherwise print 150 extensions, which reads as noise
-// and buries the ones people recognise.
-const EXT_SHOWN = 16;
+function extensionsFor(page, manifests) {
+  const all = [...new Set(page.formats.flatMap((id) => manifests.get(id).extensions).filter(Boolean))];
+  // A page built from the app's list (well over a hundred) reads best in alphabetical order.
+  return page.formatsByEditor ? all.sort() : all;
+}
+
 
 function formatPage(page, manifests) {
   const exts = extensionsFor(page, manifests);
@@ -219,9 +228,9 @@ ${
 </ol>
 <div class="facts">
   <dl>
-    <dt>Opens</dt><dd>${
-      exts.slice(0, EXT_SHOWN).map((e) => `<code>${esc(e)}</code>`).join(" ") || "none"
-    }${exts.length > EXT_SHOWN ? ` and ${exts.length - EXT_SHOWN} more` : ""}</dd>
+    <dt>Opens</dt><dd>${exts.length > 12 ? `${exts.length} extensions: ` : ""}${
+      exts.map((e) => `<code>${esc(e)}</code>`).join(" ") || "none"
+    }</dd>
     <dt>Runs</dt><dd>In your browser. The file is not uploaded anywhere.</dd>
     <dt>Costs</dt><dd>Nothing, and there is no account to make.</dd>
   </dl>
@@ -272,12 +281,17 @@ const GROUPS = [
   { title: "Mail, calendars and everything else", ids: ["eml", "msg", "calendar-contacts", "wallet-passes", "archives", "fonts", "torrent", "code"] },
 ];
 
+/** A card shows a few of its extensions; the code editor's page, which has well over a hundred, shows the count. */
+function cardExtensions(page, exts) {
+  return page.formatsByEditor ? `${exts.length} file extensions` : exts.slice(0, 4).join(" ");
+}
+
 function indexPage(pages, manifests) {
   const byId = new Map(pages.map((p) => [p.id, p]));
   const grouped = GROUPS.map((g) => ({ ...g, pages: g.ids.map((id) => byId.get(id)) }));
   const card = (p) =>
     `<li><a href="formats/${esc(p.id)}.html"><strong>${esc(p.name)}</strong><span>${esc(
-      extensionsFor(p, manifests).slice(0, 4).join(" "),
+      cardExtensions(p, extensionsFor(p, manifests)),
     )}</span></a></li>`;
   const body = `
 <h1>Every format Omnitext opens</h1>
@@ -309,6 +323,7 @@ file you give it, and anything it does not recognise still opens, as text or as 
 
 const { byId: manifests, skipped } = await loadManifests();
 
+resolveEditorPages(PAGES, manifests);
 const referenced = PAGES.flatMap((p) => p.formats);
 const unknown = referenced.filter((id) => !manifests.has(id)).map((id) => ({ id }));
 if (unknown.length) {
