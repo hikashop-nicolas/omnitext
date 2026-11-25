@@ -17,6 +17,10 @@
  * @property {string} lead      Opening paragraph.
  * @property {string[]} can     What you can actually do, most useful first.
  * @property {string} [note]    A caveat or a detail worth knowing. Optional.
+ * @property {string[]} [card] The extensions its card on the formats index shows, when the first
+ *                              few would be variants (.apng, .jpeg). Each must be one the page lists.
+ * @property {string} [formatsByEditor] Fill `formats` from the app: every format this editor
+ *                              opens natively that no other page covers (the source code page).
  * @property {boolean} [viewOnly] The format opens in a viewer and is never written back; the
  *                              page then says so instead of promising an edit and a save.
  * @property {{name: string, caption: string}} [shot] Screenshot in public/shots (name.webp
@@ -365,6 +369,8 @@ export const PAGES = [
   {
     id: "images",
     formats: ["png", "jpeg", "gif", "webp", "avif", "jxl", "bmp", "icon"],
+    // The card names the formats people know rather than the first few extensions (.apng, .jpeg).
+    card: [".png", ".jpg", ".gif", ".webp", ".avif", ".jxl"],
     name: "picture",
     headline: "View and edit a picture in your browser",
     summary:

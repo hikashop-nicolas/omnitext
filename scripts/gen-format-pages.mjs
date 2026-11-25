@@ -293,6 +293,7 @@ const PENCIL =
 
 /** A card shows a few of its extensions; the code editor's page, which has well over a hundred, shows the count. */
 function cardExtensions(page, exts) {
+  if (page.card) return page.card.join(" ");
   return page.formatsByEditor ? `${exts.length} file extensions` : exts.slice(0, 4).join(" ");
 }
 
@@ -346,6 +347,10 @@ if (unknown.length) {
       .map((p) => p.id)
       .join(", ")}. Remove the page or restore the format.${why}`,
   );
+}
+const badCards = PAGES.filter((p) => p.card?.some((e) => !extensionsFor(p, manifests).includes(e)));
+if (badCards.length) {
+  throw new Error(`these cards name extensions their page does not open: ${badCards.map((p) => p.id).join(", ")}`);
 }
 const empty = PAGES.filter((p) => extensionsFor(p, manifests).length === 0);
 if (empty.length) {
