@@ -850,11 +850,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 
 #new-score-opts .new-opt-select { margin-bottom: 0; }
 
-/* Dark document pages (a setting, only while the app is dark): the page's lightness is
+/* Dark document pages (a setting, only while the app is dark): the page's (and its rulers') lightness is
    inverted with its hues kept, as Okular's dark mode does, softened to a dark grey page with
    light grey text; pictures get the exact reverse filter, so they show as they are. */
 @media screen {
   :root[data-doc-canvas="dark"] .docxedit-page,
+  :root[data-doc-canvas="dark"] :is(.docxedit-ruler, .docxedit-tabtype),
   :root[data-doc-canvas="dark"] .ot-pc-slot canvas { filter: invert(1) hue-rotate(180deg) contrast(0.86); }
   :root[data-doc-canvas="dark"] .docxedit-page :is(img, video, canvas) { filter: contrast(1.163) hue-rotate(180deg) invert(1); }
   :root[data-doc-canvas="dark"] .docxedit-page { box-shadow: none; }
