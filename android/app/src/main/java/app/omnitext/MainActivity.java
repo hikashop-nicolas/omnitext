@@ -17,19 +17,25 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SystemBarsPlugin.class);
         super.onCreate(savedInstanceState);
         FileOpenerPlugin.handleIntent(this, getIntent());
-        // Back leaves a fullscreen page before it leaves the app.
+        // Back steps out inside the app first (fullscreen, a popup, the document); only the start screen exits.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (SystemBarsPlugin.immersive && getBridge() != null) {
-                    getBridge().getWebView().evaluateJavascript("document.fullscreenElement&&document.exitFullscreen()", null);
+                if (getBridge() == null) {
+                    exitBack(this);
                     return;
                 }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
+                getBridge().getWebView().evaluateJavascript(
+                    "window.omnitextBack ? window.omnitextBack() : false",
+                    value -> { if (!"true".equals(value)) exitBack(this); });
             }
         });
+    }
+
+    private void exitBack(OnBackPressedCallback cb) {
+        cb.setEnabled(false);
+        getOnBackPressedDispatcher().onBackPressed();
+        cb.setEnabled(true);
     }
 
     @Override

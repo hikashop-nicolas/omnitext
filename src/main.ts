@@ -187,6 +187,7 @@ declare global {
   interface Window {
     showOpenFilePicker?: (opts?: unknown) => Promise<FsHandle[]>;
     showSaveFilePicker?: (opts?: { suggestedName?: string }) => Promise<FsHandle>;
+    omnitextBack?: () => boolean;
   }
 }
 interface FsHandle {
@@ -1697,6 +1698,37 @@ async function goBack(): Promise<void> {
   );
 }
 
+/** One Android back step: fullscreen, then an open popup, then the document; false on the start screen. */
+function androidBack(): boolean {
+  if (document.fullscreenElement) {
+    void document.exitFullscreen();
+    return true;
+  }
+  if (viewPop) {
+    closeViewPop();
+    return true;
+  }
+  if (!paletteEl.hidden) {
+    closePalette();
+    return true;
+  }
+  const layer = [...document.querySelectorAll<HTMLElement>(".modal")].some((m) => !m.hidden) || !panelEl.hidden;
+  if (layer) {
+    // The open dialog or panel closes on Escape like on desktop.
+    (document.activeElement ?? document).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    return true;
+  }
+  if (navStack.length) {
+    void goBack();
+    return true;
+  }
+  if (!welcomeEl) {
+    void closeDocument();
+    return true;
+  }
+  return false;
+}
+
 // --- new document (format chosen up front) -----------------------------------
 
 // All formats that can be created blank: the curated text/data formats plus the long tail
@@ -2921,6 +2953,9 @@ async function start(): Promise<void> {
   // Fullscreen (a video, a slideshow) should own the whole screen on the phone: the
   // WebView leaves the system bars on top of it unless the app is told to hide them.
   document.addEventListener("fullscreenchange", () => void setImmersive(!!document.fullscreenElement));
+
+  // Android back steps out one level (fullscreen, a popup, the document); false lets the app close.
+  window.omnitextBack = androidBack;
 
   // A file opened while the app is already running arrives on the next resume; pull it then.
   document.addEventListener("visibilitychange", () => {
