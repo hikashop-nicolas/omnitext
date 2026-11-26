@@ -22,6 +22,17 @@ Read-only surfaces (preview, rtf, image, media, archive and hex viewers) carry a
 flag, so the app hides Save for them. Switching the View keeps the previous editor alive, so
 its undo history survives a round trip.
 
+A file is matched to a format by its extension first. When the name says nothing useful (`.bin`,
+no extension, `application/octet-stream`) or the bytes are binary behind a text extension,
+`src/core/sniff.ts` reads the head of the file (magic numbers, and the `mimetype` or
+`[Content_Types].xml` entry of a zip) and picks the format from its content.
+
+The app chrome follows the light/dark theme; documents are shown as authored (light, as they
+print). The "Dark document pages in dark mode" setting puts `data-doc-canvas="dark"` and
+sheetedit's `data-sheet-canvas="dark"` on the root while the app is dark: `src/app.css` then
+inverts the lightness of document and PDF pages (pictures turned back), and sheetedit uses its
+dark grid.
+
 Third-party editors load on demand: [svgedit](https://github.com/SVG-Edit/svgedit) for SVG,
 [latex.js](https://github.com/michael-brade/LaTeX.js) for the LaTeX preview,
 [rtf.js](https://github.com/tbluemel/rtf.js) for RTF, and
@@ -51,11 +62,26 @@ That is a courtesy, not a security boundary, and the app says so.
 ## In-house libraries
 
 The dedicated editor libraries live in their own MIT repos and are consumed here as git
-dependencies, so each one is reusable on its own: richdoc, sheetedit, geoedit,
-subedit, imageview, mediaplay, walletview. Those libraries have their own libraries in turn: sheetedit's
-Power Query engine ([mlang](https://github.com/hikashop-nicolas/mlang)) and VBA engine
-([vbalang](https://github.com/hikashop-nicolas/vbalang)), and the shared on-device OCR and
-translation models ([localml](https://github.com/hikashop-nicolas/localml)).
+dependencies, so each one is reusable on its own:
+[richdoc](https://github.com/hikashop-nicolas/richdoc) (DOCX, ODT, DOC),
+[sheetedit](https://github.com/hikashop-nicolas/sheetedit) (XLSX, ODS),
+[scoredit](https://github.com/hikashop-nicolas/scoredit) (sheet music),
+[subedit](https://github.com/hikashop-nicolas/subedit) (subtitles),
+[geoedit](https://github.com/hikashop-nicolas/geoedit) (maps),
+[mediaplay](https://github.com/hikashop-nicolas/mediaplay) (audio and video),
+[imageview](https://github.com/hikashop-nicolas/imageview) (pictures),
+[walletview](https://github.com/hikashop-nicolas/walletview) (wallet passes),
+[cadview](https://github.com/hikashop-nicolas/cadview) (DXF and DWG, a fork of dxf-viewer) and
+[fontshelf](https://github.com/hikashop-nicolas/fontshelf) (the font menus and installed or
+downloaded fonts every editor shares). Those libraries have their own libraries in turn:
+sheetedit's Power Query engine ([mlang](https://github.com/hikashop-nicolas/mlang)) and VBA
+engine ([vbalang](https://github.com/hikashop-nicolas/vbalang)), and the shared on-device OCR
+and translation models ([localml](https://github.com/hikashop-nicolas/localml)). The PDF and
+PowerPoint engines come through [craftbridge](https://github.com/hikashop-nicolas/craftbridge),
+built into `vendor/craftbridge` (see below).
+
+Every library ships the same interface languages as the app and takes the app's language from
+it (`setLocale`); adding a language means adding it to each of them.
 
 They are pinned in `package-lock.json`. `npm run bump-libs` reinstalls all of them, then
 typechecks and runs the tests.
@@ -72,10 +98,13 @@ newer release may pin a clean engine and make the override unnecessary.
 
 ```
 npm run dev        # Vite dev server
-npm test           # unit + integration tests (Vitest)
+npm test           # unit + integration tests (Vitest); judge a run by its exit code
 npm run typecheck  # tsc --noEmit
 npm run build      # typecheck + production build into dist/ (needs the PDF engine, see below)
+npm run preview    # serve the production build
+npm run bump-libs  # reinstall the in-house libraries at their latest commits, then test
 npm run cap:sync   # build, then sync the Android (Capacitor) project
+npm run android:open  # open the Android project in Android Studio
 ```
 
 The PDF editor runs on a Rust engine compiled to wasm. Build it once with `scripts/build-craftbridge.sh`
@@ -91,25 +120,29 @@ building everything for size made rendering several times slower.
 
 ```
 src/core/      engine, event bus, registries, editor resolution, host types, encoding,
-               session store, archive + tar codec
-src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdf, docx,
-               odt, sheet, svgeditor, geoeditor, latexpreview, filerobot image editor) and
-               read-only viewers (rtf, epub, image, media, archive, psdviewer, aiviewer,
-               fontviewer, sqliteviewer, ipynbviewer, emailviewer, pimviewer, walletviewer, tiffviewer,
-               torrentviewer, model3dviewer, parquetviewer, heicviewer, ebookviewer,
-               dxfviewer, dicomviewer, recordsviewer, rawviewer, binary/hex)
+               content sniffing, session store, recent files, print, archive + tar codec
+src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdown, pdfcraft,
+               pptxcraft, docx, odt, doc, sheet, score, subtitle, svgeditor, geoeditor,
+               latexpreview, filerobot image editor) and read-only viewers (rtf, epub,
+               ebookviewer, image, media, archive, psdviewer, aiviewer, fontviewer,
+               sqliteviewer, parquetviewer, ipynbviewer, emailviewer, pimviewer, walletviewer,
+               tiffviewer, heicviewer, rawviewer, torrentviewer, model3dviewer, dxfviewer,
+               dicomviewer, recordsviewer, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
-               pdf/docx/odt/xlsx/ods/xls, pptx, epub, rtf, psd, ai, font, sqlite, ipynb,
-               eml/msg, ics/vcf, pkpass, healthcard, bcbp, tiff, torrent, model3d, parquet, heic, ebook, dxf, dicom,
-               arrow, raw, the codemirror-formats long-tail table, and binary-viewers for
+               pdf, docx/odt/doc, xlsx/xlsm/ods/xls, pptx, epub and ebooks, rtf, psd, ai, font,
+               sqlite, parquet/arrow, ipynb, eml/msg, ics/vcf, pkpass/healthcard/bcbp, subtitles
+               (srt/vtt/ass/ssa/lrc/sbv/sami/ttml/microdvd/mpl2/ttxt/YouTube), music
+               (musicxml/mxl/mscz/mscx/abc/Guitar Pro/midi), tiff, heic, raw, torrent, model3d,
+               dxf/dwg, dicom, the codemirror-formats long-tail table, and binary-viewers for
                images/media/archives)
-src/i18n/      app-shell translations (en, fr, ja, es, de, pt, ru, zh) + auto-detect
-src/tools/     cross-cutting tools (history / diff)
+src/i18n/      app-shell translations (en, fr, de, es, it, pt, pl, ru, tr, ja, ko, zh) + auto-detect
+src/tools/     cross-cutting tools (history / diff, collaboration)
+src/settings*  user settings and the settings dialog
 src/main.ts    the app: registers modules, wiring, open/save, detection, autosave, recovery
 ```
 
-The shell is about 170 KB gzipped; every editor is a separate chunk, loaded the first time a
+The shell is about 140 KB gzipped; every editor is a separate chunk, loaded the first time a
 file needs it.
 
 ## Format coverage, and what does the work
@@ -126,7 +159,12 @@ file needs it.
   ([geoedit](https://github.com/hikashop-nicolas/geoedit)): draw and reshape features, edit
   properties and colours, measure distance and area, undo/redo, all spliced back into the file
   byte for byte. TopoJSON, WKT and Shapefiles (`.shp`) open read-only.
-- **Subtitles**: SRT, WebVTT, ASS and SSA in a subtitle editor
+- **Sheet music**: MusicXML and MXL, MuseScore (`.mscz`, `.mscx`), Guitar Pro 3 to 7, ABC
+  and MIDI in a score editor ([scoredit](https://github.com/hikashop-nicolas/scoredit)):
+  engraved, played with recorded instruments, practised with a MIDI keyboard, edited, and
+  MIDI saved back in place.
+- **Subtitles**: SRT, WebVTT, ASS and SSA (plus LRC, SBV, SAMI, TTML/DFXP, MicroDVD, MPL2,
+  MPEG-4 timed text and YouTube's formats) in a subtitle editor
   ([subedit](https://github.com/hikashop-nicolas/subedit)): cue list with per-cue timing and
   text, a media preview with a waveform timeline to retime cues, an ASS style picker, and
   automatic transcription and translation, byte-preserving throughout.
@@ -142,8 +180,9 @@ file needs it.
   output cells ([notebookjs](https://github.com/jsvine/notebookjs)) and stay editable as raw
   JSON.
 - **3D and CAD** (read-only): STL, PLY, OBJ, glTF and GLB in a WebGL viewer
-  ([three.js](https://github.com/mrdoob/three.js)); DXF drawings in a 2D CAD viewer with pan
-  and zoom ([dxf-viewer](https://github.com/vagran/dxf-viewer)).
+  ([three.js](https://github.com/mrdoob/three.js)); DXF and DWG drawings in a 2D CAD viewer
+  with layers, pan and zoom ([cadview](https://github.com/hikashop-nicolas/cadview), a fork
+  of [dxf-viewer](https://github.com/vagran/dxf-viewer) that adds DWG).
 - **DICOM** (`.dcm`, read-only): the image with window/level plus the tag metadata
   ([dicom-parser](https://github.com/cornerstonejs/dicomParser)).
 - **Email and contacts** (read-only): `.eml` and Outlook `.msg` render headers, body and
@@ -154,11 +193,15 @@ file needs it.
 - **Binary documents**, each edited in place through a dedicated standalone library: PDF
   (the [PdfCraft](https://github.com/storytold/pdfcraft) Rust engine compiled to wasm, through
   [craftbridge](https://github.com/hikashop-nicolas/craftbridge); build it with
-  `scripts/build-craftbridge.sh`), PPTX (the [DeckCraft](https://github.com/storytold/deckcraft) engine, built the same way), DOCX and ODT
-  ([richdoc](https://github.com/hikashop-nicolas/richdoc)), XLSX, ODS and XLSM
+  `scripts/build-craftbridge.sh`), PPTX (the [DeckCraft](https://github.com/storytold/deckcraft) engine, built the same way), DOCX, ODT and
+  the older DOC ([richdoc](https://github.com/hikashop-nicolas/richdoc), with comments, tracked
+  changes, shapes and pictures), XLSX, ODS and XLSM
   ([sheetedit](https://github.com/hikashop-nicolas/sheetedit), formula-aware, with chart and
-  pivot create/edit, a Power Query editor, and VBA macros that run and can be edited). Legacy
-  XLS goes through a SheetJS-backed grid.
+  pivot create/edit, a Power Query editor, a Name Manager, VBA macros that run and can be
+  edited, and numbers and formulas in the user's regional conventions, stored invariant).
+  Legacy XLS goes through a SheetJS-backed grid.
+- **Wallet passes** (read-only, [walletview](https://github.com/hikashop-nicolas/walletview)):
+  Apple Wallet `.pkpass`, SMART Health Cards and boarding-pass barcodes.
 - **RTF** (read-only): [rtf.js](https://github.com/tbluemel/rtf.js).
 - **PPTX**: edited on DeckCraft's engine (pptxcraft: slide strip, format panel, insert and tools menus, slideshow with
   transitions and animations, presenter view). Builds without the engine open them as bytes. The plan is in
@@ -194,7 +237,8 @@ file needs it.
   [libarchive-wasm](https://github.com/nika-begiashvili/libarchivejs) (on demand). Browse
   entries, open one inside Omnitext, extract it, or (zip and tar family) edit it and save it
   back into the archive.
-- **Anything else**: unknown text opens in the code editor, truly binary files in the hex
+- **Anything else**: a file whose name says nothing is recognised by its content (see the
+  architecture above); unknown text opens in the code editor, truly binary files in the hex
   viewer, so nothing ever fails to open.
 
 **Local-first**: IndexedDB autosave and crash recovery; UTF-8 and BOM handling and line endings
@@ -204,7 +248,18 @@ preserved so text round-trips byte for byte.
 
 The Android app is the same web build wrapped with Capacitor (`android/`), registered in
 Android's "Open with" chooser. `npm run cap:sync` builds the web app and syncs it into the
-project. The APK attached to the `android-latest` release is rebuilt from `main` by CI.
+project. It ships three ways:
+
+- **Google Play**: an app bundle built by CI; see `_plans/PLAY_STORE.md` for the per-release
+  steps and notes (`store-assets/whats-new-<version>.txt`).
+- **F-Droid**: F-Droid builds each `fdroid-<version>` tag itself and checks it byte for byte
+  against our signed APK on the GitHub release of that tag (reproducible build). Per release:
+  bump `fdroidVersionCode` and `versionName` in `android/app/build.gradle`, add
+  `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, update the recipe copy in
+  `scripts/fdroid/app.omnitext.yml`, run `scripts/fdroid/dry-run.sh`, sign its APK with
+  `scripts/fdroid/sign-apk.sh`, then push the tag and create the release with the signed APK
+  together. Details in `_plans/FDROID_PLAN.md`.
+- **Direct APK**: the `android-latest` release, rebuilt from `main` by CI.
 
 ## Licensing
 
