@@ -1,0 +1,10 @@
+New in this update:
+
+• Italian, Polish, Korean and Turkish
+• Spreadsheets in your language: local number formats and function names (=SOMME(A1;0,5)), or English formulas
+• Spreadsheets: Name Manager; rules reopen to edit
+• Documents: shapes wrap, layer, drag and reshape
+• Optional dark document pages in dark mode
+• Files open by content, even named .bin
+
+Still offline unless you choose to share or get fonts.
