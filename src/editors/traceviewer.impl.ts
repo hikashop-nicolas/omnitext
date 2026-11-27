@@ -40,6 +40,7 @@ function ensureStyles(): void {
     .ot-pf-tab:focus-visible, .ot-pf-btn:focus-visible, .ot-tl-canvas:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
     .ot-pf-panel { flex:1 1 auto; min-height:0; overflow:auto; padding:8px 16px 16px; }
     .ot-pf-panel.is-timeline { display:flex; flex-direction:column; overflow:hidden; padding:0; }
+    .ot-pf-panel[hidden] { display:none; }
     .ot-pf-tools { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:4px 0 8px; }
     .is-timeline > .ot-pf-tools { margin:0; padding:6px 12px; border-bottom:1px solid var(--border); }
     .ot-pf-tools input, .ot-pf-tools select { font:inherit; padding:4px 8px; border:1px solid var(--border);
@@ -53,7 +54,7 @@ function ensureStyles(): void {
     .ot-pf-btn:disabled { opacity:.5; cursor:default; }
     .ot-pf-count { color:var(--muted); font-variant-numeric:tabular-nums; }
     .ot-pf-help { color:var(--muted); font-size:12px; flex:1 1 100%; }
-    @media (max-width: 600px) { .ot-pf-help { display:none; } }
+    @media (max-width: 600px) { .ot-pf-help { display:none; } .ot-pf td.wrap { min-width:160px; } .ot-pf-panel { padding:8px 10px 16px; } }
     .ot-pf table { border-collapse:collapse; font:12px/1.4 ui-monospace, monospace; }
     .ot-pf th, .ot-pf td { border-bottom:1px solid var(--border); padding:3px 10px 3px 0; text-align:left;
       vertical-align:top; }
