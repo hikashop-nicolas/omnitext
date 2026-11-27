@@ -227,7 +227,11 @@ class TraceParser {
   /** Whether a zstd packet without a decoder stops the read to load one (else it is skipped). */
   askZstd = true;
   private nested = 0;
-  constructor(readonly s: TraceSummary, readonly b: ModelBuilder) {}
+  /** Where this trace's log lines start in a summary shared with other files. */
+  private logFrom: number;
+  constructor(readonly s: TraceSummary, readonly b: ModelBuilder) {
+    this.logFrom = s.logs.length;
+  }
 
   private ts(t: number): void {
     if (!(t > 0)) return;
@@ -1154,14 +1158,19 @@ class TraceParser {
     }
   }
 
-  finish(): TraceModel {
+  /**
+   * Settles what waits for the end of the stream (late descriptors, log clocks), leaving the
+   * builder open; returns the offset from CLOCK_REALTIME to the trace clock when known.
+   */
+  settle(): number | undefined {
     const s = this.s;
     // Descriptors that arrived after their first event still name their track.
     for (const [uuid, d] of this.tracks) this.describeTrack(`u:${uuid}`, d);
     // Logcat times are on CLOCK_REALTIME: they move to the trace clock once a snapshot has
     // given its offset, and are left out of the bounds without one.
     const real = this.primary === 1 ? 0 : this.offsets.get(1);
-    for (const l of s.logs) {
+    for (let i = this.logFrom; i < s.logs.length; i++) {
+      const l = s.logs[i]!;
       if (!(l.ts > 0)) continue;
       if (real === undefined) l.ts = 0;
       else {
@@ -1169,6 +1178,12 @@ class TraceParser {
         this.b.time(l.ts);
       }
     }
+    return real;
+  }
+
+  finish(): TraceModel {
+    const s = this.s;
+    this.settle();
     // The trace spans what the timeline draws (slices, CPU slices, counters, log lines); packet
     // timestamps of metadata only stand in when there is nothing to draw.
     const empty = this.b.empty;
@@ -1196,12 +1211,27 @@ const tick = (): Promise<void> => new Promise((res) => setTimeout(res, 0));
 /** The zstd decoder, a chunk of its own that only zstd traces load. */
 const loadZstd = (): Promise<Inflate> => import("fzstd").then((m) => (b: Uint8Array) => m.decompress(b));
 
-export async function parseTrace(
-  bytes: Uint8Array,
-  opts: { onProgress?: (s: TraceSummary) => void; cancelled?: () => boolean; slice?: number; zstd?: () => Promise<Inflate> } = {},
-): Promise<ParsedTrace> {
+type ParseOpts = { onProgress?: (s: TraceSummary) => void; cancelled?: () => boolean; slice?: number; zstd?: () => Promise<Inflate> };
+
+export async function parseTrace(bytes: Uint8Array, opts: ParseOpts = {}): Promise<ParsedTrace> {
   const s = emptySummary(bytes.length);
   const p = new TraceParser(s, new ModelBuilder());
+  await run(p, bytes, opts);
+  return { summary: s, model: p.finish() };
+}
+
+/**
+ * Reads a trace into a shared builder and summary (several files on one timeline); returns
+ * the offset from CLOCK_REALTIME to the trace clock, when a clock snapshot gave it.
+ */
+export async function parseTraceInto(bytes: Uint8Array, b: ModelBuilder, s: TraceSummary, opts: ParseOpts = {}): Promise<number | undefined> {
+  const p = new TraceParser(s, b);
+  await run(p, bytes, opts);
+  return p.settle();
+}
+
+async function run(p: TraceParser, bytes: Uint8Array, opts: ParseOpts): Promise<void> {
+  const s = p.s;
   const slice = opts.slice ?? 12;
   let pos = 0;
   while (pos < bytes.length) {
@@ -1231,7 +1261,6 @@ export async function parseTrace(
     if (opts.cancelled?.()) break;
   }
   s.read = s.stoppedAt ?? pos;
-  return { summary: s, model: p.finish() };
 }
 
 /** Synchronous variant, for tests and small inputs; zstd packets need `zstd`. */
