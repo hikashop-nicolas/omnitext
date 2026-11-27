@@ -1,4 +1,4 @@
-import { ModelBuilder, type TraceModel } from "./trace-model";
+import { ModelBuilder, letterState, type TraceModel } from "./trace-model";
 import { atraceEvent } from "./trace-atrace";
 import { readChromeInto } from "./trace-chrome";
 
@@ -58,8 +58,10 @@ export async function readSystraceInto(b: ModelBuilder, text: string, counts?: M
   while (pos < text.length) {
     let nl = text.indexOf("\n", pos);
     if (nl < 0) nl = text.length;
-    const line = text.slice(pos, nl);
+    let line = text.slice(pos, nl);
     pos = nl + 1;
+    // Early systrace pages hold the text as a JavaScript string: each line ends in \n\.
+    if (line.endsWith("\\n\\")) line = line.slice(0, -3);
     if (!line || line.charCodeAt(0) === 35 /* # */) continue;
     const m = LINE.exec(line);
     if (!m) continue;
@@ -78,14 +80,20 @@ export async function readSystraceInto(b: ModelBuilder, text: string, counts?: M
       event = "tracing_mark_write";
     }
     counts?.set(event, (counts.get(event) ?? 0) + 1);
+    // The marker systrace adds to line up with Chrome's clock is not a trace event (often at 0).
+    if (args.startsWith("trace_event_clock_sync:")) continue;
     b.time(ts);
     if (event === "sched_switch") {
       const next = /next_comm=(.*?) next_pid=(\d+)/.exec(args);
       if (next) {
         const pid = Number(next[2]);
         if (pid > 0 && !b.threads.get(pid)?.name) b.thread(pid, undefined, next[1]);
-        b.switchTo(cpu, ts, pid);
+        const prev = /prev_state=(\S+)/.exec(args);
+        b.switchTo(cpu, ts, pid, prev ? letterState(prev[1]!) : -1);
       }
+    } else if (event === "sched_waking" || event === "sched_wakeup" || event === "sched_wakeup_new") {
+      const w = /(?:^|\s)pid=(\d+)/.exec(args);
+      if (w) b.waking(ts, Number(w[1]));
     } else if (event === "tracing_mark_write" || event === "print" || event === "0") {
       atraceEvent(b, ts, tid, args);
     } else if (event === "cpu_frequency") {

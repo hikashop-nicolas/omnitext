@@ -2,7 +2,8 @@ import { ModelBuilder, type TraceModel } from "./trace-model";
 import { readSystraceInto } from "./trace-systrace";
 
 // Chrome / Catapult JSON traces ({"traceEvents": [...]} or a bare array). Times are in
-// microseconds. Phases read: B/E, X, i/I/n instants, C counters, b/e async, M metadata.
+// microseconds. Phases read: B/E, X, i/I/R/n instants, C counters, b/e and S/F async, s/t/f flows and
+// bind_id flows, M metadata.
 
 interface ChromeEvent {
   ph?: string;
@@ -15,6 +16,10 @@ interface ChromeEvent {
   id?: number | string;
   id2?: { local?: string | number; global?: string | number };
   s?: string;
+  bp?: string;
+  bind_id?: number | string;
+  flow_in?: boolean;
+  flow_out?: boolean;
   args?: Record<string, unknown>;
 }
 
@@ -65,19 +70,32 @@ export async function readChromeInto(b: ModelBuilder, json: unknown, onProgress?
     }
     if (!Number.isFinite(ts)) continue;
     const track = `t:${tid}`;
-    if (ph === "X" || ph === "B" || ph === "E" || ph === "i" || ph === "I") b.thread(tid, pid);
+    if (ph === "X" || ph === "B" || ph === "E" || ph === "i" || ph === "I" || ph === "R") b.thread(tid, pid);
+    else if (pid && !b.processes.has(pid)) b.process(pid);
+    let sid = -1;
     switch (ph) {
       case "X":
-        b.slice(track, ts, Math.max(0, (e.dur ?? 0) * 1000), b.name(e.name ?? ""), argOf(e));
+        sid = b.slice(track, ts, Math.max(0, (e.dur ?? 0) * 1000), b.name(e.name ?? ""), argOf(e));
         break;
       case "B":
-        b.begin(track, track, ts, b.name(e.name ?? ""), argOf(e));
+        sid = b.begin(track, track, ts, b.name(e.name ?? ""), argOf(e));
         break;
+      case "s":
+      case "t":
+      case "f": {
+        // Flow v1: start and step bind to the slice around them, an end to the next one
+        // unless "bp" is "e".
+        const id = e.id ?? e.id2?.local ?? e.id2?.global ?? "";
+        b.thread(tid, pid);
+        b.flowPoint(`${e.cat ?? ""}:${e.name ?? ""}:${id}`, track, ts, ph === "s" ? 0 : ph === "t" ? 1 : 2, ph === "f" && e.bp !== "e");
+        break;
+      }
       case "E":
         b.end(track, ts);
         break;
       case "i":
-      case "I": {
+      case "I":
+      case "R": {
         const name = b.name(e.name ?? "");
         if (e.s === "g") {
           b.describe("g:instants", { label: "Global" });
@@ -92,25 +110,35 @@ export async function readChromeInto(b: ModelBuilder, json: unknown, onProgress?
         for (const [k, v] of Object.entries(e.args ?? {})) {
           const value = typeof v === "number" ? v : Number(v);
           if (!Number.isFinite(value)) continue;
-          const single = Object.keys(e.args!).length === 1;
-          const label = e.name ? (single ? e.name : `${e.name} ${k}`) : k;
+          // Named as Perfetto names them: the event name, then the series.
+          const label = e.name ? `${e.name} ${k}` : k;
           const id = e.id !== undefined ? ` ${e.id}` : "";
           b.counter(`c:${pid}:${label}${id}`, ts, value, { label: label + id, pid });
         }
         break;
       case "b":
       case "e":
-      case "n": {
+      case "n":
+      case "S":
+      case "F": {
+        // A track per category and id, named after its first slice (an end may carry no
+        // name); tracks of one name share a row.
+        // An id2.local is the process's own; other ids match across processes.
         const name = e.name ?? "";
-        const track = `a:${pid}:${name}`;
-        b.describe(track, { label: name, pid });
+        const local = e.id2?.local !== undefined;
         const id = e.id ?? e.id2?.local ?? e.id2?.global ?? "";
-        const match = `${track}:${e.cat ?? ""}:${id}`;
-        if (ph === "b") b.begin(match, track, ts, b.name(name), argOf(e));
-        else if (ph === "e") b.end(match, ts);
-        else b.slice(track, ts, 0, b.name(name), argOf(e));
+        const track = `a:${pid}:${e.cat ?? ""}:${id}`;
+        const match = local ? track : `a:g:${e.cat ?? ""}:${id}`;
+        b.describe(track, { pid });
+        if (ph === "b" || ph === "S") sid = b.begin(match, track, ts, b.name(name), argOf(e));
+        else if (ph === "e" || ph === "F") b.end(match, ts);
+        else sid = b.slice(track, ts, 0, b.name(name), argOf(e));
         break;
       }
+    }
+    // Flow v2: slices that share a bind_id are linked, in to out.
+    if (sid >= 0 && e.bind_id !== undefined && (e.flow_in || e.flow_out)) {
+      b.flowId(`v2:${e.bind_id}`, sid, ts, !!e.flow_in && !e.flow_out);
     }
     if ((i & 8191) === 0 && performance.now() - t0 > 30) {
       onProgress?.(i / events.length);

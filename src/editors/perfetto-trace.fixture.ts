@@ -28,12 +28,13 @@ export const trace = (...packets: Part[][]): Uint8Array => Uint8Array.from(packe
 
 export const SYNC = [0x82, 0x47, 0x7a, 0x76, 0xb2, 0x8d, 0x42, 0xba, 0x81, 0xdc, 0x33, 0x32, 0x6d, 0x57, 0xa0, 0x79];
 
-/** A small trace touching every decoded packet type. Times are in ns since boot. */
+/** A small trace touching every decoded packet type. Times are in ns since boot, logcat's on REALTIME. */
 export function sampleTrace(): Uint8Array {
   const base = 5_000_000_000;
+  const REAL = 1_700_000_000_000_000_000; // REALTIME at the snapshot, taken at boot time base
   const sched = m(4, s(5, "app"), s(5, "swapper"), packed(1, [base + 1000, 500, 500]), packed(3, [300, 0, 301]), packed(6, [0, 1, 0]), packed(7, [base + 1200]));
   const inner = Uint8Array.from(
-    m(1, u(8, base + 4_000_000_000), m(39, m(1, u(2, 300), u(3, 301), u(5, base + 4_000_000_000), s(6, "Zipped"), u(7, 4), s(8, "from a compressed packet")))),
+    m(1, u(8, base + 4_000_000_000), m(39, m(1, u(2, 300), u(3, 301), u(5, REAL + 4_000_000_000), s(6, "Zipped"), u(7, 4), s(8, "from a compressed packet")))),
   );
   return trace(
     [u(10, 1), bytes(36, SYNC)],
@@ -62,8 +63,8 @@ export function sampleTrace(): Uint8Array {
     [
       u(8, base + 2_000_000_000),
       m(39,
-        m(1, u(2, 300), u(3, 301), u(5, base + 1_000_000_000), s(6, "ActivityManager"), u(7, 4), s(8, "Start proc 300")),
-        m(1, u(2, 300), u(3, 300), u(5, base + 1_500_000_000), s(6, "AndroidRuntime"), u(7, 6), s(8, "FATAL EXCEPTION: main")),
+        m(1, u(2, 300), u(3, 301), u(5, REAL + 1_000_000_000), s(6, "ActivityManager"), u(7, 4), s(8, "Start proc 300")),
+        m(1, u(2, 300), u(3, 300), u(5, REAL + 1_500_000_000), s(6, "AndroidRuntime"), u(7, 6), s(8, "FATAL EXCEPTION: main")),
       ),
     ],
     [u(10, 2), u(13, 1), m(60, u(1, 77), m(3, u(1, 400), s(6, "com.example.sdk")))],

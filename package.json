@@ -77,6 +77,7 @@
     "filerobot-image-editor": "5.0.0",
     "foliate-js": "^1.0.1",
     "fontshelf": "github:hikashop-nicolas/fontshelf",
+    "fzstd": "^0.1.1",
     "geoedit": "github:hikashop-nicolas/geoedit",
     "hyparquet": "^1.33.1",
     "hyparquet-compressors": "^1.1.3",

@@ -1,6 +1,6 @@
 import { decompressSync } from "fflate";
 import { FTRACE_EVENTS, PACKET_FIELDS } from "./perfetto-names";
-import { ModelBuilder, type TraceModel } from "./trace-model";
+import { ModelBuilder, kernelState, type TraceModel } from "./trace-model";
 import { atraceEvent } from "./trace-atrace";
 
 // Reads a Perfetto trace (a protobuf Trace: repeated TracePacket packet = 1) with a hand-written
@@ -75,6 +75,15 @@ class StopAt extends Error {
     super("stop");
   }
 }
+
+/** A zstd packet came before the decoder was loaded: load it and read again from `at`. */
+class NeedZstd extends Error {
+  constructor(readonly at: number) {
+    super("zstd");
+  }
+}
+
+export type Inflate = (bytes: Uint8Array) => Uint8Array;
 
 // Minimal protobuf reader. Varints come back as Numbers (exact up to 2^53), `lo` keeps the low 32 bits.
 class Reader {
@@ -188,6 +197,9 @@ interface SeqState {
   track: string | null;
   tid: number | null;
   clocks: Map<number, SeqClock>;
+  /** Legacy TrackEvent times (Chrome before 2020): the running timestamp and thread time, in µs. */
+  refUs: number | null;
+  refTtUs: number | null;
 }
 
 interface TrackDesc {
@@ -208,6 +220,13 @@ class TraceParser {
   private tracks = new Map<string, TrackDesc>();
   private incCounters = new Map<string, number>();
   private described = new Set<string>();
+  /** Boot time minus ftrace time, from the last bundle on the global or local clock that said. */
+  private ftraceShift: number | null = null;
+  /** Decoder for zstd_compressed_packets, loaded on the first one. */
+  zstd: Inflate | null = null;
+  /** Whether a zstd packet without a decoder stops the read to load one (else it is skipped). */
+  askZstd = true;
+  private nested = 0;
   constructor(readonly s: TraceSummary, readonly b: ModelBuilder) {}
 
   private ts(t: number): void {
@@ -220,7 +239,7 @@ class TraceParser {
   private seq(id: number): SeqState {
     let st = this.seqs.get(id);
     if (!st) {
-      st = { names: new Map(), annNames: new Map(), annStrings: new Map(), clockId: 0, track: null, tid: null, clocks: new Map() };
+      st = { names: new Map(), annNames: new Map(), annStrings: new Map(), clockId: 0, track: null, tid: null, clocks: new Map(), refUs: null, refTtUs: null };
       this.seqs.set(id, st);
     }
     return st;
@@ -239,6 +258,7 @@ class TraceParser {
         r.pos = e;
       } catch (e) {
         if (e instanceof Malformed) throw new StopAt(at);
+        if (e instanceof NeedZstd) throw new NeedZstd(at);
         throw e;
       }
       if (budget()) return r.pos;
@@ -248,7 +268,6 @@ class TraceParser {
 
   private packet(buf: Uint8Array, start: number, end: number): void {
     const s = this.s;
-    s.packets++;
     const r = new Reader(buf, start, end);
     let data = 0;
     let dStart = 0;
@@ -292,6 +311,9 @@ class TraceParser {
     } catch (e) {
       if (!(e instanceof Malformed)) throw e;
     }
+    // Nothing is counted yet, so the packet can be read again once the decoder is there.
+    if (data === 133 && !this.zstd && this.askZstd && !this.nested) throw new NeedZstd(start);
+    s.packets++;
     bump(s.packetTypes, data ? packetFieldName(data) : iStart >= 0 ? "interned_data" : "(empty)");
     const seq = this.seq(seqId);
     if (flags & 1) {
@@ -311,14 +333,18 @@ class TraceParser {
         case 2: return this.processTree(d);
         case 6: return this.clockSnapshot(d, seq);
         case 9: return this.processStats(d);
-        case 11: return ts !== null ? this.trackEvent(d, seq, ts, trustedPid) : undefined;
+        case 11: return raw < 0 || ts !== null ? this.trackEvent(d, seq, ts, trustedPid) : undefined;
         case 39: return this.androidLog(d);
+        case 40: return this.powerRails(d, ts);
         case 43: return this.processDescriptor(d);
         case 44: return this.threadDescriptor(d, seq);
         case 45: return this.systemInfo(d);
-        case 50: return this.compressed(buf.subarray(dStart, dEnd));
+        case 50: return this.compressed(buf.subarray(dStart, dEnd), decompressSync);
         case 60: return this.trackDescriptor(d);
-        case 133: s.zstdPackets++; return;
+        case 133:
+          if (this.zstd) return this.compressed(buf.subarray(dStart, dEnd), this.zstd);
+          s.zstdPackets++;
+          return;
       }
     });
   }
@@ -384,7 +410,9 @@ class TraceParser {
 
   private ftraceBundle(r: Reader): void {
     const s = this.s;
-    let foreignClock = false;
+    let clock = 0;
+    let ftraceTs = -1;
+    let bootTs = -1;
     let cpu = 0;
     const events: Reader[] = [];
     let compact: Reader | null = null;
@@ -395,15 +423,26 @@ class TraceParser {
       } else if (f === 2 && wt === 2) events.push(this.sub(r));
       else if (f === 3 && wt === 0) s.lostBundles += r.varint() ? 1 : 0;
       else if (f === 4 && wt === 2) compact = this.sub(r);
-      else if (f === 5 && wt === 0) foreignClock = r.varint() > 0;
+      else if (f === 5 && wt === 0) clock = r.varint();
+      else if (f === 6 && wt === 0) ftraceTs = r.int64();
+      else if (f === 7 && wt === 0) bootTs = r.int64();
       else return false;
       return true;
     });
-    for (const e of events) this.safe(() => this.ftraceEvent(e, cpu, foreignClock));
-    if (compact) this.safe(() => this.compactSched(compact!, cpu, foreignClock));
+    // Older kernels trace on the global or local clock: the bundle pairs one of its readings
+    // with boot time. MONO_RAW goes through the clock snapshots. Other clocks are left out.
+    let shift: number | null = null;
+    if (clock === 0) shift = 0;
+    else if (clock === 2 || clock === 3) {
+      if (ftraceTs >= 0 && bootTs >= 0) this.ftraceShift = bootTs - ftraceTs;
+      shift = this.ftraceShift;
+    } else if (clock === 4) shift = this.primary === 4 ? 0 : (this.offsets.get(4) ?? null);
+    for (const e of events) this.safe(() => this.ftraceEvent(e, cpu, shift));
+    if (compact) this.safe(() => this.compactSched(compact!, cpu, shift));
   }
 
-  private ftraceEvent(r: Reader, cpu: number, foreignClock: boolean): void {
+  /** One ftrace event; `shift` takes its time to the trace clock, null when it cannot. */
+  private ftraceEvent(r: Reader, cpu: number, shift: number | null): void {
     let kind = 0;
     let ts = 0;
     let pid = 0;
@@ -414,7 +453,7 @@ class TraceParser {
       else if (f === 5) return false;
       else if (!kind) {
         kind = f;
-        if (wt === 2 && (f === 3 || f === 4 || f === 11)) body = this.sub(r);
+        if (wt === 2 && (f === 3 || f === 4 || f === 11 || f === 17 || f === 20 || f === 114)) body = this.sub(r);
         else return false;
       } else return false;
       return true;
@@ -422,7 +461,8 @@ class TraceParser {
     if (!kind) return;
     this.s.ftraceTotal++;
     bump(this.s.ftrace, ftraceEventName(kind));
-    if (foreignClock) return;
+    if (shift === null) return;
+    ts += shift;
     this.ts(ts);
     const b = body as Reader | null;
     if (!b) return;
@@ -439,19 +479,29 @@ class TraceParser {
       let nextComm = "";
       let prevPid = -1;
       let prevComm = "";
+      let prevState = -1;
       this.each(b, (f, wt) => {
         if (f === 6 && wt === 0) nextPid = b.int32();
         else if (f === 5 && wt === 2) nextComm = this.text(b);
         else if (f === 2 && wt === 0) prevPid = b.int32();
         else if (f === 1 && wt === 2) prevComm = this.text(b);
+        else if (f === 4 && wt === 0) prevState = kernelState(b.int64());
         else return false;
         return true;
       });
       if (prevPid > 0 && prevComm) this.b.thread(prevPid, undefined, this.b.threads.get(prevPid)?.name ?? prevComm);
       if (nextPid >= 0) {
         if (nextPid > 0 && nextComm && !this.b.threads.get(nextPid)?.name) this.b.thread(nextPid, undefined, nextComm);
-        this.b.switchTo(cpu, ts, nextPid);
+        this.b.switchTo(cpu, ts, nextPid, prevState);
       }
+    } else if (kind === 17 || kind === 20 || kind === 114) {
+      let pid = -1;
+      this.each(b, (f, wt) => {
+        if (f === 2 && wt === 0) pid = b.int32();
+        else return false;
+        return true;
+      });
+      this.b.waking(ts, pid);
     } else if (kind === 11) {
       let state = -1;
       let cpuId = -1;
@@ -465,11 +515,14 @@ class TraceParser {
     }
   }
 
-  private compactSched(r: Reader, cpu: number, foreignClock: boolean): void {
+  private compactSched(r: Reader, cpu: number, shift: number | null): void {
     const intern: string[] = [];
     let times: number[] = [];
     let pids: number[] = [];
     let comms: number[] = [];
+    let states: number[] = [];
+    let wakeTimes: number[] = [];
+    let wakePids: number[] = [];
     let waking = 0;
     const packed = (f: (p: Reader) => number): number[] => {
       const p = this.sub(r);
@@ -482,15 +535,18 @@ class TraceParser {
       else if (f === 1 && wt === 2) times = packed((p) => p.varint());
       else if (f === 3 && wt === 2) pids = packed((p) => p.int32());
       else if (f === 6 && wt === 2) comms = packed((p) => p.varint());
+      else if (f === 2 && wt === 2) states = packed((p) => p.int64());
+      else if (f === 8 && wt === 2) wakePids = packed((p) => p.int32());
       else if (f === 7 && wt === 2) {
         const p = this.sub(r);
         let t = 0;
         while (p.pos < p.end) {
           t += p.varint();
-          if (!foreignClock && waking === 0) this.ts(t);
+          wakeTimes.push(t + (shift ?? 0));
+          if (shift !== null && waking === 0) this.ts(t + shift);
           waking++;
         }
-        if (waking && !foreignClock) this.ts(t);
+        if (waking && shift !== null) this.ts(t + shift);
       } else return false;
       return true;
     });
@@ -503,8 +559,8 @@ class TraceParser {
       this.s.ftraceTotal += waking;
       bump(this.s.ftrace, "sched_waking", waking);
     }
-    if (foreignClock) return;
-    let t = 0;
+    if (shift === null) return;
+    let t = shift;
     for (let i = 0; i < n; i++) {
       t += times[i]!;
       if (i === 0 || i === n - 1) this.ts(t);
@@ -512,8 +568,9 @@ class TraceParser {
       if (pid < 0) continue;
       const comm = intern[comms[i] ?? -1];
       if (pid > 0 && comm && !this.b.threads.get(pid)?.name) this.b.thread(pid, undefined, comm);
-      this.b.switchTo(cpu, t, pid);
+      this.b.switchTo(cpu, t, pid, states[i] !== undefined ? kernelState(states[i]!) : -1);
     }
+    for (let i = 0; i < wakeTimes.length; i++) this.b.waking(wakeTimes[i]!, wakePids[i] ?? -1);
   }
 
   private proc(pid: number): ProcessInfo {
@@ -634,6 +691,8 @@ class TraceParser {
       if (f === 1 && wt === 0) pid = r.int32();
       else if (f === 2 && wt === 0) tid = r.int32();
       else if (f === 5 && wt === 2) name = this.text(r);
+      else if (f === 6 && wt === 0 && seq) seq.refUs = r.int64();
+      else if (f === 7 && wt === 0 && seq) seq.refTtUs = r.int64();
       else return false;
       return true;
     });
@@ -716,14 +775,49 @@ class TraceParser {
     }
   }
 
-  private trackEvent(r: Reader, seq: SeqState, ts: number, trustedPid: number): void {
+  /** Legacy µs timestamps (deltas add up on the sequence) on the trace clock, in ns. */
+  private legacyTime(us: number): number | null {
+    const ns = us * 1000;
+    // Chrome wrote them on CLOCK_MONOTONIC.
+    const off = this.primary === 3 ? 0 : this.offsets.get(3);
+    return off === undefined ? ns : ns + off;
+  }
+
+  private trackEvent(r: Reader, seq: SeqState, packetTs: number | null, trustedPid: number): void {
     let type = 0;
     let name: string | undefined;
     let iid = 0;
     let track: string | null = null;
     let value: number | null = null;
     let legacy: Reader | null = null;
+    let deltaUs: number | null = null;
+    let absUs: number | null = null;
+    let ttDelta: number | null = null;
+    let ttAbs: number | null = null;
+    const flows: string[] = [];
+    const ends: string[] = [];
     const anns: Reader[] = [];
+    const fixed = (into: string[], prefix: string, wt: number) => {
+      // fixed64 ids, one by one or packed
+      const read = (rr: Reader) => {
+        if (rr.pos + 8 > rr.end) throw new Malformed();
+        const dv = new DataView(rr.buf.buffer, rr.buf.byteOffset + rr.pos, 8);
+        into.push(`${prefix}${dv.getUint32(4, true)}:${dv.getUint32(0, true)}`);
+        rr.pos += 8;
+      };
+      if (wt === 1) read(r);
+      else {
+        const p = this.sub(r);
+        while (p.pos < p.end) read(p);
+      }
+    };
+    const vints = (into: string[], prefix: string, wt: number) => {
+      if (wt === 0) into.push(prefix + r.idKey());
+      else {
+        const p = this.sub(r);
+        while (p.pos < p.end) into.push(prefix + p.idKey());
+      }
+    };
     this.each(r, (f, wt) => {
       if (f === 9 && wt === 0) type = r.varint();
       else if (f === 6 && wt === 2) legacy = this.sub(r);
@@ -733,13 +827,29 @@ class TraceParser {
       else if (f === 30 && wt === 0) value = r.int64();
       else if (f === 44 && wt === 1) value = r.double();
       else if (f === 4 && wt === 2) anns.push(this.sub(r));
+      else if (f === 1 && wt === 0) deltaUs = r.int64();
+      else if (f === 16 && wt === 0) absUs = r.int64();
+      else if (f === 2 && wt === 0) ttDelta = r.int64();
+      else if (f === 17 && wt === 0) ttAbs = r.int64();
+      else if ((f === 47 || f === 48) && (wt === 1 || wt === 2)) fixed(f === 47 ? flows : ends, "f:", wt);
+      else if ((f === 36 || f === 42) && (wt === 0 || wt === 2)) vints(f === 36 ? flows : ends, "f:", wt);
       else return false;
       return true;
     });
+    // Before packet timestamps, a TrackEvent carried its own, relative to its thread descriptor.
+    let ts = packetTs;
+    if (deltaUs !== null && seq.refUs !== null) ts = this.legacyTime((seq.refUs += deltaUs as number));
+    else if (absUs !== null) ts = this.legacyTime(absUs);
+    if (ts === null) return;
+    let tt: number | null = null;
+    if (ttDelta !== null && seq.refTtUs !== null) tt = seq.refTtUs += ttDelta as number;
+    else if (ttAbs !== null) tt = ttAbs;
     if (legacy && !type) {
-      this.legacyEvent(legacy, seq, ts, trustedPid, name, iid, anns, track);
+      this.legacyEvent(legacy, seq, ts, trustedPid, name, iid, anns, track, tt, flows, ends);
       return;
     }
+    // A typed event can still carry a v1 flow in its legacy_event.
+    if (legacy) this.legacyFlow(legacy, flows, ends);
     if (name === undefined && iid) name = seq.names.get(iid) ?? `#${iid}`;
     if (track === "0:0") track = null;
     const key = this.trackKey(track ?? seq.track, seq);
@@ -758,29 +868,44 @@ class TraceParser {
       return;
     }
     if (type === 2) {
-      b.end(key, ts);
+      b.end(key, ts, tt ?? -1);
       return;
     }
     const nameId = b.name(name ?? "");
     const arg = anns.length ? b.arg(anns.map((a) => this.annotation(a, seq)).join("\n")) : -1;
-    if (type === 1) b.begin(key, key, ts, nameId, arg);
-    else if (type === 3) b.slice(key, ts, 0, nameId, arg);
+    let sid = -1;
+    if (type === 1) sid = b.begin(key, key, ts, nameId, arg, tt ?? -1);
+    else if (type === 3) sid = b.slice(key, ts, 0, nameId, arg);
+    this.flowIds(sid, ts, flows, ends);
+  }
+
+  private flowIds(sid: number, ts: number, flows: string[], ends: string[]): void {
+    for (const id of flows) this.b.flowId(id, sid, ts);
+    for (const id of ends) this.b.flowId(id, sid, ts, true);
   }
 
   /** A TrackEvent without a type: the phase of its legacy_event (Chrome's JSON phases) says what it is. */
-  private legacyEvent(r: Reader, seq: SeqState, ts: number, trustedPid: number, name: string | undefined, iid: number, anns: Reader[], track: string | null): void {
+  private legacyEvent(r: Reader, seq: SeqState, ts: number, trustedPid: number, name: string | undefined, iid: number, anns: Reader[], track: string | null, tt: number | null, flows: string[], ends: string[]): void {
     let phase = 0;
     let dur = 0;
+    let tdur = -1;
     let id = "";
     let scope = "";
     let pid = trustedPid;
+    let bind = "";
+    let enclosing = false;
+    let direction = 0;
     this.each(r, (f, wt) => {
       if (f === 1 && wt === 0) iid = r.varint();
       else if (f === 2 && wt === 0) phase = r.int32();
       else if (f === 3 && wt === 0) dur = r.int64();
-      else if ((f === 6 || f === 10 || f === 11) && wt === 0) id = `${f}:${r.idKey()}`;
+      else if (f === 4 && wt === 0) tdur = r.int64();
+      else if ((f === 6 || f === 10 || f === 11) && wt === 0) id = `${f === 10 ? "l" : "g"}:${r.idKey()}`;
       else if (f === 7 && wt === 2) scope = this.text(r);
       else if (f === 18 && wt === 0) pid = r.int32();
+      else if (f === 8 && wt === 0) bind = r.idKey();
+      else if (f === 12 && wt === 0) enclosing = r.varint() > 0;
+      else if (f === 13 && wt === 0) direction = r.varint();
       else return false;
       return true;
     });
@@ -790,27 +915,62 @@ class TraceParser {
     // An explicit track uuid of 0 means "no track": such events belong to the sequence's thread.
     const own = track && track !== "0:0" ? track : null;
     const key = this.trackKey(own ?? seq.track, seq);
-    const arg = () => (anns.length ? b.arg(anns.map((a) => this.annotation(a, seq)).join("\n")) : -1);
+    const arg = () => {
+      const lines = anns.map((a) => this.annotation(a, seq));
+      if (tdur >= 0) lines.push(`thread_duration_us: ${tdur}`);
+      return lines.length ? b.arg(lines.join("\n")) : -1;
+    };
+    this.addV1Flow(bind, direction, flows, ends);
     if (ph === "B" || ph === "E" || ph === "X" || ph === "I" || ph === "i" || ph === "R") {
       if (!key) return;
-      if (ph === "E") b.end(key, ts);
-      else if (ph === "B") b.begin(key, key, ts, b.name(name ?? ""), arg());
-      else b.slice(key, ts, ph === "X" ? Math.max(0, dur * 1000) : 0, b.name(name ?? ""), arg());
+      let sid = -1;
+      if (ph === "E") b.end(key, ts, tt ?? -1);
+      else if (ph === "B") sid = b.begin(key, key, ts, b.name(name ?? ""), arg(), tt ?? -1);
+      else sid = b.slice(key, ts, ph === "X" ? Math.max(0, dur * 1000) : 0, b.name(name ?? ""), arg());
+      this.flowIds(sid, ts, flows, ends);
+      return;
+    }
+    if ((ph === "s" || ph === "t" || ph === "f") && key) {
+      // Flow v1 steps bind to the slice around them; an end without bind_to_enclosing, to the next.
+      b.flowPoint(`p:${scope}:${id}`, key, ts, ph === "s" ? 0 : ph === "t" ? 1 : 2, ph === "f" && !enclosing);
       return;
     }
     if ("beSFnT".includes(ph) && pid > 0) {
-      // Async events: one track per name in the process, matched by id.
+      // Async events: a track per id in the process, named after its first slice; tracks of
+      // one name share a row. An end may be unnamed: it closes the id's innermost slice.
+      // A local id is the process's own; unscoped and global ones match across processes.
       const label = name ?? "";
-      const asyncKey = `a:${pid}:${label}`;
-      b.describe(asyncKey, { label, pid });
-      const match = `${asyncKey}:${scope}:${id}`;
-      if (ph === "b" || ph === "S") b.begin(match, asyncKey, ts, b.name(label), arg());
+      const track = `a:${pid}:${scope}:${id}`;
+      const match = id.startsWith("l:") ? track : `a:g:${scope}:${id}`;
+      b.describe(track, { pid });
+      let sid = -1;
+      if (ph === "b" || ph === "S") sid = b.begin(match, track, ts, b.name(label), arg());
       else if (ph === "e" || ph === "F") b.end(match, ts);
-      else b.slice(asyncKey, ts, 0, b.name(label), arg());
+      else sid = b.slice(track, ts, 0, b.name(label), arg());
+      this.flowIds(sid, ts, flows, ends);
     }
   }
 
-  /** The builder key for a track uuid (described now or later), or the sequence's thread. */
+  /** Flow v1: a bind id with a direction (out starts or continues a flow, in ends it). */
+  private addV1Flow(bind: string, direction: number, flows: string[], ends: string[]): void {
+    if (!bind || !direction) return;
+    if (direction === 1) ends.push(`b:${bind}`);
+    else flows.push(`b:${bind}`);
+  }
+
+  private legacyFlow(r: Reader, flows: string[], ends: string[]): void {
+    let bind = "";
+    let direction = 0;
+    this.each(r, (f, wt) => {
+      if (f === 8 && wt === 0) bind = r.idKey();
+      else if (f === 13 && wt === 0) direction = r.varint();
+      else return false;
+      return true;
+    });
+    this.addV1Flow(bind, direction, flows, ends);
+  }
+
+    /** The builder key for a track uuid (described now or later), or the sequence's thread. */
   private trackKey(uuid: string | null, seq: SeqState): string | null {
     if (uuid) {
       const key = `u:${uuid}`;
@@ -902,13 +1062,40 @@ class TraceParser {
         return true;
       });
       if (!entry.msg && args.length) entry.msg = args.join(" ");
-      if (entry.ts > 0) this.b.time(entry.ts);
       s.logs.push(entry);
       return true;
     });
   }
 
-  private logArg(r: Reader): string {
+  /** Power rails: cumulative energy (µWs) per rail, named by the descriptors. */
+  private powerRails(r: Reader, packetTs: number | null): void {
+    this.each(r, (f, wt) => {
+      if (wt !== 2 || (f !== 1 && f !== 2)) return false;
+      const e = this.sub(r);
+      let index = 0;
+      let name = "";
+      let ms = 0;
+      let energy = -1;
+      this.each(e, (ef, ewt) => {
+        if (ef === 1 && ewt === 0) index = e.varint();
+        else if (f === 1 && ef === 2 && ewt === 2) name = this.text(e);
+        else if (f === 2 && ef === 2 && ewt === 0) ms = e.varint();
+        else if (f === 2 && ef === 3 && ewt === 0) energy = e.varint();
+        else return false;
+        return true;
+      });
+      if (f === 1) {
+        if (name) this.b.describe(`rail:${index}`, { label: `power.rails.${name.toLowerCase()}` });
+      } else if (energy >= 0) {
+        // The packet's time is on the trace clock; timestamp_ms only stands in without one.
+        const ts = packetTs ?? (ms > 0 ? ms * 1e6 : null);
+        if (ts !== null) this.b.counter(`rail:${index}`, ts, energy, { label: `power.rails.${index}` });
+      }
+      return true;
+    });
+  }
+
+    private logArg(r: Reader): string {
     let name = "";
     let value = "";
     this.each(r, (f, wt) => {
@@ -948,19 +1135,22 @@ class TraceParser {
     this.s.system = info;
   }
 
-  private compressed(bytes: Uint8Array): void {
+  private compressed(bytes: Uint8Array, inflate: Inflate): void {
     let inner: Uint8Array;
     try {
-      inner = decompressSync(bytes);
+      inner = inflate(bytes);
     } catch {
       this.s.badCompressed++;
       return;
     }
+    this.nested++;
     try {
       this.packets(inner, 0, inner.length, () => false);
     } catch (e) {
       if (e instanceof Malformed || e instanceof StopAt) this.s.badCompressed++;
       else throw e;
+    } finally {
+      this.nested--;
     }
   }
 
@@ -968,6 +1158,17 @@ class TraceParser {
     const s = this.s;
     // Descriptors that arrived after their first event still name their track.
     for (const [uuid, d] of this.tracks) this.describeTrack(`u:${uuid}`, d);
+    // Logcat times are on CLOCK_REALTIME: they move to the trace clock once a snapshot has
+    // given its offset, and are left out of the bounds without one.
+    const real = this.primary === 1 ? 0 : this.offsets.get(1);
+    for (const l of s.logs) {
+      if (!(l.ts > 0)) continue;
+      if (real === undefined) l.ts = 0;
+      else {
+        l.ts += real;
+        this.b.time(l.ts);
+      }
+    }
     // The trace spans what the timeline draws (slices, CPU slices, counters, log lines); packet
     // timestamps of metadata only stand in when there is nothing to draw.
     const empty = this.b.empty;
@@ -992,9 +1193,12 @@ const tick = (): Promise<void> => new Promise((res) => setTimeout(res, 0));
  * Reads the whole trace in time slices (about 12 ms each) so the page stays responsive.
  * `onProgress` sees the summary as it fills; `cancelled` stops early.
  */
+/** The zstd decoder, a chunk of its own that only zstd traces load. */
+const loadZstd = (): Promise<Inflate> => import("fzstd").then((m) => (b: Uint8Array) => m.decompress(b));
+
 export async function parseTrace(
   bytes: Uint8Array,
-  opts: { onProgress?: (s: TraceSummary) => void; cancelled?: () => boolean; slice?: number } = {},
+  opts: { onProgress?: (s: TraceSummary) => void; cancelled?: () => boolean; slice?: number; zstd?: () => Promise<Inflate> } = {},
 ): Promise<ParsedTrace> {
   const s = emptySummary(bytes.length);
   const p = new TraceParser(s, new ModelBuilder());
@@ -1006,6 +1210,16 @@ export async function parseTrace(
     try {
       pos = p.packets(bytes, pos, bytes.length, () => (++n & 63) === 0 && performance.now() - t0 > slice);
     } catch (e) {
+      if (e instanceof NeedZstd) {
+        pos = e.at;
+        p.askZstd = false;
+        try {
+          p.zstd = await (opts.zstd ?? loadZstd)();
+        } catch {
+          p.zstd = null; // offline, say: the packets are counted as skipped
+        }
+        continue;
+      }
       if (e instanceof StopAt) s.stoppedAt = e.at;
       else throw e;
       break;
@@ -1020,10 +1234,12 @@ export async function parseTrace(
   return { summary: s, model: p.finish() };
 }
 
-/** Synchronous variant, for tests and small inputs. */
-export function parseTraceSync(bytes: Uint8Array): ParsedTrace {
+/** Synchronous variant, for tests and small inputs; zstd packets need `zstd`. */
+export function parseTraceSync(bytes: Uint8Array, zstd?: Inflate): ParsedTrace {
   const s = emptySummary(bytes.length);
   const p = new TraceParser(s, new ModelBuilder());
+  p.zstd = zstd ?? null;
+  p.askZstd = false;
   try {
     s.read = p.packets(bytes, 0, bytes.length, () => false);
   } catch (e) {
