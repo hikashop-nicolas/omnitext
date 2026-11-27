@@ -199,6 +199,9 @@ class TraceInstance implements EditorInstance {
         onProgress: (s) => (msg.textContent = t("perfetto.reading", { percent: Math.floor((s.read / Math.max(1, s.bytes)) * 100) })),
         cancelled: () => this.disposed,
       });
+      // Threads and processes known only from scheduling or track events count too.
+      for (const p of r.model.processes.values()) if (!r.summary.processes.has(p.pid)) r.summary.processes.set(p.pid, { pid: p.pid, ...(p.name ? { name: p.name } : {}) });
+      for (const th of r.model.threads.values()) if (!r.summary.threads.has(th.tid)) r.summary.threads.set(th.tid, { ...th });
       return { kind: "perfetto", ...r };
     }
     const text = ctx.text;
