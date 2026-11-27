@@ -142,7 +142,7 @@ export const PAGES = [
       "Save back to .xlsx, or export the sheet as CSV",
       "Open and save older .xls workbooks (Excel 97-2003, and Excel 5 and earlier) with all their sheets, formulas and formatting, password-protected ones included",
     ],
-    note: "An .xls is saved as Excel 97-2003, which cannot hold charts, drawing shapes or macros: Omnitext lists any the file has when it opens, and asks before saving without them.",
+    note: "An .xls is saved as Excel 97-2003 with its charts, shapes and macros. Features that format cannot hold, like tables, sparklines or data bars, are not offered while an .xls is open, and Omnitext asks before saving if anything would be left out.",
   },
   {
     id: "ods",
