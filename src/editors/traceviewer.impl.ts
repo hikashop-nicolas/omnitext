@@ -17,7 +17,6 @@ const PRIO = ["", "", "V", "D", "I", "W", "E", "F"];
 const STATE_KEYS = ["stateRunning", "stateRunnable", "stateSleeping", "stateUninterruptible", "stateStopped", "stateDead", "stateIdle", "stateUnknown"];
 // Zoom slider steps: the level goes up exponentially along the slider.
 const ZOOM_STEPS = 1000;
-const FIT_ICON = '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>';
 
 type Kind = "perfetto" | "json" | "systrace";
 
@@ -166,7 +165,6 @@ class TraceInstance implements EditorInstance {
   private bar: HTMLElement | null = null;
   private zoomRange: HTMLInputElement | null = null;
   private zoomPct: HTMLElement | null = null;
-  private zoomFit: HTMLButtonElement | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -484,16 +482,10 @@ class TraceInstance implements EditorInstance {
 
   // --- status bar zoom ----------------------------------------------------------------------
 
-  /** Fit and a zoom slider, in the app's status bar as the other viewers have them. */
+  /** A zoom slider, in the app's status bar as the other viewers have them. */
   private buildBar(): void {
     const bar = el("div", "cm-statusbar");
     const grow = el("span", "cm-statusbar-grow");
-    const fit = el("button", "cm-statusbar-btn");
-    fit.type = "button";
-    fit.title = t("perfetto.fit");
-    fit.setAttribute("aria-label", t("perfetto.fit"));
-    fit.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FIT_ICON}</svg>`;
-    fit.addEventListener("click", () => this.timeline?.fit());
     const range = el("input");
     range.type = "range";
     range.min = "0";
@@ -508,17 +500,15 @@ class TraceInstance implements EditorInstance {
     });
     const pct = el("span", "cm-statusbar-pct");
     pct.setAttribute("aria-label", t("perfetto.zoomLevel"));
-    bar.append(grow, fit, range, pct);
+    bar.append(grow, range, pct);
     this.bar = bar;
     this.zoomRange = range;
     this.zoomPct = pct;
-    this.zoomFit = fit;
     this.enableZoom(false);
   }
 
   private enableZoom(on: boolean): void {
     if (this.zoomRange) this.zoomRange.disabled = !on;
-    if (this.zoomFit) this.zoomFit.disabled = !on;
     if (this.zoomPct) this.zoomPct.style.visibility = on ? "" : "hidden";
   }
 

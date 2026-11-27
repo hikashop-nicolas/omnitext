@@ -1251,7 +1251,6 @@ const en: Dict = {
     counterMax: "max {value}",
     zoom: "Zoom",
     zoomLevel: "Zoom level",
-    fit: "Show the whole trace",
     stateRunning: "Running",
     stateRunnable: "Runnable",
     stateSleeping: "Sleeping",

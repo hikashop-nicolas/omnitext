@@ -1251,7 +1251,6 @@ const tr: Dict = {
     counterMax: "en çok {value}",
     zoom: "Yakınlaştırma",
     zoomLevel: "Yakınlaştırma düzeyi",
-    fit: "İzin tamamını göster",
     stateRunning: "Çalışıyor",
     stateRunnable: "Çalışmaya hazır",
     stateSleeping: "Uyuyor",

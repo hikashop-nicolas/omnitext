@@ -1251,7 +1251,6 @@ const ja: Dict = {
     counterMax: "最大 {value}",
     zoom: "ズーム",
     zoomLevel: "ズーム倍率",
-    fit: "トレース全体を表示",
     stateRunning: "実行中",
     stateRunnable: "実行可能",
     stateSleeping: "スリープ",

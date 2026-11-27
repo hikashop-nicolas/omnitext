@@ -1249,7 +1249,6 @@ const de: Dict = {
     counterMax: "max. {value}",
     zoom: "Zoom",
     zoomLevel: "Zoomstufe",
-    fit: "Ganze Aufzeichnung zeigen",
     stateRunning: "Läuft",
     stateRunnable: "Lauffähig",
     stateSleeping: "Schlafend",

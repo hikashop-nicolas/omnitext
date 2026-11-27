@@ -1271,7 +1271,6 @@ const pl: Dict = {
     counterMax: "maks. {value}",
     zoom: "Powiększenie",
     zoomLevel: "Poziom powiększenia",
-    fit: "Pokaż cały ślad",
     stateRunning: "Działa",
     stateRunnable: "Gotowy do działania",
     stateSleeping: "Uśpiony",

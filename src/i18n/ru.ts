@@ -1272,7 +1272,6 @@ const ru: Dict = {
     counterMax: "макс. {value}",
     zoom: "Масштаб",
     zoomLevel: "Уровень масштаба",
-    fit: "Показать всю трассу",
     stateRunning: "Выполняется",
     stateRunnable: "Готов к выполнению",
     stateSleeping: "Спит",

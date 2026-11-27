@@ -1249,7 +1249,6 @@ const pt: Dict = {
     counterMax: "máx. {value}",
     zoom: "Zoom",
     zoomLevel: "Nível de zoom",
-    fit: "Mostrar o rastreio inteiro",
     stateRunning: "Em execução",
     stateRunnable: "Executável",
     stateSleeping: "Dormindo",

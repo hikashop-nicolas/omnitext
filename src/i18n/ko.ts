@@ -1251,7 +1251,6 @@ const ko: Dict = {
     counterMax: "최대 {value}",
     zoom: "확대/축소",
     zoomLevel: "확대 배율",
-    fit: "전체 트레이스 보기",
     stateRunning: "실행 중",
     stateRunnable: "실행 가능",
     stateSleeping: "대기",

@@ -1253,7 +1253,6 @@ const zh: Dict = {
     counterMax: "最大 {value}",
     zoom: "缩放",
     zoomLevel: "缩放级别",
-    fit: "显示整个跟踪",
     stateRunning: "运行中",
     stateRunnable: "可运行",
     stateSleeping: "睡眠",
