@@ -174,6 +174,15 @@ function threadName(th: ProfileThread): string {
   return th.tid !== undefined ? t("profile.unnamedThread", { id: String(th.tid) }) : t("profile.mainThread");
 }
 
+// The categories the readers name themselves; others come from the file and stay as written.
+const CATEGORY_KEYS: Record<string, string> = { Kernel: "catKernel", Native: "catNative", GC: "catGc", Idle: "catIdle", Inlined: "catInlined", Other: "catOther" };
+
+function catName(cat: string): string {
+  if (!cat) return t("profile.uncategorized");
+  const key = CATEGORY_KEYS[cat];
+  return key ? t(`profile.${key}`) : cat;
+}
+
 function valueName(vt: ValueType): string {
   switch (vt.label) {
     case "samples":
@@ -601,7 +610,7 @@ class ProfileInstance implements EditorInstance {
     const dark = isDark();
     lg.textContent = "";
     for (const [cat] of [...w].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 12)) {
-      const s = el("span", "", cat || t("profile.uncategorized"));
+      const s = el("span", "", catName(cat));
       s.style.setProperty("--sw", frameColor({ name: "", module: "", category: cat }, "category", dark));
       lg.append(s);
     }
@@ -670,7 +679,7 @@ class ProfileInstance implements EditorInstance {
     const all = tr.total[0]!;
     if (n === 0) return `${t("profile.all")}\n${t("profile.describeTotal", { value: formatValue(all, vt), percent: pct(all, all) })}`;
     const f = p.frames[tr.frame[n]!]!;
-    const where = [f.file ? `${f.file}${f.line ? `:${f.line}` : ""}` : f.module, f.category].filter(Boolean).join(" · ");
+    const where = [f.file ? `${f.file}${f.line ? `:${f.line}` : ""}` : f.module, f.category ? catName(f.category) : ""].filter(Boolean).join(" · ");
     const lines = [f.name];
     if (where) lines.push(where);
     const tot = t("profile.describeTotal", { value: formatValue(tr.total[n]!, vt), percent: pct(tr.total[n]!, all) });
