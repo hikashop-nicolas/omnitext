@@ -200,7 +200,8 @@ file needs it.
   ([sheetedit](https://github.com/hikashop-nicolas/sheetedit), formula-aware, with chart and
   pivot create/edit, a Power Query editor, a Name Manager, VBA macros that run and can be
   edited, and numbers and formulas in the user's regional conventions, stored invariant).
-  Legacy XLS goes through a SheetJS-backed grid.
+  Legacy .xls (and HTML or Excel 2003 XML saved as .xls) opens in the same editor and saves back
+  as .xls.
 - **Wallet passes** (read-only, [walletview](https://github.com/hikashop-nicolas/walletview)):
   Apple Wallet `.pkpass`, SMART Health Cards and boarding-pass barcodes.
 - **RTF** (read-only): [rtf.js](https://github.com/tbluemel/rtf.js).
