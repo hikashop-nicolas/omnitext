@@ -3,6 +3,7 @@
 import { unzipSync } from "fflate";
 import { looksBinary } from "./encoding";
 import { ctraceStart, isFxt } from "../formats/trace-detect";
+import { sniffProfileBytes } from "./sniff-profile";
 import type { FormatDescriptor, FormatRegistryReadonly } from "./types";
 
 const ascii = (b: Uint8Array, from: number, len: number): string =>
@@ -55,6 +56,8 @@ export function sniffHead(b: Uint8Array): string | null {
   if (isFxt(b)) return "fuchsia";
   if (ctraceStart(b) >= 0) return "ctrace";
   if (looksLikePerfetto(b)) return "perfetto";
+  const profile = sniffProfileBytes(b);
+  if (profile) return profile;
   // PDF readers accept junk before the header, up to 1 KiB.
   if (/%PDF-\d\.\d/.test(ascii(b, 0, 1024))) return "pdf";
   return null;
