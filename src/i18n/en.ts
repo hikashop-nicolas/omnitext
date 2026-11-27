@@ -23,6 +23,7 @@ const en: Dict = {
     skipToContent: "Skip to content",
     dropToOpen: "Drop a file to open",
     discardConfirm: "This document has unsaved changes. Discard them?",
+    lossySaveConfirm: "Saving in this format leaves part of the document out:\n\n{warnings}\n\nSave anyway?",
     saveAsPrompt: "File name:",
     renameTitle: "Rename",
     encodingTitle: "Reopen with a different encoding",
@@ -346,6 +347,14 @@ const en: Dict = {
     kindList: "list [ ]",
     kindObject: "object { }",
     kindLocked: "Remove entries first: converting would lose data.",
+  },
+  sheet: {
+    passwordTitle: "Password-protected workbook",
+    passwordLabel: "Password",
+    passwordWrong: "That password is not right.",
+    passwordOpen: "Open",
+    locked: "This workbook is password-protected.",
+    unlock: "Enter the password",
   },
   binary: {
     download: "Download",

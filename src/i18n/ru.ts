@@ -26,6 +26,7 @@ const ru: Dict = {
     skipToContent: "Перейти к содержимому",
     dropToOpen: "Перетащите файл, чтобы открыть",
     discardConfirm: "В документе есть несохранённые изменения. Отменить их?",
+    lossySaveConfirm: "При сохранении в этом формате часть документа будет потеряна:\n\n{warnings}\n\nВсё равно сохранить?",
     saveAsPrompt: "Имя файла:",
     renameTitle: "Переименовать",
     encodingTitle: "Открыть заново с другой кодировкой",
@@ -367,6 +368,14 @@ const ru: Dict = {
     kindList: "список [ ]",
     kindObject: "объект { }",
     kindLocked: "Сначала удалите записи: при преобразовании данные будут потеряны.",
+  },
+  sheet: {
+    passwordTitle: "Книга защищена паролем",
+    passwordLabel: "Пароль",
+    passwordWrong: "Неверный пароль.",
+    passwordOpen: "Открыть",
+    locked: "Эта книга защищена паролем.",
+    unlock: "Ввести пароль",
   },
   binary: {
     download: "Скачать",

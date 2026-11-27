@@ -329,6 +329,8 @@ class StubSheet {
 const built: StubSheet[] = [];
 
 vi.mock("sheetedit", () => ({
+  looksLikeXls: () => false,
+  xlsPasswordState: () => "none",
   createSheetEditorAsync: (
     _el: unknown,
     _bytes: Uint8Array,

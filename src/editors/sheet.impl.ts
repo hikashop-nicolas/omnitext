@@ -1,8 +1,9 @@
 import { isNative } from "../core/platform";
 import { ReadingFullscreen } from "./reading-fullscreen";
 import { richdocFonts } from "./richdoc-fonts";
-import { createSheetEditorAsync, setLocale, setRegionalLocale, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
-import { getLocale } from "../i18n";
+import { createSheetEditorAsync, looksLikeXls, setLocale, setRegionalLocale, xlsPasswordState, type CellInput as SheetCellInput, type SheetEditor, type SheetImageInfo } from "sheetedit";
+import { getLocale, t } from "../i18n";
+import { askWorkbookPassword } from "./sheet-password";
 import { getSettings } from "../settings";
 import type * as Y from "yjs";
 import type {
@@ -81,18 +82,58 @@ class SheetInstance implements EditorInstance {
   private readonly awaiting = new Set<string>();
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
+    // The format could not read this file: fail, so the app shows its read-failure box.
+    if (ctx.binary && ctx.format && (!ctx.model || typeof ctx.model !== "object")) throw new Error("unreadable workbook");
     this.binary = ctx.binary;
     // The sheet has its own bottom bar on the phone, which takes the status bar's place.
     if (isNative()) document.body.classList.add("ot-own-bar");
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
-    const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
     // The app's language also sets how numbers, dates and formulas read: "=SOMME(A1;0,5)" in French,
     // unless the settings keep them English.
     setLocale(getLocale());
     setRegionalLocale(getSettings().sheetFormulas === "en" ? "en" : null);
+    if (ctx.binary && looksLikeXls(this.bytes) && xlsPasswordState(this.bytes) === "required") void this.unlock(container, ctx);
+    else this.open(container, ctx);
+  }
+
+  /** An encrypted .xls asks for its password in the app's dialog; cancelling leaves it locked. */
+  private async unlock(container: HTMLElement, ctx: EditorMountContext): Promise<void> {
+    const bytes = this.bytes;
+    const known = rememberedPassword(bytes);
+    if (known != null) return this.open(container, ctx, known);
+    let wrong = false;
+    for (;;) {
+      const pw = await askWorkbookPassword(wrong);
+      if (this.disposed) return;
+      if (pw == null) break;
+      if (xlsPasswordState(bytes, pw) === "ok") {
+        unlocked = { bytes, password: pw };
+        return this.open(container, ctx, pw);
+      }
+      wrong = true;
+    }
+    const box = document.createElement("div");
+    box.className = "ot-sheet-locked";
+    const msg = document.createElement("p");
+    msg.textContent = t("sheet.locked");
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "btn btn-primary";
+    again.textContent = t("sheet.unlock");
+    again.addEventListener("click", () => {
+      box.remove();
+      void this.unlock(container, ctx);
+    });
+    box.append(msg, again);
+    container.appendChild(box);
+  }
+
+  private open(container: HTMLElement, ctx: EditorMountContext, password?: string): void {
+    const isTsv = (ctx.mime ?? "").includes("tab-separated") || /\.tsv$/i.test(ctx.filename ?? "");
     // Async factory inflates a zip-based workbook off the main thread before the parse.
     void createSheetEditorAsync(container, this.bytes, {
+      ...(password != null ? { password } : {}),
       onChange: ctx.onChange,
       convertPicture: (file: File) => pictureFromFile(file, OFFICE_PICTURES),
       ...(this.fullscreen = new ReadingFullscreen(container, ".sheetedit-wrap")).options(),
@@ -450,6 +491,10 @@ class SheetInstance implements EditorInstance {
     return this.editor ? this.editor.getBytes() : Promise.resolve(this.bytes);
   }
 
+  saveWarnings(): string[] {
+    return this.editor?.saveWarnings() ?? [];
+  }
+
   selection(): unknown {
     return null;
   }
@@ -467,6 +512,15 @@ class SheetInstance implements EditorInstance {
     this.editor?.destroy();
     this.editor = null;
   }
+}
+
+/** The last workbook unlocked, so remounting it (a theme change, a view switch) does not ask again. */
+let unlocked: { bytes: Uint8Array; password: string } | null = null;
+function rememberedPassword(bytes: Uint8Array): string | null {
+  const u = unlocked;
+  if (!u || u.bytes.length !== bytes.length) return null;
+  for (let i = 0; i < bytes.length; i++) if (u.bytes[i] !== bytes[i]) return null;
+  return u.password;
 }
 
 export const sheetEditor: EditorModule = {

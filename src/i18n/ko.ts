@@ -23,6 +23,7 @@ const ko: Dict = {
     skipToContent: "본문으로 건너뛰기",
     dropToOpen: "열 파일을 여기에 놓으세요",
     discardConfirm: "이 문서에 저장되지 않은 변경 사항이 있습니다. 변경 사항을 버릴까요?",
+    lossySaveConfirm: "이 형식으로 저장하면 문서의 일부가 빠집니다:\n\n{warnings}\n\n그래도 저장할까요?",
     saveAsPrompt: "파일 이름:",
     renameTitle: "이름 바꾸기",
     encodingTitle: "다른 인코딩으로 다시 열기",
@@ -346,6 +347,14 @@ const ko: Dict = {
     kindList: "목록 [ ]",
     kindObject: "객체 { }",
     kindLocked: "먼저 항목을 삭제하세요: 변환하면 데이터가 손실됩니다.",
+  },
+  sheet: {
+    passwordTitle: "암호로 보호된 통합 문서",
+    passwordLabel: "암호",
+    passwordWrong: "암호가 올바르지 않습니다.",
+    passwordOpen: "열기",
+    locked: "이 통합 문서는 암호로 보호되어 있습니다.",
+    unlock: "암호 입력",
   },
   binary: {
     download: "다운로드",

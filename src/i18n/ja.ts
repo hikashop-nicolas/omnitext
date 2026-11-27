@@ -23,6 +23,7 @@ const ja: Dict = {
     skipToContent: "本文へ移動",
     dropToOpen: "ファイルをドロップして開く",
     discardConfirm: "この文書には未保存の変更があります。破棄しますか？",
+    lossySaveConfirm: "この形式で保存すると、文書の一部が保存されません:\n\n{warnings}\n\nこのまま保存しますか？",
     saveAsPrompt: "ファイル名：",
     renameTitle: "名前の変更",
     encodingTitle: "別のエンコーディングで開き直す",
@@ -346,6 +347,14 @@ const ja: Dict = {
     kindList: "リスト [ ]",
     kindObject: "オブジェクト { }",
     kindLocked: "先に項目を削除してください。変換するとデータが失われます。",
+  },
+  sheet: {
+    passwordTitle: "パスワードで保護されたブック",
+    passwordLabel: "パスワード",
+    passwordWrong: "パスワードが正しくありません。",
+    passwordOpen: "開く",
+    locked: "このブックはパスワードで保護されています。",
+    unlock: "パスワードを入力",
   },
   binary: {
     download: "ダウンロード",

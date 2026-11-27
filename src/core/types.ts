@@ -341,6 +341,8 @@ export interface EditorInstance {
   printableFile?(): Promise<{ bytes: Uint8Array; mime: string } | null>;
   /** Other formats this editor can write the document as; the open file stays as it is. */
   exports?(): ExportTarget[];
+  /** What saving in the open format will not keep, one sentence each; the host confirms first. */
+  saveWarnings?(): string[];
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

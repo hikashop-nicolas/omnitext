@@ -1,4 +1,5 @@
 import type { FormatModule, ParseResult } from "../core/types";
+import { readWorkbook, XlsPasswordError } from "sheetedit";
 
 // Spreadsheet behavior (binary), shared by .xlsx and .ods. The model holds the original
 // bytes; the sheet editor (sheetedit) reads, edits with formula recalculation, and
@@ -16,5 +17,19 @@ export const sheetBinaryImpl: FormatModule = {
   },
   serializeBinary(model) {
     return (model as { bytes: Uint8Array }).bytes;
+  },
+};
+
+// A legacy .xls is read once here, so a file sheetedit cannot read reaches the app's
+// read-failure box instead of an empty editor. An encrypted one is unlocked by the editor.
+export const xlsSheetImpl: FormatModule = {
+  ...sheetBinaryImpl,
+  parseBinary(bytes): ParseResult {
+    try {
+      readWorkbook(bytes, { lazySheets: true });
+    } catch (e) {
+      if (!(e instanceof XlsPasswordError)) throw e;
+    }
+    return { ok: true, model: { bytes }, diagnostics: [] };
   },
 };

@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const calls = vi.hoisted(() => ({ locale: [] as string[], regional: [] as (string | null)[] }));
 vi.mock("sheetedit", () => ({
   createSheetEditorAsync: () => new Promise(() => {}),
+  looksLikeXls: () => false,
+  xlsPasswordState: () => "none",
   setLocale: (code: string) => calls.locale.push(code),
   setRegionalLocale: (code: string | null) => calls.regional.push(code),
 }));

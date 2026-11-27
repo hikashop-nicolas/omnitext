@@ -23,6 +23,7 @@ const tr: Dict = {
     skipToContent: "İçeriğe atla",
     dropToOpen: "Açmak için bir dosya bırakın",
     discardConfirm: "Bu belgede kaydedilmemiş değişiklikler var. Değişiklikler atılsın mı?",
+    lossySaveConfirm: "Bu biçimde kaydetmek belgenin bir kısmını dışarıda bırakır:\n\n{warnings}\n\nYine de kaydedilsin mi?",
     saveAsPrompt: "Dosya adı:",
     renameTitle: "Yeniden adlandır",
     encodingTitle: "Farklı bir kodlamayla yeniden aç",
@@ -346,6 +347,14 @@ const tr: Dict = {
     kindList: "liste [ ]",
     kindObject: "nesne { }",
     kindLocked: "Önce girdileri kaldırın: dönüştürme veri kaybına yol açar.",
+  },
+  sheet: {
+    passwordTitle: "Parola korumalı çalışma kitabı",
+    passwordLabel: "Parola",
+    passwordWrong: "Parola yanlış.",
+    passwordOpen: "Aç",
+    locked: "Bu çalışma kitabı parola korumalı.",
+    unlock: "Parolayı gir",
   },
   binary: {
     download: "İndir",

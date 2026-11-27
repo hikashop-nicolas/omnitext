@@ -860,3 +860,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
   :root[data-doc-canvas="dark"] .docxedit-page :is(img, video, canvas) { filter: contrast(1.163) hue-rotate(180deg) invert(1); }
   :root[data-doc-canvas="dark"] .docxedit-page { box-shadow: none; }
 }
+
+/* An encrypted workbook whose password dialog was cancelled. */
+.ot-sheet-locked {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  height: 100%; padding: 24px; box-sizing: border-box; text-align: center; color: var(--text);
+}
+.ot-sheet-locked p { margin: 0; }

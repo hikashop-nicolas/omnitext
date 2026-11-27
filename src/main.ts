@@ -69,7 +69,7 @@ import { tsvFormat } from "./formats/tsv";
 import { typescriptFormat } from "./formats/typescript";
 import { pdfFormat } from "./formats/pdf";
 import { rtfFormat } from "./formats/rtf";
-import { xlsFormat } from "./formats/xls";
+import { xlsFormat, xlsTextFormat } from "./formats/xls";
 import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
@@ -320,6 +320,8 @@ for (const f of makeGenericViewerFormats()) engine.registerFormat(f);
 // Office/book viewers (read-only, open-only: not offered in the New dialog).
 engine.registerFormat(pptxFormat);
 engine.registerFormat(epubFormat);
+// After xlsFormat, so a real .xls stays the default for its extension.
+engine.registerFormat(xlsTextFormat);
 // Data/design/PIM viewers (open-only). ipynb/ics/vcf are text (raw editing via the text
 // editor); font/sqlite/eml/msg/tiff/torrent are binary.
 engine.registerFormat(fontFormat);
@@ -410,6 +412,8 @@ interface Session {
   nativeWritable?: boolean;
   /** Set when this document is an entry opened from an archive: saving writes back into it. */
   archive?: ArchiveContext;
+  /** The user agreed to save although the format drops part of the document (editor saveWarnings). */
+  lossAccepted?: boolean;
 }
 
 interface ArchiveContext {
@@ -1496,6 +1500,7 @@ async function saveAsNative(bytes: Uint8Array, name: string): Promise<boolean> {
 
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
+  if (!confirmLossySave()) return;
   if (session.archive) {
     await saveIntoArchive(session.archive);
     return;
@@ -1599,6 +1604,16 @@ async function saveFile(): Promise<void> {
   updateUI();
   engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
   setStatus(t("status.saved"));
+}
+
+/** Before an edited document is written in a format that drops some of it: ask, once per document. */
+function confirmLossySave(): boolean {
+  if (!session?.dirty || session.lossAccepted) return true;
+  const warnings = session.editor?.saveWarnings?.() ?? [];
+  if (!warnings.length) return true;
+  if (!window.confirm(t("app.lossySaveConfirm", { warnings: warnings.join("\n") }))) return false;
+  session.lossAccepted = true;
+  return true;
 }
 
 function downloadBytes(bytes: Uint8Array, name: string): void {

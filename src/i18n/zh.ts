@@ -27,6 +27,7 @@ const zh: Dict = {
     skipToContent: "跳到正文",
     dropToOpen: "拖入文件即可打开",
     discardConfirm: "此文档有未保存的更改。要放弃吗？",
+    lossySaveConfirm: "以此格式保存会丢失文档的一部分：\n\n{warnings}\n\n仍要保存吗？",
     saveAsPrompt: "文件名：",
     renameTitle: "重命名",
     encodingTitle: "以其他编码重新打开",
@@ -348,6 +349,14 @@ const zh: Dict = {
     kindList: "列表 [ ]",
     kindObject: "对象 { }",
     kindLocked: "请先删除条目：转换会丢失数据。",
+  },
+  sheet: {
+    passwordTitle: "受密码保护的工作簿",
+    passwordLabel: "密码",
+    passwordWrong: "密码不正确。",
+    passwordOpen: "打开",
+    locked: "此工作簿受密码保护。",
+    unlock: "输入密码",
   },
   binary: {
     download: "下载",

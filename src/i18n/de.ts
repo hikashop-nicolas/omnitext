@@ -23,6 +23,7 @@ const de: Dict = {
     skipToContent: "Zum Inhalt springen",
     dropToOpen: "Datei zum Öffnen hierher ziehen",
     discardConfirm: "Dieses Dokument hat nicht gespeicherte Änderungen. Verwerfen?",
+    lossySaveConfirm: "Beim Speichern in diesem Format fehlt ein Teil des Dokuments:\n\n{warnings}\n\nTrotzdem speichern?",
     saveAsPrompt: "Dateiname:",
     renameTitle: "Umbenennen",
     encodingTitle: "Mit anderer Zeichenkodierung erneut öffnen",
@@ -344,6 +345,14 @@ const de: Dict = {
     kindList: "Liste [ ]",
     kindObject: "Objekt { }",
     kindLocked: "Zuerst Einträge entfernen: die Umwandlung würde Daten verlieren.",
+  },
+  sheet: {
+    passwordTitle: "Passwortgeschützte Arbeitsmappe",
+    passwordLabel: "Passwort",
+    passwordWrong: "Das Passwort ist falsch.",
+    passwordOpen: "Öffnen",
+    locked: "Diese Arbeitsmappe ist passwortgeschützt.",
+    unlock: "Passwort eingeben",
   },
   binary: {
     download: "Herunterladen",

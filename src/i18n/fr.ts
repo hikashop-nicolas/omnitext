@@ -23,6 +23,7 @@ const fr: Dict = {
     skipToContent: "Aller au contenu",
     dropToOpen: "Déposez un fichier pour l'ouvrir",
     discardConfirm: "Ce document contient des modifications non enregistrées. Les abandonner ?",
+    lossySaveConfirm: "L'enregistrement dans ce format laisse de côté une partie du document :\n\n{warnings}\n\nEnregistrer quand même ?",
     saveAsPrompt: "Nom du fichier :",
     renameTitle: "Renommer",
     encodingTitle: "Rouvrir avec un autre encodage",
@@ -347,6 +348,14 @@ const fr: Dict = {
     kindList: "liste [ ]",
     kindObject: "objet { }",
     kindLocked: "Supprimez d'abord des entrées : la conversion perdrait des données.",
+  },
+  sheet: {
+    passwordTitle: "Classeur protégé par mot de passe",
+    passwordLabel: "Mot de passe",
+    passwordWrong: "Ce mot de passe n'est pas le bon.",
+    passwordOpen: "Ouvrir",
+    locked: "Ce classeur est protégé par un mot de passe.",
+    unlock: "Saisir le mot de passe",
   },
   binary: {
     download: "Télécharger",

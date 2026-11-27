@@ -23,6 +23,7 @@ const pl: Dict = {
     skipToContent: "Przejdź do treści",
     dropToOpen: "Upuść plik, aby go otworzyć",
     discardConfirm: "Ten dokument zawiera niezapisane zmiany. Odrzucić je?",
+    lossySaveConfirm: "Zapis w tym formacie pominie część dokumentu:\n\n{warnings}\n\nZapisać mimo to?",
     saveAsPrompt: "Nazwa pliku:",
     renameTitle: "Zmień nazwę",
     encodingTitle: "Otwórz ponownie z innym kodowaniem",
@@ -366,6 +367,14 @@ const pl: Dict = {
     kindList: "lista [ ]",
     kindObject: "obiekt { }",
     kindLocked: "Najpierw usuń wpisy: konwersja spowodowałaby utratę danych.",
+  },
+  sheet: {
+    passwordTitle: "Skoroszyt chroniony hasłem",
+    passwordLabel: "Hasło",
+    passwordWrong: "Nieprawidłowe hasło.",
+    passwordOpen: "Otwórz",
+    locked: "Ten skoroszyt jest chroniony hasłem.",
+    unlock: "Wpisz hasło",
   },
   binary: {
     download: "Pobierz",
