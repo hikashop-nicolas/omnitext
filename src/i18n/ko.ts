@@ -1135,6 +1135,11 @@ const ko: Dict = {
     copy: "복사",
     addLink: "링크 추가",
     font: "글꼴",
+    fontBigTitle: "큰 글꼴을 다운로드할까요?",
+    fontBigNote: "{name}의 크기는 {size}MB입니다. 다운로드하여 텍스트에 사용할까요?",
+    fontDownload: "다운로드",
+    fontUnavailable: "{name}을(를) 불러올 수 없습니다",
+    fontRefused: "{name}은(는) PDF에 포함할 수 없습니다(라이선스가 금지하거나 정적 TrueType 또는 OpenType 글꼴이 아닙니다)",
   },
   export: {
     mxl: "압축 MusicXML(MXL)",

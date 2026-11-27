@@ -1156,6 +1156,11 @@ const ru: Dict = {
     copy: "Копировать",
     addLink: "Добавить ссылку",
     font: "Шрифт",
+    fontBigTitle: "Загрузить большой шрифт?",
+    fontBigNote: "{name} занимает {size} МБ. Загрузить его, чтобы набрать им текст?",
+    fontDownload: "Загрузить",
+    fontUnavailable: "Не удалось загрузить {name}",
+    fontRefused: "{name} нельзя встроить в PDF (это запрещает лицензия, или это не статический шрифт TrueType или OpenType)",
   },
   export: {
     mxl: "Сжатый MusicXML (MXL)",

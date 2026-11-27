@@ -1155,6 +1155,11 @@ const pl: Dict = {
     copy: "Kopiuj",
     addLink: "Dodaj link",
     font: "Krój pisma",
+    fontBigTitle: "Pobrać dużą czcionkę?",
+    fontBigNote: "{name} ma {size} MB. Pobrać ją, aby złożyć nią tekst?",
+    fontDownload: "Pobierz",
+    fontUnavailable: "Nie udało się wczytać {name}",
+    fontRefused: "Nie można osadzić {name} w pliku PDF (licencja tego zabrania lub nie jest to statyczna czcionka TrueType ani OpenType)",
   },
   export: {
     mxl: "Skompresowany MusicXML (MXL)",

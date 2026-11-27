@@ -1133,6 +1133,11 @@ const pt: Dict = {
     copy: "Copiar",
     addLink: "Adicionar uma ligação",
     font: "Tipo de letra",
+    fontBigTitle: "Transferir uma fonte grande?",
+    fontBigNote: "{name} tem {size} MB. Transferi-la para pôr o texto nela?",
+    fontDownload: "Transferir",
+    fontUnavailable: "Não foi possível carregar {name}",
+    fontRefused: "{name} não pode ser incorporada num PDF (a licença proíbe-o ou não é uma fonte TrueType ou OpenType estática)",
   },
   export: {
     mxl: "MusicXML comprimido (MXL)",

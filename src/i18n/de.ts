@@ -1133,6 +1133,11 @@ const de: Dict = {
     copy: "Kopieren",
     addLink: "Link hinzufügen",
     font: "Schriftart",
+    fontBigTitle: "Große Schrift herunterladen?",
+    fontBigNote: "{name} ist {size} MB groß. Herunterladen, um den Text darin zu setzen?",
+    fontDownload: "Herunterladen",
+    fontUnavailable: "{name} konnte nicht geladen werden",
+    fontRefused: "{name} kann nicht in ein PDF eingebettet werden (die Lizenz verbietet es, oder es ist keine statische TrueType- oder OpenType-Schrift)",
   },
   export: {
     mxl: "Komprimiertes MusicXML (MXL)",

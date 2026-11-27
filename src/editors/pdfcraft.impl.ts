@@ -3,6 +3,7 @@ import PdfWorker from "craftbridge/pdf/worker?worker";
 import type { CollabBinding, CollabContext, EditorInstance, HostAPI, EditorModule, EditorMountContext } from "../core/types";
 import { PdfLog, type Change } from "./pdfcraft-collab";
 import { documentFaces } from "./pdfcraft-fonts";
+import { PdfFontPicker } from "./pdfcraft-picker";
 import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pdfcraft-keys";
 import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, playerDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
@@ -316,7 +317,6 @@ interface TextSel {
   rects: Box[];
 }
 
-const FAMILIES = ["helvetica", "times", "courier"] as const;
 const SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
 
 /** The box around a list of boxes. */
@@ -396,6 +396,9 @@ class PdfCraftInstance implements EditorInstance {
   /** Faces named like the document's fonts go in by reopening it, so only before its first change. */
   private fontsReady: Promise<void> | null = null;
   private fontsFrozen = false;
+  /** The font picker of text objects, and the engine document its registered faces belong to. */
+  private fonts!: PdfFontPicker;
+  private fontDoc: PdfDocument | null = null;
   /** The file every peer started the session from, and the bytes offered for it before the session binds. */
   private sessionBase: Uint8Array | null = null;
   private pendingBase: Uint8Array | null = null;
@@ -419,6 +422,11 @@ class PdfCraftInstance implements EditorInstance {
     this.original = ctx.bytes ?? new Uint8Array();
     this.reading = !ctx.created;
     this.root = el("div", "ot-pc");
+    this.fonts = new PdfFontPicker({
+      root: this.root,
+      register: (bytes) => this.registerFont(bytes),
+      confirm: (title, message, ok) => messageDialog(this.root, { title, message, ok, cancel: t("pdfcraft.cancel") }),
+    });
     this.bar = el("div", "ot-pc-bar");
     this.zoomRow = el("div", "ot-pc-bottom");
     this.sub = el("div", "ot-pc-sub");
@@ -1000,6 +1008,20 @@ class PdfCraftInstance implements EditorInstance {
     } catch {
       // the document stays as opened
     }
+  }
+
+  /** Gives the engine a chosen face (not in a shared session: its file would have to reach every peer). */
+  private async registerFont(bytes: Uint8Array): Promise<string> {
+    if (this.shared) throw new Error(t("pdfcraft.notShared"));
+    // registering ends the reopening with the document's own faces, which would drop it
+    await this.settleFonts();
+    const doc = this.doc;
+    if (!doc) throw new Error(t("pdfcraft.notShared"));
+    if (this.fontDoc !== doc) {
+      this.fonts.reset();
+      this.fontDoc = doc;
+    }
+    return (await doc.registerTextFont(bytes)).font;
   }
 
   /** Before the first change: waits a little for the face lookup, then no more reopening. */
@@ -1968,11 +1990,23 @@ class PdfCraftInstance implements EditorInstance {
       if (ann.subtype === "Text" || ann.subtype === "FreeText" || ann.contents) add("edit", t("pdfcraft.editComment"), () => void this.editComment(sel.page, ann));
     } else if (sel.obj.type === "text" && style) {
       add("edit", t("pdfcraft.editText"), () => this.editSelection());
-      const family = el("select");
-      family.setAttribute("aria-label", t("pdfcraft.font"));
-      family.title = t("pdfcraft.font");
-      for (const f of FAMILIES) family.add(new Option(f[0]!.toUpperCase() + f.slice(1), f, false, f === style.family));
-      family.addEventListener("change", () => void this.styleSelection({ family: family.value as TextStyle["family"] }));
+      // a page font of existing text names its standard family the way the engine does
+      const own = style.font && !/^(Helvetica|Times|Courier)/i.test(style.font) ? style.font : null;
+      const pageFonts: { resource: string; face: string }[] = [];
+      const family = this.fonts.create({
+        current: own ?? style.family,
+        pageFonts,
+        bold: style.bold,
+        italic: style.italic,
+        apply: (choice) => void this.styleSelection(choice),
+      });
+      if (sel.obj.kind === "text" && this.doc) {
+        void this.doc.textFonts(sel.page).then((list) => {
+          if (this.sel !== sel) return;
+          pageFonts.push(...list.filter((f) => !f.choice));
+          this.fonts.refresh();
+        }).catch(() => undefined);
+      }
       const size = el("select");
       size.setAttribute("aria-label", t("pdfcraft.size"));
       size.title = t("pdfcraft.size");
@@ -3180,7 +3214,10 @@ class PdfCraftInstance implements EditorInstance {
       }
       await this.run(edit.page, () => this.commit({ op: "setText", page: edit.page, target: { kind: obj.kind, index: obj.index }, text }), { page: edit.page, obj });
     } else if (text.trim()) {
-      await this.run(edit.page, () => this.commit({ op: "addText", page: edit.page, view: edit.box, text }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "text"));
+      // new text takes the face last chosen in this document
+      const font = this.fontDoc === this.doc ? this.fonts.lastFont : null;
+      const style = font ? { font } : undefined;
+      await this.run(edit.page, () => this.commit({ op: "addText", page: edit.page, view: edit.box, text, ...(style ? { style } : {}) }), null, (list) => [...list].reverse().find((o) => o.kind === "added" && o.type === "text"));
       this.setTool("select");
     }
   }
@@ -3338,6 +3375,7 @@ class PdfCraftInstance implements EditorInstance {
     this.cancelEdit();
     this.cancelRubber();
     this.release(null);
+    this.fonts?.dispose();
     this.doc?.close();
     this.doc = null;
     this.root?.remove();

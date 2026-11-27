@@ -1135,6 +1135,11 @@ const ja: Dict = {
     copy: "コピー",
     addLink: "リンクを追加",
     font: "書体",
+    fontBigTitle: "大きなフォントをダウンロードしますか？",
+    fontBigNote: "{name} は {size} MB です。ダウンロードしてテキストに使いますか？",
+    fontDownload: "ダウンロード",
+    fontUnavailable: "{name} を読み込めませんでした",
+    fontRefused: "{name} は PDF に埋め込めません（ライセンスで禁止されているか、静的な TrueType / OpenType フォントではありません）",
   },
   export: {
     mxl: "圧縮 MusicXML (MXL)",

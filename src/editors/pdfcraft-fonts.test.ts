@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FontFile } from "fontshelf";
-import { catalogFamily, embeddable, fontQuery } from "./pdfcraft-fonts";
+import { catalogFamily, embeddable, extractFace, fontQuery, singleFace, usableFace } from "./pdfcraft-fonts";
 
 /** A bare sfnt with an OS/2 table carrying `fsType`. */
 function sfnt(fsType: number): Uint8Array {
@@ -49,5 +49,27 @@ describe("pdfcraft fonts", () => {
     expect(embeddable(file({ variable: true }))).toBe(false);
     expect(embeddable(file({ format: "ttc" }))).toBe(false);
     expect(embeddable(file({ format: "woff2" }))).toBe(false);
+  });
+
+  it("takes a face out of a collection as a standalone font", () => {
+    const face = sfnt(0x0008);
+    // ttcf header, one face at 16, its tables after: the table offset moves by 16.
+    const ttc = new Uint8Array(16 + face.length);
+    const v = new DataView(ttc.buffer);
+    v.setUint32(0, 0x74746366);
+    v.setUint32(4, 0x00010000);
+    v.setUint32(8, 1);
+    v.setUint32(12, 16);
+    ttc.set(face, 16);
+    v.setUint32(16 + 12 + 8, 28 + 16);
+    const out = extractFace(ttc, 0)!;
+    expect(out).toEqual(face);
+    expect(extractFace(ttc, 1)).toBeNull();
+    expect(extractFace(face, 0)).toBeNull();
+    expect(singleFace({ bytes: ttc, format: "ttc", index: 0 })).toEqual(face);
+    expect(singleFace({ bytes: face, format: "woff2", index: 0 })).toBeNull();
+    expect(usableFace({ variable: false }, out)).toBe(true);
+    expect(usableFace({ variable: false }, sfnt(0x0004))).toBe(false);
+    expect(usableFace({ variable: true }, out)).toBe(false);
   });
 });

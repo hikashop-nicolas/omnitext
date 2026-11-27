@@ -1135,6 +1135,11 @@ const tr: Dict = {
     copy: "Kopyala",
     addLink: "Bağlantı ekle",
     font: "Yazı tipi",
+    fontBigTitle: "Büyük bir yazı tipi indirilsin mi?",
+    fontBigNote: "{name} {size} MB. Metni bu yazı tipiyle dizmek için indirilsin mi?",
+    fontDownload: "İndir",
+    fontUnavailable: "{name} yüklenemedi",
+    fontRefused: "{name} bir PDF'e gömülemez (lisansı buna izin vermiyor ya da statik bir TrueType veya OpenType yazı tipi değil)",
   },
   export: {
     mxl: "Sıkıştırılmış MusicXML (MXL)",

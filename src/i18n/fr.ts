@@ -1136,6 +1136,11 @@ const fr: Dict = {
     copy: "Copier",
     addLink: "Ajouter un lien",
     font: "Police",
+    fontBigTitle: "Télécharger une grande police ?",
+    fontBigNote: "{name} pèse {size} Mo. La télécharger pour y mettre le texte ?",
+    fontDownload: "Télécharger",
+    fontUnavailable: "Impossible de charger {name}",
+    fontRefused: "{name} ne peut pas être incorporée dans un PDF (sa licence l'interdit, ou ce n'est pas une police TrueType ou OpenType statique)",
   },
   export: {
     mxl: "MusicXML compressé (MXL)",

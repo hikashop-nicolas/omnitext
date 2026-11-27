@@ -50,6 +50,50 @@ export function embeddable(f: FontFile): boolean {
   return !!info && ((info.fsType ?? 0) & NO_EMBED) === 0;
 }
 
+/** One face of a collection as a standalone font file (its table directory and tables copied out). */
+export function extractFace(ttc: Uint8Array, index: number): Uint8Array | null {
+  const v = new DataView(ttc.buffer, ttc.byteOffset, ttc.byteLength);
+  if (ttc.byteLength < 16 || v.getUint32(0) !== 0x74746366 || index >= v.getUint32(8)) return null;
+  const at = v.getUint32(12 + index * 4);
+  if (at + 12 > ttc.byteLength) return null;
+  const n = v.getUint16(at + 4);
+  if (at + 12 + n * 16 > ttc.byteLength) return null;
+  const tables: { rec: Uint8Array; off: number; len: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const r = at + 12 + i * 16;
+    const off = v.getUint32(r + 8);
+    const len = v.getUint32(r + 12);
+    if (off + len > ttc.byteLength) return null;
+    tables.push({ rec: ttc.subarray(r, r + 16), off, len });
+  }
+  let size = 12 + n * 16;
+  for (const tb of tables) size += (tb.len + 3) & ~3;
+  const out = new Uint8Array(size);
+  const ov = new DataView(out.buffer);
+  out.set(ttc.subarray(at, at + 12), 0);
+  let pos = 12 + n * 16;
+  tables.forEach((tb, i) => {
+    out.set(tb.rec, 12 + i * 16);
+    ov.setUint32(12 + i * 16 + 8, pos);
+    out.set(ttc.subarray(tb.off, tb.off + tb.len), pos);
+    pos += (tb.len + 3) & ~3;
+  });
+  return out;
+}
+
+/** The face a font file stands for, as a standalone font (a collection's face copied out). */
+export function singleFace(f: Pick<FontFile, "bytes" | "format" | "index">): Uint8Array | null {
+  if (f.format === "ttc") return extractFace(f.bytes, f.index);
+  return f.format === "ttf" || f.format === "otf" ? f.bytes : null;
+}
+
+/** Whether the engine embeds this face: static, small enough, and its fsType allows editing. */
+export function usableFace(f: Pick<FontFile, "variable">, bytes: Uint8Array): boolean {
+  if (f.variable || bytes.byteLength > MAX_BYTES) return false;
+  const info = parseFontInfo(bytes);
+  return !!info && !info.variable && info.numFonts === 1 && ((info.fsType ?? 0) & NO_EMBED) === 0;
+}
+
 /** Remote catalog files only in builds that offer them (not F-Droid) and after the user's consent. */
 function remoteOk(): boolean {
   const build = typeof __REMOTE_FONTS__ === "boolean" ? __REMOTE_FONTS__ : true;

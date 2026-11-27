@@ -30,6 +30,29 @@ export interface TextStyle {
   size?: number;
   color?: [number, number, number];
   align?: "left" | "center" | "right" | "justify";
+  font?: string;
+  resource?: string;
+  ranges?: TextRange[];
+}
+
+export interface TextRange {
+  from: number;
+  to: number;
+  font?: string;
+  resource?: string;
+  size?: number;
+  color?: [number, number, number];
+}
+
+export interface TextFont {
+  resource: string;
+  face: string;
+  choice: boolean;
+}
+
+export interface RegisteredFont {
+  font: string;
+  family: string;
 }
 
 export interface ObjectRef {
@@ -44,7 +67,7 @@ export interface PageObject {
   text: string | null;
   /** Where it is drawn: points from the page's top-left, y down. */
   view: Box;
-  style: (Required<Omit<TextStyle, "align">> & { align: TextStyle["align"] | null }) | null;
+  style: (Required<Pick<TextStyle, "family" | "bold" | "italic" | "size" | "color">> & { align: TextStyle["align"] | null; font: string | null }) | null;
 }
 
 export interface FindMatch {
@@ -382,6 +405,8 @@ export declare class PdfDocument {
   deleteObject(page: number, target: ObjectRef): Promise<void>;
   setText(page: number, target: ObjectRef, text?: string, style?: TextStyle): Promise<void>;
   cover(page: number, view: Box): Promise<void>;
+  registerTextFont(bytes: Uint8Array): Promise<RegisteredFont>;
+  textFonts(page: number): Promise<TextFont[]>;
   execute(call: EditCall): Promise<void>;
   find(query: string, options?: { caseSensitive?: boolean; wholeWords?: boolean; limit?: number }): Promise<FindMatch[]>;
   selectText(page: number, from: [number, number], to: [number, number]): Promise<TextSelection>;
