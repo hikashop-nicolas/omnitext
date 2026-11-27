@@ -222,6 +222,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["./src/vendor/test-setup.ts"],
+    // sheetedit's dist imports its modules without extensions, which node's resolver refuses.
+    server: { deps: { inline: ["sheetedit"] } },
     // The libarchive wasm is imported as a URL for the browser. Under node that string has
     // to be a filesystem path instead, or emscripten looks for it at the filesystem root.
     // Aliased here rather than made configurable in the app: it is the test environment
