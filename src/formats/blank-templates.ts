@@ -114,10 +114,8 @@ async function blankOdt(paper: Paper, orient: Orientation, direction: Direction)
 }
 
 async function blankSheet(bookType: "xlsx" | "ods" | "xls"): Promise<Uint8Array> {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[""]]), "Sheet1");
-  return new Uint8Array(XLSX.write(wb, { bookType, type: "array" }) as ArrayBuffer);
+  const { blankWorkbookBytes } = await import("sheetedit");
+  return blankWorkbookBytes(bookType);
 }
 
 async function blankPdf(): Promise<Uint8Array> {

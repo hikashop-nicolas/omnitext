@@ -22,17 +22,17 @@ export function looksLikeXlsText(head: Uint8Array): boolean {
   return head.every((b) => b >= 0x20 || b === 0x09 || b === 0x0a || b === 0x0d);
 }
 
-/** An HTML or XML (Excel 2003) table saved as .xls: SheetJS reads it into the table view. */
+/** An HTML or Excel 2003 XML table saved as .xls: sheetedit reads it and saves a real .xls. */
 export const xlsTextFormat: FormatDescriptor = {
   manifest: {
     kind: "format",
     id: "xls-html",
     extensions: [".xls"],
     binary: true,
-    viewAdapters: ["table"],
-    defaultEditor: "table",
+    viewAdapters: ["sheet"],
+    defaultEditor: "sheet",
   },
   detect: () => 0,
   sniffBytes: looksLikeXlsText,
-  load: () => import("./xlsx.impl").then((m) => m.xlsImpl),
+  load: () => import("./sheet.impl").then((m) => m.sheetBinaryImpl),
 };

@@ -492,7 +492,8 @@ class SheetInstance implements EditorInstance {
   }
 
   saveWarnings(): string[] {
-    return this.editor?.saveWarnings() ?? [];
+    const notice = this.editor?.importNotice();
+    return [...(this.editor?.saveWarnings() ?? []), ...(notice ? [notice] : [])];
   }
 
   selection(): unknown {

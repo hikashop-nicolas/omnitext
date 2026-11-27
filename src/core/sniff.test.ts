@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /// <reference types="vite/client" />
 import { describe, it, expect } from "vitest";
 import { zipSync, strToU8 } from "fflate";
