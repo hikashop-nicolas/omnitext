@@ -111,6 +111,7 @@
     "svgedit": "^7.4.2",
     "three": "^0.187.0",
     "toml": "^5.0.1",
+    "traceview": "github:hikashop-nicolas/traceview",
     "trystero": "^0.27.0",
     "utif": "^3.1.0",
     "walletview": "github:hikashop-nicolas/walletview",
