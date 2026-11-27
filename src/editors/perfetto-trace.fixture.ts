@@ -1,4 +1,5 @@
 import { zlibSync } from "fflate";
+import type { TraceModel } from "./trace-model";
 
 // A tiny protobuf encoder that builds synthetic Perfetto traces for the tests.
 
@@ -30,7 +31,7 @@ export const SYNC = [0x82, 0x47, 0x7a, 0x76, 0xb2, 0x8d, 0x42, 0xba, 0x81, 0xdc,
 /** A small trace touching every decoded packet type. Times are in ns since boot. */
 export function sampleTrace(): Uint8Array {
   const base = 5_000_000_000;
-  const sched = m(4, packed(1, [base + 1000, 500, 500]), packed(7, [base + 1200]), s(5, "swapper"));
+  const sched = m(4, s(5, "app"), s(5, "swapper"), packed(1, [base + 1000, 500, 500]), packed(3, [300, 0, 301]), packed(6, [0, 1, 0]), packed(7, [base + 1200]));
   const inner = Uint8Array.from(
     m(1, u(8, base + 4_000_000_000), m(39, m(1, u(2, 300), u(3, 301), u(5, base + 4_000_000_000), s(6, "Zipped"), u(7, 4), s(8, "from a compressed packet")))),
   );
@@ -71,5 +72,24 @@ export function sampleTrace(): Uint8Array {
     [u(10, 2), u(8, base + 3_000_000_100), m(11, u(9, 2), u(11, 77))],
     [u(10, 2), u(8, base + 3_000_000_200), m(11, u(9, 3), s(23, "Tap"))],
     [bytes(50, zlibSync(inner))],
+    // Sequence 3: an incremental clock (id 64) and track descriptors.
+    [u(10, 3), u(13, 1), m(59, u(58, 64), m(11, u(11, 88))), m(6, m(1, u(1, 6), u(2, base + 3_500_000_000)), m(1, u(1, 64), u(2, 1000), u(3, 1)))],
+    [u(10, 3), m(60, u(1, 88), m(4, u(1, 300), u(2, 302), s(5, "binder")))],
+    [u(10, 3), m(60, u(1, 99), s(2, "Memory"), m(3, u(1, 300)), m(8))],
+    [u(10, 3), u(8, 500), m(11, u(9, 1), s(23, "Outer"), m(4, s(10, "count"), u(4, 7)))],
+    [u(10, 3), u(8, 1000), m(11, u(9, 2))],
+    [u(10, 3), u(8, 10), m(11, u(9, 4), u(11, 99), u(30, 42))],
   );
+}
+
+/** Every slice of a model as [track label, name, ts, dur, depth]. */
+export function allSlices(model: TraceModel): [string, string, number, number, number][] {
+  const out: [string, string, number, number, number][] = [];
+  for (const g of model.groups) {
+    for (const t of g.tracks) {
+      if (t.kind !== "slices") continue;
+      t.levels.forEach((lv, d) => lv.ts.forEach((ts, i) => out.push([t.label, model.names[lv.name[i]!]!, ts, lv.dur[i]!, d])));
+    }
+  }
+  return out;
 }
