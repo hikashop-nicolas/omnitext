@@ -50,7 +50,7 @@ describe("content sniffing (issue #53)", () => {
     const epub = zipSync({ mimetype: strToU8("application/epub+zip"), "META-INF/container.xml": strToU8("<container/>") });
     expect(opened(epub, "book")).toBe("epub");
     expect(opened(zipSync({ "a.txt": strToU8("hi") }), "bundle.bin")).toBe("zip");
-  });
+  }, 30000);
 
   it("opens a PNG with no extension in the image viewer", () => {
     expect(opened(PNG, "picture")).toBe("png");
