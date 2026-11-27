@@ -131,6 +131,15 @@ describe("Perfetto sniffing", () => {
     const fake = Uint8Array.from([0x0b, ...bytes(36, SYNC)]);
     expect(looksLikePerfetto(fake)).toBe(false);
   });
+
+  it("takes a run of stamped packets without the marker (older and synthetic traces)", () => {
+    const old = trace([u(8, 1), m(1, u(1, 0))], [u(8, 2), u(10, 3), m(11, u(9, 3))], [u(8, 3), m(2, m(1, u(1, 5)))]);
+    expect(looksLikePerfetto(old)).toBe(true);
+    // Two stamped packets are not enough, and one malformed body spoils the run.
+    expect(looksLikePerfetto(trace([u(8, 1), m(1, u(1, 0))], [u(8, 2), s(2, "x".repeat(30))]))).toBe(false);
+    const broken = trace([u(8, 1)], [u(8, 2)], [u(8, 3), [0x12, 0x7f, 1]]);
+    expect(looksLikePerfetto(broken)).toBe(false);
+  });
 });
 
 describe("Chrome-style track events (as Chrome writes them)", () => {

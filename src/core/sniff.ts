@@ -71,13 +71,43 @@ function pbVarint(b: Uint8Array, at: number): [number, number] | null {
   return null;
 }
 
+/** Whether b[start, end) is a whole protobuf message; `stamped` when it has a varint field 8 or 10. */
+function pbMessage(b: Uint8Array, start: number, end: number): { stamped: boolean } | null {
+  let pos = start;
+  let stamped = false;
+  while (pos < end) {
+    const tag = pbVarint(b, pos);
+    if (!tag || tag[0] < 8) return null;
+    const field = Math.floor(tag[0] / 8);
+    const wt = tag[0] % 8;
+    pos = tag[1];
+    if (wt === 0) {
+      const v = pbVarint(b, pos);
+      if (!v) return null;
+      if (field === 8 || field === 10) stamped = true;
+      pos = v[1];
+    } else if (wt === 1) pos += 8;
+    else if (wt === 5) pos += 4;
+    else if (wt === 2) {
+      const n = pbVarint(b, pos);
+      if (!n) return null;
+      pos = n[1] + n[0];
+    } else return null;
+  }
+  return pos === end ? { stamped } : null;
+}
+
 /**
  * Whether these first bytes are a Perfetto trace: a run of well-formed field-1 packets, one of
  * which holds the synchronization marker the tracing service writes near the start of a trace.
+ * Older and synthetic traces have no marker: then every whole packet must be a valid message,
+ * at least three of them with a timestamp or sequence id, as TracePackets carry.
  */
 export function looksLikePerfetto(b: Uint8Array): boolean {
   if (b.length < 21 || b[0] !== 0x0a) return false;
   let pos = 0;
+  let stamped = 0;
+  let whole = 0;
   while (pos < b.length) {
     if (b[pos] !== 0x0a) return false;
     const len = pbVarint(b, pos + 1);
@@ -88,9 +118,15 @@ export function looksLikePerfetto(b: Uint8Array): boolean {
     for (let i = start; i + 19 <= end; i++) {
       if (b[i] === 0xa2 && b[i + 1] === 0x02 && b[i + 2] === 0x10 && SYNC_MARKER.every((v, k) => b[i + 3 + k] === v)) return true;
     }
+    if (start + n <= b.length) {
+      const msg = pbMessage(b, start, start + n);
+      if (!msg) return false;
+      whole++;
+      if (msg.stamped) stamped++;
+    }
     pos = start + n;
   }
-  return false;
+  return stamped >= 3 && whole >= 3;
 }
 
 // ISO base media brands (HEIF images, MP4/MOV/3GP video, M4A audio).
