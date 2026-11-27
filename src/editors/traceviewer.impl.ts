@@ -1,14 +1,15 @@
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { getLocale, t } from "../i18n";
-import { LOG_CAP, emptySummary, parseTrace, type LogEntry, type TraceSummary } from "./perfetto-parse";
+import { LOG_CAP, type LogEntry, type TraceSummary } from "./perfetto-parse";
 import type { SliceRef, SliceTrack, TraceModel } from "./trace-model";
 import { Timeline, type TimelineSelection } from "./trace-timeline";
-import { readChromeTrace } from "./trace-chrome";
-import { looksLikeChromeTrace } from "../formats/trace-detect";
-import { readSystrace } from "./trace-systrace";
+import { openArchiveStream } from "../core/archive-stream";
+import { loadArchive, loadBytes, loadText, type ArchiveFile, type LoadedTrace, type TraceKind } from "./trace-load";
+import type { StatKind, TraceStats } from "./trace-stats";
 
-// Read-only trace viewer for Perfetto protobuf, Chrome JSON and systrace text: all three fill
-// the same model, so the timeline, search and filters work the same for each.
+// Read-only trace viewer for Perfetto protobuf, Chrome JSON, systrace and ftrace text, Fuchsia
+// FXT, ninja logs, strace, logcat and archives of them: all fill the same model, so the
+// timeline, search and filters work the same for each.
 
 const STYLE_ID = "omnitext-trace-style";
 const ROW_CAP = 1000;
@@ -18,7 +19,23 @@ const STATE_KEYS = ["stateRunning", "stateRunnable", "stateSleeping", "stateUnin
 // Zoom slider steps: the level goes up exponentially along the slider.
 const ZOOM_STEPS = 1000;
 
-type Kind = "perfetto" | "json" | "systrace";
+type Kind = TraceKind;
+
+const FORMAT_KEYS: Record<Kind, string> = {
+  perfetto: "formatPerfetto", json: "formatJson", systrace: "formatSystrace", ctrace: "formatCtrace", ninja: "formatNinja",
+  strace: "formatStrace", logcat: "formatLogcat", fuchsia: "formatFuchsia", archive: "formatArchive",
+};
+
+/** Archive entries that are not content: folders' metadata, macOS resource forks, dotfiles. */
+const junk = (name: string): boolean => /(^|\/)(__MACOSX\/|\.(?!ninja_log$)[^/]*$)/.test(name);
+
+/** Whether these bytes (or this name) are a zip, a tar or a gzipped tar rather than a trace. */
+function isArchive(bytes: Uint8Array | null, name = ""): boolean {
+  if (!bytes) return true;
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) return true;
+  if (bytes.length > 262 && String.fromCharCode(...bytes.subarray(257, 262)) === "ustar") return true;
+  return bytes[0] === 0x1f && bytes[1] === 0x8b && /\.(?:tar\.gz|tgz)$/i.test(name);
+}
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -31,6 +48,7 @@ function ensureStyles(): void {
       color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .ot-pf-notes { flex:0 0 auto; padding:0 16px; }
     .ot-pf-notes p { margin:6px 0; color:var(--amber); }
+    .ot-pf-notes p.info { color:var(--muted); overflow-wrap:anywhere; }
     .ot-pf-tabs { flex:0 0 auto; display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--border);
       overflow-x:auto; background:var(--canvas); }
     .ot-pf-tab { font:inherit; padding:8px 12px; border:0; border-bottom:2px solid transparent; background:none;
@@ -53,7 +71,7 @@ function ensureStyles(): void {
     .ot-pf-btn:disabled { opacity:.5; cursor:default; }
     .ot-pf-count { color:var(--muted); font-variant-numeric:tabular-nums; }
     .ot-pf-help { color:var(--muted); font-size:12px; flex:1 1 100%; }
-    @media (max-width: 600px) { .ot-pf-help { display:none; } .ot-pf td.wrap { min-width:160px; } .ot-pf-panel { padding:8px 10px 16px; } }
+    @media (max-width: 600px) { .ot-pf-help { display:none; } .ot-pf td.bar, .ot-pf th.bar { display:none; } .ot-pf td.wrap { min-width:160px; } .ot-pf-panel { padding:8px 10px 16px; } }
     .ot-pf table { border-collapse:collapse; font:12px/1.4 ui-monospace, monospace; }
     .ot-pf th, .ot-pf td { border-bottom:1px solid var(--border); padding:3px 10px 3px 0; text-align:left;
       vertical-align:top; }
@@ -165,6 +183,8 @@ class TraceInstance implements EditorInstance {
   private bar: HTMLElement | null = null;
   private zoomRange: HTMLInputElement | null = null;
   private zoomPct: HTMLElement | null = null;
+  private stats: TraceStats | null = null;
+  private files: ArchiveFile[] | undefined;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -179,7 +199,7 @@ class TraceInstance implements EditorInstance {
       .then((r) => {
         if (this.disposed || !r) return;
         root.textContent = "";
-        if (!r.summary.packets && !r.model.sliceCount && !r.model.schedCount && !r.model.groups.length) {
+        if (!r.summary.packets && !r.model.sliceCount && !r.model.schedCount && !r.model.groups.length && !r.summary.logTotal) {
           root.appendChild(el("div", "ot-pf-msg", t("perfetto.notTrace")));
           return;
         }
@@ -192,40 +212,27 @@ class TraceInstance implements EditorInstance {
   }
 
   private async load(ctx: EditorMountContext, msg: HTMLElement): Promise<{ kind: Kind; summary: TraceSummary; model: TraceModel } | null> {
-    if (ctx.binary && ctx.bytes) {
-      const r = await parseTrace(ctx.bytes, {
-        onProgress: (s) => (msg.textContent = t("perfetto.reading", { percent: Math.floor((s.read / Math.max(1, s.bytes)) * 100) })),
-        cancelled: () => this.disposed,
-      });
-      // Threads and processes known only from scheduling or track events count too.
-      for (const p of r.model.processes.values()) if (!r.summary.processes.has(p.pid)) r.summary.processes.set(p.pid, { pid: p.pid, ...(p.name ? { name: p.name } : {}) });
-      for (const th of r.model.threads.values()) if (!r.summary.threads.has(th.tid)) r.summary.threads.set(th.tid, { ...th });
-      return { kind: "perfetto", ...r };
-    }
-    const text = ctx.text;
-    msg.textContent = t("perfetto.building");
-    await new Promise((r) => setTimeout(r, 0));
-    const summary = emptySummary(text.length);
-    let kind: Kind;
-    let model: TraceModel;
-    const head = text.slice(0, 8192);
-    if (looksLikeChromeTrace(head) || (/^\s*[[{]/.test(head) && !/# tracer:/.test(head))) {
-      kind = "json";
-      model = await readChromeTrace(text);
+    const progress = (percent: number) => (msg.textContent = t("perfetto.reading", { percent }));
+    const opts = { onProgress: progress, cancelled: () => this.disposed };
+    let r: LoadedTrace;
+    if (ctx.binary && (ctx.blob || ctx.bytes) && isArchive(ctx.bytes, ctx.filename)) {
+      // An archive of traces, streamed entry by entry from its Blob.
+      const blob = ctx.blob ?? new Blob([ctx.bytes as BlobPart]);
+      const handle = await openArchiveStream(blob, ctx.filename);
+      if (!handle) throw new Error(t("archive.unreadable"));
+      const entries = handle.entries.filter((e) => !e.dir && !junk(e.name)).sort((x, y) => x.name.localeCompare(y.name));
+      r = await loadArchive(entries.map((e) => ({ name: e.name, read: () => handle.read(e.name) })), blob.size, opts);
+    } else if (ctx.binary && ctx.bytes) {
+      r = await loadBytes(ctx.bytes, opts);
     } else {
-      kind = "systrace";
-      const r = await readSystrace(text);
-      model = r.model;
-      summary.ftrace = r.ftrace;
-      summary.ftraceTotal = r.ftraceTotal;
-      summary.cpus = r.cpus;
+      msg.textContent = t("perfetto.building");
+      await new Promise((res) => setTimeout(res, 0));
+      r = await loadText(ctx.text);
     }
     if (this.disposed) return null;
-    summary.firstTs = model.start;
-    summary.lastTs = model.end;
-    for (const p of model.processes.values()) summary.processes.set(p.pid, { pid: p.pid, ...(p.name ? { name: p.name } : {}) });
-    for (const th of model.threads.values()) summary.threads.set(th.tid, { ...th });
-    return { kind, summary, model };
+    this.stats = r.stats;
+    this.files = r.files;
+    return r;
   }
 
   private render(root: HTMLElement, kind: Kind, s: TraceSummary, model: TraceModel): void {
@@ -233,9 +240,11 @@ class TraceInstance implements EditorInstance {
       if (g.key === "global") g.label = t("perfetto.groupGlobal");
       else if (g.key === "threads") g.label = t("perfetto.groupThreads");
     }
-    const fmt = t(kind === "perfetto" ? "perfetto.formatPerfetto" : kind === "json" ? "perfetto.formatJson" : "perfetto.formatSystrace");
+    const fmt = t(`perfetto.${FORMAT_KEYS[kind]}`);
     const head = [fmt];
-    if (s.firstTs !== null && s.lastTs !== null) head.push(duration(s.lastTs - s.firstTs));
+    // Untimed input (strace without -t, logcat -v brief) has no duration to show.
+    const timed = !this.stats?.facts.some((f) => f.key === "straceNoTime");
+    if (timed && s.firstTs !== null && s.lastTs !== null && s.lastTs > s.firstTs) head.push(duration(s.lastTs - s.firstTs));
     head.push(size(s.bytes));
     root.append(el("div", "ot-pf-head", head.join(" · ")));
     const notes = this.notes(s);
@@ -244,14 +253,19 @@ class TraceInstance implements EditorInstance {
     tabs.setAttribute("role", "tablist");
     const panel = el("div", "ot-pf-panel");
     panel.setAttribute("role", "tabpanel");
-    const list: [Tab, string][] = [
+    const list = [
       ["timeline", t("perfetto.tabTimeline")],
       ["overview", t("perfetto.tabOverview")],
       ["processes", `${t("perfetto.tabProcesses")} (${num(s.processes.size)})`],
       ["ftrace", `${t("perfetto.tabFtrace")} (${num(s.ftraceTotal)})`],
       ["logs", `${t("perfetto.tabLogs")} (${num(s.logTotal)})`],
       ["slices", t("perfetto.tabSlices")],
-    ];
+    ].filter(([id]) => {
+      // Formats that never hold kernel events or log lines leave those tabs out.
+      if (id === "ftrace") return s.ftraceTotal > 0 || ["perfetto", "systrace", "ctrace", "archive"].includes(kind);
+      if (id === "logs") return s.logTotal > 0 || ["perfetto", "archive"].includes(kind);
+      return true;
+    }) as [Tab, string][];
     const buttons: HTMLButtonElement[] = [];
     // The timeline is built once and kept across tab switches.
     const tlPanel = el("div", "ot-pf-panel is-timeline");
@@ -302,7 +316,7 @@ class TraceInstance implements EditorInstance {
       e.preventDefault();
     });
     root.append(tabs, tlPanel, panel);
-    show(model.groups.length ? "timeline" : "overview");
+    show(model.groups.length ? "timeline" : s.logTotal ? "logs" : "overview");
   }
 
   // --- timeline -----------------------------------------------------------------------------
@@ -537,9 +551,18 @@ class TraceInstance implements EditorInstance {
     if (s.lostBundles) lines.push(t("perfetto.lost", { n: num(s.lostBundles) }));
     if (s.zstdPackets) lines.push(t("perfetto.zstd", { n: num(s.zstdPackets) }));
     if (s.badCompressed) lines.push(t("perfetto.badCompressed", { n: num(s.badCompressed) }));
-    if (!lines.length) return null;
+    // Which files of an archive were read: information, not a warning.
+    const info: string[] = [];
+    if (this.files) {
+      const read = this.files.filter((f) => f.kind).map((f) => f.name);
+      const left = this.files.filter((f) => !f.kind).map((f) => f.name);
+      if (read.length) info.push(t("perfetto.archiveRead", { list: read.join(", ") }));
+      if (left.length) info.push(t("perfetto.archiveSkipped", { list: left.join(", ") }));
+    }
+    if (!lines.length && !info.length) return null;
     const box = el("div", "ot-pf-notes");
     for (const l of lines) box.append(el("p", "", l));
+    for (const l of info) box.append(el("p", "info", l));
     return box;
   }
 
@@ -569,13 +592,13 @@ class TraceInstance implements EditorInstance {
     const fact = (k: string, v: string | undefined) => {
       if (v) dl.append(el("dt", "", k), el("dd", "", v));
     };
-    fact(t("perfetto.formatLabel"), t(kind === "perfetto" ? "perfetto.formatPerfetto" : kind === "json" ? "perfetto.formatJson" : "perfetto.formatSystrace"));
-    if (s.firstTs !== null && s.lastTs !== null) fact(t("perfetto.duration"), duration(s.lastTs - s.firstTs));
+    fact(t("perfetto.formatLabel"), t(`perfetto.${FORMAT_KEYS[kind]}`));
+    if (!this.stats?.facts.some((f) => f.key === "straceNoTime") && s.firstTs !== null && s.lastTs !== null && s.lastTs > s.firstTs) fact(t("perfetto.duration"), duration(s.lastTs - s.firstTs));
     if (s.wallStartMs !== null) {
       fact(t("perfetto.start"), new Date(s.wallStartMs).toLocaleString(getLocale(), { dateStyle: "medium", timeStyle: "medium" }));
     }
     if (s.packets) fact(t("perfetto.packets"), num(s.packets));
-    fact(t("perfetto.slices"), num(model.sliceCount));
+    if (model.sliceCount || kind !== "logcat") fact(t("perfetto.slices"), num(model.sliceCount));
     if (model.schedCount) fact(t("perfetto.schedSlices"), num(model.schedCount));
     fact(t("perfetto.size"), size(s.bytes));
     const sys = s.system;
@@ -586,11 +609,65 @@ class TraceInstance implements EditorInstance {
       fact(t("perfetto.kernel"), sys.kernel);
       fact(t("perfetto.cpus"), sys.cpus ? String(sys.cpus) : undefined);
     }
+    const hints: string[] = [];
+    for (const f of this.stats?.facts ?? []) {
+      if (f.value === "") hints.push(t(`perfetto.${f.key}`));
+      else fact(t(`perfetto.${f.key}`), this.statValue(f.value, f.kind));
+    }
     panel.append(dl);
+    for (const h of hints) panel.append(el("p", "ot-pf-hint", h));
+    if (this.files) {
+      panel.append(el("h3", "", t("perfetto.archiveFiles")));
+      const table = el("table");
+      const head = el("tr");
+      head.append(el("th", "", t("perfetto.archiveFile")), el("th", "", t("perfetto.archiveReadAs")));
+      table.append(head);
+      for (const f of this.files) {
+        const tr = el("tr");
+        tr.append(el("td", "wrap", f.name), el("td", "", f.kind ? t(`perfetto.${FORMAT_KEYS[f.kind]}`) : t("perfetto.archiveNotTrace")));
+        table.append(tr);
+      }
+      panel.append(table);
+    }
+    for (const tb of this.stats?.tables ?? []) {
+      if (!tb.rows.length) continue;
+      panel.append(el("h3", "", t(`perfetto.${tb.title}`)));
+      this.statTable(panel, tb.cols, tb.rows, tb.bar);
+    }
     if (s.packetTypes.size) {
       panel.append(el("h3", "", t("perfetto.dataTypes")));
       this.counts(panel, t("perfetto.dataType"), [...s.packetTypes]);
     }
+  }
+
+  private statValue(v: string | number, kind: StatKind = "text"): string {
+    if (typeof v === "string") return v;
+    if (kind === "dur") return duration(v);
+    if (kind === "pct") return unit(v, "percent", 1);
+    return num(v);
+  }
+
+  /** A table of format figures; `bar` names the column drawn as a bar. */
+  private statTable(parent: HTMLElement, cols: { key: string; kind: StatKind }[], rows: (string | number)[][], bar?: number): void {
+    const table = el("table");
+    const head = el("tr");
+    for (const c of cols) head.append(el("th", c.kind === "text" ? "" : "num", t(`perfetto.${c.key}`)));
+    if (bar !== undefined) head.append(el("th", "bar"));
+    table.append(head);
+    const max = bar !== undefined ? Math.max(1, ...rows.map((r) => Number(r[bar]) || 0)) : 1;
+    for (const r of rows) {
+      const tr = el("tr");
+      cols.forEach((c, i) => tr.append(el("td", c.kind === "text" ? (i === 0 ? "wrap" : "") : "num", c.kind === "text" ? label(String(r[i] ?? "")) : this.statValue(r[i] ?? 0, c.kind))));
+      if (bar !== undefined) {
+        const td = el("td", "bar");
+        const span = el("span");
+        span.style.width = `${Math.max(1, ((Number(r[bar]) || 0) / max) * 100)}%`;
+        td.append(span);
+        tr.append(td);
+      }
+      table.append(tr);
+    }
+    parent.append(table);
   }
 
   private processes(panel: HTMLElement, s: TraceSummary): void {

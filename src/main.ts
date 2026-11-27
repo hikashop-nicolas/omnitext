@@ -156,6 +156,7 @@ import { dicomFormat } from "./formats/dicom";
 import { perfettoFormat } from "./formats/perfetto";
 import { chromeTraceFormat } from "./formats/chrometrace";
 import { systraceFormat } from "./formats/systrace";
+import { traceFormats } from "./formats/trace-formats";
 import { arrowFormat } from "./formats/arrow";
 import { rawFormat } from "./formats/raw";
 import { historyTool } from "./tools/history";
@@ -339,6 +340,7 @@ engine.registerFormat(dicomFormat);
 engine.registerFormat(perfettoFormat);
 engine.registerFormat(chromeTraceFormat);
 engine.registerFormat(systraceFormat);
+for (const f of traceFormats) engine.registerFormat(f);
 engine.registerFormat(arrowFormat);
 engine.registerFormat(rawFormat);
 
@@ -643,6 +645,11 @@ async function mountDoc(opts: MountOpts): Promise<void> {
     const sample = text.slice(0, 8192);
     const hit = engine.detect(filename !== undefined ? { filename, sample } : { sample });
     descriptor = hit?.descriptor ?? null;
+  }
+  // An archive of traces opens on one timeline; the archive list stays one switch away.
+  if (descriptor?.manifest.nativeEditor === "archive" && !opts.isSwitch && !opts.editorId && (opts.blob || bytes)) {
+    const { isTraceArchive } = await import("./formats/trace-archive-detect");
+    if (await isTraceArchive(opts.blob ?? new Blob([bytes as BlobPart]), opts.filename ?? "")) descriptor = engine.formats.byId("tracearchive") ?? descriptor;
   }
   const formatId = descriptor?.manifest.id ?? null;
 

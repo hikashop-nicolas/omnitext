@@ -2,6 +2,7 @@
 // application/octet-stream). Returns a registered format id, or null to keep today's routing.
 import { unzipSync } from "fflate";
 import { looksBinary } from "./encoding";
+import { ctraceStart, isFxt } from "../formats/trace-detect";
 import type { FormatDescriptor, FormatRegistryReadonly } from "./types";
 
 const ascii = (b: Uint8Array, from: number, len: number): string =>
@@ -51,6 +52,8 @@ export function sniffHead(b: Uint8Array): string | null {
   if (starts(b, [0xfd, 0x37, 0x7a, 0x58, 0x5a, 0])) return "xz";
   if (/^BZh[1-9]/.test(ascii(b, 0, 4))) return "bzip2";
   if (ascii(b, 257, 5) === "ustar") return "tar";
+  if (isFxt(b)) return "fuchsia";
+  if (ctraceStart(b) >= 0) return "ctrace";
   if (looksLikePerfetto(b)) return "perfetto";
   // PDF readers accept junk before the header, up to 1 KiB.
   if (/%PDF-\d\.\d/.test(ascii(b, 0, 1024))) return "pdf";
