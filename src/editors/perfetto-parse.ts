@@ -212,7 +212,6 @@ class TraceParser {
 
   private ts(t: number): void {
     if (!(t > 0)) return;
-    this.b.time(t);
     const s = this.s;
     if (s.firstTs === null || t < s.firstTs) s.firstTs = t;
     if (s.lastTs === null || t > s.lastTs) s.lastTs = t;
@@ -903,6 +902,7 @@ class TraceParser {
         return true;
       });
       if (!entry.msg && args.length) entry.msg = args.join(" ");
+      if (entry.ts > 0) this.b.time(entry.ts);
       s.logs.push(entry);
       return true;
     });
@@ -968,8 +968,16 @@ class TraceParser {
     const s = this.s;
     // Descriptors that arrived after their first event still name their track.
     for (const [uuid, d] of this.tracks) this.describeTrack(`u:${uuid}`, d);
+    // The trace spans what the timeline draws (slices, CPU slices, counters, log lines); packet
+    // timestamps of metadata only stand in when there is nothing to draw.
+    const empty = this.b.empty;
+    const model = this.b.finish();
+    if (!empty) {
+      s.firstTs = model.start;
+      s.lastTs = model.end;
+    }
     if (this.wall && s.firstTs !== null) s.wallStartMs = (this.wall.realtime + (s.firstTs - this.wall.primary)) / 1e6;
-    return this.b.finish();
+    return model;
   }
 }
 

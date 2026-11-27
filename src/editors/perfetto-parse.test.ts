@@ -18,8 +18,8 @@ describe("Perfetto trace summary", () => {
     expect(sum.packetTypes.get("compressed_packets")).toBe(1);
   });
 
-  it("finds the time range and the wall-clock start", () => {
-    expect(sum.firstTs).toBe(base);
+  it("finds the time range from what is drawn, and the wall-clock start", () => {
+    expect(sum.firstTs).toBe(base + 500); // the first CPU slice, not the clock snapshot at base
     expect(sum.lastTs).toBe(base + 4_000_000_000);
     expect(sum.wallStartMs).toBeCloseTo(1_700_000_000_000, -1);
   });
@@ -185,6 +185,33 @@ describe("Chrome-style track events (as Chrome writes them)", () => {
     expect(g.label).toBe("Browser 50");
     // Threads before the process's other tracks.
     expect(g.tracks.map((x) => x.label)).toEqual(["CrBrowserMain 51", "Load"]);
+  });
+
+  it("reads an absolute sequence clock (64) on the same base as the incremental one (65)", () => {
+    // Sequence 2 also defines clock 64: absolute microseconds on MONOTONIC, as Chrome writes for
+    // events stamped after the fact. Both must land on the same BOOTTIME instant.
+    const at = (mono + 1_000_000) / 1000 + 10; // 10 us after the snapshot, as clock 64 reads it
+    const t = trace(
+      head[0]!,
+      [u(10, 2), u(13, 1), u(79, 50), m(59, u(58, 65), m(11, u(11, 7))), m(6, m(1, u(1, 3), u(2, mono + 1_000_000)), m(1, u(1, 64), u(2, (mono + 1_000_000) / 1000), u(4, 1000)), m(1, u(1, 65), u(2, (mono + 1_000_000) / 1000), u(4, 1000), u(3, 1)))],
+      ...head.slice(2),
+      [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 3), s(23, "Incremental"))],
+      [u(10, 2), u(79, 50), u(58, 64), u(8, at), m(11, u(9, 3), s(23, "Absolute"))],
+    );
+    const times = allSlices(parseTraceSync(t).model).map((x) => [x[1], x[2]]);
+    expect(times).toEqual([["Incremental", boot + 1_010_000], ["Absolute", boot + 1_010_000]]);
+  });
+
+  it("takes the trace bounds from drawn events, not from metadata packets", () => {
+    const t = trace(
+      ...head,
+      [u(8, boot - 60_000_000_000), m(33, u(1, 1))], // a trace_config stamped a minute earlier
+      [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 3), s(23, "Tick"))],
+    );
+    const { summary, model } = parseTraceSync(t);
+    expect(model.start).toBe(boot + 1_010_000);
+    expect(summary.firstTs).toBe(model.start);
+    expect(summary.lastTs).toBe(model.end);
   });
 
   it("names unnamed tracks after their slices and merges same-named ones", () => {
