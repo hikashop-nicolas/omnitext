@@ -1244,6 +1244,9 @@ const pt: Dict = {
     filterPid: "PID ou TID",
     emptyTimeline: "Este trace não tem nada para mostrar em uma linha do tempo.",
     slicesHint: "Nomes das fatias de todas as threads e faixas, dos mais frequentes aos menos.",
+    groupGlobal: "Faixas globais",
+    groupThreads: "Outras threads",
+    counterMax: "máx. {value}",
   },
 };
 

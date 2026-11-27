@@ -211,6 +211,10 @@ class TraceInstance implements EditorInstance {
   }
 
   private render(root: HTMLElement, kind: Kind, s: TraceSummary, model: TraceModel): void {
+    for (const g of model.groups) {
+      if (g.key === "global") g.label = t("perfetto.groupGlobal");
+      else if (g.key === "threads") g.label = t("perfetto.groupThreads");
+    }
     const fmt = t(kind === "perfetto" ? "perfetto.formatPerfetto" : kind === "json" ? "perfetto.formatJson" : "perfetto.formatSystrace");
     const head = [fmt];
     if (s.firstTs !== null && s.lastTs !== null) head.push(duration(s.lastTs - s.firstTs));
@@ -314,7 +318,7 @@ class TraceInstance implements EditorInstance {
     const tl = new Timeline(
       host,
       model,
-      { aria: t("perfetto.timelineAria") },
+      { aria: t("perfetto.timelineAria"), max: (value) => t("perfetto.counterMax", { value }) },
       getLocale(),
       (sel) => this.details(details, model, sel),
     );

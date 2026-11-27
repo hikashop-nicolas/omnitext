@@ -1246,6 +1246,9 @@ const ja: Dict = {
     filterPid: "PID または TID",
     emptyTimeline: "このトレースにはタイムラインに表示できるものがありません。",
     slicesHint: "すべてのスレッドとトラックのスライス名を多い順に表示します。",
+    groupGlobal: "グローバルトラック",
+    groupThreads: "その他のスレッド",
+    counterMax: "最大 {value}",
   },
 };
 

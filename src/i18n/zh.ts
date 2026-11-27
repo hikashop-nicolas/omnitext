@@ -1248,6 +1248,9 @@ const zh: Dict = {
     filterPid: "PID 或 TID",
     emptyTimeline: "此跟踪没有可以在时间线上显示的内容。",
     slicesHint: "所有线程和轨道的切片名称，按出现次数从多到少排列。",
+    groupGlobal: "全局轨道",
+    groupThreads: "其他线程",
+    counterMax: "最大 {value}",
   },
 };
 

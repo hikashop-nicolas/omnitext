@@ -1246,6 +1246,9 @@ const tr: Dict = {
     filterPid: "PID veya TID",
     emptyTimeline: "Bu izde zaman çizelgesinde gösterilecek bir şey yok.",
     slicesHint: "Tüm iş parçacıkları ve izlerdeki dilim adları, en sık olandan başlayarak.",
+    groupGlobal: "Genel izler",
+    groupThreads: "Diğer iş parçacıkları",
+    counterMax: "en çok {value}",
   },
 };
 

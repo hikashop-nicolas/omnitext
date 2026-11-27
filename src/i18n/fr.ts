@@ -1247,6 +1247,9 @@ const fr: Dict = {
     filterPid: "PID ou TID",
     emptyTimeline: "Cette trace ne contient rien à afficher sur une chronologie.",
     slicesHint: "Noms des tranches de tous les threads et pistes, des plus fréquents aux plus rares.",
+    groupGlobal: "Pistes globales",
+    groupThreads: "Autres threads",
+    counterMax: "max. {value}",
   },
 };
 

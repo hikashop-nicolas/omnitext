@@ -1246,6 +1246,9 @@ const en: Dict = {
     filterPid: "PID or TID",
     emptyTimeline: "This trace has nothing to draw on a timeline.",
     slicesHint: "Slice names from every thread and track, most frequent first.",
+    groupGlobal: "Global tracks",
+    groupThreads: "Other threads",
+    counterMax: "max {value}",
   },
 };
 

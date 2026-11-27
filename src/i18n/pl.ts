@@ -1266,6 +1266,9 @@ const pl: Dict = {
     filterPid: "PID lub TID",
     emptyTimeline: "W tym śladzie nie ma nic do pokazania na osi czasu.",
     slicesHint: "Nazwy wycinków ze wszystkich wątków i ścieżek, od najczęstszych.",
+    groupGlobal: "Ścieżki globalne",
+    groupThreads: "Inne wątki",
+    counterMax: "maks. {value}",
   },
 };
 

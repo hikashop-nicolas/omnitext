@@ -1246,6 +1246,9 @@ const ko: Dict = {
     filterPid: "PID 또는 TID",
     emptyTimeline: "이 트레이스에는 타임라인에 표시할 내용이 없습니다.",
     slicesHint: "모든 스레드와 트랙의 슬라이스 이름을 많은 순서로 보여 줍니다.",
+    groupGlobal: "전역 트랙",
+    groupThreads: "기타 스레드",
+    counterMax: "최대 {value}",
   },
 };
 

@@ -1267,6 +1267,9 @@ const ru: Dict = {
     filterPid: "PID или TID",
     emptyTimeline: "В этой трассе нечего показать на временной шкале.",
     slicesHint: "Имена срезов всех потоков и треков, от частых к редким.",
+    groupGlobal: "Глобальные треки",
+    groupThreads: "Другие потоки",
+    counterMax: "макс. {value}",
   },
 };
 

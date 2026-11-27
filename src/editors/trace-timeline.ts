@@ -12,6 +12,8 @@ export interface TimelineSelection {
 
 export interface TimelineText {
   aria: string;
+  /** A counter row's maximum, as "max {value}". */
+  max: (value: string) => string;
 }
 
 interface Row {
@@ -70,7 +72,7 @@ export class Timeline {
   constructor(
     host: HTMLElement,
     private model: TraceModel,
-    text: TimelineText,
+    private text: TimelineText,
     private locale: string,
     private onSelect: (sel: TimelineSelection | null) => void,
   ) {
@@ -533,7 +535,7 @@ export class Timeline {
     ctx.fillRect(0, 0, w, RULER);
     ctx.fillStyle = theme.border;
     ctx.fillRect(0, RULER - 1, w, 1);
-    ctx.fillRect(L - 1, 0, 1, h);
+    ctx.fillRect(L - 1, 0, 1, RULER);
     const [unit, size] = tickUnit(step);
     const digits = Math.max(0, -Math.floor(Math.log10(step / size) + 1e-9));
     const f = this.fmt(unit, digits);
@@ -566,11 +568,18 @@ export class Timeline {
     const t = row.track!;
     ctx.fillStyle = theme.border!;
     ctx.fillRect(0, y + row.h - 1, this.width, 1);
+    ctx.fillRect(L - 1, y, 1, row.h);
     // Label.
     ctx.fillStyle = theme.text!;
     const label = t.label || "…";
     const maxChars = Math.max(3, Math.floor((L - 16) / 6.2));
     ctx.fillText(label.length > maxChars ? label.slice(0, maxChars - 1) + "…" : label, 14, y + Math.min(row.h, LEVEL_H + 4) / 2);
+    if (t.kind === "counter") {
+      // The maximum sits under the label, clear of the plot.
+      const max = this.text.max(t.max.toLocaleString(this.locale, { maximumFractionDigits: 2 }));
+      ctx.fillStyle = theme.muted!;
+      ctx.fillText(max.length > maxChars ? max.slice(0, maxChars - 1) + "…" : max, 14, y + 23);
+    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(L, y, pw, row.h);
@@ -632,8 +641,6 @@ export class Timeline {
       if (yLo - yHi > 1) ctx.fillRect(L + x, yHi, 1, yLo - yHi);
     });
     ctx.globalAlpha = 1;
-    ctx.fillStyle = theme.muted!;
-    ctx.fillText(t.max.toLocaleString(this.locale, { maximumFractionDigits: 2 }), L + 4, y + 8);
   }
 
   private label(text: string, x: number, y: number, w: number): void {

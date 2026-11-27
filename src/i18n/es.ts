@@ -1244,6 +1244,9 @@ const es: Dict = {
     filterPid: "PID o TID",
     emptyTimeline: "Esta traza no tiene nada que mostrar en una línea de tiempo.",
     slicesHint: "Nombres de las secciones de todos los hilos y pistas, de más a menos frecuentes.",
+    groupGlobal: "Pistas globales",
+    groupThreads: "Otros hilos",
+    counterMax: "máx. {value}",
   },
 };
 
