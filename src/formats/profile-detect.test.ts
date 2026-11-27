@@ -7,6 +7,8 @@ import { looksLikeChromeTrace } from "./trace-detect";
 import { collapsedFormat, cpuProfileFormat, geckoProfileFormat, perfScriptFormat, speedscopeFormat } from "./profiles";
 import { jsonFormat } from "./json";
 import { chromeTraceFormat } from "./chrometrace";
+import { logcatTextFormat, ninjaLogFormat, straceFormat } from "./trace-formats";
+import { systraceFormat } from "./systrace";
 import { FormatRegistry } from "../core/registries";
 import { makeTextFormats } from "./codemirror-formats";
 import { pprofBytes, simpleperfBytes, spMeta } from "../editors/profile.fixture";
@@ -17,7 +19,7 @@ const PERF = "app 100/101 [002] 5000.000100: 250000 cpu-clock:u: \n\t    7f00 le
 /** The format the registry picks for a file name and its text, as the app does when opening. */
 function pick(filename: string, sample: string): string | undefined {
   const r = new FormatRegistry();
-  for (const f of [...makeTextFormats(), jsonFormat, chromeTraceFormat, collapsedFormat, perfScriptFormat, geckoProfileFormat, cpuProfileFormat, speedscopeFormat]) {
+  for (const f of [...makeTextFormats(), jsonFormat, chromeTraceFormat, systraceFormat, ninjaLogFormat, straceFormat, logcatTextFormat, collapsedFormat, perfScriptFormat, geckoProfileFormat, cpuProfileFormat, speedscopeFormat]) {
     if (!r.byId(f.manifest.id)) r.register(f);
   }
   return r.detect({ filename, sample })?.descriptor.manifest.id;
