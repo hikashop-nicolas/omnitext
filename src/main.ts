@@ -159,6 +159,8 @@ import { systraceFormat } from "./formats/systrace";
 import { traceFormats } from "./formats/trace-formats";
 import { arrowFormat } from "./formats/arrow";
 import { rawFormat } from "./formats/raw";
+import { profileFormats } from "./formats/profiles";
+import { profileViewer } from "./editors/profileviewer";
 import { historyTool } from "./tools/history";
 import { collabTool } from "./tools/collab";
 import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
@@ -245,6 +247,7 @@ engine.registerEditor(dicomViewer);
 engine.registerEditor(traceViewer);
 engine.registerEditor(recordsViewer);
 engine.registerEditor(rawViewer);
+engine.registerEditor(profileViewer);
 if (__CRAFT_DECK__) engine.registerEditor(pptxCraftEditor);
 engine.registerEditor(epubEditor);
 engine.registerEditor(binaryEditor);
@@ -343,6 +346,7 @@ engine.registerFormat(systraceFormat);
 for (const f of traceFormats) engine.registerFormat(f);
 engine.registerFormat(arrowFormat);
 engine.registerFormat(rawFormat);
+for (const f of profileFormats) engine.registerFormat(f);
 
 const store = new SessionStore();
 

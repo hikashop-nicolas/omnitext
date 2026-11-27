@@ -86,7 +86,8 @@ function readGeckoThread(ctx: GeckoCtx, raw: unknown, procName: string, procPid:
   };
   const tid = th.tid ?? th.name;
   const pid = str(th.pid ?? procPid);
-  const name = str(th.name) || `Thread ${str(tid)}`;
+  // An unnamed thread is named by the viewer, in its language.
+  const name = str(th.name);
   const process = str(th.processName) || procName;
   const thread = b.thread(`${pid}:${str(tid)}:${b.threads.length}`, {
     name,
@@ -223,12 +224,15 @@ export function readGecko(text: string): Profile {
   let root = obj(JSON.parse(text));
   if (!root) throw new Error("not a profile");
   // Firefox's old DevTools recordings wrap the Gecko profile.
-  if (!root.threads && obj(root.profile)) root = obj(root.profile)!;
+  const wrapped = !root.threads && !!obj(root.profile);
+  if (wrapped) root = obj(root.profile)!;
   const b = new ProfileBuilder();
   const meta = obj(root.meta) ?? {};
   const start = num(meta.startTime, 0);
   const weightTypes = new Set<string>();
   readGeckoProfile(b, root, 0, weightTypes, start);
+  // DevTools rebased the samples of its recordings to the recording, not the markers: they cannot be placed.
+  if (wrapped) b.markers.length = 0;
   const wt = weightTypes.size === 1 ? [...weightTypes][0]! : "samples";
   b.valueTypes[0] = wt === "tracing-ms" ? { type: "time", unit: "milliseconds", label: "time" } : wt === "bytes" ? { type: "bytes", unit: "bytes", label: "bytes" } : { type: "samples", unit: "count", label: "samples" };
   return b.finish(start ? { startedAt: start } : {});
@@ -418,7 +422,7 @@ export function readChromeTraceProfiles(text: string): Profile {
   for (const acc of profiles.values()) {
     if (!acc.samples.length && ![...acc.nodes.values()].some((n) => n.hitCount)) continue;
     const thread = b.thread(`${acc.pid}:${acc.tid}:${b.threads.length}`, {
-      name: names.get(`${acc.pid}:${acc.tid}`) || `${acc.tid}`,
+      name: names.get(`${acc.pid}:${acc.tid}`) ?? "",
       tid: acc.tid,
       pid: acc.pid,
       ...(procs.get(acc.pid) ? { process: procs.get(acc.pid)! } : {}),

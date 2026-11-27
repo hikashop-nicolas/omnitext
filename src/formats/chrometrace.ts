@@ -10,6 +10,8 @@ export const chromeTraceFormat: FormatDescriptor = {
     extensions: [],
     nativeEditor: "traceviewer",
     defaultEditor: "traceviewer",
+    // The CPU profile samples of a DevTools Performance recording, in the profile viewer.
+    viewAdapters: ["profile"],
   },
   detect: ({ sample }) => (looksLikeChromeTrace(sample) ? 0.9 : 0),
   load: () => import("./trace-text.impl").then((m) => m.traceTextImpl),

@@ -419,7 +419,7 @@ export function readSimpleperf(input: Uint8Array): Profile {
     const th = threads.get(smp.tid);
     const pid = th?.pid ?? smp.tid;
     const proc = threads.get(pid)?.name ?? "";
-    const thread = pb.thread(String(smp.tid), { name: th?.name || `${smp.tid}`, tid: smp.tid, pid, ...(proc ? { process: proc } : {}) });
+    const thread = pb.thread(String(smp.tid), { name: th?.name ?? "", tid: smp.tid, pid, ...(proc ? { process: proc } : {}) });
     vals.fill(0);
     vals[smp.event] = 1;
     vals[nEvents + smp.event] = smp.count;
