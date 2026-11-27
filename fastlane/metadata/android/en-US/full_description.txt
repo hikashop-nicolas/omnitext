@@ -1,12 +1,12 @@
 Omnitext opens practically any file you are sent, in one app. Instead of installing a separate app for each file type, often slow, with ads, upgrade banners, a mandatory account, or uploading your file, you get the right viewer or editor for each file: documents, spreadsheets, PDF, code, maps, subtitles, audio, video, archives and more. It opens quickly, saves back without breaking what it did not change, and never gives up on a file: anything unknown opens as text or hex.
 
-It is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.ods) in dedicated editors, all on your device.
+It is a private, offline editor that adapts to whatever file you open: code and data formats (JSON, YAML, XML, CSV, Markdown and more) in a proper editor, and PDF, Word (.doc/.docx), OpenDocument (.odt) and spreadsheets (.xlsx/.xls/.ods) in dedicated editors, all on your device.
 
 Opening, editing and saving a file runs entirely on your device. Your files are never uploaded, there is no account, no tracking, and no ads. Install it, turn the network off, and every format above still opens.
 
 <ul>
 <li>Edit PDFs: change text in place, add text and images, fill and sign forms (including complex government forms), redact, watermark, add bookmarks and attachments, pinch to zoom.</li>
-<li>Edit Word (including legacy .doc), OpenDocument and spreadsheets, preserving the parts you do not touch.</li>
+<li>Edit Word (including legacy .doc), OpenDocument and spreadsheets (legacy .xls too, opened and saved with all its sheets and formatting), preserving the parts you do not touch.</li>
 <li>Edit PowerPoint presentations: text, shapes, pictures, tables, charts, video, transitions and animations, with a slideshow and a presenter view.</li>
 <li>Spreadsheets with charts, pivot tables, Power Query, conditional formatting, printing, freeze and split panes, form controls and VBA macros that run.</li>
 <li>Code and data editor with syntax highlighting for many formats, and a tree editor for JSON and YAML.</li>

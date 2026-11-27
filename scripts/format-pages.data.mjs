@@ -140,8 +140,9 @@ export const PAGES = [
       "Sort and edit large sheets without loading them into a server",
       "Open macro workbooks (.xlsm) and Excel templates; a macro runs only after you turn macros on",
       "Save back to .xlsx, or export the sheet as CSV",
+      "Open and save older .xls workbooks (Excel 97-2003, and Excel 5 and earlier) with all their sheets, formulas and formatting, password-protected ones included",
     ],
-    note: "The older binary .xls opens too, through a simpler table view that does not carry formulas.",
+    note: "An .xls is saved as Excel 97-2003, which cannot hold charts, drawing shapes or macros: Omnitext lists any the file has when it opens, and asks before saving without them.",
   },
   {
     id: "ods",

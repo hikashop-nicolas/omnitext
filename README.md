@@ -79,7 +79,7 @@ a page for each one, generated from the app itself.
 | | |
 | --- | --- |
 | **Documents** | PDF (sounds and videos embedded in one play too), Word (DOCX and the older DOC), OpenDocument (ODT), Markdown, HTML, LaTeX, RTF, PowerPoint, EPUB and other ebooks, Apple Wallet passes (boarding passes, tickets), SMART Health Cards |
-| **Spreadsheets and data** | XLSX, ODS, XLSM with working macros, Excel templates, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
+| **Spreadsheets and data** | XLSX, ODS, XLS (opened and saved with all sheets and formatting), XLSM with working macros, Excel templates, CSV, JSON, SQLite databases, Parquet, Jupyter notebooks |
 | **Code and config** | About seventy languages, from JSON, YAML and XML to C, Rust, Go, Python and SQL |
 | **Sheet music** | MusicXML and MXL, MuseScore (.mscz, .mscx), Guitar Pro 3 to 7, MIDI, ABC, and PDFs made by notation software, which open as editable scores |
 | **Pictures** | PNG, JPEG, GIF, WebP, AVIF, JPEG XL, HEIC from an iPhone, camera RAW, TIFF, PSD, BMP, ICO, SVG (with a full vector editor). Text recognition (OCR) on the device, which reads a photo or scan of printed music as a score. Any of them can be added to a PDF, a slide, a spreadsheet or a document: Omnitext converts it when that file cannot hold it as it is |
