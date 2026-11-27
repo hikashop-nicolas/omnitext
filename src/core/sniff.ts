@@ -71,7 +71,10 @@ function pbVarint(b: Uint8Array, at: number): [number, number] | null {
   return null;
 }
 
-/** Whether b[start, end) is a whole protobuf message; `stamped` when it has a varint field 8 or 10. */
+/**
+ * Whether b[start, end) is a whole protobuf message; `stamped` when it has what only a TracePacket
+ * carries: a varint trusted uid (3), timestamp (8) or sequence id (10), or compressed packets.
+ */
 function pbMessage(b: Uint8Array, start: number, end: number): { stamped: boolean } | null {
   let pos = start;
   let stamped = false;
@@ -84,13 +87,14 @@ function pbMessage(b: Uint8Array, start: number, end: number): { stamped: boolea
     if (wt === 0) {
       const v = pbVarint(b, pos);
       if (!v) return null;
-      if (field === 8 || field === 10) stamped = true;
+      if (field === 3 || field === 8 || field === 10) stamped = true;
       pos = v[1];
     } else if (wt === 1) pos += 8;
     else if (wt === 5) pos += 4;
     else if (wt === 2) {
       const n = pbVarint(b, pos);
       if (!n) return null;
+      if (field === 50 || field === 133) stamped = true;
       pos = n[1] + n[0];
     } else return null;
   }
@@ -101,13 +105,13 @@ function pbMessage(b: Uint8Array, start: number, end: number): { stamped: boolea
  * Whether these first bytes are a Perfetto trace: a run of well-formed field-1 packets, one of
  * which holds the synchronization marker the tracing service writes near the start of a trace.
  * Older and synthetic traces have no marker: then every whole packet must be a valid message,
- * at least three of them with a timestamp or sequence id, as TracePackets carry.
+ * at least three of them stamped as TracePackets are (or every one, when `b` is the whole file).
  */
-export function looksLikePerfetto(b: Uint8Array): boolean {
+export function looksLikePerfetto(b: Uint8Array, whole = false): boolean {
   if (b.length < 21 || b[0] !== 0x0a) return false;
   let pos = 0;
   let stamped = 0;
-  let whole = 0;
+  let count = 0;
   while (pos < b.length) {
     if (b[pos] !== 0x0a) return false;
     const len = pbVarint(b, pos + 1);
@@ -121,13 +125,16 @@ export function looksLikePerfetto(b: Uint8Array): boolean {
     if (start + n <= b.length) {
       const msg = pbMessage(b, start, start + n);
       if (!msg) return false;
-      whole++;
+      count++;
       if (msg.stamped) stamped++;
-    }
+    } else whole = false;
     pos = start + n;
   }
-  return stamped >= 3 && whole >= 3;
+  return count >= 3 ? stamped >= 3 : whole && count > 0 && stamped === count;
 }
+
+/** How far into a file to look for marker-less Perfetto packets, which can be large. */
+const PERFETTO_SCAN = 2 << 20;
 
 // ISO base media brands (HEIF images, MP4/MOV/3GP video, M4A audio).
 function ftyp(brand: string): string | null {
@@ -179,7 +186,7 @@ export function sniffZip(bytes: Uint8Array): string {
 /** Format id from the content: magic number on the head, then zip entries when it starts with PK. */
 export function sniffFormat(bytes: Uint8Array): string | null {
   if (starts(bytes, [0x50, 0x4b, 0x03, 0x04]) || starts(bytes, [0x50, 0x4b, 0x05, 0x06])) return sniffZip(bytes);
-  return sniffHead(bytes.subarray(0, 4096));
+  return sniffHead(bytes.subarray(0, 4096)) ?? (looksLikePerfetto(bytes.subarray(0, PERFETTO_SCAN), bytes.length <= PERFETTO_SCAN) ? "perfetto" : null);
 }
 
 /** The binary format to open by content: only when the extension is unknown or binary bytes sit behind a text one. */

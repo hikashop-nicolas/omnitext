@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looksLikePerfetto } from "../core/sniff";
+import { looksLikePerfetto, sniffFormat } from "../core/sniff";
 import { parseTrace, parseTraceSync } from "./perfetto-parse";
 import type { CounterTrack, CpuTrack, SliceTrack } from "./trace-model";
 import { SYNC, allSlices, bytes, m, s, sampleTrace, trace, u } from "./perfetto-trace.fixture";
@@ -139,6 +139,14 @@ describe("Perfetto sniffing", () => {
     expect(looksLikePerfetto(trace([u(8, 1), m(1, u(1, 0))], [u(8, 2), s(2, "x".repeat(30))]))).toBe(false);
     const broken = trace([u(8, 1)], [u(8, 2)], [u(8, 3), [0x12, 0x7f, 1]]);
     expect(looksLikePerfetto(broken)).toBe(false);
+  });
+
+  it("takes a whole file of compressed packets, and finds large first packets further in", () => {
+    const zipped = trace([bytes(50, new Uint8Array(40))], [bytes(50, new Uint8Array(40))]);
+    expect(looksLikePerfetto(zipped)).toBe(false); // a sample: too few packets to tell
+    expect(looksLikePerfetto(zipped, true)).toBe(true);
+    const big = trace([u(3, 1000), m(1, s(2, "x".repeat(6000)))], [u(3, 1000), m(1, u(1, 0))], [u(3, 1000), m(1, u(1, 1))]);
+    expect(sniffFormat(big)).toBe("perfetto");
   });
 });
 
