@@ -878,6 +878,10 @@ const ru: Dict = {
     fontBigNote: "{name} занимает {size} МБ. Скачать его, чтобы показывать слайды этим шрифтом?",
     fontDownload: "Скачать",
     fontUnavailable: "Шрифт {name} недоступен для слайдов, поэтому используется похожий шрифт.",
+    embedFonts: "Внедрить шрифты в файл",
+    fontsEmbedded: "Внедрены в файл: {names}",
+    fontsNotAllowed: "Не внедрены, лицензия шрифта это запрещает: {names}",
+    fontsNoFile: "Не внедрены, на этом устройстве нет файла шрифта: {names}",
   },
   pdfcraft: {
     password: "Этот PDF защищён. Введите пароль.",

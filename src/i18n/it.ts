@@ -855,6 +855,10 @@ const it: Dict = {
     fontBigNote: "{name} occupa {size} MB. Scaricarlo per disegnare le diapositive?",
     fontDownload: "Scarica",
     fontUnavailable: "{name} non è disponibile per disegnare le diapositive, quindi viene usato un carattere simile.",
+    embedFonts: "Incorpora i caratteri nel file",
+    fontsEmbedded: "Incorporati nel file: {names}",
+    fontsNotAllowed: "Non incorporati, la licenza del carattere lo vieta: {names}",
+    fontsNoFile: "Non incorporati, nessun file del carattere su questo dispositivo: {names}",
   },
   pdfcraft: {
     password: "Questo PDF è protetto. Immettere la password.",

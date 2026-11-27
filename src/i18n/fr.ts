@@ -858,6 +858,10 @@ const fr: Dict = {
     fontBigNote: "{name} pèse {size} Mo. La télécharger pour dessiner les diapositives avec ?",
     fontDownload: "Télécharger",
     fontUnavailable: "{name} n'est pas disponible pour dessiner les diapositives : une police proche est utilisée.",
+    embedFonts: "Incorporer les polices dans le fichier",
+    fontsEmbedded: "Incorporées dans le fichier : {names}",
+    fontsNotAllowed: "Non incorporées, la licence de la police l'interdit : {names}",
+    fontsNoFile: "Non incorporées, aucun fichier de police sur cet appareil : {names}",
   },
   pdfcraft: {
     password: "Ce PDF est protégé. Saisissez son mot de passe.",

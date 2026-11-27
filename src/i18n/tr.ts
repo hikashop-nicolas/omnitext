@@ -857,6 +857,10 @@ const tr: Dict = {
     fontBigNote: "{name} {size} MB boyutunda. Slaytları bu yazı tipiyle çizmek için indirilsin mi?",
     fontDownload: "İndir",
     fontUnavailable: "{name} slaytları çizmek için kullanılamıyor, bu nedenle benzer bir yazı tipi kullanılıyor.",
+    embedFonts: "Yazı tiplerini dosyaya göm",
+    fontsEmbedded: "Dosyaya gömüldü: {names}",
+    fontsNotAllowed: "Gömülmedi, yazı tipinin lisansı buna izin vermiyor: {names}",
+    fontsNoFile: "Gömülmedi, bu cihazda yazı tipi dosyası yok: {names}",
   },
   pdfcraft: {
     password: "Bu PDF korumalı. Parolasını girin.",

@@ -855,6 +855,10 @@ const es: Dict = {
     fontBigNote: "{name} ocupa {size} MB. ¿Descargarla para dibujar las diapositivas con ella?",
     fontDownload: "Descargar",
     fontUnavailable: "{name} no está disponible para dibujar las diapositivas, así que se usa una fuente parecida.",
+    embedFonts: "Incrustar fuentes en el archivo",
+    fontsEmbedded: "Incrustadas en el archivo: {names}",
+    fontsNotAllowed: "No incrustadas, la licencia de la fuente lo prohíbe: {names}",
+    fontsNoFile: "No incrustadas, no hay archivo de fuente en este dispositivo: {names}",
   },
   pdfcraft: {
     password: "Este PDF está protegido. Introduzca su contraseña.",

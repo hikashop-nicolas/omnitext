@@ -855,6 +855,10 @@ const de: Dict = {
     fontBigNote: "{name} ist {size} MB groß. Herunterladen, um die Folien damit darzustellen?",
     fontDownload: "Herunterladen",
     fontUnavailable: "{name} ist zum Darstellen der Folien nicht verfügbar, daher wird eine ähnliche Schriftart verwendet.",
+    embedFonts: "Schriftarten in die Datei einbetten",
+    fontsEmbedded: "In die Datei eingebettet: {names}",
+    fontsNotAllowed: "Nicht eingebettet, die Lizenz der Schriftart verbietet es: {names}",
+    fontsNoFile: "Nicht eingebettet, keine Schriftdatei auf diesem Gerät: {names}",
   },
   pdfcraft: {
     password: "Dieses PDF ist geschützt. Geben Sie das Kennwort ein.",

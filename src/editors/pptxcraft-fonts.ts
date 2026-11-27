@@ -1,5 +1,5 @@
 import {
-  BASE_FONTS, addDocumentFonts, buildFontGroups, canDraw, catalogFiles, getFontFile, getFontState, isAdded, isFontFileCached,
+  BASE_FONTS, type FontFile, addDocumentFonts, buildFontGroups, canDraw, catalogFiles, getFontFile, getFontState, isAdded, isFontFileCached,
   onFontsChange, pickCatalogFile, remoteAllowed, requestFontFile, requestRemoteFont, restoreFonts, setFontLocale, setRemoteEnabled,
   showFontToast, showInstalledFonts, fontT,
 } from "fontshelf";
@@ -8,7 +8,7 @@ import { richdocFonts } from "./richdoc-fonts";
 
 // Font choice for the slide engine: a picker fed by fontshelf, and the font files the wasm engine needs to draw a family.
 // The engine only has what it was given (Inter, Ubuntu, the script faces), so a family is usable once its file was added.
-// Saving needs nothing: a .pptx names its fonts, embedding them is not done here.
+// Saving needs nothing: a .pptx names its fonts. Embedding takes the files the user has (see embedFiles).
 
 /** Faces the engine carries itself. */
 const BUILT_IN = ["Inter", "Ubuntu"];
@@ -39,6 +39,15 @@ export interface Style {
 
 const REGULAR: Style = { weight: 400, italic: false };
 const BOLD: Style = { weight: 700, italic: false };
+
+export type FaceKey = "regular" | "bold" | "italic" | "boldItalic";
+const FACES: [FaceKey, Style][] = [["regular", REGULAR], ["bold", BOLD], ["italic", { weight: 400, italic: true }], ["boldItalic", { weight: 700, italic: true }]];
+
+/** A family's files for embedding, by face; `restricted` when a face's license forbids it. */
+export interface EmbedFiles {
+  faces: Partial<Record<FaceKey, Uint8Array | { bytes: Uint8Array; index: number }>>;
+  restricted: boolean;
+}
 
 export class SlideFonts {
   readonly select = document.createElement("select");
@@ -132,6 +141,40 @@ export class SlideFonts {
       this.render();
     }
     return ok || this.have.has(family.toLowerCase());
+  }
+
+  /** The files of `family` the user has: loaded from a file, installed, or already downloaded (never a new download). */
+  async embedFiles(family: string): Promise<EmbedFiles> {
+    const out: EmbedFiles = { faces: {}, restricted: false };
+    const seen = new Set<string>();
+    const cat = catalogFiles(family);
+    for (const [key, style] of FACES) {
+      let file: FontFile | null = await getFontFile(family, { ...style, remote: false, gesture: true }).catch(() => null);
+      const pick = !file && cat ? pickCatalogFile(cat.files, style.weight, style.italic) : null;
+      if (pick && remoteAllowed() && (await isFontFileCached(pick.url))) file = await getFontFile(family, { ...style, loaded: false, local: false }).catch(() => null);
+      if (!file || !sameFace(file, style, key)) continue;
+      if (file.embeddable === "restricted") {
+        out.restricted = true;
+        continue;
+      }
+      if (file.embeddable !== true) continue;
+      const id = `${file.postscriptName ?? file.fullName ?? ""}|${file.index}|${file.bytes.byteLength}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.faces[key] = file.format === "ttc" ? { bytes: file.bytes, index: file.index } : file.bytes;
+    }
+    return out;
+  }
+
+  /** Families embedded in the deck draw from its own files: they count as present. */
+  markDrawable(families: readonly string[]): void {
+    let changed = false;
+    for (const f of families) {
+      if (this.have.has(f.toLowerCase())) continue;
+      this.have.add(f.toLowerCase());
+      changed = true;
+    }
+    if (changed) this.render();
   }
 
   dispose(): void {
@@ -293,4 +336,10 @@ export class SlideFonts {
     this.prev = family;
     await this.pick(family);
   }
+}
+
+/** The file answers the face asked for, not a nearest weight or style standing in for it (a variable font only as regular). */
+function sameFace(f: FontFile, s: Style, key: FaceKey): boolean {
+  if (f.variable) return key === "regular";
+  return f.italic === s.italic && ((f.weight ?? 400) >= 600) === s.weight >= 600;
 }

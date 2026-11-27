@@ -121,6 +121,7 @@ function ensureStyles(): void {
     .ot-px-menu button { display:flex; align-items:center; text-align:left; padding:9px 12px; border:0; border-radius:7px; background:none; color:inherit;
       font:14px system-ui, sans-serif; cursor:pointer; }
     .ot-px-menu button:hover, .ot-px-menu button:focus-visible, .ot-px-menu button.on { background:var(--canvas); }
+    .ot-px-menu button[aria-checked="true"]::after { content:"\\2713"; float:right; margin-left:16px; color:var(--accent); }
     .ot-px-menu { max-height:min(70vh, 640px); overflow-y:auto; }
     .ot-px-swatches { display:grid; grid-template-columns:repeat(6, 28px); gap:6px; padding:6px; }
     .ot-px-swatch { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); padding:0; cursor:pointer; }
@@ -420,6 +421,8 @@ class PptxCraftInstance implements EditorInstance {
       this.fit();
       this.syncSlides();
       void this.fonts.opened(info.missingFonts ?? []);
+      const embedded = (await this.session.embeddedFonts().catch(() => [])).filter((f) => f.drawable).map((f) => f.family);
+      this.fonts.markDrawable(embedded);
     } catch (e) {
       if (!this.disposed) this.fail(e);
     } finally {
@@ -1691,8 +1694,12 @@ class PptxCraftInstance implements EditorInstance {
   }
 
   private toolsMenu(): void {
+    const session = this.session;
+    // The menu opens at once (its button may sit in a panel that closes); the embed state follows.
+    let embedded: string[] = [];
     popupMenu(this.root, this.buttons.tools, [
       { label: t("pptxcraft.replaceFont"), run: () => void this.replaceFont() },
+      { label: t("pptxcraft.embedFonts"), run: () => void this.embedFonts(embedded) },
       { label: t("pptxcraft.guideV"), run: () => void this.addGuide(true) },
       { label: t("pptxcraft.guideH"), run: () => void this.addGuide(false) },
       { label: t("pptxcraft.guideClear"), run: () => void this.clearGuides() },
@@ -1703,6 +1710,55 @@ class PptxCraftInstance implements EditorInstance {
       { label: t("pptxcraft.exportPng"), run: () => void this.exportPng() },
       { label: t("pptxcraft.comments"), run: () => void this.listComments() },
     ]);
+    const item = this.root.querySelectorAll<HTMLButtonElement>(".ot-px-menu button")[1];
+    if (!session || !item) return;
+    item.setAttribute("role", "menuitemcheckbox");
+    item.setAttribute("aria-checked", "false");
+    void this.enqueue(() => session.embeddedFonts()).then((list) => {
+      embedded = (list ?? []).map((f) => f.family);
+      item.classList.toggle("on", embedded.length > 0);
+      item.setAttribute("aria-checked", String(embedded.length > 0));
+    }, () => undefined);
+  }
+
+  /** Embeds the deck's fonts the user has files for; with fonts already embedded, takes them out. */
+  private async embedFonts(embedded: string[]): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    if (embedded.length) {
+      for (const family of embedded) await this.enqueue(() => session.unembedFont(family));
+      await this.enqueue(() => this.refresh());
+      return;
+    }
+    const used = (await this.enqueue(() => session.execute<string[]>("font.used", {}))) ?? [];
+    const done: string[] = [];
+    const refused: string[] = [];
+    const noFile: string[] = [];
+    for (const family of used) {
+      const files = await this.fonts.embedFiles(family);
+      // Inter, the default theme's font, is a file the app serves.
+      if (!Object.keys(files.faces).length && family.toLowerCase() === "inter") {
+        const r = await fetch(deckFontUrls.latin).catch(() => null);
+        if (r?.ok) files.faces.regular = new Uint8Array(await r.arrayBuffer());
+      }
+      if (!Object.keys(files.faces).length) {
+        (files.restricted ? refused : noFile).push(family);
+        continue;
+      }
+      const r = await this.enqueue(() => session.embedFont(family, files.faces)).catch(() => null);
+      // The engine checks the license again (preview-and-print faces too) and refuses what it forbids.
+      (r?.faces.length ? done : refused).push(family);
+    }
+    await this.enqueue(() => this.refresh());
+    if (this.disposed) return;
+    // One message: a newer notification replaces the one on screen.
+    const parts: string[] = [];
+    if (done.length) parts.push(t("pptxcraft.fontsEmbedded", { names: done.join(", ") }));
+    if (refused.length) parts.push(t("pptxcraft.fontsNotAllowed", { names: refused.join(", ") }));
+    if (noFile.length) parts.push(t("pptxcraft.fontsNoFile", { names: noFile.join(", ") }));
+    if (!parts.length) return;
+    if (refused.length || noFile.length) this.host.notifications.warn(parts.join(" · "));
+    else this.host.notifications.info(parts.join(" · "));
   }
 
   private baseName(): string {

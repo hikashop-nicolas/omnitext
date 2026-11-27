@@ -108,6 +108,25 @@ export interface Rendered {
   rgba: Uint8Array;
 }
 
+export type EmbedFile = Uint8Array | { bytes: Uint8Array; index: number };
+export interface EmbedFaces {
+  regular?: EmbedFile;
+  bold?: EmbedFile;
+  italic?: EmbedFile;
+  boldItalic?: EmbedFile;
+}
+export type EmbedFace = keyof EmbedFaces;
+export interface EmbedResult {
+  family: string;
+  faces: EmbedFace[];
+  skipped: { face: EmbedFace; reason: "restricted" | "previewPrint" | "bitmapOnly" | "notAFont" | "tooLarge" }[];
+}
+export interface EmbeddedFontInfo {
+  family: string;
+  faces: EmbedFace[];
+  drawable: boolean;
+}
+
 export interface OpenOptions {
   worker?: Worker;
   workerUrl?: string | URL;
@@ -192,6 +211,15 @@ export class DeckSession {
   }
   addFont(_bytes: Uint8Array): Promise<unknown> {
     return Promise.resolve(null);
+  }
+  embedFont(_family: string, _faces: EmbedFaces): Promise<EmbedResult> {
+    return Promise.reject(new EngineError("failed", "the presentation engine is not part of this build"));
+  }
+  unembedFont(_family: string): Promise<{ removed: boolean }> {
+    return Promise.resolve({ removed: false });
+  }
+  embeddedFonts(): Promise<EmbeddedFontInfo[]> {
+    return Promise.resolve([]);
   }
   close(): void {}
 }

@@ -857,6 +857,10 @@ const ko: Dict = {
     fontBigNote: "{name}은(는) {size}MB입니다. 다운로드하여 슬라이드를 이 글꼴로 표시할까요?",
     fontDownload: "다운로드",
     fontUnavailable: "{name}을(를) 슬라이드 표시에 사용할 수 없어 비슷한 글꼴을 사용합니다.",
+    embedFonts: "파일에 글꼴 포함",
+    fontsEmbedded: "파일에 포함됨: {names}",
+    fontsNotAllowed: "포함되지 않음, 글꼴 라이선스가 허용하지 않음: {names}",
+    fontsNoFile: "포함되지 않음, 이 기기에 글꼴 파일이 없음: {names}",
   },
   pdfcraft: {
     password: "이 PDF는 보호되어 있습니다. 비밀번호를 입력하세요.",

@@ -857,6 +857,10 @@ const en: Dict = {
     fontBigNote: "{name} is {size} MB. Download it to draw the slides with it?",
     fontDownload: "Download",
     fontUnavailable: "{name} is not available to draw the slides, so a similar font is used.",
+    embedFonts: "Embed fonts in the file",
+    fontsEmbedded: "Embedded in the file: {names}",
+    fontsNotAllowed: "Not embedded, the font's licence forbids it: {names}",
+    fontsNoFile: "Not embedded, no font file on this device: {names}",
   },
   pdfcraft: {
     password: "This PDF is protected. Enter its password.",

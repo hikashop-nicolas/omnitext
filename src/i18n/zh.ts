@@ -859,6 +859,10 @@ const zh: Dict = {
     fontBigNote: "{name} 大小为 {size} MB。要下载它来显示幻灯片吗？",
     fontDownload: "下载",
     fontUnavailable: "{name} 无法用于显示幻灯片，因此改用相近的字体。",
+    embedFonts: "在文件中嵌入字体",
+    fontsEmbedded: "已嵌入文件:{names}",
+    fontsNotAllowed: "未嵌入,字体许可不允许:{names}",
+    fontsNoFile: "未嵌入,此设备上没有字体文件:{names}",
   },
   pdfcraft: {
     password: "此 PDF 受密码保护，请输入密码。",

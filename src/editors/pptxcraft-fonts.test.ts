@@ -52,4 +52,26 @@ describe("the slide font picker", () => {
     expect(fonts.select.value).toBe("Slide Hand");
     fonts.dispose();
   });
+
+  it("hands a loaded font file over for embedding, each face once", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const fonts = new SlideFonts({ root, addFont: async () => true, used: async () => [], redraw: () => undefined, confirm: async () => false });
+    let input: HTMLInputElement | null = null;
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { input = this; });
+    fonts.sync("Inter", false, false, () => undefined);
+    fonts.select.value = [...fonts.select.options].find((o) => o.value.endsWith("file"))!.value;
+    fonts.select.dispatchEvent(new Event("change"));
+    const bytes = sfnt("Embed Hand");
+    Object.defineProperty(input!, "files", { value: [new File([bytes as BlobPart], "embed.ttf")] });
+    input!.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(fonts.select.value).toBe("Embed Hand"));
+    const files = await fonts.embedFiles("Embed Hand");
+    // A regular file stands in for no other face.
+    expect(Object.keys(files.faces)).toEqual(["regular"]);
+    expect(files.faces.regular).toEqual(bytes);
+    expect(files.restricted).toBe(false);
+    expect(await fonts.embedFiles("No Such Family")).toEqual({ faces: {}, restricted: false });
+    fonts.dispose();
+  });
 });

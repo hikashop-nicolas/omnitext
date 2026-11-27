@@ -857,6 +857,10 @@ const ja: Dict = {
     fontBigNote: "{name} は {size} MB です。スライドの表示に使うためにダウンロードしますか？",
     fontDownload: "ダウンロード",
     fontUnavailable: "{name} はスライドの表示に使えないため、似たフォントで表示します。",
+    embedFonts: "フォントをファイルに埋め込む",
+    fontsEmbedded: "ファイルに埋め込みました: {names}",
+    fontsNotAllowed: "埋め込めません(フォントのライセンスで禁止されています): {names}",
+    fontsNoFile: "埋め込めません(この端末にフォントファイルがありません): {names}",
   },
   pdfcraft: {
     password: "この PDF は保護されています。パスワードを入力してください。",

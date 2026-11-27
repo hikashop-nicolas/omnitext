@@ -877,6 +877,10 @@ const pl: Dict = {
     fontBigNote: "Czcionka {name} ma {size} MB. Pobrać ją, aby rysować nią slajdy?",
     fontDownload: "Pobierz",
     fontUnavailable: "Czcionka {name} nie jest dostępna do rysowania slajdów, więc używana jest podobna.",
+    embedFonts: "Osadź czcionki w pliku",
+    fontsEmbedded: "Osadzone w pliku: {names}",
+    fontsNotAllowed: "Nie osadzono, licencja czcionki na to nie pozwala: {names}",
+    fontsNoFile: "Nie osadzono, brak pliku czcionki na tym urządzeniu: {names}",
   },
   pdfcraft: {
     password: "Ten plik PDF jest chroniony. Wprowadź hasło.",
