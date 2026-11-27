@@ -279,12 +279,13 @@ Omnitext to your computer's "Open with" menu. There is an Android app as well.</
 // index while still being built.
 const GROUPS = [
   { title: "Documents", ids: ["pdf", "docx", "odt", "pptx", "markdown", "html", "latex", "epub", "kindle-ebooks"] },
-  { title: "Spreadsheets and data", ids: ["xlsx", "ods", "csv", "sqlite", "parquet", "ipynb", "json", "traces", "profiles"] },
+  { title: "Spreadsheets and data", ids: ["xlsx", "ods", "csv", "sqlite", "parquet"] },
   { title: "Pictures and drawings", ids: ["images", "svg", "psd", "heic", "camera-raw", "tiff", "illustrator", "dwg", "dxf", "3d-models", "dicom"] },
   { title: "Audio, video and subtitles", ids: ["video", "audio", "srt", "vtt", "ass"] },
   { title: "Sheet music", ids: ["musicxml", "mscz", "guitarpro", "midi", "abc", "sheet-music-pdf"] },
   { title: "Maps", ids: ["geojson", "kml", "gpx"] },
-  { title: "Mail, calendars and everything else", ids: ["eml", "msg", "calendar-contacts", "wallet-passes", "archives", "fonts", "torrent", "code"] },
+  { title: "Developer files", ids: ["code", "json", "ipynb", "traces", "profiles"] },
+  { title: "Mail, calendars and everything else", ids: ["eml", "msg", "calendar-contacts", "wallet-passes", "archives", "fonts", "torrent"] },
 ];
 
 /** The pencil that marks a format Omnitext edits (not only shows). */
