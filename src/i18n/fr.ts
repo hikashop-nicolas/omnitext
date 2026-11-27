@@ -1141,6 +1141,7 @@ const fr: Dict = {
     fontDownload: "Télécharger",
     fontUnavailable: "Impossible de charger {name}",
     fontRefused: "{name} ne peut pas être incorporée dans un PDF (sa licence l'interdit, ou ce n'est pas une police TrueType ou OpenType statique)",
+    fontNoAccess: "Impossible d'utiliser {name} : ce navigateur ne donne pas accès aux polices installées sur l'appareil",
   },
   export: {
     mxl: "MusicXML compressé (MXL)",

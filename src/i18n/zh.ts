@@ -1142,6 +1142,7 @@ const zh: Dict = {
     fontDownload: "下载",
     fontUnavailable: "无法加载 {name}",
     fontRefused: "{name} 无法嵌入 PDF（其许可证禁止，或者它不是静态 TrueType 或 OpenType 字体）",
+    fontNoAccess: "无法使用 {name}：此浏览器不允许访问设备上安装的字体",
   },
   export: {
     mxl: "压缩的 MusicXML (MXL)",

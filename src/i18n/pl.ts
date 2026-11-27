@@ -1160,6 +1160,7 @@ const pl: Dict = {
     fontDownload: "Pobierz",
     fontUnavailable: "Nie udało się wczytać {name}",
     fontRefused: "Nie można osadzić {name} w pliku PDF (licencja tego zabrania lub nie jest to statyczna czcionka TrueType ani OpenType)",
+    fontNoAccess: "Nie można użyć {name}: ta przeglądarka nie udostępnia czcionek zainstalowanych na urządzeniu",
   },
   export: {
     mxl: "Skompresowany MusicXML (MXL)",

@@ -95,6 +95,7 @@ export interface AnnotationInfo {
   subtype: string;
   contents: string | null;
   view: Box;
+  font?: string | null;
 }
 
 export type FieldKind = "text" | "check" | "radio" | "button" | "choice" | "signature";
@@ -127,8 +128,8 @@ export type CommentSpec = (
   | { type: "line"; from: Point; to: Point }
   | { type: "arrow"; from: Point; to: Point }
   | { type: "ink"; strokes: Point[][] }
-  | { type: "textbox"; box: Box; fontSize?: number }
-  | { type: "typewriter"; box: Box; fontSize?: number }
+  | { type: "textbox"; box: Box; fontSize?: number; font?: string }
+  | { type: "typewriter"; box: Box; fontSize?: number; font?: string }
   | { type: "mark"; box: Box; mark?: "check" | "cross" | "dot" | "line" }
   | { type: "signature"; strokes: Point[][] }
   | { type: "typedSignature"; at: Point; text: string; height?: number }
@@ -238,6 +239,7 @@ export type EditCall =
   | { op: "setField"; name: string; value: FieldValue }
   | { op: "addAnnotation"; page: number; spec: CommentSpec }
   | { op: "setAnnotationContents"; page: number; index: number; text: string }
+  | { op: "setAnnotationFont"; page: number; index: number; font?: string }
   | { op: "addField"; page: number; view: Box; spec: FieldSpec }
   | { op: "deleteField"; name: string }
   | { op: "deleteFieldWidget"; name: string; widget: number }
@@ -314,11 +316,13 @@ export interface WatermarkSpec {
   rotation?: number;
   behind?: boolean;
   scale?: number;
+  font?: string;
   pages?: number[];
 }
 
 export interface HeaderFooterSpec {
   text: [string, string, string, string, string, string];
+  font?: string;
   size?: number;
   color?: [number, number, number];
   margins?: [number, number, number, number];
@@ -420,6 +424,7 @@ export declare class PdfDocument {
   setField(name: string, value: FieldValue): Promise<void>;
   addAnnotation(page: number, spec: CommentSpec): Promise<void>;
   setAnnotationContents(page: number, index: number, text: string): Promise<void>;
+  setAnnotationFont(page: number, index: number, font?: string): Promise<void>;
   stamps(): Promise<StampInfo[]>;
   addField(page: number, view: Box, spec: FieldSpec): Promise<void>;
   deleteField(name: string): Promise<void>;

@@ -1140,6 +1140,7 @@ const ko: Dict = {
     fontDownload: "다운로드",
     fontUnavailable: "{name}을(를) 불러올 수 없습니다",
     fontRefused: "{name}은(는) PDF에 포함할 수 없습니다(라이선스가 금지하거나 정적 TrueType 또는 OpenType 글꼴이 아닙니다)",
+    fontNoAccess: "{name}을(를) 사용할 수 없습니다. 이 브라우저는 기기에 설치된 글꼴에 대한 접근을 허용하지 않습니다",
   },
   export: {
     mxl: "압축 MusicXML(MXL)",

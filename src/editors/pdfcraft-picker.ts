@@ -3,7 +3,8 @@
 // builds) and a font file. A chosen face is registered with the engine, which embeds the glyphs
 // used, so it needs a static TrueType/OpenType file whose embedding permissions allow editing.
 import {
-  catalogFiles, createFontSelect, getFontFile, isFontFileCached, pickCatalogFile, remoteAllowed, setFontLocale, showFontToast,
+  catalogFiles, createFontSelect, getFontFile, hasLocalFontAccess, isFontFileCached, localFontsPermission, pickCatalogFile, remoteAllowed,
+  setFontLocale, showFontToast,
   type FontFile, type FontSelect,
 } from "fontshelf";
 import { getLocale, t } from "../i18n";
@@ -27,6 +28,8 @@ export interface PickerOptions {
   pageFonts: { resource: string; face: string }[];
   bold: boolean;
   italic: boolean;
+  /** The standard families offered (default all three). */
+  standard?: string[];
   apply(choice: FontChoice): void;
 }
 
@@ -101,7 +104,7 @@ export class PdfFontPicker {
 
   private docFonts(opts: PickerOptions, resources: Map<string, string>): string[] {
     resources.clear();
-    const out = Object.keys(STANDARD);
+    const out = Object.keys(STANDARD).filter((s) => !opts.standard || opts.standard.includes(s));
     for (const f of opts.pageFonts) {
       const name = f.face.replace(/^[A-Z]{6}\+/, "");
       if (!name || resources.has(name)) continue;
@@ -147,7 +150,9 @@ export class PdfFontPicker {
       }
     }
     if (!file) {
-      showFontToast(this.h.root, t("pdfcraft.fontUnavailable", { name: family }), 3500);
+      // an installed font whose file the browser keeps to itself
+      const blocked = !cat && (!hasLocalFontAccess() || (await localFontsPermission()) === "denied");
+      showFontToast(this.h.root, t(blocked ? "pdfcraft.fontNoAccess" : "pdfcraft.fontUnavailable", { name: family }), 4000);
       return null;
     }
     if (!bytes || file.embeddable !== true || !usableFace(file, bytes)) {

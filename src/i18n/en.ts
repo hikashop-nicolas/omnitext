@@ -1140,6 +1140,7 @@ const en: Dict = {
     fontDownload: "Download",
     fontUnavailable: "{name} could not be loaded",
     fontRefused: "{name} cannot be embedded in a PDF (its licence forbids it, or it is not a static TrueType or OpenType font)",
+    fontNoAccess: "{name} cannot be used: this browser does not share the fonts installed on the device",
   },
   export: {
     mxl: "Compressed MusicXML (MXL)",

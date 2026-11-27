@@ -1161,6 +1161,7 @@ const ru: Dict = {
     fontDownload: "Загрузить",
     fontUnavailable: "Не удалось загрузить {name}",
     fontRefused: "{name} нельзя встроить в PDF (это запрещает лицензия, или это не статический шрифт TrueType или OpenType)",
+    fontNoAccess: "Не удаётся использовать {name}: этот браузер не даёт доступа к шрифтам, установленным на устройстве",
   },
   export: {
     mxl: "Сжатый MusicXML (MXL)",

@@ -1140,6 +1140,7 @@ const tr: Dict = {
     fontDownload: "İndir",
     fontUnavailable: "{name} yüklenemedi",
     fontRefused: "{name} bir PDF'e gömülemez (lisansı buna izin vermiyor ya da statik bir TrueType veya OpenType yazı tipi değil)",
+    fontNoAccess: "{name} kullanılamıyor: bu tarayıcı cihazda yüklü yazı tiplerine erişim vermiyor",
   },
   export: {
     mxl: "Sıkıştırılmış MusicXML (MXL)",

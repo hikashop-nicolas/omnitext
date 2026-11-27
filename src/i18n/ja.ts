@@ -1140,6 +1140,7 @@ const ja: Dict = {
     fontDownload: "ダウンロード",
     fontUnavailable: "{name} を読み込めませんでした",
     fontRefused: "{name} は PDF に埋め込めません（ライセンスで禁止されているか、静的な TrueType / OpenType フォントではありません）",
+    fontNoAccess: "{name} を使えません。このブラウザーは端末にインストールされたフォントへのアクセスを許可していません",
   },
   export: {
     mxl: "圧縮 MusicXML (MXL)",

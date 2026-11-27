@@ -5,7 +5,7 @@ import { PdfLog, type Change } from "./pdfcraft-collab";
 import { documentFaces } from "./pdfcraft-fonts";
 import { PdfFontPicker } from "./pdfcraft-picker";
 import { isMac, keyLabel, SHORTCUT_LIST, shortcutFor, type Shortcut } from "./pdfcraft-keys";
-import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog } from "./pdfcraft-docs";
+import { backgroundDialog, headerFooterDialog, hiddenDialog, watermarkDialog, type MarkFont } from "./pdfcraft-docs";
 import { askText, formDialog, listDialog, messageDialog, playerDialog, saveFile, signaturePad, type DrawnSignature, type Field } from "./pdfcraft-tools";
 import { openExternal } from "../core/external";
 import { isNative } from "../core/platform";
@@ -535,8 +535,8 @@ class PdfCraftInstance implements EditorInstance {
     b("protect", "lock", t("pdfcraft.protect"), () => void this.protectDialog());
     b("layers", "layers", t("pdfcraft.layers"), () => void this.layersDialog());
     b("signatures", "badge", t("pdfcraft.signatures"), () => void this.signaturesDialog());
-    b("watermark", "droplet", t("pdfcraft.moreWatermark"), () => void this.pageMark(watermarkDialog));
-    b("headerFooter", "panelTop", t("pdfcraft.moreHeader"), () => void this.pageMark(headerFooterDialog));
+    b("watermark", "droplet", t("pdfcraft.moreWatermark"), () => void this.pageMark((root, page) => watermarkDialog(root, page, this.markFont(["Helvetica"]))));
+    b("headerFooter", "panelTop", t("pdfcraft.moreHeader"), () => void this.pageMark((root, page) => headerFooterDialog(root, page, this.markFont())));
     b("background", "bucket", t("pdfcraft.moreBackground"), () => void this.pageMark(backgroundDialog));
     b("bookmarks", "bookmark", t("pdfcraft.moreBookmarks"), () => void this.bookmarksDialog());
     b("attachments", "clip", t("pdfcraft.moreAttachments"), () => void this.attachmentsDialog());
@@ -1988,6 +1988,19 @@ class PdfCraftInstance implements EditorInstance {
     } else if (sel.ann) {
       const ann = sel.ann;
       if (ann.subtype === "Text" || ann.subtype === "FreeText" || ann.contents) add("edit", t("pdfcraft.editComment"), () => void this.editComment(sel.page, ann));
+      // a text box draws in a chosen face, or in its own standard one
+      if (ann.subtype === "FreeText") {
+        main.append(
+          this.fonts.create({
+            current: ann.font ?? "helvetica",
+            pageFonts: [],
+            bold: false,
+            italic: false,
+            standard: ["Helvetica"],
+            apply: (c) => void this.run(sel.page, () => this.commit({ op: "setAnnotationFont", page: sel.page, index: ann.index, ...("font" in c ? { font: c.font } : {}) }), sel),
+          }),
+        );
+      }
     } else if (sel.obj.type === "text" && style) {
       add("edit", t("pdfcraft.editText"), () => this.editSelection());
       // a page font of existing text names its standard family the way the engine does
@@ -2488,7 +2501,9 @@ class PdfCraftInstance implements EditorInstance {
         const text = await askText(this.root, { title: t("pdfcraft.textbox"), label: t("pdfcraft.typeLabel"), multiline: true, ok: t("pdfcraft.ok"), cancel: t("pdfcraft.cancel") });
         if (!text?.trim()) return;
         const fontSize = Math.max(8, Math.min(48, Math.round((box[3] - box[1]) * 0.7)));
-        return this.commitComment(page, { type: p.kind, box, fontSize, contents: text, color: p.kind === "typewriter" ? [0, 0, 0] : [0.1, 0.1, 0.6] });
+        // in the face last chosen in this document
+        const font = this.fontDoc === this.doc ? this.fonts.lastFont : null;
+        return this.commitComment(page, { type: p.kind, box, fontSize, contents: text, color: p.kind === "typewriter" ? [0, 0, 0] : [0.1, 0.1, 0.6], ...(font ? { font } : {}) });
       }
       case "redact":
         await this.run(page, () => this.commit({ op: "addRedaction", page, boxes: [box] }));
@@ -2727,6 +2742,22 @@ class PdfCraftInstance implements EditorInstance {
   }
 
   /** A watermark, header and footer or background: ask, then put it on the pages. */
+  /** A font picker for a mark's text, starting on the face last chosen. */
+  private markFont(standard?: string[]): MarkFont {
+    let chosen = (this.fontDoc === this.doc ? this.fonts.lastFont : null) ?? "helvetica";
+    const select = this.fonts.create({
+      current: chosen,
+      pageFonts: [],
+      bold: false,
+      italic: false,
+      standard,
+      apply: (c) => {
+        chosen = "font" in c ? c.font : "family" in c ? c.family : chosen;
+      },
+    });
+    return { select, value: () => chosen };
+  }
+
   private async pageMark(dialog: (root: HTMLElement, page: number) => Promise<EditCall | null>): Promise<void> {
     if (!this.doc) return;
     const call = await dialog(this.root, this.currentIndex());

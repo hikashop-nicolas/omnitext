@@ -29,7 +29,15 @@ const pagesOf = (scope: unknown, page: number): number[] | undefined => (scope =
 
 const button = { ok: () => t("pdfcraft.ok"), cancel: () => t("pdfcraft.cancel") };
 
-export async function watermarkDialog(root: HTMLElement, page: number): Promise<EditCall | null> {
+/** A font picker for a mark's text; `value()` is what the spec's `font` takes. */
+export interface MarkFont {
+  select: HTMLSelectElement;
+  value(): string;
+}
+
+const fontField = (font: MarkFont | undefined): Field[] => (font ? [{ key: "font", label: t("pdfcraft.font"), kind: "element", element: font.select, read: font.value }] : []);
+
+export async function watermarkDialog(root: HTMLElement, page: number, font?: MarkFont): Promise<EditCall | null> {
   const v = await formDialog(root, {
     title: t("pdfcraft.moreWatermark"),
     ok: button.ok(),
@@ -37,6 +45,7 @@ export async function watermarkDialog(root: HTMLElement, page: number): Promise<
     fields: [
       { key: "text", label: t("pdfcraft.wmText"), kind: "text", value: "" },
       { key: "picture", label: t("pdfcraft.wmPicture"), kind: "file", accept: "image/*" },
+      ...fontField(font),
       { key: "size", label: t("pdfcraft.wmSize"), kind: "number", value: 0, min: 0, max: 400 },
       { key: "color", label: t("pdfcraft.wmColor"), kind: "color", value: "#999999" },
       { key: "opacity", label: t("pdfcraft.wmOpacity"), kind: "number", value: 50, min: 0, max: 100 },
@@ -51,12 +60,12 @@ export async function watermarkDialog(root: HTMLElement, page: number): Promise<
   if (v.remove) return { op: "removeMarks", kind: "watermark" };
   return {
     op: "addWatermark",
-    spec: { text: String(v.text), size: Number(v.size), color: rgb(String(v.color)), opacity: Number(v.opacity) / 100, rotation: Number(v.rotation), behind: !!v.behind, pages: pagesOf(v.pages, page) },
+    spec: { text: String(v.text), ...(v.font ? { font: String(v.font) } : {}), size: Number(v.size), color: rgb(String(v.color)), opacity: Number(v.opacity) / 100, rotation: Number(v.rotation), behind: !!v.behind, pages: pagesOf(v.pages, page) },
     picture: await picture(v.picture),
   };
 }
 
-export async function headerFooterDialog(root: HTMLElement, page: number): Promise<EditCall | null> {
+export async function headerFooterDialog(root: HTMLElement, page: number, font?: MarkFont): Promise<EditCall | null> {
   const keys = ["hl", "hc", "hr", "fl", "fc", "fr"] as const;
   const labels = ["hfHeaderLeft", "hfHeaderCentre", "hfHeaderRight", "hfFooterLeft", "hfFooterCentre", "hfFooterRight"];
   const v = await formDialog(root, {
@@ -66,6 +75,7 @@ export async function headerFooterDialog(root: HTMLElement, page: number): Promi
     note: t("pdfcraft.hfNote"),
     fields: [
       ...keys.map((key, i): Field => ({ key, label: t(`pdfcraft.${labels[i]}`), kind: "text", value: key === "fc" ? "<<1>> / <<n>>" : "" })),
+      ...fontField(font),
       { key: "size", label: t("pdfcraft.hfSize"), kind: "number", value: 10, min: 4, max: 72 },
       { key: "color", label: t("pdfcraft.wmColor"), kind: "color", value: "#000000" },
       { key: "shrink", label: t("pdfcraft.hfShrink"), kind: "check", value: false },
@@ -77,7 +87,7 @@ export async function headerFooterDialog(root: HTMLElement, page: number): Promi
   if (!v) return null;
   if (v.remove) return { op: "removeMarks", kind: "headerFooter" };
   const text = keys.map((k) => String(v[k])) as [string, string, string, string, string, string];
-  return { op: "addHeaderFooter", spec: { text, size: Number(v.size), color: rgb(String(v.color)), shrink: !!v.shrink, pages: pagesOf(v.pages, page) } };
+  return { op: "addHeaderFooter", spec: { text, ...(v.font ? { font: String(v.font) } : {}), size: Number(v.size), color: rgb(String(v.color)), shrink: !!v.shrink, pages: pagesOf(v.pages, page) } };
 }
 
 export async function backgroundDialog(root: HTMLElement, page: number): Promise<EditCall | null> {

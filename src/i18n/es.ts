@@ -1138,6 +1138,7 @@ const es: Dict = {
     fontDownload: "Descargar",
     fontUnavailable: "No se pudo cargar {name}",
     fontRefused: "{name} no se puede incrustar en un PDF (su licencia lo prohíbe o no es una fuente TrueType u OpenType estática)",
+    fontNoAccess: "No se puede usar {name}: este navegador no da acceso a las fuentes instaladas en el dispositivo",
   },
   export: {
     mxl: "MusicXML comprimido (MXL)",

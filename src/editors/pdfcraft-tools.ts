@@ -83,7 +83,8 @@ export type Field =
   | { key: string; label: string; kind: "check"; value?: boolean }
   | { key: string; label: string; kind: "select"; value?: string; options: [value: string, label: string][] }
   | { key: string; label: string; kind: "file"; accept?: string }
-  | { key: string; label: string; kind: "color"; value?: string };
+  | { key: string; label: string; kind: "color"; value?: string }
+  | { key: string; label: string; kind: "element"; element: HTMLSelectElement; read(): string };
 
 export type Values = Record<string, string | number | boolean | File | null>;
 
@@ -114,7 +115,9 @@ export function formDialog(root: HTMLElement, options: FormOptions): Promise<Val
       const label = el("label", undefined, f.label);
       label.htmlFor = id;
       let input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      if (f.kind === "textarea") {
+      if (f.kind === "element") {
+        input = f.element;
+      } else if (f.kind === "textarea") {
         input = el("textarea");
         input.value = f.value ?? "";
         input.placeholder = f.placeholder ?? "";
@@ -153,7 +156,8 @@ export function formDialog(root: HTMLElement, options: FormOptions): Promise<Val
       const out: Values = {};
       for (const f of options.fields) {
         const i = inputs.get(f.key)!;
-        if (f.kind === "check") out[f.key] = (i as HTMLInputElement).checked;
+        if (f.kind === "element") out[f.key] = f.read();
+        else if (f.kind === "check") out[f.key] = (i as HTMLInputElement).checked;
         else if (f.kind === "file") out[f.key] = (i as HTMLInputElement).files?.[0] ?? null;
         else if (f.kind === "number") out[f.key] = Number(i.value);
         else out[f.key] = i.value;
