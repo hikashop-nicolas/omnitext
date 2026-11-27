@@ -568,6 +568,28 @@ export const PAGES = [
     note: "This is a viewer for looking at a file, not a diagnostic tool.",
   },
   {
+    id: "traces",
+    viewOnly: true,
+    shot: {
+      name: "trace",
+      caption:
+        "Perfetto's public Android 14 cold-start trace: an app's main thread and render thread, each with its running and sleeping states above its slices.",
+    },
+    formats: ["perfetto", "chrometrace", "systrace"],
+    name: "Performance trace",
+    headline: "Open a Perfetto or Chrome trace on your phone",
+    summary:
+      "View Android system traces, Chrome traces and systrace captures as a timeline, without uploading them anywhere.",
+    lead: "A trace from Android's System Tracing, Chrome's tracing or systrace usually means a desktop and a web tool. Omnitext reads the file on the device you recorded it on and draws it as a timeline you can pan and pinch.",
+    can: [
+      "See CPU scheduling, each thread's running, runnable and sleeping states, process tracks, counters and logcat",
+      "Follow flow arrows from one slice to the next, across threads and processes",
+      "Search slice names and logcat lines, and filter the rows by process or thread",
+      "Read Perfetto protobuf traces (compressed ones too), Chrome JSON traces and systrace text or HTML",
+    ],
+    note: "Traces open for viewing. Omnitext does not run SQL queries or metrics on them, as Perfetto's own tools do.",
+  },
+  {
     id: "archives",
     shot: {
       name: "archive",
