@@ -1,6 +1,6 @@
 import {
   BASE_FONTS, addDocumentFonts, buildFontGroups, canDraw, catalogFiles, getFontFile, getFontState, isAdded, isFontFileCached,
-  onFontsChange, pickCatalogFile, remoteAllowed, requestRemoteFont, restoreFonts, setFontLocale, setRemoteEnabled,
+  onFontsChange, pickCatalogFile, remoteAllowed, requestFontFile, requestRemoteFont, restoreFonts, setFontLocale, setRemoteEnabled,
   showFontToast, showInstalledFonts, fontT,
 } from "fontshelf";
 import { getLocale, t } from "../i18n";
@@ -19,6 +19,7 @@ const BIG = 5 * 1024 * 1024;
 const ACTION = "\u0001";
 const SHOW_MINE = `${ACTION}local`;
 const GET_MORE = `${ACTION}remote`;
+const LOAD_FILE = `${ACTION}file`;
 
 export interface FontsHost {
   root: HTMLElement;
@@ -75,12 +76,15 @@ export class SlideFonts {
     });
     this.select.addEventListener("change", () => this.changed());
     let allowed = remoteAllowed();
+    let loaded = getFontState().loaded.length;
     this.off = onFontsChange(() => {
       if (this.disposed) return;
       this.render();
-      // Consent just given: the slides' missing catalog fonts can come now.
-      if (!allowed && remoteAllowed()) void this.loadUsed(this.docFonts);
+      // Consent just given, or font files back from storage: the slides' missing fonts can come now.
+      const files = getFontState().loaded.length;
+      if ((!allowed && remoteAllowed()) || files > loaded) void this.loadUsed(this.docFonts);
       allowed = remoteAllowed();
+      loaded = files;
     });
     restoreFonts({ local: true, remote: this.remote });
     this.render();
@@ -232,6 +236,7 @@ export class SlideFonts {
     group(fontT("fontsAll"), groups.fonts.map((f) => opt(f, f)));
     const actions: HTMLOptionElement[] = [];
     if (!st.installedFull) actions.push(opt(fontT("fontsShowMine"), SHOW_MINE));
+    actions.push(opt(fontT("fontsLoadFile"), LOAD_FILE));
     if (this.remote) actions.push(opt(fontT("fontsGetMore"), GET_MORE));
     group(fontT("fontsMore"), actions);
     this.select.replaceChildren(...parts);
@@ -252,6 +257,7 @@ export class SlideFonts {
     if (nav) return;
     if (v === SHOW_MINE) void this.showMine();
     else if (v === GET_MORE) void this.getMore();
+    else if (v === LOAD_FILE) void this.loadFile();
   }
 
   private async pick(family: string): Promise<void> {
@@ -272,7 +278,15 @@ export class SlideFonts {
   }
 
   private async getMore(): Promise<void> {
-    const family = await requestRemoteFont({ container: this.h.root });
+    await this.picked(await requestRemoteFont({ container: this.h.root }));
+  }
+
+  /** The file input opens within the change event, so the browser allows it. */
+  private async loadFile(): Promise<void> {
+    await this.picked(await requestFontFile({ container: this.h.root }));
+  }
+
+  private async picked(family: string | null): Promise<void> {
     if (!family || this.disposed) return;
     this.render(family);
     this.select.value = family;
