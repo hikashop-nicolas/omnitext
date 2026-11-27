@@ -18,7 +18,7 @@ Binaries:
 Builds:
   - versionName: '2.9'
     versionCode: 20900
-    commit: 4bea0d765a3bc3663c0aa84714e5567aefb8e7b4
+    commit: b9d52393ed0cbfd1d2ff42d971facc2892f08d22
     subdir: android/app
     sudo:
       - apt-get update
