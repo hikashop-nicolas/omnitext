@@ -1,7 +1,7 @@
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { getLocale, t } from "../i18n";
 import { LOG_CAP, emptySummary, parseTrace, type LogEntry, type TraceSummary } from "./perfetto-parse";
-import type { SliceTrack, TraceModel } from "./trace-model";
+import type { SliceRef, SliceTrack, TraceModel } from "./trace-model";
 import { Timeline, type TimelineSelection } from "./trace-timeline";
 import { readChromeTrace } from "./trace-chrome";
 import { looksLikeChromeTrace } from "../formats/trace-detect";
@@ -14,6 +14,10 @@ const STYLE_ID = "omnitext-trace-style";
 const ROW_CAP = 1000;
 const MATCH_CAP = 100_000;
 const PRIO = ["", "", "V", "D", "I", "W", "E", "F"];
+const STATE_KEYS = ["stateRunning", "stateRunnable", "stateSleeping", "stateUninterruptible", "stateStopped", "stateDead", "stateIdle", "stateUnknown"];
+// Zoom slider steps: the level goes up exponentially along the slider.
+const ZOOM_STEPS = 1000;
+const FIT_ICON = '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>';
 
 type Kind = "perfetto" | "json" | "systrace";
 
@@ -42,12 +46,14 @@ function ensureStyles(): void {
       border-radius:6px; background:var(--bg); color:var(--text); min-width:0; }
     .ot-pf-tools input[type=search] { flex:1 1 180px; }
     .ot-pf-tools input.narrow { flex:0 1 110px; }
+    .ot-pf-tools input.rows { flex:0 1 240px; }
     .ot-pf-btn { font:inherit; padding:4px 10px; border:1px solid var(--border); border-radius:6px;
       background:var(--surface); color:var(--text); cursor:pointer; }
     .ot-pf-btn:hover { border-color:var(--accent); }
     .ot-pf-btn:disabled { opacity:.5; cursor:default; }
     .ot-pf-count { color:var(--muted); font-variant-numeric:tabular-nums; }
     .ot-pf-help { color:var(--muted); font-size:12px; flex:1 1 100%; }
+    @media (max-width: 600px) { .ot-pf-help { display:none; } }
     .ot-pf table { border-collapse:collapse; font:12px/1.4 ui-monospace, monospace; }
     .ot-pf th, .ot-pf td { border-bottom:1px solid var(--border); padding:3px 10px 3px 0; text-align:left;
       vertical-align:top; }
@@ -68,6 +74,11 @@ function ensureStyles(): void {
     .ot-pf-details { flex:0 0 auto; max-height:30%; overflow:auto; padding:6px 12px; border-top:1px solid var(--border);
       background:var(--chrome); font-size:12px; }
     .ot-pf-details .ot-pf-facts { margin:0; }
+    .ot-pf-flows { display:flex; flex-wrap:wrap; gap:4px 6px; margin:4px 0 0; }
+    .ot-pf-flows button { font:inherit; padding:2px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface);
+      color:var(--text); cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ot-pf-flows button:hover { border-color:var(--accent); }
+    .ot-pf-flows button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
     .ot-pf-details pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.4 ui-monospace, monospace; }
     .ot-tl { position:relative; flex:1 1 auto; min-height:0; display:flex; }
     .ot-tl-scroll { flex:1 1 auto; overflow-y:auto; overflow-x:hidden; position:relative; }
@@ -151,9 +162,14 @@ class TraceInstance implements EditorInstance {
   private logQuery = "";
   // A text trace hands its text back: the host remounts from getText() (on a theme change, say).
   private text = "";
+  private bar: HTMLElement | null = null;
+  private zoomRange: HTMLInputElement | null = null;
+  private zoomPct: HTMLElement | null = null;
+  private zoomFit: HTMLButtonElement | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
+    this.buildBar();
     const root = el("div", "ot-pf");
     container.appendChild(root);
     this.root = root;
@@ -247,6 +263,7 @@ class TraceInstance implements EditorInstance {
       });
       tlPanel.hidden = tab !== "timeline";
       panel.hidden = tab === "timeline";
+      this.enableZoom(tab === "timeline" && !!this.timeline);
       if (tab === "timeline") {
         if (!tlBuilt) {
           tlBuilt = true;
@@ -305,7 +322,7 @@ class TraceInstance implements EditorInstance {
     });
     inLogs.hidden = true;
     const rows = searchBox(t("perfetto.filterRows"));
-    rows.classList.add("narrow");
+    rows.classList.add("rows");
     const expand = button(t("perfetto.expandAll"), () => this.timeline?.setAllCollapsed(false));
     const collapse = button(t("perfetto.collapseAll"), () => this.timeline?.setAllCollapsed(true));
     const help = el("div", "ot-pf-help", t("perfetto.timelineHelp"));
@@ -318,11 +335,19 @@ class TraceInstance implements EditorInstance {
     const tl = new Timeline(
       host,
       model,
-      { aria: t("perfetto.timelineAria"), max: (value) => t("perfetto.counterMax", { value }) },
+      {
+        aria: t("perfetto.timelineAria"),
+        max: (value) => t("perfetto.counterMax", { value }),
+        states: STATE_KEYS.map((k) => t(`perfetto.${k}`)),
+        onCpu: (n) => t("perfetto.onCpu", { n }),
+      },
       getLocale(),
       (sel) => this.details(details, model, sel),
     );
     this.timeline = tl;
+    tl.onView = () => this.showZoom();
+    this.enableZoom(true);
+    this.showZoom();
 
     let matches: Match[] = [];
     let current = -1;
@@ -405,7 +430,15 @@ class TraceInstance implements EditorInstance {
       return name ? `${name} ${pid}` : String(pid);
     };
     let arg = -1;
-    if (sel.track.kind === "cpu") {
+    if (sel.track.kind === "slices" && sel.level < 0) {
+      const tr = sel.track;
+      const st = tr.states!;
+      fact(t("perfetto.detailState"), tl.selName(sel));
+      fact(t("perfetto.detailStart"), tl.formatTime(st.ts[sel.index]! - model.start));
+      fact(t("perfetto.detailDuration"), tl.formatDuration(st.dur[sel.index]!));
+      fact(t("perfetto.detailThread"), tr.tid !== undefined ? tl.threadName(tr.tid) : tr.label);
+      fact(t("perfetto.detailProcess"), proc(tr.pid));
+    } else if (sel.track.kind === "cpu") {
       const tr = sel.track;
       const tid = tr.tid[sel.index]!;
       fact(t("perfetto.detailThread"), tl.threadName(tid));
@@ -424,9 +457,82 @@ class TraceInstance implements EditorInstance {
       arg = lv.arg[sel.index]!;
     }
     box.append(dl);
+    const flows = tl.flows();
+    if (flows.length) {
+      // Each end of a flow is a button that goes to the slice at the other end.
+      box.append(el("h3", "", t("perfetto.detailFlows", { n: num(flows.length) })));
+      const list = el("div", "ot-pf-flows");
+      const name = (r: SliceRef) => label(model.names[r.track.levels[r.level]!.name[r.index]!] ?? "");
+      const where = (r: SliceRef) => (r.track.tid !== undefined ? tl.threadName(r.track.tid) : r.track.label);
+      for (const f of flows.slice(0, 40)) {
+        const incoming = f.to.track === sel.track && f.to.level === sel.level && f.to.index === sel.index;
+        const other = incoming ? f.from : f.to;
+        const text = t(incoming ? "perfetto.flowFrom" : "perfetto.flowTo", { name: name(other), thread: where(other) });
+        list.append(button(text, () => tl.reveal(other), text));
+      }
+      box.append(list);
+      if (flows.length > 40) box.append(el("p", "ot-pf-hint", t("perfetto.shownOf", { shown: num(40), total: num(flows.length) })));
+    }
     if (arg >= 0 && model.args[arg]) {
       box.append(el("h3", "", t("perfetto.detailArgs")), el("pre", "", model.args[arg]));
     }
+  }
+
+  // --- status bar zoom ----------------------------------------------------------------------
+
+  /** Fit and a zoom slider, in the app's status bar as the other viewers have them. */
+  private buildBar(): void {
+    const bar = el("div", "cm-statusbar");
+    const grow = el("span", "cm-statusbar-grow");
+    const fit = el("button", "cm-statusbar-btn");
+    fit.type = "button";
+    fit.title = t("perfetto.fit");
+    fit.setAttribute("aria-label", t("perfetto.fit"));
+    fit.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FIT_ICON}</svg>`;
+    fit.addEventListener("click", () => this.timeline?.fit());
+    const range = el("input");
+    range.type = "range";
+    range.min = "0";
+    range.max = String(ZOOM_STEPS);
+    range.step = "1";
+    range.value = "0";
+    range.title = t("perfetto.zoom");
+    range.setAttribute("aria-label", t("perfetto.zoom"));
+    range.addEventListener("input", () => {
+      const tl = this.timeline;
+      if (tl) tl.setZoomLevel(Math.pow(tl.maxZoom(), Number(range.value) / ZOOM_STEPS));
+    });
+    const pct = el("span", "cm-statusbar-pct");
+    pct.setAttribute("aria-label", t("perfetto.zoomLevel"));
+    bar.append(grow, fit, range, pct);
+    this.bar = bar;
+    this.zoomRange = range;
+    this.zoomPct = pct;
+    this.zoomFit = fit;
+    this.enableZoom(false);
+  }
+
+  private enableZoom(on: boolean): void {
+    if (this.zoomRange) this.zoomRange.disabled = !on;
+    if (this.zoomFit) this.zoomFit.disabled = !on;
+    if (this.zoomPct) this.zoomPct.style.visibility = on ? "" : "hidden";
+  }
+
+  /** The slider and readout follow the view, whatever moved it (wheel, pinch, keys, a match). */
+  private showZoom(): void {
+    const tl = this.timeline;
+    const range = this.zoomRange;
+    if (!tl || !range || !this.zoomPct) return;
+    const z = tl.zoomLevel();
+    const max = tl.maxZoom();
+    range.value = String(max > 1 ? Math.round((Math.log(z) / Math.log(max)) * ZOOM_STEPS) : 0);
+    const text = new Intl.NumberFormat(getLocale(), { notation: "compact", maximumFractionDigits: z < 10 ? 1 : 0 }).format(z);
+    this.zoomPct.textContent = `×${text}`;
+    range.setAttribute("aria-valuetext", `×${text}`);
+  }
+
+  statusItems(): HTMLElement | null {
+    return this.bar;
   }
 
   // --- other tabs ---------------------------------------------------------------------------
@@ -674,6 +780,8 @@ class TraceInstance implements EditorInstance {
     this.disposed = true;
     this.timeline?.dispose();
     this.timeline = null;
+    this.bar?.remove();
+    this.bar = null;
     this.root?.remove();
     this.root = null;
   }

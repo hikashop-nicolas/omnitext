@@ -1,9 +1,10 @@
-import type { CounterTrack, CpuTrack, SliceTrack, Track, TraceModel, TrackGroup } from "./trace-model";
+import type { CounterTrack, CpuTrack, Flow, SliceRef, SliceTrack, Track, TraceModel, TrackGroup } from "./trace-model";
 import { clampRange, counterColumns, durationUnit, niceStep, sliceBlocks, tickUnit, upperBound, zoomRange, type TimeUnit } from "./trace-range";
 
 // Canvas timeline: a ruler, then rows grouped by CPU and by process. Only the visible rows and
 // the visible time range are drawn, with sub-pixel slices merged per pixel column (trace-range).
 
+/** A selected slice, CPU slice, or thread state (level -1 of a thread's track). */
 export interface TimelineSelection {
   track: SliceTrack | CpuTrack;
   level: number;
@@ -14,6 +15,10 @@ export interface TimelineText {
   aria: string;
   /** A counter row's maximum, as "max {value}". */
   max: (value: string) => string;
+  /** Thread state names, by ThreadState. */
+  states: string[];
+  /** "on CPU {n}", for a running state. */
+  onCpu: (n: number) => string;
 }
 
 interface Row {
@@ -29,6 +34,15 @@ const GROUP_H = 24;
 const LEVEL_H = 16;
 const CPU_H = 20;
 const COUNTER_H = 32;
+const STATE_H = 10;
+
+// Thread state colours, as Perfetto paints them; sleeping stays quiet (drawn in the border colour).
+const STATE_COLORS = ["hsl(122 39% 49%)", "hsl(75 55% 47%)", "", "hsl(36 100% 50%)", "hsl(231 48% 48%)", "hsl(0 0% 62%)", "", "hsl(0 0% 62%)"];
+
+/** Height above a thread's slices taken by its state strip. */
+const statesTop = (t: SliceTrack): number => (t.states ? STATE_H + 2 : 0);
+
+const sameRef = (a: SliceRef, b: TimelineSelection): boolean => a.track === b.track && a.level === b.level && a.index === b.index;
 
 function hash(s: string | number): number {
   let h = 2166136261;
@@ -52,6 +66,9 @@ export class Timeline {
   private tip: HTMLElement;
   private ctx: CanvasRenderingContext2D;
   private rows: Row[] = [];
+  private trackRow = new Map<Track, Row>();
+  private groupRow = new Map<TrackGroup, Row>();
+  private groupOf = new Map<Track, TrackGroup>();
   private collapsed = new Set<string>();
   private filter = "";
   private highlight: Set<number> | null = null;
@@ -67,7 +84,12 @@ export class Timeline {
   private fmts = new Map<string, Intl.NumberFormat>();
   private resize: ResizeObserver | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
-  private drag: { x: number; y: number; moved: boolean; t0: number; t1: number; top: number } | null = null;
+  private drag: { x: number; y: number; moved: boolean; t0: number; t1: number; top: number; vertical?: boolean } | null = null;
+  /** Flows into and out of the selected slice. */
+  private selFlows: Flow[] = [];
+  private shown = { t0: NaN, t1: NaN };
+  /** Called after the visible time range changes, whatever changed it. */
+  onView: (() => void) | null = null;
 
   constructor(
     host: HTMLElement,
@@ -100,6 +122,7 @@ export class Timeline {
     this.root.append(this.scroller, this.tip);
     host.append(this.root);
     this.ctx = this.canvas.getContext("2d")!;
+    for (const g of model.groups) for (const t of g.tracks) this.groupOf.set(t, g);
     this.layout();
     this.bind();
   }
@@ -124,8 +147,8 @@ export class Timeline {
 
   /** Selects a slice and brings it into view: unfolds its group, scrolls, zooms when it is tiny. */
   reveal(sel: TimelineSelection): void {
-    this.selection = sel;
-    const g = this.model.groups.find((gr) => gr.tracks.includes(sel.track));
+    this.setSelection(sel);
+    const g = this.groupOf.get(sel.track);
     if (g && this.collapsed.delete(g.key)) this.layout();
     const { ts, dur } = this.at(sel);
     const span = this.t1 - this.t0;
@@ -138,7 +161,7 @@ export class Timeline {
     [this.t0, this.t1] = clampRange(a, b, this.model.start, this.model.end);
     const row = this.rows.find((r) => r.track === sel.track);
     if (row) {
-      const y = row.y + (sel.level + 0.5) * LEVEL_H;
+      const y = row.y + (sel.track.kind === "slices" ? statesTop(sel.track) : 0) + (Math.max(0, sel.level) + 0.5) * LEVEL_H;
       const view = this.scroller.clientHeight - RULER;
       if (y < this.scroller.scrollTop || y > this.scroller.scrollTop + view - LEVEL_H) this.scroller.scrollTop = Math.max(0, y - view / 2);
     }
@@ -147,9 +170,48 @@ export class Timeline {
   }
 
   select(sel: TimelineSelection | null): void {
-    this.selection = sel;
+    this.setSelection(sel);
     this.redraw();
     this.onSelect(sel);
+  }
+
+  private setSelection(sel: TimelineSelection | null): void {
+    this.selection = sel;
+    this.selFlows = sel && sel.track.kind === "slices" && sel.level >= 0 ? this.model.flows.filter((f) => sameRef(f.from, sel) || sameRef(f.to, sel)) : [];
+  }
+
+  /** The flows into and out of the selected slice. */
+  flows(): Flow[] {
+    return this.selFlows;
+  }
+
+  /** How far in the view is: 1 shows the whole trace. */
+  zoomLevel(): number {
+    return this.fullSpan() / (this.t1 - this.t0);
+  }
+
+  /** The deepest zoom: 100 ns across the view. */
+  maxZoom(): number {
+    return Math.max(1, this.fullSpan() / 100);
+  }
+
+  /** Zooms to `level` around the middle of the view. */
+  setZoomLevel(level: number): void {
+    const z = Math.min(this.maxZoom(), Math.max(1, level));
+    const span = this.fullSpan() / z;
+    const mid = (this.t0 + this.t1) / 2;
+    [this.t0, this.t1] = clampRange(mid - span / 2, mid + span / 2, this.model.start, this.model.start + this.fullSpan());
+    this.redraw();
+  }
+
+  /** Shows the whole trace. */
+  fit(): void {
+    [this.t0, this.t1] = [this.model.start, this.model.start + this.fullSpan()];
+    this.redraw();
+  }
+
+  private fullSpan(): number {
+    return Math.max(this.model.end - this.model.start, 1000);
   }
 
   focus(): void {
@@ -180,12 +242,18 @@ export class Timeline {
       y += GROUP_H;
       if (this.collapsed.has(g.key)) continue;
       for (const t of tracks) {
-        const h = t.kind === "slices" ? Math.max(1, t.levels.length) * LEVEL_H + 4 : t.kind === "cpu" ? CPU_H : COUNTER_H;
+        const h = t.kind === "slices" ? Math.max(LEVEL_H + 4, statesTop(t) + t.levels.length * LEVEL_H + 4) : t.kind === "cpu" ? CPU_H : COUNTER_H;
         rows.push({ kind: "track", group: g, track: t, y, h });
         y += h;
       }
     }
     this.rows = rows;
+    this.trackRow.clear();
+    this.groupRow.clear();
+    for (const r of rows) {
+      if (r.kind === "track") this.trackRow.set(r.track!, r);
+      else this.groupRow.set(r.group, r);
+    }
     this.spacer.style.height = `${RULER + y + 8}px`;
     this.redraw();
   }
@@ -200,6 +268,7 @@ export class Timeline {
 
   private at(sel: TimelineSelection): { ts: number; dur: number } {
     if (sel.track.kind === "cpu") return { ts: sel.track.ts[sel.index]!, dur: sel.track.dur[sel.index]! };
+    if (sel.level < 0) return { ts: sel.track.states!.ts[sel.index]!, dur: sel.track.states!.dur[sel.index]! };
     const lv = sel.track.levels[sel.level]!;
     return { ts: lv.ts[sel.index]!, dur: lv.dur[sel.index]! };
   }
@@ -276,7 +345,12 @@ export class Timeline {
     if (d) {
       const dx = e.offsetX - d.x;
       const dy = e.offsetY - d.y;
-      if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
+      if (!d.moved && Math.hypot(dx, dy) > 4) {
+        d.moved = true;
+        // A mostly vertical finger is the rows scrolling (natively): time stays put.
+        d.vertical = e.pointerType !== "mouse" && Math.abs(dy) > Math.abs(dx);
+      }
+      if (d.moved && d.vertical) return;
       if (d.moved) {
         const dt = (-dx / this.plotWidth()) * (d.t1 - d.t0);
         [this.t0, this.t1] = clampRange(d.t0 + dt, d.t1 + dt, this.model.start, this.model.end);
@@ -342,8 +416,7 @@ export class Timeline {
         break;
       case "Home":
       case "0":
-        [this.t0, this.t1] = [this.model.start, Math.max(this.model.end, this.model.start + 1000)];
-        this.redraw();
+        this.fit();
         break;
       case "Escape":
         this.select(null);
@@ -392,7 +465,14 @@ export class Timeline {
       const i = pick(tr.ts, tr.dur);
       return i >= 0 ? { row, sel: { track: tr, level: 0, index: i } } : { row };
     }
-    const cy = y - RULER + this.scroller.scrollTop - row.y - 2;
+    let cy = y - RULER + this.scroller.scrollTop - row.y - 2;
+    if (tr.states) {
+      if (cy < STATE_H) {
+        const i = pick(tr.states.ts, tr.states.dur);
+        return i >= 0 ? { row, sel: { track: tr, level: -1, index: i } } : { row };
+      }
+      cy -= statesTop(tr);
+    }
     const level = Math.floor(cy / LEVEL_H);
     const lv = tr.levels[level];
     if (!lv) return { row };
@@ -405,8 +485,7 @@ export class Timeline {
     let text = "";
     if (hit?.sel) {
       const { ts, dur } = this.at(hit.sel);
-      const name = hit.sel.track.kind === "cpu" ? this.threadName(hit.sel.track.tid[hit.sel.index]!) : this.model.names[hit.sel.track.levels[hit.sel.level]!.name[hit.sel.index]!] ?? "";
-      text = `${name}\n${this.formatDuration(dur)} @ ${this.formatTime(ts - this.model.start)}`;
+      text = `${this.selName(hit.sel)}\n${this.formatDuration(dur)} @ ${this.formatTime(ts - this.model.start)}`;
     } else if (hit?.counter) {
       const c = hit.counter;
       text = `${c.track.label}\n${c.track.val[c.index]!.toLocaleString(this.locale)}`;
@@ -422,6 +501,18 @@ export class Timeline {
     const w = this.tip.offsetWidth;
     this.tip.style.left = `${Math.min(x + 12, this.width - w - 4)}px`;
     this.tip.style.top = `${y + 16}px`;
+  }
+
+  /** What a selection is: a slice name, a thread on a CPU, or a thread state. */
+  selName(sel: TimelineSelection): string {
+    if (sel.track.kind === "cpu") return this.threadName(sel.track.tid[sel.index]!);
+    if (sel.level < 0) {
+      const st = sel.track.states!;
+      const name = this.text.states[st.state[sel.index]!] ?? "";
+      const cpu = st.cpu[sel.index]!;
+      return cpu >= 0 ? `${name} (${this.text.onCpu(cpu)})` : name;
+    }
+    return this.model.names[sel.track.levels[sel.level]!.name[sel.index]!] ?? "";
   }
 
   threadName(tid: number): string {
@@ -543,10 +634,59 @@ export class Timeline {
     for (let t = firstTick; t <= this.t1; t += step) {
       const x = L + Math.round((t - this.t0) * scale);
       ctx.fillRect(x, RULER - 6, 1, 5);
-      ctx.fillText(f.format((t - this.model.start) / size), x + 3, RULER / 2 - 2);
+      const label = f.format((t - this.model.start) / size);
+      // A label that would run off the right edge is left out rather than cut.
+      if (x + 3 + ctx.measureText(label).width <= w) ctx.fillText(label, x + 3, RULER / 2 - 2);
     }
     ctx.fillStyle = theme.muted;
     ctx.fillText(this.formatDuration(this.t1 - this.t0), 8, RULER / 2);
+    if (this.selFlows.length) this.drawFlows(L, pw, scale, top, h, theme);
+    if (this.t0 !== this.shown.t0 || this.t1 !== this.shown.t1) {
+      this.shown = { t0: this.t0, t1: this.t1 };
+      this.onView?.();
+    }
+  }
+
+  /** Where a slice sits on screen, or its folded group's header; null when filtered out. */
+  private refY(ref: SliceRef, top: number): number | null {
+    const r = this.trackRow.get(ref.track);
+    if (r) return RULER + r.y - top + 2 + statesTop(ref.track) + (Math.max(0, ref.level) + 0.5) * LEVEL_H;
+    const g = this.groupOf.get(ref.track);
+    const gr = g ? this.groupRow.get(g) : undefined;
+    return gr && this.collapsed.has(gr.group.key) ? RULER + gr.y - top + GROUP_H / 2 : null;
+  }
+
+  /** Arrows from the end of each flow's first slice to the start of its second. */
+  private drawFlows(L: number, pw: number, scale: number, top: number, h: number, theme: Record<string, string>): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(L, RULER, pw, h - RULER);
+    ctx.clip();
+    ctx.strokeStyle = theme.accent!;
+    ctx.fillStyle = theme.accent!;
+    ctx.lineWidth = 1.5;
+    for (const f of this.selFlows.slice(0, 200)) {
+      const a = f.from.track.levels[f.from.level];
+      const b = f.to.track.levels[f.to.level];
+      const y0 = this.refY(f.from, top);
+      const y1 = this.refY(f.to, top);
+      if (!a || !b || y0 === null || y1 === null) continue;
+      const x0 = L + (a.ts[f.from.index]! + a.dur[f.from.index]! - this.t0) * scale;
+      const x1 = L + (b.ts[f.to.index]! - this.t0) * scale;
+      const bend = Math.max(20, Math.min(80, Math.abs(x1 - x0) / 2));
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.bezierCurveTo(x0 + bend, y0, x1 - bend, y1, x1, y1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - 7, y1 - 4);
+      ctx.lineTo(x1 - 7, y1 + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   private drawGroup(row: Row, y: number, w: number, theme: Record<string, string>): void {
@@ -584,17 +724,28 @@ export class Timeline {
     ctx.beginPath();
     ctx.rect(L, y, pw, row.h);
     ctx.clip();
-    if (t.kind === "slices") this.drawSlices(t, y + 2, L, pw, scale);
+    if (t.kind === "slices") this.drawSlices(t, y + 2, L, pw, scale, theme);
     else if (t.kind === "cpu") this.drawCpu(t, y + 2, L, pw, scale);
     else this.drawCounter(t, y, row.h, L, pw, scale, theme);
     ctx.restore();
   }
 
-  private drawSlices(t: SliceTrack, y: number, L: number, pw: number, scale: number): void {
+  private drawSlices(t: SliceTrack, y: number, L: number, pw: number, scale: number, theme: Record<string, string>): void {
     const ctx = this.ctx;
     const names = this.model.names;
     const hl = this.highlight;
     const sel = this.selection?.track === t ? this.selection : null;
+    const st = t.states;
+    if (st) {
+      ctx.globalAlpha = hl ? 0.35 : 1;
+      sliceBlocks(st.ts, st.dur, this.t0, pw, scale, (x0, x1, i) => {
+        ctx.fillStyle = STATE_COLORS[st.state[i]!] || theme.border!;
+        ctx.fillRect(L + x0, y, Math.max(1, x1 - x0), STATE_H);
+      });
+      ctx.globalAlpha = 1;
+      if (sel && sel.level < 0) this.outline(st.ts[sel.index]!, st.dur[sel.index]!, y - 2, L, scale, STATE_H + 3);
+      y += statesTop(t);
+    }
     for (let d = 0; d < t.levels.length; d++) {
       const lv = t.levels[d]!;
       const ly = y + d * LEVEL_H;
@@ -650,14 +801,14 @@ export class Timeline {
     this.ctx.fillText(text.length > n ? text.slice(0, n - 1) + "…" : text, x + 3, y + LEVEL_H / 2);
   }
 
-  private outline(ts: number, dur: number, y: number, L: number, scale: number): void {
+  private outline(ts: number, dur: number, y: number, L: number, scale: number, h = LEVEL_H): void {
     const ctx = this.ctx;
     const x0 = L + (ts - this.t0) * scale;
     const w = Math.max(2, dur * scale);
     ctx.globalAlpha = 1;
     ctx.strokeStyle = this.dark ? "#ffffff" : "#000000";
     ctx.lineWidth = 2;
-    ctx.strokeRect(x0, y + 1, w, LEVEL_H - 3);
+    ctx.strokeRect(x0, y + 1, w, h - 3);
   }
 }
 
