@@ -141,6 +141,7 @@ export const PAGES = [
       "Open macro workbooks (.xlsm) and Excel templates; a macro runs only after you turn macros on",
       "Save back to .xlsx, or export the sheet as CSV",
       "Open and save older .xls workbooks (Excel 97-2003, and Excel 5 and earlier) with all their sheets, formulas and formatting, password-protected ones included",
+      "Open Excel 2003 XML spreadsheets and tables saved as a web page (.xml, .htm, .mht) as spreadsheets, and save them as a new .xlsx beside the original",
     ],
     note: "An .xls is saved as Excel 97-2003 with its charts, shapes and macros. Features that format cannot hold, like tables, sparklines or data bars, are not offered while an .xls is open, and Omnitext asks before saving if anything would be left out.",
   },
