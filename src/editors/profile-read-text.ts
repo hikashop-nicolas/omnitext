@@ -98,7 +98,7 @@ function perfEvent(rest: string): { event: string; period: number; tail: string 
 function perfFrameId(b: ProfileBuilder, f: PerfFrame): number {
   const module = f.dso === "[unknown]" ? "" : f.dso;
   // JIT-compiled Java from perf-map-agent: "Lorg/a/B;.run(I)V" reads as "org.a.B.run", as FlameGraph tidies it.
-  const java = /^L([\w/$]+);\.([\w$<>]+)\(/.exec(f.sym);
+  const java = /^L([\w/$]+);\.([\w$<>]+)(?:\(|$)/.exec(f.sym);
   if (java) return b.frame(`${java[1]!.replace(/\//g, ".")}.${java[2]}`, module ? baseName(module) : "", "Java", module || undefined);
   return b.frame(f.sym, module ? baseName(module) : "", guessCategory(f.sym, module), module || undefined);
 }
