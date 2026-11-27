@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { ModelBuilder } from "./trace-model";
 import { tally, type TraceStats } from "./trace-stats";
 
@@ -62,7 +63,7 @@ export function readNinjaInto(b: ModelBuilder, text: string): TraceStats {
     if (w < 0) {
       w = busy.length;
       busy.push(0);
-      b.thread(w + 1, NINJA_PID, "Worker");
+      b.thread(w + 1, NINJA_PID, t("perfetto.ninjaWorker"));
     }
     busy[w] = Math.max(s.end, s.start);
     const dur = Math.max(0, s.end - s.start);
