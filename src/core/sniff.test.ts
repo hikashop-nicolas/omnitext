@@ -7,7 +7,7 @@ import { contentFormatFor, sniffFormat, sniffHead } from "./sniff";
 import { makeTextFormats } from "../formats/codemirror-formats";
 import { makeViewerFormats, makeGenericViewerFormats } from "../formats/binary-viewers";
 import { blankTemplate } from "../formats/blank-templates";
-import { sampleTrace } from "../editors/perfetto-trace.fixture";
+import { perfettoBytes as sampleTrace } from "../formats/trace-samples.fixture";
 
 // Every format the app registers, so a sniffed id is checked against the real set (issue #53).
 const modules = import.meta.glob<Record<string, unknown>>(["../formats/*.ts", "!../formats/*.test.ts", "!../formats/*.impl.ts"], { eager: true });

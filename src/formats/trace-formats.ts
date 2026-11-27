@@ -1,5 +1,5 @@
 import type { FormatDescriptor } from "../core/types";
-import { ctraceStart, isFxt, logcatFormat, looksLikeNinjaLog, looksLikeStrace } from "./trace-detect";
+import { ctraceStart, isFxt, logcatFormat, looksLikeNinjaLog, looksLikeStrace } from "traceview";
 
 // More trace formats for the trace viewer: text ones claimed by their content (strictly, so
 // other .txt and .log files stay text), binary ones by their magic, archives of traces by main.

@@ -209,7 +209,8 @@ export default defineConfig({
   server: { fs: { allow: [".", craftDir] } },
   // esbuild's dep pre-bundling mangles temml (richdoc's equation editor), making it error on every
   // LaTeX command; serve its raw ESM instead.
-  optimizeDeps: { exclude: ["temml"] },
+  // traceview starts its parser with new Worker(new URL(...)), which pre-bundling would break.
+  optimizeDeps: { exclude: ["temml", "traceview"] },
   build: {
     target: "es2022",
     // No sourcemaps in the shipped build: they were ~18MB of the dist (two-thirds of it),

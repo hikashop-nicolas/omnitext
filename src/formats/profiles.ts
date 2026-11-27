@@ -1,6 +1,5 @@
 import type { FormatDescriptor, FormatManifest } from "../core/types";
-import { looksLikePprof, looksLikeSimpleperf } from "../core/sniff-profile";
-import { looksLikeCollapsed, looksLikeCpuProfile, looksLikeGeckoProfile, looksLikePerfScript, looksLikeSpeedscope } from "./profile-detect";
+import { looksLikeCollapsed, looksLikeCpuProfile, looksLikeGeckoProfile, looksLikePerfScript, looksLikePprof, looksLikeSimpleperf, looksLikeSpeedscope } from "traceview";
 
 // CPU and sampling profiles, all shown read-only in the profile viewer. Text profiles are
 // recognised by content (strictly, so other text and JSON keep their editors).

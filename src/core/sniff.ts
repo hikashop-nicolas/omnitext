@@ -2,8 +2,7 @@
 // application/octet-stream). Returns a registered format id, or null to keep today's routing.
 import { unzipSync } from "fflate";
 import { looksBinary } from "./encoding";
-import { ctraceStart, isFxt } from "../formats/trace-detect";
-import { sniffProfileBytes } from "./sniff-profile";
+import { ctraceStart, isFxt, looksLikePerfetto, sniffProfileBytes } from "traceview";
 import type { FormatDescriptor, FormatRegistryReadonly } from "./types";
 
 const ascii = (b: Uint8Array, from: number, len: number): string =>
@@ -61,82 +60,6 @@ export function sniffHead(b: Uint8Array): string | null {
   // PDF readers accept junk before the header, up to 1 KiB.
   if (/%PDF-\d\.\d/.test(ascii(b, 0, 1024))) return "pdf";
   return null;
-}
-
-// Perfetto traces (protobuf) have no magic number of their own.
-const SYNC_MARKER = [0x82, 0x47, 0x7a, 0x76, 0xb2, 0x8d, 0x42, 0xba, 0x81, 0xdc, 0x33, 0x32, 0x6d, 0x57, 0xa0, 0x79];
-
-function pbVarint(b: Uint8Array, at: number): [number, number] | null {
-  let v = 0;
-  let mul = 1;
-  for (let i = at; i < b.length && i < at + 10; i++) {
-    v += (b[i]! & 0x7f) * mul;
-    if (b[i]! < 0x80) return [v, i + 1];
-    mul *= 128;
-  }
-  return null;
-}
-
-/**
- * Whether b[start, end) is a whole protobuf message; `stamped` when it has what only a TracePacket
- * carries: a varint trusted uid (3), timestamp (8) or sequence id (10), or compressed packets.
- */
-function pbMessage(b: Uint8Array, start: number, end: number): { stamped: boolean } | null {
-  let pos = start;
-  let stamped = false;
-  while (pos < end) {
-    const tag = pbVarint(b, pos);
-    if (!tag || tag[0] < 8) return null;
-    const field = Math.floor(tag[0] / 8);
-    const wt = tag[0] % 8;
-    pos = tag[1];
-    if (wt === 0) {
-      const v = pbVarint(b, pos);
-      if (!v) return null;
-      if (field === 3 || field === 8 || field === 10) stamped = true;
-      pos = v[1];
-    } else if (wt === 1) pos += 8;
-    else if (wt === 5) pos += 4;
-    else if (wt === 2) {
-      const n = pbVarint(b, pos);
-      if (!n) return null;
-      if (field === 50 || field === 133) stamped = true;
-      pos = n[1] + n[0];
-    } else return null;
-  }
-  return pos === end ? { stamped } : null;
-}
-
-/**
- * Whether these first bytes are a Perfetto trace: a run of well-formed field-1 packets, one of
- * which holds the synchronization marker the tracing service writes near the start of a trace.
- * Older and synthetic traces have no marker: then every whole packet must be a valid message,
- * at least three of them stamped as TracePackets are (or every one, when `b` is the whole file).
- */
-export function looksLikePerfetto(b: Uint8Array, whole = false): boolean {
-  if (b.length < 21 || b[0] !== 0x0a) return false;
-  let pos = 0;
-  let stamped = 0;
-  let count = 0;
-  while (pos < b.length) {
-    if (b[pos] !== 0x0a) return false;
-    const len = pbVarint(b, pos + 1);
-    if (!len) return false;
-    const [n, start] = len;
-    const end = Math.min(b.length, start + n);
-    // The marker is field 36 (tag a2 02), 16 bytes long (10).
-    for (let i = start; i + 19 <= end; i++) {
-      if (b[i] === 0xa2 && b[i + 1] === 0x02 && b[i + 2] === 0x10 && SYNC_MARKER.every((v, k) => b[i + 3 + k] === v)) return true;
-    }
-    if (start + n <= b.length) {
-      const msg = pbMessage(b, start, start + n);
-      if (!msg) return false;
-      count++;
-      if (msg.stamped) stamped++;
-    } else whole = false;
-    pos = start + n;
-  }
-  return count >= 3 ? stamped >= 3 : whole && count > 0 && stamped === count;
 }
 
 /** How far into a file to look for marker-less Perfetto packets, which can be large. */

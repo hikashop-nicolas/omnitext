@@ -161,6 +161,7 @@ import { arrowFormat } from "./formats/arrow";
 import { rawFormat } from "./formats/raw";
 import { profileFormats } from "./formats/profiles";
 import { profileViewer } from "./editors/profileviewer";
+import { isTraceArchive } from "traceview";
 import { historyTool } from "./tools/history";
 import { collabTool } from "./tools/collab";
 import { makeTextFormats, TEXT_FORMAT_TABLE } from "./formats/codemirror-formats";
@@ -652,7 +653,6 @@ async function mountDoc(opts: MountOpts): Promise<void> {
   }
   // An archive of traces opens on one timeline; the archive list stays one switch away.
   if (descriptor?.manifest.nativeEditor === "archive" && !opts.isSwitch && !opts.editorId && (opts.blob || bytes)) {
-    const { isTraceArchive } = await import("./formats/trace-archive-detect");
     if (await isTraceArchive(opts.blob ?? new Blob([bytes as BlobPart]), opts.filename ?? "")) descriptor = engine.formats.byId("tracearchive") ?? descriptor;
   }
   const formatId = descriptor?.manifest.id ?? null;

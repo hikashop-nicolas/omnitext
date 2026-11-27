@@ -1,5 +1,5 @@
 import type { FormatDescriptor } from "../core/types";
-import { looksLikeSystrace } from "./trace-detect";
+import { looksLikeSystrace } from "traceview";
 
 // Android systrace / ftrace text ("# tracer: nop"), bare or inside systrace's HTML page.
 export const systraceFormat: FormatDescriptor = {

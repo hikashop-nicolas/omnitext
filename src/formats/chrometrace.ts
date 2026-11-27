@@ -1,5 +1,5 @@
 import type { FormatDescriptor } from "../core/types";
-import { looksLikeChromeTrace } from "./trace-detect";
+import { looksLikeChromeTrace } from "traceview";
 
 // Chrome / Catapult JSON traces: JSON text that opens in the trace viewer when its content says
 // it is a trace (a traceEvents array, or an array of events); other JSON keeps the JSON editors.
