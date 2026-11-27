@@ -1,11 +1,8 @@
 import type { EditorInstance, EditorModule, EditorMountContext } from "../core/types";
 import { getLocale, t } from "../i18n";
-import { isNative } from "../core/platform";
 import { LOG_CAP, parseTrace, type LogEntry, type TraceSummary } from "./perfetto-parse";
-import { sendToPerfetto } from "./perfetto-handoff";
 
-// Read-only Perfetto trace summary. The full timeline is Perfetto UI's job: on request the
-// trace is handed to ui.perfetto.dev (perfetto-handoff.ts).
+// Read-only Perfetto trace summary: packets, processes, kernel events, logcat, slices.
 
 const STYLE_ID = "omnitext-perfetto-style";
 const ROW_CAP = 1000;
@@ -102,7 +99,6 @@ class PerfettoInstance implements EditorInstance {
   private disposed = false;
   private bytes: Uint8Array = new Uint8Array();
   private name = "trace.pftrace";
-  private cleanup: (() => void) | null = null;
 
   mount(container: HTMLElement, ctx: EditorMountContext): void {
     ensureStyles();
@@ -195,39 +191,8 @@ class PerfettoInstance implements EditorInstance {
       fact(t("perfetto.kernel"), sys.kernel);
       fact(t("perfetto.cpus"), sys.cpus ? String(sys.cpus) : undefined);
     }
-    head.append(dl, this.openBox());
+    head.append(dl);
     return head;
-  }
-
-  private openBox(): HTMLElement {
-    const box = el("div", "ot-pf-open");
-    if (isNative()) {
-      // The app's WebView hands a new window to the system browser, which postMessage cannot reach.
-      box.append(el("p", "", t("perfetto.openInApp")));
-      return box;
-    }
-    const btn = el("button", "ot-pf-btn", t("perfetto.open"));
-    btn.type = "button";
-    const note = el("p", "", t("perfetto.openNote"));
-    const status = el("p", "");
-    btn.addEventListener("click", () => this.sendToPerfetto(btn, status));
-    box.append(btn, note, status);
-    return box;
-  }
-
-  private sendToPerfetto(btn: HTMLButtonElement, status: HTMLElement): void {
-    this.cleanup?.();
-    const handoff = sendToPerfetto(this.bytes, this.name);
-    this.cleanup = () => {
-      handoff.cancel();
-      this.cleanup = null;
-    };
-    btn.disabled = true;
-    status.textContent = t("perfetto.openWaiting");
-    void handoff.result.then((r) => {
-      btn.disabled = false;
-      status.textContent = t(r === "sent" ? "perfetto.openSent" : r === "blocked" ? "perfetto.openBlocked" : "perfetto.openTimeout");
-    });
   }
 
   private notes(s: TraceSummary): HTMLElement | null {
@@ -443,7 +408,6 @@ class PerfettoInstance implements EditorInstance {
   focus(): void {}
   dispose(): void {
     this.disposed = true;
-    this.cleanup?.();
     this.root?.remove();
     this.root = null;
   }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { looksLikePerfetto } from "../core/sniff";
 import { parseTrace, parseTraceSync } from "./perfetto-parse";
-import { PERFETTO_ORIGIN, sendToPerfetto } from "./perfetto-handoff";
 import { SYNC, bytes, m, s, sampleTrace, trace, u } from "./perfetto-trace.fixture";
 
 describe("Perfetto trace summary", () => {
@@ -102,44 +101,3 @@ describe("Perfetto sniffing", () => {
   });
 });
 
-describe("handing a trace to Perfetto UI", () => {
-  const fakeEnv = (win: { closed: boolean; postMessage: (m: unknown, o: string, t?: Transferable[]) => void } | null) => {
-    const listeners = new Set<(e: MessageEvent) => void>();
-    return {
-      listeners,
-      env: {
-        open: (url: string) => (url === PERFETTO_ORIGIN ? win : null),
-        addEventListener: (_: "message", fn: (e: MessageEvent) => void) => listeners.add(fn),
-        removeEventListener: (_: "message", fn: (e: MessageEvent) => void) => listeners.delete(fn),
-      },
-      reply: (data: unknown, origin: string, source: unknown) => listeners.forEach((fn) => fn({ data, origin, source } as MessageEvent)),
-    };
-  };
-
-  it("pings until Perfetto answers, then posts the trace to its origin only", async () => {
-    const sent: [unknown, string][] = [];
-    const win = { closed: false, postMessage: (m: unknown, o: string) => void sent.push([m, o]) };
-    const f = fakeEnv(win);
-    const h = sendToPerfetto(Uint8Array.from([1, 2, 3]), "a.pftrace", f.env, { every: 1 });
-    await new Promise((r) => setTimeout(r, 20));
-    expect(sent.length).toBeGreaterThan(0);
-    expect(sent.every(([m, o]) => m === "PING" && o === PERFETTO_ORIGIN)).toBe(true);
-    f.reply("PONG", "https://evil.example", win); // wrong origin: ignored
-    f.reply("PONG", PERFETTO_ORIGIN, {}); // not the window we opened: ignored
-    expect(sent.some(([m]) => m !== "PING")).toBe(false);
-    f.reply("PONG", PERFETTO_ORIGIN, win);
-    expect(await h.result).toBe("sent");
-    const [msg, origin] = sent[sent.length - 1]! as [{ perfetto: { buffer: ArrayBuffer; title: string; fileName: string } }, string];
-    expect(origin).toBe(PERFETTO_ORIGIN);
-    expect(msg.perfetto.title).toBe("a.pftrace");
-    expect([...new Uint8Array(msg.perfetto.buffer)]).toEqual([1, 2, 3]);
-    expect(f.listeners.size).toBe(0);
-  });
-
-  it("reports a blocked pop-up and a tab that never answers", async () => {
-    expect(await sendToPerfetto(new Uint8Array(1), "x", fakeEnv(null).env).result).toBe("blocked");
-    const f = fakeEnv({ closed: false, postMessage: () => {} });
-    expect(await sendToPerfetto(new Uint8Array(1), "x", f.env, { every: 1, timeout: 10 }).result).toBe("timeout");
-    expect(f.listeners.size).toBe(0);
-  });
-});
