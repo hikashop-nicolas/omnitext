@@ -331,6 +331,9 @@ const de: Dict = {
     askHint: "Sagen Sie uns, was das für eine Datei ist, dann lernt Omnitext sie vielleicht zu öffnen. Die Schaltfläche öffnet eine Seite in unserem System für Rückmeldungen, mit bereits eingetragenem Dateityp; zum Schreiben braucht man dort ein kostenloses Konto. Aus der Datei selbst wird nichts gesendet.",
     askAction: "Dieses Format anfragen",
     askDismiss: "Schließen",
+    failedLead: "Omnitext liest {ext}-Dateien, konnte diese aber nicht lesen ({error}), daher wird der Rohinhalt angezeigt.",
+    failedHint: "Sie ist vielleicht passwortgeschützt, beschädigt oder trotz der Endung ein anderer Dateityp. Wenn sie sich in einem anderen Programm öffnet, hilft eine Meldung, das Lesen zu verbessern. Die Schaltfläche öffnet unseren Feedback-Tracker mit dem eingetragenen Fehler; vom Inhalt der Datei wird nichts gesendet.",
+    failedAction: "Problem melden",
   },
   viewer: {
     rendering: "Wird dargestellt…",

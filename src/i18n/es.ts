@@ -331,6 +331,9 @@ const es: Dict = {
     askHint: "Díganos qué es este archivo y quizá Omnitext aprenda a abrirlo. El botón abre una página de nuestro sistema de seguimiento de comentarios, con el tipo de archivo ya indicado; para escribir allí hace falta una cuenta gratuita. No se envía nada del archivo en sí.",
     askAction: "Pedir este formato",
     askDismiss: "Cerrar",
+    failedLead: "Omnitext lee archivos {ext}, pero no pudo leer este ({error}), así que se muestra su contenido en bruto.",
+    failedHint: "Puede estar protegido con contraseña, dañado o ser otro tipo de archivo con esta extensión. Si se abre en otro programa, informar del problema ayuda a mejorar la lectura. El botón abre nuestro gestor de comentarios con el error ya escrito; no se envía nada del archivo.",
+    failedAction: "Informar del problema",
   },
   viewer: {
     rendering: "Representando…",

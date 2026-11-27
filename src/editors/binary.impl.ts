@@ -1,5 +1,5 @@
 import type { EditorInstance, EditorModule, EditorMountContext, HostAPI } from "../core/types";
-import { extensionOf, formatRequestUrl } from "../core/links";
+import { extensionOf, formatRequestUrl, readFailureUrl } from "../core/links";
 import { t } from "../i18n";
 
 // Read-only fallback for files Omnitext can't open as text or a known binary type: shows
@@ -162,11 +162,42 @@ class BinaryInstance implements EditorInstance {
       wrap.append(note);
     }
 
-    const ask = this.buildAsk(extensionOf(name), ctx.mime);
+    const ask = ctx.readFailure
+      ? this.buildFailure(extensionOf(name), ctx.readFailure, ctx.mime)
+      : this.buildAsk(extensionOf(name), ctx.mime);
     if (ask) wrap.append(ask);
 
     container.appendChild(wrap);
     this.wrap = wrap;
+  }
+
+  /** A supported format failed on this file: say so, with its error, instead of asking for the format. */
+  private buildFailure(ext: string, f: { format: string; message: string }, mime?: string): HTMLElement {
+    const box = document.createElement("div");
+    box.className = "ot-bin-ask";
+    const body = document.createElement("div");
+    body.className = "ot-bin-ask-body";
+    const lead = document.createElement("p");
+    lead.textContent = t("binary.failedLead", { ext: ext || f.format, error: f.message });
+    const hint = document.createElement("p");
+    hint.className = "ot-bin-ask-hint";
+    hint.textContent = t("binary.failedHint");
+    const link = document.createElement("a");
+    link.className = "ot-bin-btn";
+    link.href = readFailureUrl(ext, f.format, f.message, mime);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = t("binary.failedAction");
+    body.append(lead, hint, link);
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ot-bin-ask-close";
+    close.textContent = "×";
+    close.title = t("binary.askDismiss");
+    close.setAttribute("aria-label", t("binary.askDismiss"));
+    close.addEventListener("click", () => box.remove());
+    box.append(body, close);
+    return box;
   }
 
   /** The "what was this file?" box, or null once the reader has waved it away. */

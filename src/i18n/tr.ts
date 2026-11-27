@@ -333,6 +333,9 @@ const tr: Dict = {
     askHint: "Bu dosyanın ne olduğunu bize söyleyin, Omnitext onu açmayı öğrenebilir. Düğme, dosya türü önceden doldurulmuş olarak geri bildirim izleyicimizde bir sayfa açar; orada yazmak için ücretsiz bir hesap gerekir. Dosyanın kendisinden hiçbir şey gönderilmez.",
     askAction: "Bu biçimi iste",
     askDismiss: "Kapat",
+    failedLead: "Omnitext {ext} dosyalarını okur, ancak bunu okuyamadı ({error}), bu yüzden ham içerik gösteriliyor.",
+    failedHint: "Dosya parola korumalı, bozuk ya da bu uzantıya sahip başka türde bir dosya olabilir. Başka bir programda açılıyorsa bildirmeniz okuyucunun düzeltilmesine yardımcı olur. Düğme, hata önceden yazılmış olarak geri bildirim sayfamızı açar; dosyanın kendisinden hiçbir şey gönderilmez.",
+    failedAction: "Sorunu bildir",
   },
   viewer: {
     rendering: "Oluşturuluyor…",

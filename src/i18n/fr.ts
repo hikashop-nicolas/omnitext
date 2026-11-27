@@ -334,6 +334,9 @@ const fr: Dict = {
     askHint: "Dites-nous de quoi il s'agit, et Omnitext pourra peut-être l'ouvrir un jour. Le bouton ouvre une page sur notre système de gestion des retours, avec le type de fichier déjà indiqué ; il faut un compte gratuit pour y écrire. Rien du fichier lui-même n'est envoyé.",
     askAction: "Demander ce format",
     askDismiss: "Fermer",
+    failedLead: "Omnitext lit les fichiers {ext}, mais n'a pas pu lire celui-ci ({error}) : voici donc son contenu brut.",
+    failedHint: "Il est peut-être protégé par un mot de passe, endommagé, ou d'un autre type malgré son extension. S'il s'ouvre dans un autre programme, le signaler aide à corriger la lecture. Le bouton ouvre notre outil de suivi avec l'erreur déjà remplie ; rien du fichier lui-même n'est envoyé.",
+    failedAction: "Signaler le problème",
   },
   viewer: {
     rendering: "Rendu en cours…",

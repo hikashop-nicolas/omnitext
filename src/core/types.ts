@@ -176,6 +176,8 @@ export interface EditorMountContext {
   mime?: string;
   /** The document's file name (editors use it to name derived artifacts). */
   filename?: string;
+  /** Set on the hex fallback when a supported format failed to read this file. */
+  readFailure?: { format: string; message: string };
   /** The format's parsed model (from text or bytes), pre-computed by the host. */
   model: unknown;
   /** The active format, for highlighting/validation and view adapters. May be null. */

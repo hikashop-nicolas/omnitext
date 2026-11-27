@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extensionOf, formatRequestUrl, REPO_URL } from "./links";
+import { extensionOf, formatRequestUrl, readFailureUrl, REPO_URL } from "./links";
 
 // The binary fallback offers to ask for a format Omnitext could not open. The promise
 // attached to that offer is that the request carries the extension and the browser's type
@@ -36,5 +36,15 @@ describe("extension of a filename", () => {
     expect(extensionOf("no-extension")).toBe("");
     expect(extensionOf(".hidden")).toBe(""); // a dotfile is a name, not an extension
     expect(extensionOf("")).toBe("");
+  });
+});
+
+describe("readFailureUrl", () => {
+  it("files a bug with the reader's error, not a format request", () => {
+    const url = new URL(readFailureUrl(".xls", "xls", "Unsupported file", "application/vnd.ms-excel"));
+    expect(url.searchParams.get("title")).toBe("Cannot open a .xls file");
+    expect(url.searchParams.get("labels")).toBe("bug");
+    expect(url.searchParams.get("body")).toContain("- Error: Unsupported file");
+    expect(url.searchParams.get("body")).toContain("supports xls files");
   });
 });

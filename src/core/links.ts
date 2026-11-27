@@ -22,6 +22,22 @@ export function extensionOf(filename: string): string {
  * of the file. Opening this sends nothing either: it fills a form on GitHub that the reader
  * can edit or abandon, and the app has no way to submit it.
  */
+/** A problem report for a supported format that failed to read a file; carries the reader's error. */
+export function readFailureUrl(ext: string, format: string, message: string, mime?: string): string {
+  const title = `Cannot open a ${ext || format} file`;
+  const body = [
+    `Omnitext supports ${format} files but could not read this one, so it showed the raw bytes.`,
+    ``,
+    `- Extension: ${ext || "(none)"}`,
+    `- Type reported by the browser: ${mime || "(none)"}`,
+    `- Error: ${message}`,
+    ``,
+    `Which program made the file, and does it open elsewhere?`,
+  ].join("\n");
+  const q = new URLSearchParams({ title, body, labels: "bug" });
+  return `${REPO_URL}/issues/new?${q.toString()}`;
+}
+
 export function formatRequestUrl(ext: string, mime?: string): string {
   const what = ext || (mime ?? "unknown");
   const title = `Support ${what} files`;

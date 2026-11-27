@@ -353,6 +353,9 @@ const pl: Dict = {
     askHint: "Napisz nam, czym jest ten plik, a Omnitext może nauczyć się go otwierać. Przycisk otwiera stronę w naszym systemie zgłoszeń z już wpisanym typem pliku; pisanie tam wymaga bezpłatnego konta. Nic z samego pliku nie jest wysyłane.",
     askAction: "Poproś o ten format",
     askDismiss: "Odrzuć",
+    failedLead: "Omnitext odczytuje pliki {ext}, ale nie mógł odczytać tego ({error}), dlatego pokazuje surową zawartość.",
+    failedHint: "Plik może być chroniony hasłem, uszkodzony albo być innym typem pliku z tym rozszerzeniem. Jeśli otwiera się w innym programie, zgłoszenie pomoże poprawić odczyt. Przycisk otwiera nasz system zgłoszeń z wpisanym błędem; nic z samego pliku nie jest wysyłane.",
+    failedAction: "Zgłoś problem",
   },
   viewer: {
     rendering: "Renderowanie…",

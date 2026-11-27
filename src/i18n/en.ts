@@ -333,6 +333,9 @@ const en: Dict = {
     askHint: "Tell us what this file is, and Omnitext may learn to open it. The button opens a page on our feedback tracker, with the file type already filled in; writing there needs a free account. Nothing from the file itself is sent.",
     askAction: "Ask for this format",
     askDismiss: "Dismiss",
+    failedLead: "Omnitext reads {ext} files, but could not read this one ({error}), so this is the raw content.",
+    failedHint: "It may be password-protected, damaged, or a different kind of file with this extension. If it opens in another program, reporting it helps fix the reader. The button opens our feedback tracker with the error filled in; nothing from the file itself is sent.",
+    failedAction: "Report the problem",
   },
   viewer: {
     rendering: "Rendering…",

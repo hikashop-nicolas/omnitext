@@ -618,6 +618,8 @@ interface MountOpts {
   created?: boolean;
   /** Internal: this mount is already the safe fallback after a mount failure. */
   fallbackMount?: boolean;
+  /** Internal: why the fallback was needed (the format that failed and its error). */
+  readFailure?: { format: string; message: string };
   /** A view switch within the same document (keeps other editors alive for undo). */
   isSwitch?: boolean;
   /** Per-document editor options chosen at creation (e.g. richdoc pagination). */
@@ -661,6 +663,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
 
   // Pre-parse content into the format's model (from text or bytes) for the editor.
   let model: unknown = text;
+  let parseError: unknown = null;
   if (formatModule) {
     try {
       model = binary
@@ -668,6 +671,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
         : formatModule.parse(text).model;
     } catch (e) {
       console.error("parse failed", e);
+      parseError = e;
       engine.notificationSink.error(t("notify.readFailed", { what: formatId ?? t("notify.documentWord") }));
     }
   }
@@ -785,6 +789,7 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       binary,
       mime: opts.mime ?? descriptor?.manifest.mimeTypes?.[0],
       filename: opts.filename ?? undefined,
+      readFailure: opts.readFailure,
       model,
       format: formatModule,
       view: chosen.view,
@@ -818,7 +823,9 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       mountEl.remove();
       liveEditors.delete(targetId);
       if (!opts.fallbackMount) {
-        if (binary) await mountDoc({ ...opts, formatId: GENERIC_BINARY, editorId: null, fallbackMount: true });
+        const err = parseError ?? e;
+        const readFailure = formatId ? { format: formatId, message: String((err as Error)?.message ?? err).slice(0, 300) } : undefined;
+        if (binary) await mountDoc({ ...opts, formatId: GENERIC_BINARY, editorId: null, fallbackMount: true, readFailure });
         else await mountDoc({ ...opts, editorId: "codemirror", fallbackMount: true });
       }
       return;
