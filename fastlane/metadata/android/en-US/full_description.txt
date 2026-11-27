@@ -11,7 +11,7 @@ Opening, editing and saving a file runs entirely on your device. Your files are 
 <li>Spreadsheets with charts, pivot tables, Power Query, conditional formatting, printing, freeze and split panes, form controls and VBA macros that run.</li>
 <li>Code and data editor with syntax highlighting for many formats, and a tree editor for JSON and YAML.</li>
 <li>Edit subtitles (SRT, VTT, ASS and more) and play video and audio with subtitles, including Dolby audio tracks and Apple Lossless.</li>
-<li>Edit maps (GeoJSON, KML, GPX) and view many more formats: ebooks, 3D models, fonts, SQLite databases, email, archives (zip, 7z, RAR), performance traces (Perfetto, Chrome, systrace, ftrace, Fuchsia, ninja logs, strace, logcat) and images, with on-device text recognition.</li>
+<li>Edit maps (GeoJSON, KML, GPX) and view many more formats: ebooks, 3D models, fonts, SQLite databases, email, archives (zip, 7z, RAR), performance traces (Perfetto, Chrome, systrace, ftrace, Fuchsia, ninja logs, strace, logcat), CPU profiles as flame graphs (pprof, perf, simpleperf, Firefox Profiler, Chrome, speedscope) and images, with on-device text recognition.</li>
 <li>Command palette, light and dark themes, and version history to roll back changes.</li>
 </ul>
 

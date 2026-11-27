@@ -87,6 +87,7 @@ a page for each one, generated from the app itself.
 | **Maps** | GeoJSON, KML, KMZ and GPX in an interactive map editor, with measuring and drawing |
 | **Subtitles** | SRT, WebVTT, ASS and SSA, with a waveform timeline, transcription and translation |
 | **Performance traces** | Perfetto (.pftrace, .perfetto-trace, compressed or not), Chrome JSON traces, Android systrace (text, HTML or .ctrace), Linux ftrace text, Fuchsia traces (.fxt), ninja build logs (.ninja_log), strace output, adb logcat text and zip or tar archives of traces, as a timeline with CPU scheduling, thread states, flows, counters and logcat |
+| **CPU profiles** | pprof (gzipped or not), perf script, simpleperf (text or protobuf), Firefox Profiler and samply JSON, Chrome and Node .cpuprofile, speedscope and collapsed stacks, as a flame graph (inverted too), a call tree and a functions table, by thread and time range |
 | **Archives** | ZIP, TAR, 7z, RAR and friends: browse them, open a file inside, or edit and put it back |
 | **Everything else** | Unknown text opens as text, unknown binary opens as a hex view. Nothing ever fails to open. |
 

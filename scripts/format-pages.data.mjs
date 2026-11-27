@@ -594,6 +594,29 @@ export const PAGES = [
     note: "Traces open for viewing. Omnitext does not run SQL queries or metrics on them, as Perfetto's own tools do.",
   },
   {
+    id: "profiles",
+    viewOnly: true,
+    shot: {
+      name: "profile",
+      caption:
+        "Perfetto's public simpleperf profile of Google Maps on Android, as a flame graph coloured by code type: native libraries, ART-compiled and DEX code, with the call under the pointer timed.",
+    },
+    formats: ["pprof", "perfscript", "collapsed", "geckoprofile", "cpuprofile", "speedscope", "simpleperf"],
+    name: "CPU profile",
+    headline: "Open a CPU profile as a flame graph on your phone",
+    summary:
+      "View pprof, perf, Firefox Profiler, Chrome and Node .cpuprofile, speedscope, simpleperf and collapsed-stack profiles as a flame graph and a call tree, without uploading them anywhere.",
+    lead: "A sampling profile answers one question: where did the time go? Omnitext reads the profile on the device you have it on and shows the answer as a flame graph you can tap into, a call tree and a table of the hottest functions.",
+    can: [
+      "Zoom into any frame of the flame graph with a click or a tap, pinch and pan, and see each function's own and total time on hover",
+      "Turn the graph upside down to see who calls the hottest functions, and search to highlight a function everywhere it appears",
+      "Sort the call tree and the functions table by total or self time, and expand a function to see its callers",
+      "Pick a thread or a process, a sample type (CPU, wall time, allocations), and a time range from the samples-over-time strip",
+      "Read pprof (gzipped or not), perf script and simpleperf text, Firefox Profiler and samply JSON with their markers, Chrome and Node .cpuprofile, speedscope files, simpleperf protobuf and Brendan Gregg's collapsed stacks",
+    ],
+    note: "Profiles open for viewing. Omnitext does not symbolize raw addresses: a profile shows the names it was saved with.",
+  },
+  {
     id: "archives",
     shot: {
       name: "archive",
