@@ -239,29 +239,41 @@ export class ModelBuilder {
       else if (meta.pid !== undefined) group(`p:${meta.pid}`, "", meta.pid).tracks.push(track);
       else group("global", "").tracks.push(track);
     }
-    // Interval tracks: aliases first merge keys that point to the same final track.
-    const merged = new Map<string, Intervals>();
+    // Interval tracks: aliases merge keys that point to the same final track, and the tracks of
+    // a process that share a name share a row (an unnamed one takes its first slice's name).
+    const merged = new Map<string, { iv: Intervals; tid?: number; pid?: number; label: string }>();
     for (const [key, iv] of this.intervals) {
       const k = this.resolve(key);
-      const into = merged.get(k);
-      if (!into) merged.set(k, iv);
-      else for (const f of ["ts", "dur", "name", "arg"] as const) for (const v of iv[f]) into[f].push(v);
+      const meta = this.meta.get(k) ?? {};
+      const tid = k.startsWith("t:") ? Number(k.slice(2)) : meta.tid;
+      let row: string;
+      let pid: number | undefined;
+      let label: string;
+      if (tid !== undefined) {
+        const thread = this.threads.get(tid);
+        pid = thread?.pid ?? meta.pid;
+        label = `${thread?.name ?? ""} ${tid}`.trim();
+        row = `t:${tid}`;
+      } else {
+        pid = meta.pid;
+        label = meta.label || this.names[iv.name[0] ?? -1] || "";
+        row = `n:${pid ?? ""}:${label}`;
+      }
+      const into = merged.get(row);
+      if (!into) merged.set(row, { iv, tid, pid, label });
+      else for (const f of ["ts", "dur", "name", "arg"] as const) for (const v of iv[f]) into.iv[f].push(v);
     }
     const nameCount = new Int32Array(this.names.length);
     let sliceCount = 0;
     const threadTracks: SliceTrack[] = [];
-    for (const [key, iv] of merged) {
-      const meta = this.meta.get(key) ?? {};
-      const tid = key.startsWith("t:") ? Number(key.slice(2)) : meta.tid;
-      const thread = tid !== undefined ? this.threads.get(tid) : undefined;
-      const pid = thread?.pid ?? meta.pid;
-      const label = tid !== undefined ? `${thread?.name ?? ""} ${tid}`.trim() : (meta.label ?? key);
-      const track = buildSlices(iv, end, id++, label, nameCount);
-      if (tid !== undefined) track.tid = tid;
-      if (pid !== undefined) track.pid = pid;
+    const others = [...merged.values()].filter((m) => m.tid === undefined).sort((a, b) => a.label.localeCompare(b.label));
+    for (const m of [...others, ...[...merged.values()].filter((x) => x.tid !== undefined)]) {
+      const track = buildSlices(m.iv, end, id++, m.label, nameCount);
+      if (m.tid !== undefined) track.tid = m.tid;
+      if (m.pid !== undefined) track.pid = m.pid;
       sliceCount += track.count;
-      if (tid !== undefined) threadTracks.push(track);
-      else if (pid !== undefined) group(`p:${pid}`, "", pid).tracks.push(track);
+      if (m.tid !== undefined) threadTracks.push(track);
+      else if (m.pid !== undefined) group(`p:${m.pid}`, "", m.pid).tracks.push(track);
       else group("global", "").tracks.push(track);
     }
     threadTracks.sort((a, b) => a.tid! - b.tid!);
@@ -269,6 +281,9 @@ export class ModelBuilder {
       if (t.pid !== undefined) group(`p:${t.pid}`, "", t.pid).tracks.push(t);
       else group("threads", "").tracks.push(t);
     }
+    // Counters, then threads, then the process's other tracks.
+    const rank = (t: Track) => (t.kind === "counter" ? 0 : t.kind === "slices" && t.tid !== undefined ? 1 : 2);
+    for (const g of groups.values()) if (g !== cpuGroup) g.tracks.sort((a, b) => rank(a) - rank(b));
     const ordered: TrackGroup[] = [];
     if (cpuGroup.tracks.length) ordered.push(cpuGroup);
     const procs = [...groups.values()].filter((g) => g.pid !== undefined).sort((a, b) => a.pid! - b.pid!);
@@ -367,6 +382,11 @@ function buildCounter(c: { ts: number[]; val: number[] }, id: number, label: str
   return t;
 }
 
+const levelEnd = (lv: Intervals | undefined): number => {
+  const n = lv ? lv.ts.length : 0;
+  return n ? lv!.ts[n - 1]! + lv!.dur[n - 1]! : -Infinity;
+};
+
 /** Nests intervals into levels: longest first at equal starts, each on the first level it fits. */
 function buildSlices(iv: Intervals, end: number, id: number, label: string, nameCount: Int32Array): SliceTrack {
   const n = iv.ts.length;
@@ -382,8 +402,11 @@ function buildSlices(iv: Intervals, end: number, id: number, label: string, name
     if (dur < 0) dur = Math.max(0, end - ts);
     while (stack.length && stack[stack.length - 1]! <= ts) stack.pop();
     let depth = stack.length;
-    // A slice that overflows its parent (bad nesting) is clipped to keep each level sorted.
-    if (depth > 0 && ts + dur > stack[depth - 1]!) dur = Math.max(0, stack[depth - 1]! - ts);
+    // A slice that overflows its parent is not nested in it (async tracks overlap freely): it
+    // goes on the first level below the open ones that is free by then, and parents nothing.
+    const nested = depth === 0 || ts + dur <= stack[depth - 1]!;
+    const open = depth;
+    while (depth < levels.length && levelEnd(levels[depth]) > ts) depth++;
     if (depth > 255) depth = 255;
     let lv = levels[depth];
     if (!lv) levels[depth] = lv = emptyIntervals();
@@ -396,8 +419,12 @@ function buildSlices(iv: Intervals, end: number, id: number, label: string, name
     lv.name.push(iv.name[i]!);
     lv.arg.push(iv.arg[i]!);
     if (iv.name[i]! >= 0) nameCount[iv.name[i]!]!++;
-    if (depth < 255) stack[depth] = ts + dur;
-    stack.length = depth + 1;
+    if (nested && depth < 255) {
+      // Levels skipped over hold overlapping slices that still run: they count as open.
+      for (let d = open; d < depth; d++) stack[d] = levelEnd(levels[d]);
+      stack[depth] = ts + dur;
+      stack.length = depth + 1;
+    }
   }
   return {
     kind: "slices", id, label, count: n,

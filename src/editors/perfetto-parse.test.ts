@@ -132,3 +132,72 @@ describe("Perfetto sniffing", () => {
     expect(looksLikePerfetto(fake)).toBe(false);
   });
 });
+
+describe("Chrome-style track events (as Chrome writes them)", () => {
+  const boot = 9_000_000_000;
+  const mono = 8_000_000_000; // MONOTONIC is 1 s behind BOOTTIME in the global snapshot
+  // Global snapshot on sequence 1, then a sequence whose clock 65 (incremental, in us) is
+  // defined against MONOTONIC, not the trace clock: Chrome's layout.
+  const head = [
+    [u(10, 1), m(6, m(1, u(1, 6), u(2, boot)), m(1, u(1, 3), u(2, mono)), u(2, 6))],
+    [u(10, 2), u(13, 1), u(79, 50), m(59, u(58, 65), m(11, u(11, 7))), m(6, m(1, u(1, 3), u(2, mono + 1_000_000)), m(1, u(1, 65), u(2, (mono + 1_000_000) / 1000), u(4, 1000), u(3, 1)))],
+    [u(10, 2), u(79, 50), m(60, u(1, 7), m(4, u(1, 50), u(2, 51), s(5, "CrBrowserMain")))],
+    [u(10, 2), u(79, 50), m(60, u(1, 1), m(3, u(1, 50), s(6, "Browser")))],
+  ];
+
+  it("follows a sequence clock defined against MONOTONIC", () => {
+    const t = trace(...head, [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 3), s(23, "Tick"))]);
+    const { model } = parseTraceSync(t);
+    // 1 ms after the snapshot in MONOTONIC, +10 us, moved onto BOOTTIME.
+    expect(allSlices(model)).toEqual([["CrBrowserMain 51", "Tick", boot + 1_000_000 + 10_000, 0, 0]]);
+  });
+
+  it("puts events with no track_uuid on the sequence's default track", () => {
+    const t = trace(...head, [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 1), s(23, "Task"))], [u(10, 2), u(79, 50), u(8, 5), m(11, u(9, 2))]);
+    const [slice] = allSlices(parseTraceSync(t).model);
+    expect(slice!.slice(0, 2)).toEqual(["CrBrowserMain 51", "Task"]);
+    expect(slice![3]).toBe(5000);
+  });
+
+  it("reads untyped legacy events by their phase", () => {
+    const legacy = (phase: string, ...more: number[][]) => m(6, u(2, phase.charCodeAt(0)), ...more);
+    const t = trace(
+      ...head,
+      [u(10, 2), u(79, 50), u(8, 100), m(11, s(23, "Complete"), legacy("X", u(3, 5)))],
+      [u(10, 2), u(79, 50), u(8, 10), m(11, s(23, "Outer"), legacy("B"))],
+      [u(10, 2), u(79, 50), u(8, 100), m(11, legacy("E"))],
+      // Async begin/end matched by id, with an explicit track_uuid of 0 ("no track").
+      [u(10, 2), u(79, 50), u(8, 1), m(11, u(11, 0), s(23, "Load"), legacy("b", u(10, 99)))],
+      [u(10, 2), u(79, 50), u(8, 1), m(11, u(11, 0), s(23, "Load"), legacy("b", u(10, 98)))],
+      [u(10, 2), u(79, 50), u(8, 300), m(11, u(11, 0), s(23, "Load"), legacy("e", u(10, 99)))],
+      [u(10, 2), u(79, 50), u(8, 100), m(11, u(11, 0), s(23, "Load"), legacy("e", u(10, 98)))],
+    );
+    const { model } = parseTraceSync(t);
+    const t0 = boot + 1_000_000;
+    // Times accumulate on the incremental clock: 100, 110, 210, 211, 212, 512, 612 us.
+    expect(allSlices(model)).toEqual([
+      ["CrBrowserMain 51", "Complete", t0 + 100_000, 5_000, 0],
+      ["CrBrowserMain 51", "Outer", t0 + 110_000, 100_000, 0],
+      ["Load", "Load", t0 + 211_000, 301_000, 0],
+      ["Load", "Load", t0 + 212_000, 400_000, 1],
+    ]);
+    const g = model.groups.find((x) => x.pid === 50)!;
+    expect(g.label).toBe("Browser 50");
+    // Threads before the process's other tracks.
+    expect(g.tracks.map((x) => x.label)).toEqual(["CrBrowserMain 51", "Load"]);
+  });
+
+  it("names unnamed tracks after their slices and merges same-named ones", () => {
+    const t = trace(
+      ...head,
+      [u(10, 2), m(60, u(1, 20), u(5, 1))],
+      [u(10, 2), m(60, u(1, 21), u(5, 1))],
+      [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 3), u(11, 20), s(23, "Navigation"))],
+      [u(10, 2), u(79, 50), u(8, 10), m(11, u(9, 3), u(11, 21), s(23, "Navigation"))],
+    );
+    const g = parseTraceSync(t).model.groups.find((x) => x.pid === 50)!;
+    const nav = g.tracks.filter((x) => x.label === "Navigation") as SliceTrack[];
+    expect(nav).toHaveLength(1);
+    expect(nav[0]!.count).toBe(2);
+  });
+});

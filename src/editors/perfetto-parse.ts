@@ -171,7 +171,9 @@ const BOOTTIME = 6;
 /** A sequence-scoped clock (id 64 and up) as a ClockSnapshot on that sequence defines it. */
 interface SeqClock {
   ref: number;
-  boot: number;
+  /** The snapshot's value of a global clock, and which one: often MONOTONIC, not the trace clock. */
+  base: number;
+  baseClock: number;
   mult: number;
   incremental: boolean;
   last: number;
@@ -260,6 +262,7 @@ class TraceParser {
     let defEnd = -1;
     let raw = -1;
     let clockId = -1;
+    let trustedPid = 0;
     try {
       while (r.pos < end) {
         const tag = r.varint();
@@ -267,6 +270,7 @@ class TraceParser {
         const wt = tag & 7;
         if (field === 8 && wt === 0) raw = r.varint();
         else if (field === 58 && wt === 0) clockId = r.varint();
+        else if (field === 79 && wt === 0) trustedPid = r.int32();
         else if (field === 10 && wt === 0) seqId = r.varint();
         else if (field === 13 && wt === 0) flags |= r.varint();
         else if (field === 41 && wt === 0) flags |= r.varint() ? 1 : 0;
@@ -308,7 +312,7 @@ class TraceParser {
         case 2: return this.processTree(d);
         case 6: return this.clockSnapshot(d, seq);
         case 9: return this.processStats(d);
-        case 11: return ts !== null ? this.trackEvent(d, seq, ts) : undefined;
+        case 11: return ts !== null ? this.trackEvent(d, seq, ts, trustedPid) : undefined;
         case 39: return this.androidLog(d);
         case 43: return this.processDescriptor(d);
         case 44: return this.threadDescriptor(d, seq);
@@ -327,7 +331,8 @@ class TraceParser {
       const c = seq.clocks.get(clockId);
       if (!c) return null;
       const v = c.incremental ? (c.last += raw) : raw;
-      return c.boot + (v - c.ref) * c.mult;
+      const off = c.baseClock === this.primary ? 0 : this.offsets.get(c.baseClock);
+      return off === undefined ? null : c.base + off + (v - c.ref) * c.mult;
     }
     const off = this.offsets.get(clockId);
     return off === undefined ? null : raw + off;
@@ -695,11 +700,16 @@ class TraceParser {
       return true;
     });
     const p = clocks.get(primary);
-    if (!p) return;
+    // A sequence clock is defined against whichever global clock its snapshot carries.
+    let baseClock = p ? primary : -1;
+    for (const id of clocks.keys()) if (baseClock < 0 && id < 64) baseClock = id;
+    const base = clocks.get(baseClock);
     for (const [id, c] of clocks) {
-      if (id >= 64) seq.clocks.set(id, { ref: c.t, boot: p.t, mult: c.mult, incremental: c.inc, last: c.t });
-      else if (!this.offsets.has(id)) this.offsets.set(id, p.t - c.t);
+      if (id >= 64) {
+        if (base) seq.clocks.set(id, { ref: c.t, base: base.t, baseClock, mult: c.mult, incremental: c.inc, last: c.t });
+      } else if (p && !this.offsets.has(id)) this.offsets.set(id, p.t - c.t);
     }
+    if (!p) return;
     if (!this.wall) {
       this.primary = primary;
       const realtime = clocks.get(1)?.t;
@@ -707,15 +717,17 @@ class TraceParser {
     }
   }
 
-  private trackEvent(r: Reader, seq: SeqState, ts: number): void {
+  private trackEvent(r: Reader, seq: SeqState, ts: number, trustedPid: number): void {
     let type = 0;
     let name: string | undefined;
     let iid = 0;
     let track: string | null = null;
     let value: number | null = null;
+    let legacy: Reader | null = null;
     const anns: Reader[] = [];
     this.each(r, (f, wt) => {
       if (f === 9 && wt === 0) type = r.varint();
+      else if (f === 6 && wt === 2) legacy = this.sub(r);
       else if (f === 23 && wt === 2) name = this.text(r);
       else if (f === 10 && wt === 0) iid = r.varint();
       else if (f === 11 && wt === 0) track = r.idKey();
@@ -725,7 +737,12 @@ class TraceParser {
       else return false;
       return true;
     });
+    if (legacy && !type) {
+      this.legacyEvent(legacy, seq, ts, trustedPid, name, iid, anns, track);
+      return;
+    }
     if (name === undefined && iid) name = seq.names.get(iid) ?? `#${iid}`;
+    if (track === "0:0") track = null;
     const key = this.trackKey(track ?? seq.track, seq);
     if (!key) return;
     const b = this.b;
@@ -749,6 +766,49 @@ class TraceParser {
     const arg = anns.length ? b.arg(anns.map((a) => this.annotation(a, seq)).join("\n")) : -1;
     if (type === 1) b.begin(key, key, ts, nameId, arg);
     else if (type === 3) b.slice(key, ts, 0, nameId, arg);
+  }
+
+  /** A TrackEvent without a type: the phase of its legacy_event (Chrome's JSON phases) says what it is. */
+  private legacyEvent(r: Reader, seq: SeqState, ts: number, trustedPid: number, name: string | undefined, iid: number, anns: Reader[], track: string | null): void {
+    let phase = 0;
+    let dur = 0;
+    let id = "";
+    let scope = "";
+    let pid = trustedPid;
+    this.each(r, (f, wt) => {
+      if (f === 1 && wt === 0) iid = r.varint();
+      else if (f === 2 && wt === 0) phase = r.int32();
+      else if (f === 3 && wt === 0) dur = r.int64();
+      else if ((f === 6 || f === 10 || f === 11) && wt === 0) id = `${f}:${r.idKey()}`;
+      else if (f === 7 && wt === 2) scope = this.text(r);
+      else if (f === 18 && wt === 0) pid = r.int32();
+      else return false;
+      return true;
+    });
+    if (name === undefined && iid) name = seq.names.get(iid) ?? `#${iid}`;
+    const b = this.b;
+    const ph = String.fromCharCode(phase);
+    // An explicit track uuid of 0 means "no track": such events belong to the sequence's thread.
+    const own = track && track !== "0:0" ? track : null;
+    const key = this.trackKey(own ?? seq.track, seq);
+    const arg = () => (anns.length ? b.arg(anns.map((a) => this.annotation(a, seq)).join("\n")) : -1);
+    if (ph === "B" || ph === "E" || ph === "X" || ph === "I" || ph === "i" || ph === "R") {
+      if (!key) return;
+      if (ph === "E") b.end(key, ts);
+      else if (ph === "B") b.begin(key, key, ts, b.name(name ?? ""), arg());
+      else b.slice(key, ts, ph === "X" ? Math.max(0, dur * 1000) : 0, b.name(name ?? ""), arg());
+      return;
+    }
+    if ("beSFnT".includes(ph) && pid > 0) {
+      // Async events: one track per name in the process, matched by id.
+      const label = name ?? "";
+      const asyncKey = `a:${pid}:${label}`;
+      b.describe(asyncKey, { label, pid });
+      const match = `${asyncKey}:${scope}:${id}`;
+      if (ph === "b" || ph === "S") b.begin(match, asyncKey, ts, b.name(label), arg());
+      else if (ph === "e" || ph === "F") b.end(match, ts);
+      else b.slice(asyncKey, ts, 0, b.name(label), arg());
+    }
   }
 
   /** The builder key for a track uuid (described now or later), or the sequence's thread. */

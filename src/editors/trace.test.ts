@@ -43,13 +43,17 @@ describe("trace model", () => {
     ]);
   });
 
-  it("clips a slice that overflows its parent so levels stay sorted", () => {
+  it("puts overlapping slices that do not nest on a free level, whole", () => {
     const b = new ModelBuilder();
     b.slice("t:1", 0, 100, b.name("p"));
-    b.slice("t:1", 50, 100, b.name("c"));
+    b.slice("t:1", 10, 20, b.name("child"));
+    b.slice("t:1", 50, 100, b.name("overlap"));
+    b.slice("t:1", 60, 10, b.name("inside overlap"));
     expect(allSlices(b.finish())).toEqual([
       ["1", "p", 0, 100, 0],
-      ["1", "c", 50, 50, 1],
+      ["1", "child", 10, 20, 1],
+      ["1", "overlap", 50, 100, 1],
+      ["1", "inside overlap", 60, 10, 2],
     ]);
   });
 
@@ -78,7 +82,7 @@ describe("trace model", () => {
     const m = b.finish();
     const g = m.groups.find((x) => x.pid === 4)!;
     expect(g.label).toBe("app 4");
-    expect(g.tracks.map((t) => t.label)).toEqual(["Memory", "Loads", "worker 42"]);
+    expect(g.tracks.map((t) => t.label)).toEqual(["Memory", "worker 42", "Loads"]);
     const c = g.tracks[0] as CounterTrack;
     expect([c.min, c.max]).toEqual([5, 9]);
   });
@@ -186,10 +190,10 @@ describe("Chrome JSON traces", () => {
     expect(m.start).toBe(10_000);
     expect(m.end).toBe(110_000);
     expect(allSlices(m)).toEqual([
-      ["Load", "Load", 15_000, 80_000, 0],
       ["CrBrowserMain 2", "Task", 10_000, 100_000, 0],
       ["CrBrowserMain 2", "Inner", 20_000, 10_000, 1],
       ["CrBrowserMain 2", "Mark", 50_000, 0, 1],
+      ["Load", "Load", 15_000, 80_000, 0],
     ]);
     const g = m.groups.find((x) => x.pid === 1)!;
     expect(g.label).toBe("Browser 1");
