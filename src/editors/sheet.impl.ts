@@ -49,6 +49,9 @@ import { publishPosition, watchPeers } from "./peer-presence";
 import { OpSequencer, shiftCells, type StructuralOp } from "./sheet-structure";
 import { debug } from "../core/debug";
 import { OFFICE_PICTURES, pictureFromFile } from "../formats/picture-convert";
+import { sheetExportKind } from "../formats/sheet-export";
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 // Thin adapter wrapping the standalone sheetedit library (.xlsx/.ods/.csv grid editor
 // with formula recalculation and in-place preservation) as an Omnitext editor module.
@@ -59,6 +62,8 @@ class SheetInstance implements EditorInstance {
   private bytes: Uint8Array = new Uint8Array();
   private text = "";
   private binary = true;
+  /** A text document holding an XML or web page spreadsheet export, read by content. */
+  private textExport = false;
   private disposed = false;
   private fullscreen: ReadingFullscreen | null = null;
   /** Set while a session is running; every local cell edit is mirrored into it. */
@@ -89,6 +94,14 @@ class SheetInstance implements EditorInstance {
     if (isNative()) document.body.classList.add("ot-own-bar");
     this.text = ctx.text;
     this.bytes = ctx.bytes ?? new TextEncoder().encode(ctx.text);
+    // An XML or web page export as text: a BOM, so the charset it declares cannot misread the UTF-8.
+    this.textExport = !ctx.binary && !!sheetExportKind(this.bytes);
+    if (this.textExport) {
+      const withBom = new Uint8Array(this.bytes.length + 3);
+      withBom.set([0xef, 0xbb, 0xbf]);
+      withBom.set(this.bytes, 3);
+      this.bytes = withBom;
+    }
     // The app's language also sets how numbers, dates and formulas read: "=SOMME(A1;0,5)" in French,
     // unless the settings keep them English.
     setLocale(getLocale());
@@ -155,7 +168,7 @@ class SheetInstance implements EditorInstance {
         this.propose({ kind: op.kind, axis: op.axis, sheet: op.sheet, at: op.at, count: op.count });
         return false;
       },
-      formatHint: ctx.binary ? undefined : isTsv ? "tsv" : "csv",
+      formatHint: ctx.binary || this.textExport ? undefined : isTsv ? "tsv" : "csv",
       fileName: ctx.filename,
       onConvert: (bytes, name) => {
         window.dispatchEvent(
@@ -492,8 +505,15 @@ class SheetInstance implements EditorInstance {
   }
 
   saveWarnings(): string[] {
-    const notice = this.editor?.importNotice();
+    const notice = this.binary ? this.editor?.importNotice() : null;
     return [...(this.editor?.saveWarnings() ?? []), ...(notice ? [notice] : [])];
+  }
+
+  /** An export opened as text is never overwritten with a workbook: it is saved as a new .xlsx. */
+  saveConverts(): { ext: string; mime: string; notice: string | null } | null {
+    const editor = this.editor;
+    if (this.binary || !editor?.importedFrom()) return null;
+    return { ext: ".xlsx", mime: XLSX_MIME, notice: editor.importNotice() };
   }
 
   selection(): unknown {

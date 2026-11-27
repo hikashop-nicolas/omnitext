@@ -343,6 +343,9 @@ export interface EditorInstance {
   exports?(): ExportTarget[];
   /** What saving in the open format will not keep, one sentence each; the host confirms first. */
   saveWarnings?(): string[];
+  /** The open file is never written back from this view (a spreadsheet read from an XML or web page
+   *  export): Save writes getBytes() as a new file of this type, and the notice is shown once first. */
+  saveConverts?(): { ext: string; mime: string; notice: string | null } | null;
   /** Opaque, editor-owned selection token; only this editor interprets it. */
   selection(): unknown;
   /** Editor-scoped commands; active-editor bindings win over non-global globals. */

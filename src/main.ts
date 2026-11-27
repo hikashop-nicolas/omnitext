@@ -70,6 +70,7 @@ import { typescriptFormat } from "./formats/typescript";
 import { pdfFormat } from "./formats/pdf";
 import { rtfFormat } from "./formats/rtf";
 import { xlsFormat, xlsTextFormat } from "./formats/xls";
+import { sheetExportFormatFor, sheetExportFormats } from "./formats/sheet-export";
 import { xlsxFormat } from "./formats/xlsx";
 import { xmlFormat } from "./formats/xml";
 import { yamlFormat } from "./formats/yaml";
@@ -322,6 +323,8 @@ engine.registerFormat(pptxFormat);
 engine.registerFormat(epubFormat);
 // After xlsFormat, so a real .xls stays the default for its extension.
 engine.registerFormat(xlsTextFormat);
+// Spreadsheet exports under a web page or XML name: claimed by content in openBuffer, never by name.
+for (const f of sheetExportFormats) engine.registerFormat(f);
 // Data/design/PIM viewers (open-only). ipynb/ics/vcf are text (raw editing via the text
 // editor); font/sqlite/eml/msg/tiff/torrent are binary.
 engine.registerFormat(fontFormat);
@@ -812,7 +815,8 @@ async function mountDoc(opts: MountOpts): Promise<void> {
       created: !!opts.created,
       onChange: () => {
         if (!session) return;
-        session.dirty = session.binary
+        // A spreadsheet read from an export keeps its source text as is, so its edits count by themselves.
+        session.dirty = session.binary || session.editor!.saveConverts?.()
           ? true
           : session.editor!.getText() !== session.lastSavedText;
         // Keep the active editor's cache entry current so a later switch-and-return reuses it.
@@ -1162,8 +1166,11 @@ async function openBuffer(
     return;
   }
   const decoded = decodeBytes(buffer);
+  // A spreadsheet saved as XML or a web page opens in the sheet editor; other XML and pages as before.
+  const sheetExport = await sheetExportFormatFor(new Uint8Array(buffer), filename, (ext) => engine.formats.byExtension(ext).length > 0);
   await mountDoc({
     text: decoded.text,
+    formatId: sheetExport,
     filename,
     encoding: decoded.encoding,
     uri: `${scheme}://${filename}`,
@@ -1500,6 +1507,11 @@ async function saveAsNative(bytes: Uint8Array, name: string): Promise<boolean> {
 
 async function saveFile(): Promise<void> {
   if (!session?.editor) return;
+  const convert = session.editor.saveConverts?.() ?? null;
+  if (convert) {
+    await saveConverted(convert);
+    return;
+  }
   if (!confirmLossySave()) return;
   if (session.archive) {
     await saveIntoArchive(session.archive);
@@ -1604,6 +1616,66 @@ async function saveFile(): Promise<void> {
   updateUI();
   engine.events.emit("documentSaved", { sessionId: session.id, uri: session.uri ?? "download" });
   setStatus(t("status.saved"));
+}
+
+/**
+ * Save a document whose own format this view never writes (a spreadsheet read from an XML or web page
+ * export) as a new file, then carry on in that file. The original stays as it was.
+ */
+async function saveConverted(target: { ext: string; mime: string; notice: string | null }): Promise<void> {
+  const current = session;
+  const editor = current?.editor;
+  if (!current || !editor) return;
+  const name = `${(current.filename || t("app.untitled")).replace(/\.[^./]*$/, "")}${target.ext}`;
+  if (target.notice && !current.lossAccepted) {
+    if (!window.confirm(t("app.convertSaveConfirm", { notice: target.notice, name }))) return;
+    current.lossAccepted = true;
+  }
+  // Asked before serializing, as saveFile does: the picker needs the click.
+  let chosen: FsHandle | null = null;
+  if (!isNative() && window.showSaveFilePicker) {
+    try {
+      chosen = await window.showSaveFilePicker({ suggestedName: name });
+    } catch (e) {
+      if ((e as DOMException)?.name === "AbortError") return;
+      console.error("save-as picker failed, falling back to a download", e);
+    }
+  }
+  let bytes: Uint8Array | undefined;
+  let picked: PickedDocument | null = null;
+  try {
+    bytes = await editor.getBytes?.();
+    if (!bytes) {
+      engine.notificationSink.error(t("notify.cannotSave"));
+      return;
+    }
+    if (isNative()) {
+      picked = await createDocumentNative(name, target.mime);
+      if (!picked) return;
+      await writeDocumentNative(picked.uri, bytes);
+    } else if (chosen) {
+      const w = await chosen.createWritable();
+      await w.write(bytes);
+      await w.close();
+    } else {
+      downloadBytes(bytes, name);
+    }
+  } catch (e) {
+    console.error("save failed", e);
+    engine.notificationSink.error(t("notify.saveFailed"));
+    return;
+  }
+  const savedName = picked?.name ?? chosen?.name ?? name;
+  const copy = bytes.slice();
+  await openBuffer(copy.buffer as ArrayBuffer, savedName, chosen ? "fs" : "upload", chosen, target.mime);
+  if (picked && session) {
+    session.nativeUri = picked.uri;
+    session.nativeWritable = true;
+    void rememberRecent({ kind: "android", name: picked.name, uri: picked.uri, key: picked.key });
+  } else if (chosen) {
+    void rememberRecent({ kind: "handle", name: chosen.name, handle: chosen });
+  }
+  setStatus(t("status.savedAs", { name: savedName }));
 }
 
 /** Before an edited document is written in a format that drops some of it: ask, once per document. */
@@ -2144,6 +2216,8 @@ async function changeEditor(
   const text = session.editor.getText();
   const switchBytes = session.binary ? ((await session.editor.getBytes?.()) ?? null) : null;
   const prevSaved = session.lastSavedText; // keep the on-disk baseline across the switch
+  // Edits to a spreadsheet read from an export live in its (kept) sheet editor, not in the text.
+  const sheetEdits = session.dirty && !!session.editor.saveConverts?.();
   const prevArchive = session.archive; // keep the archive write-back context across the switch
   const ctx = await engine.events.runHook("willChangeEditor", {
     sessionId: session.id,
@@ -2177,7 +2251,7 @@ async function changeEditor(
   // restore the on-disk baseline and recompute dirty against it.
   if (session.editor && !session.binary) {
     session.lastSavedText = prevSaved;
-    session.dirty = session.editor.getText() !== prevSaved;
+    session.dirty = sheetEdits || session.editor.getText() !== prevSaved;
   }
   updateUI();
 }
