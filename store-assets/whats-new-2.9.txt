@@ -1,9 +1,10 @@
 New in this update:
 
-• Performance traces on a timeline: Perfetto, Chrome, systrace, ftrace and more
-• CPU profiles as flame graphs: pprof, perf, Firefox Profiler, V8
-• .xls opens and saves with every sheet, chart, form control and macro
-• Password-protected .xls, and web or XML exports named .xls, open too
+• Performance traces on a timeline, CPU profiles as flame graphs
+• .xls opens and saves with every sheet, chart, control and macro
+• Password-protected .xls and web or XML exports open as sheets
+• Any font in PDFs: from your device, Google Fonts or a file
+• Load font files in every editor; embed fonts in slides
 • Spreadsheets: formulas across sheets, faster big workbooks
 • Android: Back returns to the start screen
 
