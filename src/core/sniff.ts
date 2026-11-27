@@ -51,9 +51,46 @@ export function sniffHead(b: Uint8Array): string | null {
   if (starts(b, [0xfd, 0x37, 0x7a, 0x58, 0x5a, 0])) return "xz";
   if (/^BZh[1-9]/.test(ascii(b, 0, 4))) return "bzip2";
   if (ascii(b, 257, 5) === "ustar") return "tar";
+  if (looksLikePerfetto(b)) return "perfetto";
   // PDF readers accept junk before the header, up to 1 KiB.
   if (/%PDF-\d\.\d/.test(ascii(b, 0, 1024))) return "pdf";
   return null;
+}
+
+// Perfetto traces (protobuf) have no magic number of their own.
+const SYNC_MARKER = [0x82, 0x47, 0x7a, 0x76, 0xb2, 0x8d, 0x42, 0xba, 0x81, 0xdc, 0x33, 0x32, 0x6d, 0x57, 0xa0, 0x79];
+
+function pbVarint(b: Uint8Array, at: number): [number, number] | null {
+  let v = 0;
+  let mul = 1;
+  for (let i = at; i < b.length && i < at + 10; i++) {
+    v += (b[i]! & 0x7f) * mul;
+    if (b[i]! < 0x80) return [v, i + 1];
+    mul *= 128;
+  }
+  return null;
+}
+
+/**
+ * Whether these first bytes are a Perfetto trace: a run of well-formed field-1 packets, one of
+ * which holds the synchronization marker the tracing service writes near the start of a trace.
+ */
+export function looksLikePerfetto(b: Uint8Array): boolean {
+  if (b.length < 21 || b[0] !== 0x0a) return false;
+  let pos = 0;
+  while (pos < b.length) {
+    if (b[pos] !== 0x0a) return false;
+    const len = pbVarint(b, pos + 1);
+    if (!len) return false;
+    const [n, start] = len;
+    const end = Math.min(b.length, start + n);
+    // The marker is field 36 (tag a2 02), 16 bytes long (10).
+    for (let i = start; i + 19 <= end; i++) {
+      if (b[i] === 0xa2 && b[i + 1] === 0x02 && b[i + 2] === 0x10 && SYNC_MARKER.every((v, k) => b[i + 3 + k] === v)) return true;
+    }
+    pos = start + n;
+  }
+  return false;
 }
 
 // ISO base media brands (HEIF images, MP4/MOV/3GP video, M4A audio).

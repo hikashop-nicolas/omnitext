@@ -127,14 +127,14 @@ src/editors/   editing surfaces (codemirror, table, tree, preview, quill, milkdo
                ebookviewer, image, media, archive, psdviewer, aiviewer, fontviewer,
                sqliteviewer, parquetviewer, ipynbviewer, emailviewer, pimviewer, walletviewer,
                tiffviewer, heicviewer, rawviewer, torrentviewer, model3dviewer, dxfviewer,
-               dicomviewer, recordsviewer, binary/hex)
+               dicomviewer, perfettoviewer, recordsviewer, binary/hex)
 src/formats/   format modules (json/json5/yaml/xml/toml/ini/markdown/html/css/js/ts/python/
                sql/shell/dotenv/properties, latex, svg, geojson/kml/kmz/gpx/topojson/wkt/shp,
                pdf, docx/odt/doc, xlsx/xlsm/ods/xls, pptx, epub and ebooks, rtf, psd, ai, font,
                sqlite, parquet/arrow, ipynb, eml/msg, ics/vcf, pkpass/healthcard/bcbp, subtitles
                (srt/vtt/ass/ssa/lrc/sbv/sami/ttml/microdvd/mpl2/ttxt/YouTube), music
                (musicxml/mxl/mscz/mscx/abc/Guitar Pro/midi), tiff, heic, raw, torrent, model3d,
-               dxf/dwg, dicom, the codemirror-formats long-tail table, and binary-viewers for
+               dxf/dwg, dicom, perfetto traces, the codemirror-formats long-tail table, and binary-viewers for
                images/media/archives)
 src/i18n/      app-shell translations (en, fr, de, es, it, pt, pl, ru, tr, ja, ko, zh) + auto-detect
 src/tools/     cross-cutting tools (history / diff, collaboration)

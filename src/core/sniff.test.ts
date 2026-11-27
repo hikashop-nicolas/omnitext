@@ -7,6 +7,7 @@ import { contentFormatFor, sniffFormat, sniffHead } from "./sniff";
 import { makeTextFormats } from "../formats/codemirror-formats";
 import { makeViewerFormats, makeGenericViewerFormats } from "../formats/binary-viewers";
 import { blankTemplate } from "../formats/blank-templates";
+import { sampleTrace } from "../editors/perfetto-trace.fixture";
 
 // Every format the app registers, so a sniffed id is checked against the real set (issue #53).
 const modules = import.meta.glob<Record<string, unknown>>(["../formats/*.ts", "!../formats/*.test.ts", "!../formats/*.impl.ts"], { eager: true });
@@ -66,6 +67,13 @@ describe("content sniffing (issue #53)", () => {
     expect(opened(bytesOf("hello world\n"), "notes.bin")).toBe(null);
     // A text file that talks about PDFs keeps its extension's format.
     expect(opened(bytesOf("The header is %PDF-1.7 then objects.\n"), "notes.md")).toBe(null);
+  });
+
+  it("opens a Perfetto trace with no extension by its synchronization marker (issue #69)", () => {
+    expect(opened(sampleTrace(), "trace")).toBe("perfetto");
+    expect(opened(sampleTrace(), "record.bin")).toBe("perfetto");
+    // Protobuf that is not a trace: field-1 records without the marker.
+    expect(opened(Uint8Array.from([0x0a, 3, 0x08, 1, 0x10, 0x0a, 2, 0x08, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), "x.bin")).toBe(null);
   });
 
   it("trusts a known extension unless the bytes are binary", () => {
