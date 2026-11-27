@@ -86,7 +86,7 @@ a page for each one, generated from the app itself.
 | **Audio and video** | The usual web formats plus MKV, MOV, AVCHD and more, including Dolby and Apple Lossless audio that browsers normally refuse, with subtitles. Several files, a folder or a playlist (M3U, PLS, XSPF) play as one queue with next, previous, repeat and shuffle |
 | **Maps** | GeoJSON, KML, KMZ and GPX in an interactive map editor, with measuring and drawing |
 | **Subtitles** | SRT, WebVTT, ASS and SSA, with a waveform timeline, transcription and translation |
-| **Performance traces** | Perfetto (.pftrace, .perfetto-trace, compressed or not), Chrome JSON traces and Android systrace (text or HTML), as a timeline with CPU scheduling, thread states, flows, counters and logcat |
+| **Performance traces** | Perfetto (.pftrace, .perfetto-trace, compressed or not), Chrome JSON traces, Android systrace (text, HTML or .ctrace), Linux ftrace text, Fuchsia traces (.fxt), ninja build logs (.ninja_log), strace output, adb logcat text and zip or tar archives of traces, as a timeline with CPU scheduling, thread states, flows, counters and logcat |
 | **Archives** | ZIP, TAR, 7z, RAR and friends: browse them, open a file inside, or edit and put it back |
 | **Everything else** | Unknown text opens as text, unknown binary opens as a hex view. Nothing ever fails to open. |
 
