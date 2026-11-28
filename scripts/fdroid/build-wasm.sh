@@ -402,13 +402,20 @@ build_onnxruntime() {
     mkdir -p "$src"
     # Fetch the one commit: it carries no tag, so clone --branch cannot reach it. Intel's fork
     # holds the same commits, for when Microsoft's repository is unreachable (it was in 2026-11).
-    (cd "$src" && git init -q &&
-      for url in https://github.com/microsoft/onnxruntime.git https://github.com/intel/onnxruntime.git; do
-        GIT_TERMINAL_PROMPT=0 git fetch -q --depth 1 "$url" "$ONNXRUNTIME_COMMIT" && break
-        echo "  $ONNXRUNTIME_COMMIT not fetched from $url" >&2
-      done &&
+    # A stalled transfer hung the F-Droid 2.9 build for 3.5 hours: abort below 1 KB/s for 2 min, retry.
+    stall="-c http.lowSpeedLimit=1024 -c http.lowSpeedTime=120"
+    (cd "$src" && git init -q && fetched= &&
+      for try in 1 2 3; do
+        for url in https://github.com/microsoft/onnxruntime.git https://github.com/intel/onnxruntime.git; do
+          GIT_TERMINAL_PROMPT=0 git $stall fetch -q --depth 1 "$url" "$ONNXRUNTIME_COMMIT" && { fetched=$url; break 2; }
+          echo "  $ONNXRUNTIME_COMMIT not fetched from $url" >&2
+        done
+      done && [ -n "$fetched" ] && echo "  fetched from $fetched" &&
       git -c advice.detachedHead=false checkout -q FETCH_HEAD &&
-      git submodule update -q --init --depth 1 cmake/external/emsdk cmake/external/onnx)
+      for try in 1 2 3; do
+        GIT_TERMINAL_PROMPT=0 git $stall submodule update -q --init --depth 1 cmake/external/emsdk cmake/external/onnx && break
+        [ "$try" = 3 ] && exit 1; echo "  submodules not fetched (attempt $try of 3)" >&2
+      done)
     # Its post-build script uses require(), and the checkout sits under a repository whose
     # package.json says "type": "module"; this stops node reading that one.
     echo '{ "type": "commonjs" }' >"$src/package.json"
@@ -425,6 +432,7 @@ build_onnxruntime() {
   # make carries on from what it built, so a second pass is cheap and settles it.
   : >"$WORK/onnxruntime-build.log"
   for attempt in 1 2 3; do
+    echo "  building (attempt $attempt), log in $WORK/onnxruntime-build.log"
     (cd "$src" && env -u EMSDK -u EM_CONFIG -u EMCC_SKIP_SANITY_CHECK PATH="$BASE_PATH" \
       EMSDK_NODE=/usr/bin/node python3 tools/ci_build/build.py \
       --build_dir "$src/BUILD" --config Release --skip_submodule_sync --parallel \
